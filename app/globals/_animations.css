@@ -1,0 +1,148 @@
+/* Animaciones para elementos UI */
+@keyframes fill-plate {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes float-up {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0)", opacity: "1" };
+}
+
+@keyframes slide-in {
+  "0%": { transform: "translateX(-20px)", opacity: "0" },
+  "100%": { transform: "translateX(0)", opacity: "1" },
+}
+
+@keyframes pulse-soft {
+  "0%, 100%": { opacity: "1" },
+  "50%": { opacity: "0.8" },
+}
+
+@keyframes glow {
+  "0%, 100%": { boxShadow: "0 0 15px 0px rgba(122, 184, 191, 0.4)" },
+  "50%": { boxShadow: "0 0 25px 5px rgba(122, 184, 191, 0.6)" },
+}
+
+@keyframes shimmer {
+  "0%": { backgroundPosition: "-500px 0" },
+  "100%": { backgroundPosition: "500px 0" },
+}
+
+@keyframes spin-slow {
+  "0%": { transform: "rotate(0deg)" },
+  "100%": { transform: "rotate(360deg)" },
+}
+
+/* Animaciones para el logo */
+@keyframes logo-wiggle {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+/* Animaciones para los treats */
+@keyframes treats-falling {
+  0% {
+    opacity: 0;
+    transform: translateY(-30%);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+@keyframes treat-particle {
+  0% {
+    opacity: 0;
+    transform: translate(0, -10px) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--random-x, 0) * 50px - 25px), 300px) rotate(calc(var(--random-r, 0) * 360deg));
+  }
+}
+
+/* Animación mejorada para el llenado del plato */
+@keyframes fill-plate-improved {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Animaciones para las partículas de ingredientes */
+@keyframes float-ingredient {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-15px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(15px) rotate(-5deg);
+  }
+}
+
+/* Animación para el efecto de reflejo en títulos */
+@keyframes reflection {
+  0% {
+    left: -100%;
+  }
+  20%,
+  100% {
+    left: 200%;
+  }
+}
+
+/* Animación para el efecto de brillo en títulos */
+@keyframes shine {
+  to {
+    background-position: 200% center;
+  }
+}
