@@ -4,8 +4,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter, ChevronDown, Check } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Filter, Check } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
@@ -146,7 +145,7 @@ export default function ComplementarPage() {
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
-      <div className="responsive-section bg-illuminated">
+      <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
         <div className="responsive-container">
           <div className="text-center mb-16">
             <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">Para Complementar</h1>
@@ -159,11 +158,13 @@ export default function ComplementarPage() {
           {/* Banner de categoría */}
           <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden mb-16">
             <Image src="/para_complementar.png" alt="Suplementos para perros" fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-pastel-green/80 to-transparent flex items-center">
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-pastel-green/80 flex items-center">
               <div className="p-8 md:p-12 max-w-xl">
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-display">Nutrición avanzada</h2>
-                <p className="text-white/90 mb-6">Complementos desarrollados por expertos en nutrición canina</p>
-                <Button className="bg-white text-primary hover:bg-white/90 rounded-full">Consulta nutricional</Button>
+                <p className="text-white mb-6">Complementos desarrollados por expertos en nutrición canina</p>
+                <Button className="bg-green-400 text-gray-900 hover:bg-green-500 font-medium rounded-full">
+                  Consulta nutricional
+                </Button>
               </div>
             </div>
           </div>
@@ -177,48 +178,6 @@ export default function ComplementarPage() {
             >
               <Filter className="h-4 w-4" /> Filtrar
             </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="rounded-full flex items-center gap-2">
-                  Ordenar por <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => a.name.localeCompare(b.name))
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Nombre (A-Z)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => b.name.localeCompare(a.name))
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Nombre (Z-A)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => a.price - b.price)
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Precio (menor a mayor)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => b.price - a.price)
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Precio (mayor a menor)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
 
           {/* Productos de la categoría - USANDO PRODUCTCARD */}

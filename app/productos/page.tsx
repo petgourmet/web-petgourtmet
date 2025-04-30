@@ -4,8 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/toaster"
 import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter, ChevronDown } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Filter } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
@@ -216,7 +215,7 @@ export default function ProductosPage() {
         </p>
       </div>
 
-      <div className="responsive-section bg-illuminated">
+      <div className="responsive-section bg-gradient-to-b from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800">
         <div className="responsive-container">
           {/* Controles de filtro y ordenación */}
           <div className="mb-8 flex justify-between items-center">
@@ -228,55 +227,7 @@ export default function ProductosPage() {
               <Filter className="h-4 w-4" /> Filtrar
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="rounded-full flex items-center gap-2">
-                  Ordenar por <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => a.name.localeCompare(b.name))
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Nombre (A-Z)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => b.name.localeCompare(a.name))
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Nombre (Z-A)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => {
-                      const priceA = a.price || (a.sizes && Math.min(...a.sizes.map((size) => size.price))) || 0
-                      const priceB = b.price || (b.sizes && Math.min(...b.sizes.map((size) => size.price))) || 0
-                      return priceA - priceB
-                    })
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Precio (menor a mayor)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const sorted = [...filteredProducts].sort((a, b) => {
-                      const priceA = a.price || (a.sizes && Math.min(...a.sizes.map((size) => size.price))) || 0
-                      const priceB = b.price || (b.sizes && Math.min(...b.sizes.map((size) => size.price))) || 0
-                      return priceB - priceA
-                    })
-                    setFilteredProducts(sorted)
-                  }}
-                >
-                  Precio (mayor a menor)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Eliminar el DropdownMenu de ordenación */}
           </div>
 
           {/* Grid de productos */}

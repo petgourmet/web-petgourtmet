@@ -53,12 +53,17 @@ export default function FloatingCreatePlanButton() {
         <motion.button
           className={`flex items-center justify-center gap-2 text-white ${isCreatingPlan ? "w-12 h-12" : "px-4 py-3"} rounded-full shadow-lg transition-all`}
           style={{
-            backgroundColor: buttonColor,
-            boxShadow: buttonShadow,
+            background: isDarkMode
+              ? "linear-gradient(135deg, #8c242b 0%, #b91c1c 50%, #7e22ce 100%)"
+              : "linear-gradient(135deg, #e7ae84 0%, #f97316 50%, #fb923c 100%)",
+            boxShadow: isDarkMode ? "0 4px 15px rgba(185, 28, 28, 0.5)" : "0 4px 15px rgba(249, 115, 22, 0.5)",
           }}
           whileHover={{
             scale: 1.05,
-            backgroundColor: hoverColor,
+            background: isDarkMode
+              ? "linear-gradient(135deg, #991b1b 0%, #dc2626 50%, #9333ea 100%)"
+              : "linear-gradient(135deg, #fdba74 0%, #ea580c 50%, #f97316 100%)",
+            boxShadow: isDarkMode ? "0 6px 20px rgba(185, 28, 28, 0.6)" : "0 6px 20px rgba(249, 115, 22, 0.6)",
           }}
           whileTap={{ scale: 0.95 }}
         >

@@ -39,7 +39,7 @@ export function Navbar() {
         }`}
       >
         <div className="container mx-auto px-4 flex items-center justify-between">
-          <Link  href="/" className="flex items-center relative group">
+          <Link href="/" className="flex items-center relative group">
             <div className="absolute -inset-2 bg-gradient-radial from-white/20 to-transparent rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 cursor-pointer"></div>
             <Image
               src="/petgourmet-logo.png"
@@ -65,7 +65,7 @@ export function Navbar() {
                   >
                     Todos los Productos
                   </Link>
-                  <Link
+                  <Link 
                     href="/celebrar"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
                   >

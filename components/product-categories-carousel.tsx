@@ -42,7 +42,7 @@ const categories = [
 
 export function ProductCategoriesCarousel() {
   return (
-    <section className="py-16">
+    <section className="py-16 mt-10 bg-blue-50">
       <div className="container mx-auto px-4">
         <motion.h2
           className="text-3xl md:text-4xl font-bold mb-12 text-center title-reflection"
@@ -64,23 +64,20 @@ export function ProductCategoriesCarousel() {
             >
               <Link href={category.href} className="block w-full">
                 <div
-                  className={`bg-gradient-to-br ${category.color} rounded-xl overflow-hidden shadow-lg transform transition-transform duration-300 hover:scale-105 hover:shadow-xl flex flex-col relative h-[500px] group`}
+                  className={`bg-gradient-to-br ${category.color} rounded-xl overflow-hidden shadow-xl transform transition-all duration-300 hover:scale-105 hover:shadow-2xl flex flex-col relative h-[500px] group`}
                 >
                   {/* Imagen de fondo que abarca toda la tarjeta */}
                   <div className="absolute inset-0 w-full h-full">
-                    {/* Overlay de color gris */}
-                    <div className="absolute inset-0 bg-gray-500 opacity-40 mix-blend-multiply z-10"></div>
+                    {/* No overlay */}
 
                     <Image
                       src={category.image || "/placeholder.svg"}
                       alt={category.title}
                       fill
-                      className="object-cover transition-all duration-300 group-hover:blur-[2px] group-hover:brightness-75"
+                      className="object-cover transition-all duration-300 group-hover:brightness-[0.1]"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                       priority={index < 2} // Carga prioritaria para las primeras dos imágenes
                     />
-                    {/* Gradiente oscuro solo en la parte inferior para el texto */}
-                    <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 opacity-50 group-hover:opacity-90 group-hover:h-full z-20"></div>
                   </div>
 
                   {/* Contenido de texto en la parte inferior */}

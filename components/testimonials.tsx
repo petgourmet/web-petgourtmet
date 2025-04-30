@@ -58,7 +58,7 @@ export function Testimonials() {
   }
 
   return (
-    <section className="responsive-section">
+    <section className="responsive-section bg-white dark:bg-gray-900 py-16 border-t border-b border-gray-200 dark:border-gray-800">
       <div className="responsive-container">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">Perros Felices, Dueños Felices</h2>

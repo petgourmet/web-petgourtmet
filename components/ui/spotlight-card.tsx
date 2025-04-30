@@ -33,9 +33,12 @@ export const SpotlightCard = React.forwardRef<HTMLDivElement, SpotlightCardProps
         ref={cardRef}
         onMouseMove={handleMouseMove}
         className={cn(
-          "relative overflow-hidden rounded-xl border bg-white dark:bg-[#e7ae84] shadow-md transition-all duration-300",
+          "relative overflow-hidden rounded-xl border bg-white dark:bg-[#e7ae84] transition-all duration-300",
           className,
         )}
+        style={{
+          boxShadow: "0 5px 15px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07)",
+        }}
         onMouseLeave={handleMouseLeave}
         {...props}
       >
