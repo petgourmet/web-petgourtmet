@@ -125,6 +125,102 @@ export interface Database {
           alt?: string
         }
       }
+      blogs: {
+        Row: {
+          id: number
+          title: string
+          slug: string
+          content: string
+          excerpt: string | null
+          cover_image: string | null
+          author_id: string | null
+          published: boolean
+          created_at: string
+          updated_at: string
+          category_id: number | null
+          meta_description: string | null
+          read_time: number | null
+        }
+        Insert: {
+          id?: number
+          title: string
+          slug: string
+          content: string
+          excerpt?: string | null
+          cover_image?: string | null
+          author_id?: string | null
+          published?: boolean
+          created_at?: string
+          updated_at?: string
+          category_id?: number | null
+          meta_description?: string | null
+          read_time?: number | null
+        }
+        Update: {
+          id?: number
+          title?: string
+          slug?: string
+          content?: string
+          excerpt?: string | null
+          cover_image?: string | null
+          author_id?: string | null
+          published?: boolean
+          created_at?: string
+          updated_at?: string
+          category_id?: number | null
+          meta_description?: string | null
+          read_time?: number | null
+        }
+      }
+      blog_categories: {
+        Row: {
+          id: number
+          name: string
+          slug: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          slug: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          slug?: string
+          description?: string | null
+          created_at?: string
+        }
+      }
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          name: string | null
+          avatar_url: string | null
+          role: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          name?: string | null
+          avatar_url?: string | null
+          role?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          name?: string | null
+          avatar_url?: string | null
+          role?: string
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

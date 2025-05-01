@@ -20,11 +20,17 @@ export function useAuth() {
 
       if (session?.user) {
         // Verificar si el usuario es administrador
-        const { data, error } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
+        try {
+          const { data, error } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
 
-        if (!error && data) {
-          setIsAdmin(data.role === "admin")
-        } else {
+          if (!error && data) {
+            setIsAdmin(data.role === "admin")
+          } else {
+            console.error("Error al verificar rol:", error)
+            setIsAdmin(false)
+          }
+        } catch (err) {
+          console.error("Error en verificación de rol:", err)
           setIsAdmin(false)
         }
       } else {
@@ -48,8 +54,13 @@ export function useAuth() {
             if (!error && data) {
               setIsAdmin(data.role === "admin")
             } else {
+              console.error("Error al verificar rol inicial:", error)
               setIsAdmin(false)
             }
+          })
+          .catch((err) => {
+            console.error("Error en verificación inicial de rol:", err)
+            setIsAdmin(false)
           })
       }
     })
@@ -60,17 +71,27 @@ export function useAuth() {
   }, [router])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      return { error }
+    } catch (err: any) {
+      console.error("Error en signIn:", err)
+      return { error: err }
+    }
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    router.push("/admin/login")
-    return { error }
+    try {
+      const { error } = await supabase.auth.signOut()
+      router.push("/admin/login")
+      return { error }
+    } catch (err: any) {
+      console.error("Error en signOut:", err)
+      return { error: err }
+    }
   }
 
   return {
