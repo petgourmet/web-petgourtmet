@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react" // Added useRef
 import { supabase } from "@/lib/supabase/client"
 import { Loader2, DollarSign, ShoppingBag, Users, Package } from "lucide-react"
 import { AuthGuard } from "@/components/admin/auth-guard"
@@ -25,7 +25,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState<"week" | "month" | "year">("month")
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0)
+  const lastFetchTimeRef = useRef<number>(0) // Changed from useState to useRef
   const [isMounted, setIsMounted] = useState(false)
 
   // Memoizar la función fetchStats para evitar recreaciones innecesarias
@@ -33,14 +33,14 @@ export default function AdminDashboardPage() {
     async (forceRefresh = false) => {
       // Evitar múltiples solicitudes en un corto período de tiempo (5 segundos)
       const now = Date.now()
-      if (!forceRefresh && now - lastFetchTime < 5000) {
+      if (!forceRefresh && now - lastFetchTimeRef.current < 5000) { // Use ref
         return
       }
 
       try {
         setLoading(true)
         setError(null)
-        setLastFetchTime(now)
+        lastFetchTimeRef.current = now // Use ref
 
         // Obtener fecha límite según el rango seleccionado
         const startDate = new Date()
@@ -126,7 +126,7 @@ export default function AdminDashboardPage() {
         setLoading(false)
       }
     },
-    [timeRange, lastFetchTime],
+    [timeRange], // Removed lastFetchTime from dependencies
   )
 
   // Cargar datos solo cuando cambie el rango de tiempo o al montar el componente
@@ -138,7 +138,7 @@ export default function AdminDashboardPage() {
       .channel("orders-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
         console.log("Cambios detectados en órdenes, actualizando datos...")
-        fetchStats(true)
+        fetchStats() // Changed from fetchStats(true)
       })
       .subscribe()
 
@@ -146,7 +146,7 @@ export default function AdminDashboardPage() {
       .channel("products-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => {
         console.log("Cambios detectados en productos, actualizando datos...")
-        fetchStats(true)
+        fetchStats() // Changed from fetchStats(true)
       })
       .subscribe()
 
@@ -154,7 +154,7 @@ export default function AdminDashboardPage() {
       .channel("order-items-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => {
         console.log("Cambios detectados en items de órdenes, actualizando datos...")
-        fetchStats(true)
+        fetchStats() // Changed from fetchStats(true)
       })
       .subscribe()
 

@@ -6,15 +6,20 @@ import { createBrowserClient } from '@supabase/ssr';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+// --- INICIO DE CÓDIGO DE DEPURACIÓN ---
+console.log("Supabase URL desde env:", supabaseUrl);
+console.log("Supabase Anon Key desde env:", supabaseAnonKey); // THIS IS THE IMPORTANT LINE
+// --- FIN DE CÓDIGO DE DEPURACIÓN ---
+
 if (!supabaseUrl) {
   throw new Error(
-    "Supabase URL is not defined. Please check your NEXT_PUBLIC_SUPABASE_URL environment variable."
+    "Error Crítico: La URL de Supabase (NEXT_PUBLIC_SUPABASE_URL) no está definida. Revisa tus variables de entorno y reinicia el servidor."
   );
 }
 
 if (!supabaseAnonKey) {
   throw new Error(
-    "Supabase Anon Key is not defined. Please check your NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable."
+    "Error Crítico: La Llave Anónima de Supabase (NEXT_PUBLIC_SUPABASE_ANON_KEY) no está definida. Revisa tus variables de entorno y reinicia el servidor."
   );
 }
 
