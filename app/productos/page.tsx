@@ -1,135 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/toaster"
 import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter } from "lucide-react"
+import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
 import { useSearchParams } from "next/navigation"
+import { supabase } from "@/lib/supabase/client"
+import type { ProductFeature } from "@/components/product-card"
 
-// Datos de productos
-const products = [
-  {
-    id: 1,
-    name: "Pastel por porción de Carne",
-    description: "Snack natural horneado para mascotas, elaborado con Milanesa de Res, Cereales y Huevo.",
-    image: "/pastel-carne-package.png",
-    gallery: [
-      { src: "/pastel-carne-package.png", alt: "Empaque de Pastel de Carne" },
-      { src: "/dog-eating-treat.png", alt: "Perro disfrutando del snack" },
-      { src: "/pastel-carne-front.png", alt: "Vista frontal del producto" },
-      { src: "/pastel-carne-treats.png", alt: "Galletas de Pastel de Carne" },
-    ],
-    rating: 4.9,
-    reviews: 156,
-    features: [
-      { name: "Natural", color: "secondary" },
-      { name: "Horneado", color: "primary" },
-      { name: "Sin Conservantes", color: "pastel-green" },
-      { name: "Alta Palatabilidad", color: "pastel-blue" },
-    ],
-    sizes: [
-      { weight: "200g", price: 8.99 },
-      { weight: "400g", price: 14.99 },
-      { weight: "800g", price: 24.99 },
-    ],
-    nutritionalInfo: "Recomendación: Refrigerado por 7 días; congelado por 6 meses.",
-    ingredients: "Elaborado con Milanesa de Res, Cereales y Huevo.",
-    category: "Recetas",
-    spotlightColor: "rgba(249, 215, 232, 0.3)",
-  },
-  {
-    id: 2,
-    name: "Alimento Premium para Perros Adultos",
-    description: "Nutrición completa y equilibrada para perros adultos de todas las razas.",
-    image: "/premium-dog-food-bag.png",
-    rating: 4.8,
-    reviews: 124,
-    features: [
-      { name: "Hipoalergénico", color: "secondary" },
-      { name: "Cuidado Articular", color: "primary" },
-      { name: "Apoyo Inmunológico", color: "pastel-green" },
-      { name: "Ingredientes Naturales", color: "pastel-blue" },
-    ],
-    sizes: [
-      { weight: "1.5kg", price: 14.99 },
-      { weight: "6kg", price: 46.99 },
-      { weight: "12kg", price: 89.99 },
-    ],
-    category: "Recetas",
-    spotlightColor: "rgba(249, 215, 232, 0.3)",
-  },
-  {
-    id: 3,
-    name: "Snacks Naturales para Celebraciones",
-    description: "Deliciosos premios para momentos especiales con tu mascota.",
-    image: "/happy-dog-birthday.png",
-    rating: 4.9,
-    reviews: 87,
-    features: [
-      { name: "Sin Conservantes", color: "secondary" },
-      { name: "Sabor Irresistible", color: "primary" },
-      { name: "Forma Divertida", color: "pastel-yellow" },
-    ],
-    sizes: [
-      { weight: "250g", price: 8.99 },
-      { weight: "500g", price: 15.99 },
-    ],
-    category: "Celebrar",
-    spotlightColor: "rgba(255, 236, 179, 0.3)",
-  },
-  {
-    id: 4,
-    name: "Suplemento Vitamínico Canino",
-    description: "Refuerza el sistema inmunológico y mejora la salud general de tu perro.",
-    image: "/dog-supplement-display.png",
-    rating: 4.7,
-    reviews: 56,
-    features: [
-      { name: "Vitaminas A, D y E", color: "pastel-green" },
-      { name: "Omega 3 y 6", color: "primary" },
-      { name: "Fácil Dosificación", color: "secondary" },
-    ],
-    sizes: [
-      { weight: "30 tabletas", price: 19.99 },
-      { weight: "60 tabletas", price: 34.99 },
-    ],
-    category: "Complementar",
-    spotlightColor: "rgba(217, 245, 232, 0.3)",
-  },
-  {
-    id: 5,
-    name: "Premios de Entrenamiento",
-    description: "Pequeños bocados perfectos para el entrenamiento y refuerzo positivo.",
-    image: "/healthy-dog-training-treats.png",
-    rating: 4.6,
-    reviews: 103,
-    features: [
-      { name: "Bajo en Calorías", color: "pastel-blue" },
-      { name: "Tamaño Pequeño", color: "primary" },
-      { name: "Alta Palatabilidad", color: "secondary" },
-    ],
-    sizes: [
-      { weight: "200g", price: 7.99 },
-      { weight: "400g", price: 13.99 },
-    ],
-    category: "Premiar",
-    spotlightColor: "rgba(122, 184, 191, 0.2)",
-  },
-]
+// Tipo para los productos desde la base de datos
+type Product = {
+  id: number
+  name: string
+  description: string
+  price: number
+  image: string
+  category_id: number
+  stock: number
+  created_at: string
+  features?: ProductFeature[]
+  rating?: number
+  reviews?: number
+  sizes?: { weight: string; price: number }[]
+  category?: string
+  gallery?: { src: string; alt: string }[]
+}
 
 export default function ProductosPage() {
-  const [filteredProducts, setFilteredProducts] = useState(products)
+  const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
+  const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
     category: "all",
-    priceRange: [0, 100],
+    priceRange: [0, 1000],
     features: [],
     rating: 0,
     sortBy: "relevance",
@@ -138,12 +50,104 @@ export default function ProductosPage() {
   const searchParams = useSearchParams()
   const categoriaParam = searchParams.get("categoria")
 
-  // Filtrar productos por categoría si se proporciona una
-  const productosFiltrados = categoriaParam
-    ? products.filter((producto) => producto.category === categoriaParam)
-    : products // Mostrar todos los productos si no hay categoría
+  // Cargar productos y categorías desde la base de datos
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true)
+      try {
+        // Cargar categorías
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from("categories")
+          .select("id, name")
+          .order("name")
 
-  const handleShowDetail = (product) => {
+        if (categoriesError) throw categoriesError
+        setCategories(categoriesData || [])
+
+        // Cargar productos
+        const { data: productsData, error: productsError } = await supabase
+          .from("products")
+          .select("*, categories(name)")
+          .order("created_at", { ascending: false })
+
+        if (productsError) throw productsError
+
+        // Procesar productos para agregar información adicional
+        const processedProducts = await Promise.all(
+          (productsData || []).map(async (product) => {
+            // Obtener la categoría del producto
+            const categoryName = product.categories?.name || "Sin categoría"
+
+            // Obtener características del producto (si existe una tabla para esto)
+            let features: ProductFeature[] = []
+            try {
+              const { data: featuresData } = await supabase
+                .from("product_features")
+                .select("name, color")
+                .eq("product_id", product.id)
+
+              if (featuresData && featuresData.length > 0) {
+                features = featuresData
+              } else {
+                // Características predeterminadas si no hay datos
+                features = [
+                  { name: "Natural", color: "secondary" },
+                  { name: "Alta Calidad", color: "primary" },
+                ]
+              }
+            } catch (error) {
+              console.error("Error al cargar características:", error)
+            }
+
+            // Construir la URL completa de la imagen
+            let imageUrl = product.image
+            if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
+              // Si es una ruta relativa en el bucket de Supabase
+              const { data } = supabase.storage.from("products").getPublicUrl(imageUrl)
+              imageUrl = data.publicUrl
+            } else if (!imageUrl) {
+              // Imagen predeterminada si no hay imagen
+              imageUrl = "/placeholder.svg"
+            }
+
+            return {
+              ...product,
+              image: imageUrl,
+              category: categoryName,
+              features,
+              rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
+              reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
+              sizes: [
+                { weight: "200g", price: product.price },
+                { weight: "500g", price: product.price * 2.2 },
+              ],
+            }
+          }),
+        )
+
+        setProducts(processedProducts)
+        setFilteredProducts(processedProducts)
+      } catch (error) {
+        console.error("Error al cargar datos:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
+  // Filtrar productos por categoría del parámetro URL
+  useEffect(() => {
+    if (categoriaParam && products.length > 0) {
+      const filtered = products.filter((product) => product.category?.toLowerCase() === categoriaParam.toLowerCase())
+      setFilteredProducts(filtered)
+    } else if (products.length > 0) {
+      setFilteredProducts(products)
+    }
+  }, [categoriaParam, products])
+
+  const handleShowDetail = (product: Product) => {
     setSelectedProduct(product)
     setShowDetail(true)
   }
@@ -160,8 +164,7 @@ export default function ProductosPage() {
 
     // Filtrar por rango de precio
     result = result.filter((product) => {
-      const lowestPrice = product.price || (product.sizes && Math.min(...product.sizes.map((size) => size.price))) || 0
-      return lowestPrice >= filters.priceRange[0] && lowestPrice <= filters.priceRange[1]
+      return product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
     })
 
     // Filtrar por características
@@ -175,31 +178,29 @@ export default function ProductosPage() {
 
     // Filtrar por valoración
     if (filters.rating > 0) {
-      result = result.filter((product) => product.rating >= filters.rating)
+      result = result.filter((product) => (product.rating || 0) >= filters.rating)
     }
 
     // Ordenar productos
     if (filters.sortBy === "price-asc") {
-      result.sort((a, b) => {
-        const priceA = a.price || (a.sizes && Math.min(...a.sizes.map((size) => size.price))) || 0
-        const priceB = b.price || (b.sizes && Math.min(...b.sizes.map((size) => size.price))) || 0
-        return priceA - priceB
-      })
+      result.sort((a, b) => a.price - b.price)
     } else if (filters.sortBy === "price-desc") {
-      result.sort((a, b) => {
-        const priceA = a.price || (a.sizes && Math.min(...a.sizes.map((size) => size.price))) || 0
-        const priceB = b.price || (b.sizes && Math.min(...b.sizes.map((size) => size.price))) || 0
-        return priceB - priceA
-      })
+      result.sort((a, b) => b.price - a.price)
     } else if (filters.sortBy === "rating") {
-      result.sort((a, b) => b.rating - a.rating)
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
     } else if (filters.sortBy === "popularity") {
-      result.sort((a, b) => b.reviews - a.reviews)
+      result.sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
     }
 
     setFilteredProducts(result)
     setShowFilters(false)
   }
+
+  // Extraer características únicas de todos los productos
+  const allFeatures = Array.from(new Set(products.flatMap((product) => product.features?.map((f) => f.name) || [])))
+
+  // Encontrar el precio máximo para el filtro
+  const maxPrice = Math.max(...products.map((product) => product.price), 100)
 
   return (
     <div className="flex flex-col min-h-screen pt-20">
@@ -217,7 +218,7 @@ export default function ProductosPage() {
 
       <div className="responsive-section bg-gradient-to-b from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800">
         <div className="responsive-container">
-          {/* Controles de filtro y ordenación */}
+          {/* Controles de filtro */}
           <div className="mb-8 flex justify-between items-center">
             <Button
               variant="outline"
@@ -226,40 +227,58 @@ export default function ProductosPage() {
             >
               <Filter className="h-4 w-4" /> Filtrar
             </Button>
-
-            {/* Eliminar el DropdownMenu de ordenación */}
           </div>
 
           {/* Grid de productos */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredProducts.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <p className="text-gray-500 dark:text-white">
-                  No se encontraron productos que coincidan con los filtros seleccionados.
-                </p>
-                <Button
-                  variant="outline"
-                  className="mt-4 rounded-full"
-                  onClick={() => {
-                    setFilters({
-                      category: "all",
-                      priceRange: [0, 100],
-                      features: [],
-                      rating: 0,
-                      sortBy: "relevance",
-                    })
-                    setFilteredProducts(products)
-                  }}
-                >
-                  Restablecer Filtros
-                </Button>
-              </div>
-            ) : (
-              filteredProducts.map((product) => (
-                <ProductCard key={product.id} {...product} onShowDetail={handleShowDetail} />
-              ))
-            )}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <span className="ml-2 text-lg">Cargando productos...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {filteredProducts.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-gray-500 dark:text-white">
+                    No se encontraron productos que coincidan con los filtros seleccionados.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-4 rounded-full"
+                    onClick={() => {
+                      setFilters({
+                        category: "all",
+                        priceRange: [0, maxPrice],
+                        features: [],
+                        rating: 0,
+                        sortBy: "relevance",
+                      })
+                      setFilteredProducts(products)
+                    }}
+                  >
+                    Restablecer Filtros
+                  </Button>
+                </div>
+              ) : (
+                filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    description={product.description}
+                    image={product.image}
+                    price={product.price}
+                    rating={product.rating}
+                    reviews={product.reviews}
+                    features={product.features}
+                    sizes={product.sizes}
+                    category={product.category}
+                    onShowDetail={() => handleShowDetail(product)}
+                  />
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -273,6 +292,7 @@ export default function ProductosPage() {
         />
       )}
 
+      {/* Modal de filtros */}
       {showFilters && (
         <ProductFilters
           filters={filters}
@@ -280,9 +300,9 @@ export default function ProductosPage() {
           showFilters={showFilters}
           setShowFilters={setShowFilters}
           applyFilters={applyFilters}
-          categories={["all", "celebrar", "complementar", "premiar", "recetas"]}
-          features={["Natural", "Hipoalergénico", "Sin Conservantes", "Alta Palatabilidad", "Bajo en Calorías"]}
-          maxPrice={100}
+          categories={["all", ...categories.map((c) => c.name.toLowerCase())]}
+          features={allFeatures}
+          maxPrice={maxPrice}
         />
       )}
       <Toaster />

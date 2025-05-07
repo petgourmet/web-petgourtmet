@@ -19,20 +19,10 @@ export function useAuth() {
       setLoading(false)
 
       if (session?.user) {
-        // Verificar si el usuario es administrador
-        try {
-          const { data, error } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
-
-          if (!error && data) {
-            setIsAdmin(data.role === "admin")
-          } else {
-            console.error("Error al verificar rol:", error)
-            setIsAdmin(false)
-          }
-        } catch (err) {
-          console.error("Error en verificación de rol:", err)
-          setIsAdmin(false)
-        }
+        // Verificar si el usuario es administrador basado en su email
+        // Esto evita la recursión al no consultar la tabla profiles
+        const adminEmails = ["admin@petgourmet.com", "cristoferscalante@gmail.com"]
+        setIsAdmin(adminEmails.includes(session.user.email || ""))
       } else {
         setIsAdmin(false)
       }
@@ -44,24 +34,9 @@ export function useAuth() {
       setLoading(false)
 
       if (session?.user) {
-        // Verificar si el usuario es administrador
-        supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (!error && data) {
-              setIsAdmin(data.role === "admin")
-            } else {
-              console.error("Error al verificar rol inicial:", error)
-              setIsAdmin(false)
-            }
-          })
-          .catch((err) => {
-            console.error("Error en verificación inicial de rol:", err)
-            setIsAdmin(false)
-          })
+        // Verificar si el usuario es administrador basado en su email
+        const adminEmails = ["admin@petgourmet.com", "cristoferscalante@gmail.com"]
+        setIsAdmin(adminEmails.includes(session.user.email || ""))
       }
     })
 

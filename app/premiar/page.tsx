@@ -1,100 +1,20 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Filter, Award } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
-
-// Productos específicos para la categoría "Premiar" (formato estandarizado)
-const premiarProducts = [
-  {
-    id: 1,
-    name: "Premios de Entrenamiento",
-    description: "Pequeños bocados perfectos para el entrenamiento y refuerzo positivo.",
-    image: "/healthy-dog-training-treats.png",
-    rating: 4.6,
-    reviews: 103,
-    price: 7.99,
-    features: [
-      { name: "Entrenamiento", color: "pastel-blue" },
-      { name: "Bajo en Calorías", color: "primary" },
-      { name: "Tamaño Pequeño", color: "secondary" },
-    ],
-    sizes: [
-      { weight: "200g", price: 7.99 },
-      { weight: "400g", price: 13.99 },
-    ],
-    category: "Premiar",
-    spotlightColor: "rgba(122, 184, 191, 0.2)",
-  },
-  {
-    id: 2,
-    name: "Sticks de Pollo Deshidratado",
-    description: "Deliciosos sticks de pollo 100% natural para premiar a tu mascota.",
-    image: "/pastel-carne-treats.png",
-    rating: 4.8,
-    reviews: 87,
-    price: 9.99,
-    features: [
-      { name: "Snacks", color: "pastel-blue" },
-      { name: "100% Natural", color: "primary" },
-      { name: "Sin Conservantes", color: "secondary" },
-    ],
-    sizes: [
-      { weight: "150g", price: 9.99 },
-      { weight: "300g", price: 17.99 },
-    ],
-    category: "Premiar",
-    spotlightColor: "rgba(122, 184, 191, 0.2)",
-  },
-  {
-    id: 3,
-    name: "Galletas de Manzana y Zanahoria",
-    description: "Galletas saludables con ingredientes naturales y bajo contenido calórico.",
-    image: "/healthy-dog-training-treats.png",
-    rating: 4.7,
-    reviews: 65,
-    price: 6.99,
-    features: [
-      { name: "Galletas", color: "pastel-blue" },
-      { name: "Frutas y Verduras", color: "primary" },
-      { name: "Bajo en Calorías", color: "secondary" },
-    ],
-    sizes: [
-      { weight: "200g", price: 6.99 },
-      { weight: "400g", price: 12.99 },
-    ],
-    category: "Premiar",
-    spotlightColor: "rgba(122, 184, 191, 0.2)",
-  },
-  {
-    id: 4,
-    name: "Huesos Dentales Naturales",
-    description: "Premios que ayudan a mantener la higiene dental mientras recompensas a tu perro.",
-    image: "/pastel-carne-treats.png",
-    rating: 4.9,
-    reviews: 92,
-    price: 11.99,
-    features: [
-      { name: "Dental", color: "pastel-blue" },
-      { name: "Higiene Bucal", color: "primary" },
-      { name: "Larga Duración", color: "secondary" },
-    ],
-    sizes: [
-      { weight: "Pack 3 unidades", price: 11.99 },
-      { weight: "Pack 6 unidades", price: 21.99 },
-    ],
-    category: "Premiar",
-    spotlightColor: "rgba(122, 184, 191, 0.2)",
-  },
-]
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function PremiarPage() {
-  const [filteredProducts, setFilteredProducts] = useState(premiarProducts)
+  const [products, setProducts] = useState([])
+  const [filteredProducts, setFilteredProducts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<Filters>({
     category: "premiar",
@@ -108,6 +28,99 @@ export default function PremiarPage() {
   const [showDetail, setShowDetail] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const { addToCart } = useCart()
+  const supabase = createClientComponentClient()
+
+  // Características predeterminadas para productos de premiar
+  const DEFAULT_PREMIAR_FEATURES = [
+    { name: "Entrenamiento", color: "pastel-blue" },
+    { name: "Bajo en Calorías", color: "primary" },
+  ]
+
+  // Cargar productos desde Supabase
+  useEffect(() => {
+    async function fetchProducts() {
+      setIsLoading(true)
+      setError("")
+
+      try {
+        console.log("Buscando categoría 'Premiar'...")
+        // Primero, obtener el ID de la categoría "Premiar"
+        const { data: categoryData, error: categoryError } = await supabase
+          .from("categories")
+          .select("id, name")
+          .ilike("name", "%premi%")
+
+        if (categoryError) {
+          console.error("Error al obtener la categoría:", categoryError)
+          setError("Error al cargar la categoría. Por favor, intenta de nuevo más tarde.")
+          setIsLoading(false)
+          return
+        }
+
+        if (!categoryData || categoryData.length === 0) {
+          console.error("No se encontró la categoría 'Premiar'")
+          setError("No se encontró la categoría de productos. Por favor, intenta de nuevo más tarde.")
+          setIsLoading(false)
+          return
+        }
+
+        console.log("Categoría encontrada:", categoryData[0])
+        // Obtener el ID de la primera categoría que coincida
+        const categoryId = categoryData[0].id
+        const categoryName = categoryData[0].name
+
+        console.log(`Buscando productos con category_id = ${categoryId}...`)
+        // Obtener productos con esa categoría - ELIMINAMOS el filtro active que no existe
+        const { data: productsData, error: productsError } = await supabase
+          .from("products")
+          .select("*, categories(name)")
+          .eq("category_id", categoryId)
+
+        if (productsError) {
+          console.error("Error al obtener productos:", productsError)
+          setError("Error al cargar productos. Por favor, intenta de nuevo más tarde.")
+          setIsLoading(false)
+          return
+        }
+
+        console.log(`Productos encontrados: ${productsData?.length || 0}`)
+
+        if (!productsData || productsData.length === 0) {
+          console.log(`No se encontraron productos en la categoría '${categoryName}'`)
+          setProducts([])
+          setFilteredProducts([])
+          setIsLoading(false)
+          return
+        }
+
+        // Transformar los datos al formato esperado por ProductCard
+        const formattedProducts = productsData.map((product) => ({
+          id: product.id,
+          name: product.name || "Producto sin nombre",
+          description: product.description || "Sin descripción",
+          image: product.image_url || "/healthy-dog-training-treats.png", // Imagen por defecto si no hay
+          rating: product.rating || 4.5,
+          reviews: product.reviews_count || 0,
+          price: product.price || 0,
+          features: product.features ? JSON.parse(product.features) : DEFAULT_PREMIAR_FEATURES,
+          sizes: product.sizes ? JSON.parse(product.sizes) : [{ weight: "200g", price: product.price || 0 }],
+          category: product.categories?.name || categoryName,
+          spotlightColor: "rgba(122, 184, 191, 0.2)",
+        }))
+
+        console.log("Productos formateados correctamente")
+        setProducts(formattedProducts)
+        setFilteredProducts(formattedProducts)
+      } catch (error) {
+        console.error("Error processing products:", error)
+        setError("Error al procesar los productos. Por favor, intenta de nuevo más tarde.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [supabase])
 
   // Función para mostrar el detalle del producto
   const handleShowDetail = (product) => {
@@ -116,7 +129,7 @@ export default function PremiarPage() {
   }
 
   const applyFilters = () => {
-    let result = [...premiarProducts]
+    let result = [...products]
 
     // Filtrar por rango de precio
     result = result.filter((product) => {
@@ -184,11 +197,25 @@ export default function PremiarPage() {
           {/* Productos de la categoría - USANDO PRODUCTCARD */}
           <div className="mb-12">
             <h2 className="text-2xl font-bold mb-8 text-primary font-display">Premios más vendidos</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} {...product} onShowDetail={handleShowDetail} />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <p className="text-red-500">{error}</p>
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} {...product} onShowDetail={handleShowDetail} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 dark:text-gray-400">No se encontraron productos en esta categoría.</p>
+              </div>
+            )}
           </div>
 
           {/* Sección de consejos */}

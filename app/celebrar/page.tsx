@@ -1,110 +1,182 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Image from "next/image"
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter } from "lucide-react"
+import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { Toaster } from "@/components/toaster"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
+import { supabase } from "@/lib/supabase/client"
+import type { ProductFeature } from "@/components/product-card"
 
-// Productos específicos para la categoría "Celebrar"
-const celebrarProducts = [
-  {
-    id: 1,
-    name: "Snacks Naturales para Celebraciones",
-    description: "Deliciosos premios para momentos especiales con tu mascota.",
-    image: "/happy-dog-birthday.png",
-    rating: 4.9,
-    reviews: 87,
-    price: 8.99,
-    category: "Celebrar",
-    spotlightColor: "rgba(255, 236, 179, 0.08)",
-    features: [
-      { name: "Sin Conservantes", color: "secondary" },
-      { name: "Sabor Irresistible", color: "primary" },
-      { name: "Forma Divertida", color: "pastel-yellow" },
-    ],
-  },
-  {
-    id: 2,
-    name: "Pastel de Cumpleaños Canino",
-    description: "Pastel especial para celebrar el cumpleaños de tu amigo peludo.",
-    image: "/dog-eating-treat.png",
-    rating: 4.8,
-    reviews: 64,
-    price: 19.99,
-    category: "Celebrar",
-    spotlightColor: "rgba(255, 236, 179, 0.08)",
-    features: [
-      { name: "Natural", color: "secondary" },
-      { name: "Decoración Festiva", color: "primary" },
-    ],
-  },
-  {
-    id: 3,
-    name: "Kit de Fiesta para Perros",
-    description: "Todo lo que necesitas para organizar una fiesta canina inolvidable.",
-    image: "/happy-dog-birthday.png",
-    rating: 4.7,
-    reviews: 42,
-    price: 24.99,
-    category: "Celebrar",
-    spotlightColor: "rgba(255, 236, 179, 0.08)",
-    features: [
-      { name: "Completo", color: "secondary" },
-      { name: "Divertido", color: "primary" },
-    ],
-  },
-  {
-    id: 4,
-    name: "Galletas Festivas Gourmet",
-    description: "Galletas premium con formas festivas para ocasiones especiales.",
-    image: "/pastel-carne-treats.png",
-    rating: 4.9,
-    reviews: 53,
-    price: 12.99,
-    category: "Celebrar",
-    spotlightColor: "rgba(255, 236, 179, 0.08)",
-    features: [
-      { name: "Gourmet", color: "secondary" },
-      { name: "Artesanal", color: "primary" },
-    ],
-  },
-]
+// Tipo para los productos desde la base de datos
+type Product = {
+  id: number
+  name: string
+  description: string
+  price: number
+  image: string
+  stock: number
+  created_at: string
+  features?: ProductFeature[]
+  rating?: number
+  reviews?: number
+  sizes?: { weight: string; price: number }[]
+  category?: string
+  gallery?: { src: string; alt: string }[]
+}
 
 export default function CelebrarPage() {
-  const [filteredProducts, setFilteredProducts] = useState(celebrarProducts)
+  const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
     category: "celebrar",
-    priceRange: [0, 100],
+    priceRange: [0, 1000],
     features: [],
     rating: 0,
     sortBy: "relevance",
   })
 
-  const handleShowDetail = (product) => {
+  // Cargar productos de la categoría "Celebrar" desde la base de datos
+  useEffect(() => {
+    async function loadProducts() {
+      setLoading(true)
+      try {
+        // Primero obtenemos el ID de la categoría "Celebrar"
+        const { data: categoryData, error: categoryError } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("name", "Para Celebrar")
+          .single()
+
+        if (categoryError) {
+          console.error("Error al obtener la categoría:", categoryError)
+          setLoading(false)
+          return
+        }
+
+        const categoryId = categoryData?.id
+
+        // Obtenemos los productos que tienen esta categoría directamente por category_id
+        const { data: productsData, error: productsError } = await supabase
+          .from("products")
+          .select("*, categories(name)")
+          .eq("category_id", categoryId)
+          .order("created_at", { ascending: false })
+
+        if (productsError) {
+          console.error("Error al obtener productos por categoría:", productsError)
+          setLoading(false)
+          return
+        }
+
+        if (!productsData || productsData.length === 0) {
+          setProducts([])
+          setFilteredProducts([])
+          setLoading(false)
+          return
+        }
+
+        // Procesar productos para agregar información adicional
+        const processedProducts = await Promise.all(
+          productsData.map(async (product) => {
+            // Obtener el nombre de la categoría
+            const categoryName = product.categories?.name || "Para Celebrar"
+
+            // Obtener características del producto (si existe una tabla para esto)
+            let features: ProductFeature[] = []
+            try {
+              const { data: featuresData } = await supabase
+                .from("product_features")
+                .select("name, color")
+                .eq("product_id", product.id)
+
+              if (featuresData && featuresData.length > 0) {
+                features = featuresData
+              } else {
+                // Características predeterminadas si no hay datos
+                features = [
+                  { name: "Sin Conservantes", color: "secondary" },
+                  { name: "Sabor Irresistible", color: "primary" },
+                  { name: "Forma Divertida", color: "pastel-yellow" },
+                ]
+              }
+            } catch (error) {
+              console.error("Error al cargar características:", error)
+            }
+
+            // Construir la URL completa de la imagen
+            let imageUrl = product.image
+            if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
+              // Si es una ruta relativa en el bucket de Supabase
+              const { data } = supabase.storage.from("products").getPublicUrl(imageUrl)
+              imageUrl = data.publicUrl
+            } else if (!imageUrl) {
+              // Imagen predeterminada si no hay imagen
+              imageUrl = "/happy-dog-birthday.png"
+            }
+
+            return {
+              ...product,
+              image: imageUrl,
+              category: categoryName,
+              features,
+              rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
+              reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
+              sizes: [
+                { weight: "200g", price: product.price },
+                { weight: "500g", price: product.price * 2.2 },
+              ],
+              spotlightColor: "rgba(255, 236, 179, 0.08)",
+            }
+          }),
+        )
+
+        setProducts(processedProducts)
+        setFilteredProducts(processedProducts)
+      } catch (error) {
+        console.error("Error al cargar productos:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [])
+
+  const handleShowDetail = (product: Product) => {
     setSelectedProduct(product)
     setShowDetail(true)
   }
 
   const applyFilters = () => {
-    let result = [...celebrarProducts]
+    let result = [...products]
 
     // Filtrar por rango de precio
     result = result.filter((product) => {
       return product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
     })
 
+    // Filtrar por características
+    if (filters.features.length > 0) {
+      result = result.filter((product) => {
+        return filters.features.some((feature) =>
+          product.features?.some((f) => f.name.toLowerCase() === feature.toLowerCase()),
+        )
+      })
+    }
+
     // Filtrar por valoración
     if (filters.rating > 0) {
-      result = result.filter((product) => product.rating >= filters.rating)
+      result = result.filter((product) => (product.rating || 0) >= filters.rating)
     }
 
     // Ordenar productos
@@ -113,14 +185,20 @@ export default function CelebrarPage() {
     } else if (filters.sortBy === "price-desc") {
       result.sort((a, b) => b.price - a.price)
     } else if (filters.sortBy === "rating") {
-      result.sort((a, b) => b.rating - a.rating)
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
     } else if (filters.sortBy === "popularity") {
-      result.sort((a, b) => b.reviews - a.reviews)
+      result.sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
     }
 
     setFilteredProducts(result)
     setShowFilters(false)
   }
+
+  // Extraer características únicas de todos los productos
+  const allFeatures = Array.from(new Set(products.flatMap((product) => product.features?.map((f) => f.name) || [])))
+
+  // Encontrar el precio máximo para el filtro
+  const maxPrice = Math.max(...products.map((product) => product.price), 30)
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
@@ -150,7 +228,7 @@ export default function CelebrarPage() {
             </div>
           </div>
 
-          {/* Controles de filtro y ordenación */}
+          {/* Controles de filtro */}
           <div className="mb-8 flex justify-between items-center">
             <Button
               variant="outline"
@@ -164,20 +242,39 @@ export default function CelebrarPage() {
           {/* Productos de la categoría */}
           <div className="mb-12">
             <h2 className="text-2xl font-bold mb-8 text-primary font-display">Productos destacados para celebrar</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    {...product}
-                    spotlightColor="rgba(255, 236, 179, 0.08)"
-                    onShowDetail={handleShowDetail}
-                  />
-                ))
-              ) : (
-                <p className="text-gray-500 dark:text-white">No se encontraron productos.</p>
-              )}
-            </div>
+
+            {loading ? (
+              <div className="flex justify-center items-center py-20">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <span className="ml-2 text-lg">Cargando productos...</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      id={product.id}
+                      name={product.name}
+                      description={product.description}
+                      image={product.image}
+                      price={product.price}
+                      rating={product.rating}
+                      reviews={product.reviews}
+                      features={product.features}
+                      sizes={product.sizes}
+                      category="Para Celebrar"
+                      spotlightColor="rgba(255, 236, 179, 0.08)"
+                      onShowDetail={() => handleShowDetail(product)}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <p className="text-gray-500 dark:text-white">No se encontraron productos en esta categoría.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Sección de beneficios */}
@@ -221,7 +318,10 @@ export default function CelebrarPage() {
       {/* Modal de detalle del producto */}
       {showDetail && selectedProduct && (
         <ProductDetailModal
-          product={selectedProduct}
+          product={{
+            ...selectedProduct,
+            category: "Para Celebrar",
+          }}
           isOpen={showDetail}
           onClose={() => setShowDetail(false)}
           onAddToCart={addToCart}
@@ -237,8 +337,12 @@ export default function CelebrarPage() {
           setShowFilters={setShowFilters}
           applyFilters={applyFilters}
           categories={["celebrar"]}
-          features={["Natural", "Sin Conservantes", "Sabor Irresistible", "Forma Divertiva"]}
-          maxPrice={30}
+          features={
+            allFeatures.length > 0
+              ? allFeatures
+              : ["Natural", "Sin Conservantes", "Sabor Irresistible", "Forma Divertida"]
+          }
+          maxPrice={maxPrice}
         />
       )}
       <Toaster />

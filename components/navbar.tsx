@@ -3,18 +3,20 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Menu, X, ChevronDown } from "lucide-react"
+import { Menu, X, ChevronDown, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartButton } from "@/components/cart-button"
 import { useCart } from "@/components/cart-context"
 import { CartModal } from "@/components/cart-modal"
 import { CheckoutModal } from "@/components/checkout-modal"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
+import { useClientAuth } from "@/hooks/use-client-auth"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const { showCart, showCheckout } = useCart()
+  const { user, isAdmin, signOut } = useClientAuth()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -65,7 +67,7 @@ export function Navbar() {
                   >
                     Todos los Productos
                   </Link>
-                  <Link 
+                  <Link
                     href="/celebrar"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
                   >
@@ -107,6 +109,49 @@ export function Navbar() {
           <div className="hidden lg:flex items-center space-x-4">
             <ThemeToggleButton />
             <CartButton />
+
+            {user ? (
+              <div className="relative group">
+                <button className="flex items-center space-x-2 bg-white hover:bg-white/90 text-primary rounded-full px-4 py-2 shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow">
+                  <User size={18} />
+                  <span className="max-w-[100px] truncate">{user.email?.split("@")[0]}</span>
+                </button>
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 overflow-hidden">
+                  <div className="py-2">
+                    <Link
+                      href="/perfil"
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
+                    >
+                      Mi Perfil
+                    </Link>
+
+                    {isAdmin && (
+                      <Link
+                        href="/admin/dashboard"
+                        className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
+                      >
+                        Panel de Administración
+                      </Link>
+                    )}
+
+                    <button
+                      onClick={signOut}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      Cerrar Sesión
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Button
+                asChild
+                className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"
+              >
+                <Link href="/auth/login">Iniciar Sesión</Link>
+              </Button>
+            )}
+
             <Button
               asChild
               className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"
@@ -194,6 +239,49 @@ export function Navbar() {
               >
                 Blog
               </Link>
+
+              {user ? (
+                <>
+                  <Link
+                    href="/perfil"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center text-white/80 hover:text-white transition-colors duration-300"
+                  >
+                    <User size={18} className="mr-2" />
+                    Mi Perfil
+                  </Link>
+
+                  {isAdmin && (
+                    <Link
+                      href="/admin/dashboard"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="text-white/80 hover:text-white transition-colors duration-300"
+                    >
+                      Panel de Administración
+                    </Link>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      signOut()
+                      setIsMenuOpen(false)
+                    }}
+                    className="text-red-300 hover:text-red-100 transition-colors duration-300"
+                  >
+                    Cerrar Sesión
+                  </button>
+                </>
+              ) : (
+                <Button
+                  asChild
+                  className="bg-white hover:bg-white/90 text-primary rounded-full w-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"
+                >
+                  <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
+                    Iniciar Sesión
+                  </Link>
+                </Button>
+              )}
+
               <Button
                 asChild
                 className="bg-white hover:bg-white/90 text-primary rounded-full w-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"

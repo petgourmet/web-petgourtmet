@@ -47,13 +47,20 @@ export default function CategoriesPage() {
 
     try {
       const { error } = await supabase.from("categories").delete().eq("id", id)
-      if (error) throw error
+
+      if (error) {
+        if (error.code === "23503") {
+          // Foreign key violation
+          throw new Error("No se puede eliminar esta categoría porque tiene productos asociados.")
+        }
+        throw error
+      }
 
       // Actualizar la lista de categorías
       setCategories(categories.filter((category) => category.id !== id))
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al eliminar la categoría:", error)
-      alert("No se puede eliminar esta categoría porque tiene productos asociados.")
+      alert(error.message || "Error al eliminar la categoría")
     }
   }
 
@@ -109,12 +116,18 @@ export default function CategoriesPage() {
                 <TableRow key={category.id}>
                   <TableCell>
                     <div className="relative h-10 w-10 overflow-hidden rounded-md">
-                      <Image
-                        src={category.image || "/placeholder.svg"}
-                        alt={category.name}
-                        fill
-                        className="object-cover"
-                      />
+                      {category.image ? (
+                        <Image
+                          src={category.image || "/placeholder.svg"}
+                          alt={category.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center bg-gray-100 text-gray-400">
+                          <span className="text-xs">Sin imagen</span>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">{category.name}</TableCell>

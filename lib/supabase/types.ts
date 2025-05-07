@@ -5,7 +5,6 @@ export type Product = {
   description: string
   price: number
   image: string
-  category_id: number
   featured: boolean
   stock: number
   created_at: string
@@ -14,6 +13,7 @@ export type Product = {
   ingredients?: string
   rating?: number
   reviews_count?: number
+  category_id?: number
 }
 
 export type Category = {
@@ -23,6 +23,12 @@ export type Category = {
   description: string
   image: string
   color: string
+}
+
+export type ProductCategory = {
+  id: number
+  product_id: number
+  category_id: number
 }
 
 export type ProductSize = {
@@ -38,6 +44,23 @@ export type ProductImage = {
   product_id: number
   url: string
   alt: string
+}
+
+export type ProductFeature = {
+  id?: number
+  product_id?: number
+  name: string
+  color: string
+}
+
+export type ProductReview = {
+  id?: number
+  product_id: number
+  user_id?: string
+  user_name?: string
+  rating: number
+  comment?: string
+  created_at?: string
 }
 
 export type User = {

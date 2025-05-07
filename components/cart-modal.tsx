@@ -114,7 +114,9 @@ export function CartModal() {
                   <Button
                     className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full"
                     onClick={() => {
+                      // Cerrar el modal del carrito
                       setShowCart(false)
+                      // Mostrar el modal de checkout donde se iniciará el proceso de pago con Mercado Pago
                       setShowCheckout(true)
                     }}
                   >

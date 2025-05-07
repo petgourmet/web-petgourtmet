@@ -1,13 +1,54 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClient as supabaseCreateClient } from "@supabase/supabase-js"
 import type { Database } from "./database.types"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+// Verificar si las variables de entorno están disponibles
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
-// Cliente principal de Supabase para operaciones normales, incluyendo autenticación
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+// Crear un cliente simulado para cuando las credenciales no estén disponibles
+const createMockClient = () => {
+  return {
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => ({
+          order: () => ({
+            limit: () => Promise.resolve({ data: [], error: null }),
+          }),
+        }),
+      }),
+    }),
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+  }
+}
 
-// Solo creamos el cliente admin si realmente lo necesitamos para operaciones específicas
-// y si la clave está disponible
+// Crear el cliente real o el simulado según la disponibilidad de credenciales
+export const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClientComponentClient<Database>({
+        supabaseUrl,
+        supabaseKey: supabaseAnonKey,
+        options: {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+          },
+          global: {
+            headers: {
+              "x-application-name": "pet-gourmet-admin",
+            },
+          },
+        },
+      })
+    : (createMockClient() as any)
+
+// Verificar si la clave de servicio está disponible antes de crear el cliente de administrador
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-export const supabaseAdmin = serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null
+export const supabaseAdmin =
+  serviceRoleKey && supabaseUrl ? supabaseCreateClient<Database>(supabaseUrl, serviceRoleKey) : null
+
+// Exportar la función createClient para compatibilidad con código existente
+export const createClient = supabaseCreateClient

@@ -2,100 +2,19 @@
 
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Filter, Utensils } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
-
-// Productos específicos para la categoría "Recetas" (formato estandarizado)
-const recetasProducts = [
-  {
-    id: 1,
-    name: "Pastel por porción de Carne",
-    description: "Snack natural horneado para mascotas, elaborado con Milanesa de Res, Cereales y Huevo.",
-    image: "/pastel-carne-package.png",
-    rating: 4.9,
-    reviews: 156,
-    price: 8.99,
-    features: [
-      { name: "Natural", color: "secondary" },
-      { name: "Horneado", color: "primary" },
-      { name: "Sin Conservantes", color: "pastel-pink" },
-    ],
-    sizes: [
-      { weight: "200g", price: 8.99 },
-      { weight: "400g", price: 14.99 },
-    ],
-    category: "Recetas",
-    spotlightColor: "rgba(249, 215, 232, 0.3)",
-  },
-  {
-    id: 2,
-    name: "Alimento Premium para Perros Adultos",
-    description: "Nutrición completa y equilibrada para perros adultos de todas las razas.",
-    image: "/premium-dog-food-bag.png",
-    rating: 4.8,
-    reviews: 124,
-    price: 14.99,
-    features: [
-      { name: "Alimento completo", color: "secondary" },
-      { name: "Alta calidad", color: "primary" },
-      { name: "Todas las razas", color: "pastel-pink" },
-    ],
-    sizes: [
-      { weight: "1kg", price: 14.99 },
-      { weight: "3kg", price: 39.99 },
-      { weight: "10kg", price: 99.99 },
-    ],
-    category: "Recetas",
-    spotlightColor: "rgba(249, 215, 232, 0.3)",
-  },
-  {
-    id: 3,
-    name: "Guiso de Pollo y Verduras",
-    description: "Receta casera con ingredientes frescos, ideal para perros con sensibilidad digestiva.",
-    image: "/natural-dog-food-ingredients.png",
-    rating: 4.7,
-    reviews: 98,
-    price: 9.99,
-    features: [
-      { name: "Pollo", color: "secondary" },
-      { name: "Digestión fácil", color: "primary" },
-      { name: "Ingredientes frescos", color: "pastel-pink" },
-    ],
-    sizes: [
-      { weight: "300g", price: 9.99 },
-      { weight: "600g", price: 17.99 },
-    ],
-    category: "Recetas",
-    spotlightColor: "rgba(249, 215, 232, 0.3)",
-  },
-  {
-    id: 4,
-    name: "Estofado de Ternera con Batata",
-    description: "Deliciosa combinación de proteínas y carbohidratos para una nutrición equilibrada.",
-    image: "/full-nutritious-dog-bowl.png",
-    rating: 4.9,
-    reviews: 112,
-    price: 10.99,
-    features: [
-      { name: "Ternera", color: "secondary" },
-      { name: "Con batata", color: "primary" },
-      { name: "Nutrición equilibrada", color: "pastel-pink" },
-    ],
-    sizes: [
-      { weight: "300g", price: 10.99 },
-      { weight: "600g", price: 19.99 },
-    ],
-    category: "Recetas",
-    spotlightColor: "rgba(249, 215, 232, 0.3)",
-  },
-]
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export default function RecetasPage() {
-  const [filteredProducts, setFilteredProducts] = useState(recetasProducts)
+  const [products, setProducts] = useState([])
+  const [filteredProducts, setFilteredProducts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<Filters>({
     category: "recetas",
@@ -109,6 +28,97 @@ export default function RecetasPage() {
   const [showDetail, setShowDetail] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const { addToCart } = useCart()
+  const supabase = createClientComponentClient()
+
+  // Características predeterminadas para productos de recetas
+  const DEFAULT_RECETAS_FEATURES = [
+    { name: "Natural", color: "green" },
+    { name: "Sin conservantes", color: "blue" },
+    { name: "Alta calidad", color: "purple" },
+  ]
+
+  // Cargar productos desde Supabase
+  useEffect(() => {
+    async function fetchProducts() {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        // Paso 1: Obtener el ID de la categoría "Recetas"
+        const { data: categoryData, error: categoryError } = await supabase
+          .from("categories")
+          .select("id, name")
+          .ilike("name", "%receta%")
+
+        if (categoryError) {
+          console.error("Error al obtener la categoría:", categoryError)
+          setError(`Error al obtener la categoría: ${categoryError.message}`)
+          setIsLoading(false)
+          return
+        }
+
+        if (!categoryData || categoryData.length === 0) {
+          console.error("No se encontró la categoría 'Recetas'")
+          setError("No se encontró la categoría 'Recetas'")
+          setIsLoading(false)
+          return
+        }
+
+        const categoryId = categoryData[0].id
+        const categoryName = categoryData[0].name
+
+        console.log(`Categoría encontrada: ${categoryName} (ID: ${categoryId})`)
+
+        // Paso 2: Obtener productos de la categoría "Recetas"
+        const { data: productsData, error: productsError } = await supabase
+          .from("products")
+          .select("*, categories(name)")
+          .eq("category_id", categoryId)
+
+        if (productsError) {
+          console.error("Error al obtener productos:", productsError)
+          setError(`Error al obtener productos: ${productsError.message}`)
+          setIsLoading(false)
+          return
+        }
+
+        console.log(`Se encontraron ${productsData?.length || 0} productos en la categoría`)
+
+        // Transformar los datos al formato esperado por ProductCard
+        const formattedProducts = productsData.map((product) => ({
+          id: product.id || 0,
+          name: product.name || "Producto sin nombre",
+          description: product.description || "Sin descripción",
+          image: product.image_url || "/pastel-carne-package.png", // Imagen por defecto si no hay
+          rating: product.rating || 4.5,
+          reviews: product.reviews_count || 0,
+          price: product.price || 0,
+          features: product.features
+            ? typeof product.features === "string"
+              ? JSON.parse(product.features)
+              : product.features
+            : DEFAULT_RECETAS_FEATURES,
+          sizes: product.sizes
+            ? typeof product.sizes === "string"
+              ? JSON.parse(product.sizes)
+              : product.sizes
+            : [{ weight: "200g", price: product.price || 0 }],
+          category: product.categories?.name || categoryName || "Recetas",
+          spotlightColor: "rgba(249, 215, 232, 0.3)",
+        }))
+
+        setProducts(formattedProducts)
+        setFilteredProducts(formattedProducts)
+      } catch (error) {
+        console.error("Error processing products:", error)
+        setError(`Error processing products: ${error.message}`)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [supabase])
 
   // Función para mostrar el detalle del producto
   const handleShowDetail = (product) => {
@@ -117,7 +127,7 @@ export default function RecetasPage() {
   }
 
   const applyFilters = () => {
-    let result = [...recetasProducts]
+    let result = [...products]
 
     // Filtrar por rango de precio
     result = result.filter((product) => {
@@ -184,11 +194,28 @@ export default function RecetasPage() {
           {/* Productos de la categoría - USANDO PRODUCTCARD */}
           <div className="mb-12">
             <h2 className="text-2xl font-bold mb-8 text-primary font-display">Recetas destacadas</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} {...product} onShowDetail={handleShowDetail} />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 bg-red-50 dark:bg-red-900/20 rounded-lg p-6">
+                <p className="text-red-600 dark:text-red-400">{error}</p>
+                <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+                  Reintentar
+                </Button>
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} {...product} onShowDetail={handleShowDetail} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 dark:text-gray-400">No se encontraron productos en esta categoría.</p>
+              </div>
+            )}
           </div>
 
           {/* Sección de beneficios */}

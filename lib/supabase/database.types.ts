@@ -125,100 +125,101 @@ export interface Database {
           alt?: string
         }
       }
-      blogs: {
+      orders: {
         Row: {
           id: number
-          title: string
-          slug: string
-          content: string
-          excerpt: string | null
-          cover_image: string | null
-          author_id: string | null
-          published: boolean
+          user_id: string | null
+          status: string
+          total: number
           created_at: string
           updated_at: string
-          category_id: number | null
-          meta_description: string | null
-          read_time: number | null
+          shipping_address: Json | null
+          payment_intent_id: string | null
+          payment_status: string | null
+          order_number: string
+          customer_name: string | null
+          customer_email: string | null
+          customer_phone: string | null
+          shipping_method: string | null
+          shipping_cost: number | null
+          notes: string | null
+          mercadopago_preference_id: string | null
+          mercadopago_payment_id: string | null
         }
         Insert: {
           id?: number
-          title: string
-          slug: string
-          content: string
-          excerpt?: string | null
-          cover_image?: string | null
-          author_id?: string | null
-          published?: boolean
+          user_id?: string | null
+          status?: string
+          total: number
           created_at?: string
           updated_at?: string
-          category_id?: number | null
-          meta_description?: string | null
-          read_time?: number | null
+          shipping_address?: Json | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          order_number: string
+          customer_name?: string | null
+          customer_email?: string | null
+          customer_phone?: string | null
+          shipping_method?: string | null
+          shipping_cost?: number | null
+          notes?: string | null
+          mercadopago_preference_id?: string | null
+          mercadopago_payment_id?: string | null
         }
         Update: {
           id?: number
-          title?: string
-          slug?: string
-          content?: string
-          excerpt?: string | null
-          cover_image?: string | null
-          author_id?: string | null
-          published?: boolean
+          user_id?: string | null
+          status?: string
+          total?: number
           created_at?: string
           updated_at?: string
-          category_id?: number | null
-          meta_description?: string | null
-          read_time?: number | null
+          shipping_address?: Json | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
+          order_number?: string
+          customer_name?: string | null
+          customer_email?: string | null
+          customer_phone?: string | null
+          shipping_method?: string | null
+          shipping_cost?: number | null
+          notes?: string | null
+          mercadopago_preference_id?: string | null
+          mercadopago_payment_id?: string | null
         }
       }
-      blog_categories: {
+      order_items: {
         Row: {
           id: number
-          name: string
-          slug: string
-          description: string | null
-          created_at: string
+          order_id: number
+          product_id: number | null
+          product_name: string
+          product_image: string
+          quantity: number
+          price: number
+          size: string | null
+          is_subscription: boolean
         }
         Insert: {
           id?: number
-          name: string
-          slug: string
-          description?: string | null
-          created_at?: string
+          order_id: number
+          product_id?: number | null
+          product_name: string
+          product_image: string
+          quantity: number
+          price: number
+          size?: string | null
+          is_subscription?: boolean
         }
         Update: {
           id?: number
-          name?: string
-          slug?: string
-          description?: string | null
-          created_at?: string
-        }
-      }
-      profiles: {
-        Row: {
-          id: string
-          email: string
-          name: string | null
-          avatar_url: string | null
-          role: string
-          created_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          name?: string | null
-          avatar_url?: string | null
-          role?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          name?: string | null
-          avatar_url?: string | null
-          role?: string
-          created_at?: string
+          order_id?: number
+          product_id?: number | null
+          product_name?: string
+          product_image?: string
+          quantity?: number
+          price?: number
+          size?: string | null
+          is_subscription?: boolean
         }
       }
     }

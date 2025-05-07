@@ -3,8 +3,7 @@
 import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Package, ShoppingBag, Users, Settings, LogOut, LayoutDashboard, Tag, ImageIcon } from "lucide-react"
-import Image from "next/image"
+import { Package, ShoppingBag, Settings, LogOut, LayoutDashboard, Tag, Database } from "lucide-react"
 
 export function AdminSidebar() {
   const { signOut, user } = useAuth()
@@ -36,45 +35,40 @@ export function AdminSidebar() {
       icon: <ShoppingBag size={20} />,
     },
     {
-      title: "Usuarios",
-      href: "/admin/users",
-      icon: <Users size={20} />,
-    },
-    {
-      title: "Imágenes",
-      href: "/admin/images",
-      icon: <ImageIcon size={20} />,
-    },
-    {
       title: "Configuración",
       href: "/admin/settings",
       icon: <Settings size={20} />,
+    },
+    {
+      title: "Inicializar Tablas",
+      href: "/admin/initialize-tables",
+      icon: <Database size={20} />,
     },
   ]
 
   return (
     <div className="flex h-screen w-64 flex-col bg-white shadow-md dark:bg-gray-800">
-      <div className="flex h-16 items-center justify-center border-b px-4 dark:border-gray-700">
+      <div className="flex h-20 items-center justify-center border-b px-4 dark:border-gray-700">
         <Link href="/admin/dashboard">
-          <Image src="/pet-gourmet-logo-full.png" alt="Pet Gourmet Logo" width={150} height={40} className="h-auto" />
+          <h1 className="text-xl font-bold text-primary">Pet Gourmet</h1>
         </Link>
       </div>
 
       <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-2">
           {menuItems.map((item) => (
-            <Link
+            <div
               key={item.href}
-              href={item.href}
-              className={`flex items-center rounded-md px-3 py-2 text-sm font-medium ${
+              className={`flex items-center rounded-md px-3 py-2 text-sm font-medium cursor-pointer ${
                 isActive(item.href)
                   ? "bg-primary text-white"
                   : "text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
               }`}
+              onClick={() => (window.location.href = item.href)}
             >
               <span className="mr-3">{item.icon}</span>
               {item.title}
-            </Link>
+            </div>
           ))}
         </nav>
       </div>

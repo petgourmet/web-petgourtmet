@@ -1,62 +1,146 @@
-import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { Heading } from "@/components/ui/heading"
+import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { CheckCircle } from "lucide-react"
 
-export default function ThankYouPage() {
+export default async function GraciasPage({
+  searchParams,
+}: {
+  searchParams: { order_id?: string; order_number?: string }
+}) {
+  const orderId = searchParams.order_id
+  const orderNumber = searchParams.order_number
+
+  if (!orderId || !orderNumber) {
+    redirect("/")
+  }
+
+  const supabase = createClient()
+
+  // Obtener detalles del pedido
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", orderId)
+    .eq("order_number", orderNumber)
+    .single()
+
+  if (orderError || !order) {
+    redirect("/")
+  }
+
+  // Obtener items del pedido
+  const { data: orderItems, error: itemsError } = await supabase.from("order_items").select("*").eq("order_id", orderId)
+
+  if (itemsError) {
+    console.error("Error al obtener los items del pedido:", itemsError)
+  }
+
   return (
-    <div className="responsive-section bg-illuminated">
-      <div className="responsive-container">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="mb-8 flex justify-center">
-            <CheckCircle className="h-24 w-24 text-green-500" />
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">¡Gracias por tu compra!</h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-            Tu pedido ha sido procesado correctamente. Hemos enviado un correo electrónico con los detalles de tu
-            compra.
-          </p>
-          <p className="text-md text-gray-600 dark:text-gray-300 mb-12">
-            Número de pedido:{" "}
-            <span className="font-bold">
-              PG-
-              {Math.floor(Math.random() * 10000)
-                .toString()
-                .padStart(4, "0")}
-            </span>
-          </p>
+    <div className="container max-w-4xl py-12">
+      <div className="bg-white rounded-3xl shadow-md p-8 text-center">
+        <div className="flex justify-center mb-6">
+          <CheckCircle className="h-20 w-20 text-green-500" />
+        </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 mb-8 shadow-md">
-            <h2 className="text-xl font-bold mb-4 text-primary font-display">¿Qué sigue?</h2>
-            <ul className="text-left space-y-3">
-              <li className="flex items-start">
-                <span className="bg-primary/10 text-primary rounded-full p-1 mr-3 mt-1">
-                  <CheckCircle className="h-4 w-4" />
-                </span>
-                <span>Recibirás un correo electrónico de confirmación con los detalles de tu pedido.</span>
-              </li>
-              <li className="flex items-start">
-                <span className="bg-primary/10 text-primary rounded-full p-1 mr-3 mt-1">
-                  <CheckCircle className="h-4 w-4" />
-                </span>
-                <span>Tu pedido será preparado y enviado en las próximas 24 horas.</span>
-              </li>
-              <li className="flex items-start">
-                <span className="bg-primary/10 text-primary rounded-full p-1 mr-3 mt-1">
-                  <CheckCircle className="h-4 w-4" />
-                </span>
-                <span>Recibirás otro correo con la información de seguimiento cuando tu pedido sea enviado.</span>
-              </li>
-            </ul>
+        <Heading title="¡Gracias por tu compra!" description="Tu pedido ha sido recibido correctamente" />
+
+        <div className="mt-8 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Detalles del pedido</h3>
+              <p>
+                <strong>Número de pedido:</strong> {order.order_number}
+              </p>
+              <p>
+                <strong>Fecha:</strong> {new Date(order.created_at).toLocaleDateString()}
+              </p>
+              <p>
+                <strong>Estado del pedido:</strong> {order.status === "processing" ? "En proceso" : order.status}
+              </p>
+              <p>
+                <strong>Estado del pago:</strong> {order.payment_status === "paid" ? "Pagado" : order.payment_status}
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Información de envío</h3>
+              <p>
+                <strong>Nombre:</strong> {order.customer_name}
+              </p>
+              <p>
+                <strong>Email:</strong> {order.customer_email}
+              </p>
+              <p>
+                <strong>Teléfono:</strong> {order.customer_phone}
+              </p>
+              <p>
+                <strong>Dirección:</strong> {order.shipping_address.street_name} {order.shipping_address.street_number},{" "}
+                {order.shipping_address.city}, {order.shipping_address.state}, {order.shipping_address.zip_code}
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild className="bg-primary hover:bg-primary/90 text-white rounded-full">
-              <Link href="/">Volver a la Tienda</Link>
-            </Button>
-            <Button asChild variant="outline" className="rounded-full">
-              <Link href="/mi-cuenta">Ver Mis Pedidos</Link>
-            </Button>
+          <Separator className="my-6" />
+
+          <h3 className="text-lg font-semibold mb-4">Resumen del pedido</h3>
+          <div className="space-y-4">
+            {orderItems &&
+              orderItems.map((item) => (
+                <div key={item.id} className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    {item.product_image && (
+                      <div className="w-16 h-16 rounded-md overflow-hidden mr-4">
+                        <img
+                          src={item.product_image || "/placeholder.svg"}
+                          alt={item.product_name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium">{item.product_name}</p>
+                      <p className="text-sm text-gray-500">
+                        {item.size} x {item.quantity}
+                        {item.is_subscription && " (Suscripción)"}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="font-medium">€{(item.price * item.quantity).toFixed(2)}</p>
+                </div>
+              ))}
           </div>
+
+          <div className="mt-6 border-t border-gray-200 pt-4">
+            <div className="flex justify-between mb-2">
+              <span>Subtotal</span>
+              <span>€{(order.total - (order.shipping_cost || 0) - order.total * 0.21).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between mb-2">
+              <span>Envío</span>
+              <span>€{(order.shipping_cost || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between mb-2">
+              <span>Impuestos</span>
+              <span>€{(order.total * 0.21).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-lg mt-4">
+              <span>Total</span>
+              <span>€{order.total.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-col md:flex-row justify-center gap-4">
+          <Button asChild className="bg-primary hover:bg-primary/90 text-white">
+            <Link href="/">Volver a la tienda</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/contacto">Contactar con nosotros</Link>
+          </Button>
         </div>
       </div>
     </div>

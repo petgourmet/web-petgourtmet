@@ -2,6 +2,7 @@
 
 import type React from "react"
 
+import { use } from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
@@ -12,48 +13,85 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowLeft, Upload, Eye } from "lucide-react"
+import { Loader2, ArrowLeft, Upload, ShieldAlert } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import dynamic from "next/dynamic"
-
-// Importar el editor de Markdown dinámicamente para evitar errores de SSR
-const MDEditor = dynamic(() => import("@uiw/react-md-editor").then((mod) => mod.default), { ssr: false })
-const MDPreview = dynamic(() => import("@uiw/react-md-editor").then((mod) => mod.MDPreview), { ssr: false })
-
-type BlogCategory = {
-  id: number
-  name: string
-}
-
-type Blog = {
-  id?: number
-  title: string
-  slug?: string
-  excerpt: string
-  content: string
-  cover_image: string
-  category_id: number | null
-  is_published: boolean
-}
+import { toast } from "@/components/ui/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { SecureFileUpload } from "@/components/admin/secure-file-upload"
+import type { Blog, BlogCategory } from "@/lib/supabase/types"
 
 export default function BlogForm({ params }: { params: { id: string } }) {
+  // Usar React.use para desenvolver los parámetros
+  const unwrappedParams = use(params)
   const router = useRouter()
-  const isNew = params.id === "new"
+  const isNew = unwrappedParams.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<BlogCategory[]>([])
-  const [blog, setBlog] = useState<Blog>({
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  const [blog, setBlog] = useState<Partial<Blog>>({
     title: "",
+    slug: "",
     excerpt: "",
     content: "",
     cover_image: "",
+    author: "",
     category_id: null,
     is_published: false,
   })
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [previewMode, setPreviewMode] = useState(false)
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
+
+  // Verificar autenticación y permisos
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
+
+        if (error) {
+          console.error("Error al verificar sesión:", error)
+          setIsAuthenticated(false)
+          setIsAdmin(false)
+          return
+        }
+
+        if (!session) {
+          console.warn("No hay sesión activa")
+          setIsAuthenticated(false)
+          setIsAdmin(false)
+          return
+        }
+
+        setIsAuthenticated(true)
+
+        // Verificar si el usuario es administrador
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single()
+
+        if (profileError) {
+          console.error("Error al verificar rol:", profileError)
+          setIsAdmin(false)
+          return
+        }
+
+        setIsAdmin(profileData?.role === "admin")
+        console.log("Estado de autenticación:", { isAuthenticated: true, isAdmin: profileData?.role === "admin" })
+      } catch (error) {
+        console.error("Error inesperado al verificar autenticación:", error)
+        setIsAuthenticated(false)
+        setIsAdmin(false)
+      }
+    }
+
+    checkAuth()
+  }, [])
 
   useEffect(() => {
     async function fetchData() {
@@ -61,11 +99,14 @@ export default function BlogForm({ params }: { params: { id: string } }) {
       try {
         // Cargar categorías
         const { data: categoriesData } = await supabase.from("blog_categories").select("*").order("name")
+
         setCategories(categoriesData || [])
 
         // Si no es un nuevo blog, cargar datos del blog
         if (!isNew) {
-          const blogId = Number.parseInt(params.id)
+          const blogId = Number.parseInt(unwrappedParams.id)
+
+          // Cargar blog
           const { data: blogData, error: blogError } = await supabase
             .from("blogs")
             .select("*")
@@ -73,39 +114,28 @@ export default function BlogForm({ params }: { params: { id: string } }) {
             .single()
 
           if (blogError) throw blogError
-          setBlog(
-            blogData || {
-              title: "",
-              excerpt: "",
-              content: "",
-              cover_image: "",
-              category_id: null,
-              is_published: false,
-            },
-          )
+          setBlog(blogData || {})
         }
       } catch (error) {
         console.error("Error al cargar datos:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos del blog. Por favor, inténtalo de nuevo.",
+          variant: "destructive",
+        })
       } finally {
         setLoading(false)
       }
     }
 
     fetchData()
-  }, [isNew, params.id])
+  }, [isNew, unwrappedParams.id])
 
   const handleBlogChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setBlog({
       ...blog,
       [name]: value,
-    })
-  }
-
-  const handleContentChange = (value?: string) => {
-    setBlog({
-      ...blog,
-      content: value || "",
     })
   }
 
@@ -116,25 +146,27 @@ export default function BlogForm({ params }: { params: { id: string } }) {
     })
   }
 
-  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
+  const handleSlugGeneration = () => {
+    if (blog.title) {
+      const slug = blog.title
+        .toLowerCase()
+        .replace(/[^\w\s]/gi, "")
+        .replace(/\s+/g, "-")
+
+      setBlog({
+        ...blog,
+        slug,
+      })
     }
   }
 
-  const uploadImage = async (file: File) => {
-    const fileExt = file.name.split(".").pop()
-    const fileName = `${Date.now()}.${fileExt}`
-    const filePath = `blogs/${fileName}`
-
-    const { error: uploadError } = await supabase.storage.from("images").upload(filePath, file)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from("images").getPublicUrl(filePath)
-    return data.publicUrl
+  const handleFileUploaded = (url: string) => {
+    console.log("Archivo subido exitosamente:", url)
+    setUploadedImageUrl(url)
+    setBlog({
+      ...blog,
+      cover_image: url,
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -142,15 +174,35 @@ export default function BlogForm({ params }: { params: { id: string } }) {
     setSaving(true)
 
     try {
-      // Subir imagen principal si hay una nueva
-      let imageUrl = blog.cover_image
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile)
+      // Verificar autenticación antes de continuar
+      if (!isAuthenticated) {
+        toast({
+          title: "Error de autenticación",
+          description: "Debes iniciar sesión para guardar blogs.",
+          variant: "destructive",
+        })
+        setSaving(false)
+        return
       }
+
+      if (!isAdmin) {
+        toast({
+          title: "Error de permisos",
+          description: "No tienes permisos para guardar blogs. Se requiere rol de administrador.",
+          variant: "destructive",
+        })
+        setSaving(false)
+        return
+      }
+
+      // Usar la imagen subida o la existente
+      const imageUrl = uploadedImageUrl || blog.cover_image
 
       const blogData = {
         ...blog,
         cover_image: imageUrl,
+        published_at: blog.is_published ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
       }
 
       if (isNew) {
@@ -160,15 +212,25 @@ export default function BlogForm({ params }: { params: { id: string } }) {
         if (error) throw error
       } else {
         // Actualizar blog existente
-        const { error } = await supabase.from("blogs").update(blogData).eq("id", params.id)
+        const blogId = Number.parseInt(unwrappedParams.id)
+        const { error } = await supabase.from("blogs").update(blogData).eq("id", blogId)
 
         if (error) throw error
       }
 
+      toast({
+        title: "Éxito",
+        description: isNew ? "Blog creado correctamente" : "Blog actualizado correctamente",
+      })
+
       router.push("/admin/blogs")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al guardar blog:", error)
-      alert("Error al guardar el blog. Por favor, inténtalo de nuevo.")
+      toast({
+        title: "Error",
+        description: `No se pudo guardar el blog: ${error.message || "Error desconocido"}`,
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -193,29 +255,67 @@ export default function BlogForm({ params }: { params: { id: string } }) {
         <h1 className="text-2xl font-bold">{isNew ? "Nuevo Blog" : "Editar Blog"}</h1>
       </div>
 
+      {!isAuthenticated && (
+        <Alert variant="destructive" className="mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>No has iniciado sesión</AlertTitle>
+          <AlertDescription>
+            Debes iniciar sesión para poder crear o editar blogs.
+            <div className="mt-2">
+              <Link href="/admin/login">
+                <Button variant="outline" size="sm">
+                  Ir a iniciar sesión
+                </Button>
+              </Link>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isAuthenticated && !isAdmin && (
+        <Alert variant="destructive" className="mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Permisos insuficientes</AlertTitle>
+          <AlertDescription>
+            No tienes permisos de administrador para crear o editar blogs. Contacta al administrador del sistema para
+            solicitar acceso.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-8">
         <Card>
           <CardHeader>
             <CardTitle>Información Básica</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Título</Label>
+              <Input id="title" name="title" value={blog.title} onChange={handleBlogChange} required />
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="title">Título</Label>
-                <Input id="title" name="title" value={blog.title} onChange={handleBlogChange} required />
+                <Label htmlFor="slug">Slug</Label>
+                <div className="flex space-x-2">
+                  <Input id="slug" name="slug" value={blog.slug} onChange={handleBlogChange} required />
+                  <Button type="button" variant="outline" onClick={handleSlugGeneration}>
+                    Generar
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">Categoría</Label>
                 <Select
                   value={blog.category_id?.toString() || ""}
-                  onValueChange={(value) => setBlog({ ...blog, category_id: Number.parseInt(value) || null })}
+                  onValueChange={(value) => setBlog({ ...blog, category_id: value ? Number.parseInt(value) : null })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="-1">Sin categoría</SelectItem>
+                    <SelectItem value="0">Sin categoría</SelectItem>
                     {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
@@ -234,13 +334,30 @@ export default function BlogForm({ params }: { params: { id: string } }) {
                 value={blog.excerpt || ""}
                 onChange={handleBlogChange}
                 rows={2}
-                placeholder="Breve descripción del blog (aparecerá en las tarjetas de previsualización)"
+                required
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="content">Contenido</Label>
+              <Textarea
+                id="content"
+                name="content"
+                value={blog.content || ""}
+                onChange={handleBlogChange}
+                rows={10}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="author">Autor</Label>
+              <Input id="author" name="author" value={blog.author || ""} onChange={handleBlogChange} />
+            </div>
+
             <div className="flex items-center space-x-2">
-              <Checkbox id="is_published" checked={blog.is_published} onCheckedChange={handleCheckboxChange} />
-              <Label htmlFor="is_published">Publicar inmediatamente</Label>
+              <Checkbox id="is_published" checked={blog.is_published || false} onCheckedChange={handleCheckboxChange} />
+              <Label htmlFor="is_published">Publicado</Label>
             </div>
           </CardContent>
         </Card>
@@ -252,9 +369,9 @@ export default function BlogForm({ params }: { params: { id: string } }) {
           <CardContent>
             <div className="flex flex-col items-center space-y-4">
               <div className="relative h-40 w-full overflow-hidden rounded-md border">
-                {imagePreview || blog.cover_image ? (
+                {uploadedImageUrl || blog.cover_image ? (
                   <Image
-                    src={imagePreview || blog.cover_image || ""}
+                    src={uploadedImageUrl || blog.cover_image || ""}
                     alt="Vista previa"
                     fill
                     className="object-cover"
@@ -265,64 +382,30 @@ export default function BlogForm({ params }: { params: { id: string } }) {
                   </div>
                 )}
               </div>
-              <div>
-                <Label htmlFor="main-image" className="cursor-pointer">
-                  <div className="flex items-center space-x-2 rounded-md border px-4 py-2 hover:bg-gray-50">
-                    <Upload className="h-4 w-4" />
-                    <span>Subir imagen de portada</span>
-                  </div>
-                  <Input
-                    id="main-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleMainImageChange}
-                    className="hidden"
-                  />
-                </Label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Contenido</CardTitle>
-            <Button type="button" variant="outline" size="sm" onClick={() => setPreviewMode(!previewMode)}>
-              <Eye className="mr-2 h-4 w-4" /> {previewMode ? "Editar" : "Vista previa"}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="min-h-[400px]" data-color-mode="light">
-              {previewMode ? (
-                <div className="border p-4 rounded-md">
-                  <MDPreview source={blog.content} />
+              {isAuthenticated && isAdmin && (
+                <div className="w-full max-w-md">
+                  <SecureFileUpload
+                    bucket="images"
+                    path="blogs"
+                    maxSize={500} // 500KB
+                    acceptedFileTypes="image/*"
+                    onUploadComplete={handleFileUploaded}
+                    buttonText="Subir imagen de portada"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Formatos recomendados: JPG, PNG, WebP. Tamaño máximo: 500KB.
+                  </p>
                 </div>
-              ) : (
-                <MDEditor value={blog.content} onChange={handleContentChange} height={400} preview="edit" />
               )}
-            </div>
-            <div className="mt-4 text-sm text-gray-500">
-              <p>Consejos para el editor:</p>
-              <ul className="list-disc pl-5 space-y-1 mt-2">
-                <li>
-                  Usa <code># Título</code> para títulos principales
-                </li>
-                <li>
-                  Usa <code>## Subtítulo</code> para subtítulos
-                </li>
-                <li>
-                  Usa <code>**texto**</code> para texto en negrita
-                </li>
-                <li>
-                  Usa <code>*texto*</code> para texto en cursiva
-                </li>
-                <li>
-                  Usa <code>![texto alternativo](URL de la imagen)</code> para insertar imágenes
-                </li>
-                <li>
-                  Usa <code>[texto del enlace](URL)</code> para insertar enlaces
-                </li>
-              </ul>
+
+              {(!isAuthenticated || !isAdmin) && (
+                <p className="mt-2 text-xs text-red-500">
+                  {!isAuthenticated
+                    ? "Debes iniciar sesión para subir imágenes"
+                    : "No tienes permisos para subir imágenes"}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -333,7 +416,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
               Cancelar
             </Button>
           </Link>
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving || !isAuthenticated || !isAdmin}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isNew ? "Crear Blog" : "Guardar Cambios"}
           </Button>
