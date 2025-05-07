@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { use, useState, useEffect } from "react"
+
+import { useState, useEffect } from "react" // Reverted: Removed 'use'
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import type { Product, Category, ProductSize, ProductImage, ProductFeature, ProductReview } from "@/lib/supabase/types"
@@ -21,14 +22,6 @@ import { slugify } from "@/lib/utils"
 import { CloudinaryUploader } from "@/components/cloudinary-uploader"
 import Image from "next/image"
 
-// Importar los servicios de producto
-import {
-  saveProductSizes,
-  saveProductImages,
-  saveProductFeatures,
-  saveProductReviews,
-} from "@/components/admin/product-service"
-
 const FEATURE_COLORS = [
   { name: "Verde pastel", value: "pastel-green" },
   { name: "Azul pastel", value: "pastel-blue" },
@@ -38,13 +31,9 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
-  // Usar React.use para desenvolver los parámetros
-  const resolvedParams = use(params)
-  const id = resolvedParams.id
-
+export default function ProductForm({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const isNew = id === "new"
+  const isNew = params.id === "new" // Reverted: Use params.id directly
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -126,10 +115,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         // Esto evita la recursión al no consultar la tabla profiles
         const adminEmails = ["admin@petgourmet.com", "cristoferscalante@gmail.com"]
         setIsAdmin(adminEmails.includes(session.user.email || ""))
-        console.log("Estado de autenticación:", {
-          isAuthenticated: true,
-          isAdmin: adminEmails.includes(session.user.email || ""),
-        })
+        console.log("Estado de autenticación:", { isAuthenticated: true, isAdmin: adminEmails.includes(session.user.email || "") })
       } catch (error) {
         console.error("Error inesperado al verificar autenticación:", error)
         setIsAuthenticated(false)
@@ -151,7 +137,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
         // Si no es un nuevo producto, cargar datos del producto
         if (!isNew) {
-          const productId = Number.parseInt(id)
+          const productId = Number.parseInt(params.id) // Reverted: Use params.id directly
 
           // Cargar producto
           const { data: productData, error: productError } = await supabase
@@ -194,64 +180,36 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           }
 
           // Cargar tamaños del producto
-          try {
-            const { data: sizesData, error: sizesError } = await supabase
-              .from("product_sizes")
-              .select("*")
-              .eq("product_id", productId)
+          const { data: sizesData } = await supabase.from("product_sizes").select("*").eq("product_id", productId)
 
-            if (sizesError) {
-              console.error("Error al cargar tamaños:", sizesError)
-              // Continuar con un array vacío si hay error
-              setProductSizes([{ weight: "", price: 0, stock: 0 }])
-            } else {
-              setProductSizes(sizesData?.length ? sizesData : [{ weight: "", price: 0, stock: 0 }])
-            }
-          } catch (error) {
-            console.error("Error al cargar tamaños:", error)
-            setProductSizes([{ weight: "", price: 0, stock: 0 }])
-          }
+          setProductSizes(sizesData?.length ? sizesData : [{ weight: "", price: 0, stock: 0 }])
 
           // Cargar imágenes del producto
-          try {
-            const { data: imagesData, error: imagesError } = await supabase
-              .from("product_images")
-              .select("*")
-              .eq("product_id", productId)
+          const { data: imagesData } = await supabase.from("product_images").select("*").eq("product_id", productId)
 
-            if (imagesError) {
-              console.error("Error al cargar imágenes:", imagesError)
-              setProductImages([{ url: "", alt: "" }])
-              setAdditionalImages([{ src: "", alt: "" }])
-            } else if (imagesData && imagesData.length > 0) {
-              setProductImages(imagesData)
-              // También actualizar additionalImages
-              setAdditionalImages(
-                imagesData.map((img) => ({
-                  src: img.url || "",
-                  alt: img.alt || "",
-                })),
-              )
-            } else {
-              setProductImages([{ url: "", alt: "" }])
-              setAdditionalImages([{ src: "", alt: "" }])
-            }
-          } catch (error) {
-            console.error("Error al cargar imágenes:", error)
+          if (imagesData && imagesData.length > 0) {
+            setProductImages(imagesData)
+
+            // También actualizar additionalImages
+            setAdditionalImages(
+              imagesData.map((img) => ({
+                src: img.url || "",
+                alt: img.alt || "",
+              })),
+            )
+          } else {
             setProductImages([{ url: "", alt: "" }])
             setAdditionalImages([{ src: "", alt: "" }])
           }
 
           // Intentar cargar características del producto
           try {
-            const { data: featuresData, error: featuresError } = await supabase
+            const { data: featuresData } = await supabase
               .from("product_features")
               .select("*")
               .eq("product_id", productId)
 
-            if (featuresError) {
-              console.log("Error al cargar características:", featuresError)
-            } else if (featuresData && featuresData.length > 0) {
+            if (featuresData && featuresData.length > 0) {
               setProductFeatures(featuresData)
             }
           } catch (error) {
@@ -260,15 +218,13 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
           // Intentar cargar reseñas del producto
           try {
-            const { data: reviewsData, error: reviewsError } = await supabase
+            const { data: reviewsData } = await supabase
               .from("product_reviews")
               .select("*")
               .eq("product_id", productId)
               .order("created_at", { ascending: false })
 
-            if (reviewsError) {
-              console.log("Error al cargar reseñas:", reviewsError)
-            } else if (reviewsData && reviewsData.length > 0) {
+            if (reviewsData && reviewsData.length > 0) {
               setProductReviews(reviewsData)
             }
           } catch (error) {
@@ -291,7 +247,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
     }
 
     fetchData()
-  }, [isNew, id, multiCategorySupport])
+  }, [isNew, params.id, multiCategorySupport]) // Reverted: Use params.id in dependency array
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -475,7 +431,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         }
 
         // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && data.id === Number.parseInt(id))) {
+        if (!data || (data && !isNew && data.id === Number.parseInt(params.id))) { // Reverted: Use params.id directly
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -510,7 +466,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         productId = data[0].id
       } else {
         // Actualizar producto existente
-        productId = Number.parseInt(id)
+        productId = Number.parseInt(params.id) // Reverted: Use params.id directly
         const { error } = await supabase.from("products").update(productData).eq("id", productId)
 
         if (error) throw error
@@ -539,142 +495,157 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         }
       }
 
-      // Gestionar tamaños del producto
+      // Gestionar características del producto
       try {
-        if (productSizes.length) {
-          const result = await saveProductSizes(productId, productSizes)
-          if (!result.success) {
+        // Eliminar características existentes
+        if (!isNew) {
+          await supabase.from("product_features").delete().eq("product_id", productId);
+        }
+
+        // Filtrar características vacías
+        const validFeatures = productFeatures.filter((feature) => feature.name && feature.name.trim() !== "");
+
+        if (validFeatures.length > 0) {
+          // Insertar nuevas características
+          const featuresWithProductId = validFeatures.map((feature) => ({
+            product_id: productId,
+            name: feature.name,
+            color: feature.color || "pastel-green"
+          }));
+
+          const { error: featuresError } = await supabase.from("product_features").insert(featuresWithProductId);
+
+          if (featuresError) {
+            console.error("Error al guardar características:", featuresError);
             toast({
               title: "Advertencia",
-              description: "No se pudieron guardar los tamaños del producto. Verifica los permisos de la tabla.",
-              variant: "warning",
-            })
+              description: "Algunas características del producto no se pudieron guardar.",
+              variant: "default",
+            });
           }
         }
       } catch (error) {
-        console.error("Error al gestionar tamaños:", error)
+        console.error("Error al gestionar características:", error);
+        toast({
+          title: "Advertencia",
+          description: "Ocurrió un error al procesar las características del producto.",
+          variant: "default",
+        });
+      }
+
+      // Gestionar tamaños del producto
+      try {
+        // Eliminar tamaños existentes
+        if (!isNew) {
+          await supabase.from("product_sizes").delete().eq("product_id", productId);
+        }
+
+        // Filtrar tamaños vacíos
+        const validSizes = productSizes.filter((size) => size.weight && size.weight.trim() !== "");
+
+        if (validSizes.length > 0) {
+          // Insertar nuevos tamaños
+          const sizesWithProductId = validSizes.map((size) => ({
+            product_id: productId,
+            weight: size.weight,
+            price: size.price || 0,
+            stock: size.stock || 0
+          }));
+
+          const { error: sizesError } = await supabase.from("product_sizes").insert(sizesWithProductId);
+
+          if (sizesError) {
+            console.error("Error al guardar tamaños:", sizesError);
+            toast({
+              title: "Advertencia",
+              description: "Algunos tamaños del producto no se pudieron guardar.",
+              variant: "default",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error al gestionar tamaños:", error);
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar los tamaños del producto.",
-          variant: "warning",
-        })
+          variant: "default",
+        });
       }
 
       // Gestionar imágenes del producto
       try {
-        // Filtrar imágenes vacías
-        const validImages = productImages
-          .filter((img) => img.url && img.url.trim() !== "")
-          .map((img) => ({
-            url: img.url,
-            alt: img.alt || "",
-          }))
+        // Eliminar imágenes existentes
+        if (!isNew) {
+          await supabase.from("product_images").delete().eq("product_id", productId);
+        }
 
-        // Añadir también las imágenes del estado additionalImages
-        const additionalValidImages = additionalImages
-          .filter((img) => img.src && img.src.trim() !== "")
-          .map((img) => ({
+        // Combinar todas las imágenes adicionales
+        const allImages = additionalImages
+          .filter(img => img.src && img.src.trim() !== "")
+          .map(img => ({
+            product_id: productId,
             url: img.src,
             alt: img.alt || "",
-          }))
+            // No incluir campos relacionados con usuarios
+          }));
 
-        // Combinar ambos arrays de imágenes
-        const allImages = [...validImages, ...additionalValidImages]
+        if (allImages.length > 0) {
+          const { error: imagesError } = await supabase
+            .from("product_images")
+            .insert(allImages);
 
-        // Eliminar duplicados basados en la URL
-        const uniqueImages = allImages.filter((img, index, self) => index === self.findIndex((t) => t.url === img.url))
-
-        if (uniqueImages.length > 0) {
-          const result = await saveProductImages(productId, uniqueImages)
-          if (!result.success) {
+          if (imagesError) {
+            console.error("Error al guardar imágenes:", imagesError);
             toast({
               title: "Advertencia",
               description: "Algunas imágenes no se pudieron guardar correctamente.",
-              variant: "warning",
-            })
+              variant: "default",
+            });
           }
         }
       } catch (error) {
-        console.error("Error al gestionar imágenes:", error)
+        console.error("Error al gestionar imágenes:", error);
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar las imágenes del producto.",
-          variant: "warning",
-        })
+          variant: "default",
+        });
       }
 
-      // Gestionar características del producto
+      // Establecer reseñas predeterminadas
       try {
-        // Verificar primero si la tabla product_features existe
-        const { error: tableCheckError } = await supabase.from("product_features").select("id").limit(1).maybeSingle()
+        // Eliminar reseñas existentes
+        if (!isNew) {
+          await supabase.from("product_reviews").delete().eq("product_id", productId);
+        }
 
-        // Si hay un error que indica que la tabla no existe
-        if (tableCheckError && tableCheckError.code === "42P01") {
-          console.log("La tabla product_features no existe.")
-          toast({
-            title: "Advertencia",
-            description: "La tabla de características no existe. Ve a /admin/initialize-tables para crearla.",
-            variant: "warning",
-          })
-        } else {
-          // Filtrar características vacías
-          const validFeatures = productFeatures.filter((feature) => feature.name && feature.name.trim() !== "")
-
-          if (validFeatures.length > 0) {
-            const result = await saveProductFeatures(productId, validFeatures)
-            if (!result.success) {
-              toast({
-                title: "Advertencia",
-                description: "Algunas características del producto no se pudieron guardar.",
-                variant: "warning",
-              })
-            }
+        // Insertar reseñas predeterminadas
+        const defaultReviews = [
+          {
+            product_id: productId,
+            user_name: "Cliente satisfecho",
+            rating: 5,
+            comment: "¡Excelente producto! Mi mascota lo adora.",
+            created_at: new Date().toISOString(),
+            // No incluir user_id ni otros campos relacionados con usuarios
+          },
+          {
+            product_id: productId,
+            user_name: "Cliente regular",
+            rating: 4,
+            comment: "Buen producto, lo recomiendo para todas las mascotas.",
+            created_at: new Date(Date.now() - 86400000).toISOString() // 1 día antes
+            // No incluir user_id ni otros campos relacionados con usuarios
           }
+        ];
+
+        const { error: reviewsError } = await supabase.from("product_reviews").insert(defaultReviews);
+
+        if (reviewsError) {
+          console.error("Error al guardar reseñas predeterminadas:", reviewsError);
         }
       } catch (error) {
-        console.error("Error al gestionar características:", error)
-        toast({
-          title: "Advertencia",
-          description: "Ocurrió un error al procesar las características del producto.",
-          variant: "warning",
-        })
-      }
-
-      // Gestionar reseñas del producto
-      try {
-        // Verificar primero si la tabla product_reviews existe
-        const { error: tableCheckError } = await supabase.from("product_reviews").select("id").limit(1).maybeSingle()
-
-        // Si hay un error que indica que la tabla no existe
-        if (tableCheckError && tableCheckError.code === "42P01") {
-          console.log("La tabla product_reviews no existe.")
-          toast({
-            title: "Advertencia",
-            description: "La tabla de reseñas no existe. Ve a /admin/initialize-tables para crearla.",
-            variant: "warning",
-          })
-        } else {
-          // Filtrar reseñas vacías
-          const validReviews = productReviews.filter((review) => review.rating)
-
-          if (validReviews.length > 0) {
-            const result = await saveProductReviews(productId, validReviews)
-            if (!result.success) {
-              toast({
-                title: "Advertencia",
-                description: "Algunas reseñas del producto no se pudieron guardar.",
-                variant: "warning",
-              })
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error al gestionar reseñas:", error)
-        toast({
-          title: "Advertencia",
-          description: "Ocurrió un error al procesar las reseñas del producto.",
-          variant: "warning",
-        })
+        console.error("Error al gestionar reseñas:", error);
       }
 
       toast({
@@ -698,30 +669,29 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
   // Cargar imágenes adicionales
   useEffect(() => {
     const loadAdditionalImages = async () => {
-      if (!isNew) {
-        const productId = Number.parseInt(id)
-        try {
-          const { data: imagesData, error: imagesError } = await supabase
-            .from("product_images")
-            .select("*")
-            .eq("product_id", productId)
+      if (!isNew && params.id) { // Reverted: Use params.id directly
+        const productId = Number.parseInt(params.id); // Reverted: Use params.id directly
+        const { data: imagesData, error: imagesError } = await supabase
+          .from("product_images")
+          .select("*")
+          .eq("product_id", productId);
 
-          if (!imagesError && imagesData) {
-            setAdditionalImages(
-              imagesData.map((img) => ({
-                src: img.url || "",
-                alt: img.alt || "",
-              })),
-            )
-          }
-        } catch (error) {
-          console.error("Error al cargar imágenes adicionales:", error)
+        if (!imagesError && imagesData && imagesData.length > 0) {
+          setAdditionalImages(
+            imagesData.map((img) => ({
+              src: img.url || "",
+              alt: img.alt || "",
+            }))
+          );
+        } else {
+          // Si no hay imágenes o hay un error, inicializar con un array vacío
+          setAdditionalImages([]);
         }
       }
-    }
+    };
 
-    loadAdditionalImages()
-  }, [id, isNew])
+    loadAdditionalImages();
+  }, [isNew, params.id]); // Reverted: Use params.id in dependency array
 
   if (loading) {
     return (
@@ -779,11 +749,10 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
       </Alert>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="basic">Información Básica</TabsTrigger>
           <TabsTrigger value="images">Imágenes</TabsTrigger>
           <TabsTrigger value="details">Detalles</TabsTrigger>
-          <TabsTrigger value="reviews">Reseñas</TabsTrigger>
           <TabsTrigger value="preview">Vista Previa</TabsTrigger>
         </TabsList>
 
@@ -949,7 +918,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                             setAdditionalImages(newImages)
                           }}
                           folder="products"
-                          existingImage={image.src}
+                          currentImageUrl={image.src}
                           buttonText="Subir Imagen"
                         />
                         {image.src && <p className="text-xs text-gray-500 mt-1 truncate">URL: {image.src}</p>}
@@ -1136,134 +1105,6 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             </Card>
           </TabsContent>
 
-          <TabsContent value="reviews">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Valoraciones y Reseñas</CardTitle>
-                <div className="space-x-2">
-                  <Button type="button" variant="outline" size="sm" onClick={addReview}>
-                    <Plus className="mr-2 h-4 w-4" /> Añadir Reseña
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
-                  <Label htmlFor="rating">Valoración General</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      id="rating"
-                      name="rating"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="5"
-                      value={product.rating || 0}
-                      onChange={handleProductChange}
-                      className="w-24"
-                    />
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`h-5 w-5 ${
-                            (product.rating || 0) >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-6">
-                  <Label htmlFor="reviews_count">Número de Reseñas</Label>
-                  <Input
-                    id="reviews_count"
-                    name="reviews_count"
-                    type="number"
-                    value={product.reviews_count || 0}
-                    onChange={handleProductChange}
-                    className="w-32"
-                  />
-                </div>
-
-                <div className="space-y-6">
-                  {productReviews.map((review, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium">Reseña {index + 1}</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:bg-red-50 hover:text-red-600"
-                          onClick={() => removeReview(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor={`review-user-${index}`}>Nombre del Cliente</Label>
-                          <Input
-                            id={`review-user-${index}`}
-                            value={review.user_name || ""}
-                            onChange={(e) => handleReviewChange(index, "user_name", e.target.value)}
-                            placeholder="Nombre del cliente"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`review-rating-${index}`}>Valoración</Label>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              id={`review-rating-${index}`}
-                              type="number"
-                              min="1"
-                              max="5"
-                              value={review.rating || 5}
-                              onChange={(e) => handleReviewChange(index, "rating", e.target.value)}
-                              className="w-16"
-                            />
-                            <div className="flex">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                  key={star}
-                                  className={`h-4 w-4 ${
-                                    (review.rating || 0) >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`review-comment-${index}`}>Comentario</Label>
-                        <Textarea
-                          id={`review-comment-${index}`}
-                          value={review.comment || ""}
-                          onChange={(e) => handleReviewChange(index, "comment", e.target.value)}
-                          placeholder="Comentario de la reseña"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  ))}
-
-                  {productReviews.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No hay reseñas para este producto</p>
-                      <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addReview}>
-                        Añadir reseña
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="preview">
             <Card>
               <CardHeader>
@@ -1319,7 +1160,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                                 <Star
                                   key={i}
                                   className={`w-4 h-4 ${
-                                    i < Math.floor(product.rating) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                                    i < Math.floor(product.rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
                                   }`}
                                 />
                               ))}
@@ -1356,13 +1197,11 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                             {productSizes
                               .filter((size) => size.weight)
                               .map((size, idx) => (
-                                <button
+                                <button // Added a button as a placeholder for size selection
                                   key={idx}
-                                  className={`rounded-full px-4 py-2 border border-primary ${
-                                    idx === 0 ? "bg-primary text-white" : "text-primary"
-                                  }`}
+                                  className="rounded-full px-3 py-1 border border-gray-300 hover:border-primary hover:text-primary transition-colors"
                                 >
-                                  {size.weight} - €{size.price?.toFixed(2)}
+                                  {size.weight}
                                 </button>
                               ))}
                           </div>
