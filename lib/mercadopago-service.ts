@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase/client" // Cambiado de createClient a supabase
 import type { CartItem } from "@/components/cart-context"
 
 // Tipos para Mercado Pago
@@ -49,7 +49,7 @@ export interface OrderDetails {
 export async function createMercadoPagoPreference(orderDetails: OrderDetails) {
   try {
     // Crear el pedido en la base de datos primero
-    const supabase = createClient()
+    // const supabase = createClient() // Ya no se llama a createClient()
 
     // Preparar los datos del pedido
     const orderData = {
