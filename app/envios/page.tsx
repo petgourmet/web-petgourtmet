@@ -1,13 +1,11 @@
-import { ThemedBackground } from "@/components/themed-background"
-
 export default function EnviosPage() {
   return (
-    <ThemedBackground theme="default">
+    <div className="bg-white min-h-screen">
       <div className="container mx-auto px-4 py-24">
         <h1 className="text-4xl font-bold text-center mb-12">Envíos y Devoluciones</h1>
 
         <div className="max-w-3xl mx-auto">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-xl p-8 mb-12">
+          <div className="mb-12">
             <h2 className="text-2xl font-semibold mb-6">Política de Envíos</h2>
 
             <div className="space-y-6">
@@ -59,7 +57,7 @@ export default function EnviosPage() {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-xl p-8">
+          <div>
             <h2 className="text-2xl font-semibold mb-6">Política de Devoluciones</h2>
 
             <div className="space-y-6">
@@ -118,6 +116,6 @@ export default function EnviosPage() {
           </div>
         </div>
       </div>
-    </ThemedBackground>
+    </div>
   )
 }

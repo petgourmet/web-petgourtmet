@@ -49,7 +49,7 @@ const categories = [
 
 export function ProductCategories() {
   return (
-    <section className="responsive-section bg-white dark:bg-gray-900 bg-illuminated">
+    <section className="responsive-section bg-transparent bg-illuminated">
       <div className="responsive-container">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">Nutrición para cada momento</h2>

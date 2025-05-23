@@ -5,10 +5,11 @@ import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Edit, Trash2, Loader2, ChevronLeft, ChevronRight, Eye } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Loader2, ChevronLeft, ChevronRight, Eye, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { format } from "date-fns"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 type Blog = {
   id: number
@@ -16,7 +17,7 @@ type Blog = {
   slug: string
   excerpt: string
   cover_image: string
-  published_at: string
+  created_at: string
   is_published: boolean
   category: { name: string }
 }
@@ -24,6 +25,7 @@ type Blog = {
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -35,11 +37,12 @@ export default function BlogsPage() {
 
   async function fetchBlogs() {
     setLoading(true)
+    setError(null)
     try {
       let query = supabase
         .from("blogs")
-        .select("*, category:category_id(name)", { count: "exact" })
-        .order("published_at", { ascending: false })
+        .select("id, title, slug, excerpt, cover_image, created_at", { count: "exact" })
+        .order("created_at", { ascending: false })
         .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1)
 
       if (searchTerm) {
@@ -48,12 +51,17 @@ export default function BlogsPage() {
 
       const { data, count, error } = await query
 
-      if (error) throw error
+      if (error) {
+        console.error("Error al cargar blogs:", error)
+        setError(`Error al cargar blogs: ${error.message}`)
+        return
+      }
 
       setBlogs(data || [])
       setTotalPages(Math.ceil((count || 0) / itemsPerPage))
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al cargar blogs:", error)
+      setError(`Error al cargar blogs: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -70,8 +78,9 @@ export default function BlogsPage() {
 
       // Actualizar la lista de blogs
       setBlogs(blogs.filter((blog) => blog.id !== id))
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al eliminar el blog:", error)
+      alert(`Error al eliminar el blog: ${error.message}`)
     }
   }
 
@@ -79,12 +88,34 @@ export default function BlogsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Blogs</h1>
-        <Link href="/admin/blogs/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo Blog
-          </Button>
-        </Link>
+        <div className="flex space-x-2">
+          <Link href="/admin/blogs/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Nuevo Blog
+            </Button>
+          </Link>
+          <Link href="/admin/add-blog-columns">
+            <Button variant="outline">Añadir Columnas</Button>
+          </Link>
+        </div>
       </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error}
+            <div className="mt-2">
+              <Link href="/admin/add-blog-columns">
+                <Button variant="outline" size="sm">
+                  Añadir Columnas Faltantes
+                </Button>
+              </Link>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="mb-4">
         <div className="relative">
@@ -138,14 +169,12 @@ export default function BlogsPage() {
                   </TableCell>
                   <TableCell className="font-medium">{blog.title}</TableCell>
                   <TableCell>{blog.category?.name || "Sin categoría"}</TableCell>
-                  <TableCell>{format(new Date(blog.published_at), "dd/MM/yyyy")}</TableCell>
                   <TableCell>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                        blog.is_published ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {blog.is_published ? "Publicado" : "Borrador"}
+                    {blog.created_at ? format(new Date(blog.created_at), "dd/MM/yyyy") : "Sin fecha"}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800">
+                      Creado
                     </span>
                   </TableCell>
                   <TableCell className="text-right">

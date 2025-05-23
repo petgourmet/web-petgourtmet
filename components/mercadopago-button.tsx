@@ -14,16 +14,35 @@ interface MercadoPagoButtonProps {
 export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoPagoButtonProps) {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false)
   const [isButtonRendered, setIsButtonRendered] = useState(false)
+  const [publicKey, setPublicKey] = useState<string | null>(null)
+
+  // Obtener la clave pública de forma segura desde el servidor
+  useEffect(() => {
+    const fetchPublicKey = async () => {
+      try {
+        const response = await fetch("/api/mercadopago/config")
+        const data = await response.json()
+        if (data.publicKey) {
+          setPublicKey(data.publicKey)
+        }
+      } catch (error) {
+        console.error("Error al obtener la clave pública:", error)
+        if (onError) onError(error)
+      }
+    }
+
+    fetchPublicKey()
+  }, [onError])
 
   useEffect(() => {
-    // Solo ejecutar en el cliente
-    if (typeof window !== "undefined" && isSDKLoaded && preferenceId && !isButtonRendered) {
+    // Solo ejecutar en el cliente cuando tengamos la clave pública
+    if (typeof window !== "undefined" && isSDKLoaded && preferenceId && publicKey && !isButtonRendered) {
       try {
         console.log("Intentando renderizar botón de Mercado Pago con preferenceId:", preferenceId)
 
         // @ts-ignore - Mercado Pago no tiene tipos de TypeScript
-        const mp = new window.MercadoPago(process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY, {
-          locale: "es-AR",
+        const mp = new window.MercadoPago(publicKey, {
+          locale: "es-MX",
         })
 
         // Limpiar el contenedor antes de renderizar
@@ -45,6 +64,14 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
             elementsColor: "#e7ae84",
             headerColor: "#e7ae84",
           },
+          callbacks: {
+            onPaymentSuccess: (data: any) => {
+              console.log("Pago exitoso:", data)
+              if (onSuccess) onSuccess()
+              // Redireccionar a la página de agradecimiento
+              window.location.href = "/gracias-por-tu-compra?order_id=" + data.external_reference
+            },
+          },
         })
 
         setIsButtonRendered(true)
@@ -54,7 +81,7 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
         if (onError) onError(error)
       }
     }
-  }, [isSDKLoaded, preferenceId, isButtonRendered, onError])
+  }, [isSDKLoaded, preferenceId, publicKey, isButtonRendered, onError, onSuccess])
 
   return (
     <div className="w-full">
@@ -70,7 +97,7 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
         }}
       />
 
-      {!isSDKLoaded && (
+      {(!isSDKLoaded || !publicKey) && (
         <Button disabled className="w-full">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Cargando opciones de pago...
@@ -78,7 +105,7 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
       )}
 
       <div id="mercadopago-button-container" className="w-full">
-        {isSDKLoaded && !isButtonRendered && (
+        {isSDKLoaded && publicKey && !isButtonRendered && (
           <Button disabled className="w-full">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Preparando botón de pago...

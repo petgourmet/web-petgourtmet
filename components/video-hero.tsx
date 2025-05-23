@@ -1,72 +1,20 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Volume2, VolumeX, Play, Pause } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { ArrowRight } from "lucide-react"
+import { useWindowSize } from "@/hooks/use-window-size"
 
 export function VideoHero() {
   const router = useRouter()
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const controlsRef = useRef<HTMLDivElement>(null)
-  const [isMuted, setIsMuted] = useState(true)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [player, setPlayer] = useState<any>(null)
   const [showContent, setShowContent] = useState(true)
-  const [showControls, setShowControls] = useState(false) // Inicialmente ocultos
-  const [isMobile, setIsMobile] = useState(false)
-  const [isTablet, setIsTablet] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const { width } = useWindowSize()
+  const isMobile = width ? width < 768 : false
 
   useEffect(() => {
-    // Detectar si es dispositivo móvil o tablet
-    const checkDeviceSize = () => {
-      setIsMobile(window.innerWidth < 640)
-      setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024)
-    }
-
-    checkDeviceSize()
-    window.addEventListener("resize", checkDeviceSize)
-
-    // Cargar la API de Vimeo Player
-    const script = document.createElement("script")
-    script.src = "https://player.vimeo.com/api/player.js"
-    script.async = true
-    script.onload = initializePlayer
-    document.body.appendChild(script)
-
-    // Ajustar el tamaño del iframe para mantener la proporción de aspecto
-    const adjustIframeSize = () => {
-      if (containerRef.current && iframeRef.current) {
-        const containerWidth = containerRef.current.offsetWidth
-        let aspectRatio, minHeight
-
-        // Transición suave del aspect ratio y altura mínima
-        if (window.innerWidth < 640) {
-          // Móvil
-          aspectRatio = 9 / 10
-          minHeight = 550
-        } else if (window.innerWidth < 1024) {
-          // Tablet
-          aspectRatio = 9 / 12
-          minHeight = 450
-        } else {
-          // Desktop
-          aspectRatio = 9 / 16
-          minHeight = 400
-        }
-
-        const videoHeight = containerWidth * aspectRatio
-        containerRef.current.style.height = `${Math.max(videoHeight, minHeight)}px`
-      }
-    }
-
-    // Ajustar tamaño inicialmente y en cada cambio de tamaño de ventana
-    adjustIframeSize()
-    window.addEventListener("resize", adjustIframeSize)
-
     // Configurar temporizador para ocultar el contenido después de 2 segundos
     const hideElementsTimer = setTimeout(() => {
       if (contentRef.current) {
@@ -74,15 +22,9 @@ export function VideoHero() {
         contentRef.current.classList.add("opacity-0", "pointer-events-none")
       }
       setShowContent(false)
-      setShowControls(false)
     }, 2000)
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script)
-      }
-      window.removeEventListener("resize", adjustIframeSize)
-      window.removeEventListener("resize", checkDeviceSize)
       clearTimeout(hideElementsTimer)
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
@@ -92,9 +34,6 @@ export function VideoHero() {
 
   // Función para mostrar el contenido al interactuar
   const handleInteraction = () => {
-    // Mostrar controles siempre que haya interacción
-    setShowControls(true)
-
     // Para el contenido principal, solo mostrarlo si estaba oculto
     if (!showContent && contentRef.current) {
       contentRef.current.classList.remove("opacity-0", "pointer-events-none")
@@ -112,64 +51,7 @@ export function VideoHero() {
         contentRef.current.classList.add("opacity-0", "pointer-events-none")
       }
       setShowContent(false)
-      setShowControls(false)
     }, 2000)
-  }
-
-  const initializePlayer = () => {
-    if (typeof window !== "undefined" && window.Vimeo && iframeRef.current) {
-      const vimeoPlayer = new window.Vimeo.Player(iframeRef.current, {
-        autopause: false,
-        background: true,
-        loop: true,
-        muted: true,
-        quality: "1080p",
-      })
-      setPlayer(vimeoPlayer)
-
-      // Configurar el reproductor
-      vimeoPlayer.setVolume(0) // Iniciar silenciado
-      vimeoPlayer
-        .play()
-        .then(() => {
-          setIsPlaying(true)
-        })
-        .catch((error) => {
-          console.error("Error al reproducir el video:", error)
-          setIsPlaying(false)
-        })
-
-      // Escuchar eventos del reproductor
-      vimeoPlayer.on("play", () => {
-        setIsPlaying(true)
-      })
-
-      vimeoPlayer.on("pause", () => {
-        setIsPlaying(false)
-      })
-    }
-  }
-
-  const toggleMute = () => {
-    if (player) {
-      player.getVolume().then((volume: number) => {
-        const newVolume = volume > 0 ? 0 : 1
-        player.setVolume(newVolume)
-        setIsMuted(newVolume === 0)
-      })
-    }
-  }
-
-  const togglePlay = () => {
-    if (player) {
-      player.getPaused().then((paused: boolean) => {
-        if (paused) {
-          player.play()
-        } else {
-          player.pause()
-        }
-      })
-    }
   }
 
   const scrollToRecipes = () => {
@@ -187,90 +69,89 @@ export function VideoHero() {
 
   return (
     <section
-      className="relative w-full mt-16 overflow-hidden"
+      className="relative w-full min-h-screen overflow-hidden bg-white"
       onMouseMove={handleInteraction}
       onTouchStart={handleInteraction}
+      style={{
+        margin: 0,
+        padding: 0,
+        width: "100vw",
+        maxWidth: "100vw",
+        left: "50%",
+        right: "50%",
+        marginLeft: "-50vw",
+        marginRight: "-50vw",
+        position: "relative",
+        marginTop: isMobile ? "-1px" : "0", // Fix for mobile gap
+      }}
     >
-      {/* Contenedor del video con proporción de aspecto adaptativa */}
-      <div ref={containerRef} className="relative w-full overflow-hidden">
+      {/* Background video with overlay */}
+      <div
+        className="absolute inset-0 w-full h-full overflow-hidden"
+        style={{
+          width: "100vw",
+          top: isMobile ? "-1px" : "0", // Ensure no gap at the top on mobile
+        }}
+      >
         <iframe
-          ref={iframeRef}
-          src="https://player.vimeo.com/video/1078034829?badge=0&autopause=0&player_id=0&app_id=58479&background=1&autoplay=1&loop=1&muted=1&quality=1080p"
-          className="absolute top-0 left-0 w-full h-full object-fill"
+          src="https://player.vimeo.com/video/1086091427?background=1&autoplay=1&loop=1&byline=0&title=0&muted=1"
           style={{
-            objectPosition: isMobile ? "center 25%" : isTablet ? "center 30%" : "center 35%",
-            bottom: 0,
-            display: "block",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: isMobile ? "300vw" : "150vw", // Increased width for mobile
+            height: isMobile ? "120vh" : "150vh", // Increased height for mobile
+            transform: "translate(-50%, -50%)", // Centrar el video
+            objectFit: "cover",
+            border: "none",
           }}
           frameBorder="0"
-          allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
-          title="PetGourmet v1"
+          allow="autoplay; fullscreen; picture-in-picture"
+          title="Pet Gourmet Background"
           loading="lazy"
-          aria-label="Video de presentación de Pet Gourmet"
         ></iframe>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-white"></div>
+      </div>
 
-        {/* Overlay con gradiente */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/40 to-black/30 pointer-events-none dark:bg-transparent"></div>
-
-        {/* Contenido sobre el video - con transición para desaparecer */}
-        <div
-          ref={contentRef}
-          className="relative container mx-auto px-4 h-full flex flex-col justify-center items-start text-white py-8 md:py-16 transition-opacity duration-1000 pt-28 sm:pt-32 md:pt-16"
-        >
-          <div className="max-w-2xl animate-float-up">
-            <h1 className="text-3xl md:text-5xl font-bold mb-3 md:mb-6 leading-tight font-display">
-              No es comida para perros, es{" "}
-              <span className="text-gradient">
-                <span>comida de verdad</span>
-              </span>
-            </h1>
-            <p className="text-base md:text-xl mb-4 md:mb-8 opacity-90 max-w-lg">
-              Alimento premium elaborado con ingredientes frescos y naturales para un compañero más sano y feliz.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-              <Button
-                onClick={scrollToRecipes}
-                className="bg-primary hover:bg-primary/90 text-white px-5 py-4 md:px-8 md:py-6 text-sm md:text-lg rounded-full shadow-lg hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 btn-glow font-display"
-              >
-                Descubre Nuestras Recetas
-              </Button>
-              <Button
-                variant="outline"
-                className="border-white hover:bg-white/20 hover:border-white px-5 py-4 md:px-8 md:py-6 text-sm md:text-lg rounded-full flex items-center gap-2 backdrop-blur-sm transition-all duration-300 bg-transparent text-white hover:text-white font-display"
-              >
-                Saber Más <ArrowRight size={16} className="animate-pulse-soft" />
-              </Button>
-            </div>
+      {/* Hero Content */}
+      <div
+        ref={contentRef}
+        className="relative container mx-auto px-4 flex flex-col justify-center items-center h-screen text-center transition-opacity duration-1000"
+        style={{
+          paddingTop: isMobile ? "60px" : "0", // Adjust content position on mobile
+        }}
+      >
+        <div className="max-w-4xl animate-fade-in-up">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight font-display">
+            No es comida para perros, es <span className="text-primary">comida de verdad</span>
+          </h1>
+          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+            Nutrición premium con ingredientes frescos y naturales para un compañero más sano y feliz
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              onClick={scrollToRecipes}
+              size="lg"
+              className="rounded-full bg-primary hover:bg-primary/90 text-white px-8 py-7 text-lg font-semibold shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all"
+            >
+              Descubre Nuestras Recetas
+            </Button>
+            <Button
+              onClick={() => router.push("/productos")}
+              variant="outline"
+              size="lg"
+              className="rounded-full border-white bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 px-8 py-7 text-lg font-semibold shadow-lg hover:scale-105 transition-all"
+            >
+              Explorar Productos
+            </Button>
           </div>
         </div>
 
-        {/* Controles de video - posición fija, aparecen solo con interacción */}
-        <div
-          className={`absolute flex gap-2 z-50 transition-opacity duration-300 bottom-4 md:bottom-8 left-4 md:left-8 ${
-            showControls ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-          style={{
-            transform: "translateY(-80px)",
-          }}
-        >
-          <Button
-            onClick={toggleMute}
-            variant="outline"
-            size="icon"
-            aria-label={isMuted ? "Activar sonido" : "Silenciar"}
-            className="rounded-full bg-black/50 border-white/50 hover:bg-black/70 backdrop-blur-sm shadow-lg"
-          >
-            {isMuted ? <VolumeX className="h-5 w-5 text-white" /> : <Volume2 className="h-5 w-5 text-white" />}
-          </Button>
-          <Button
-            onClick={togglePlay}
-            variant="outline"
-            size="icon"
-            aria-label={isPlaying ? "Pausar" : "Reproducir"}
-            className="rounded-full bg-black/50 border-white/50 hover:bg-black/70 backdrop-blur-sm shadow-lg"
-          >
-            {isPlaying ? <Pause className="h-5 w-5 text-white" /> : <Play className="h-5 w-5 text-white" />}
-          </Button>
+        {/* Scroll indicator */}
+        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center">
+            <ArrowRight className="text-white w-5 h-5 rotate-90" />
+          </div>
         </div>
       </div>
     </section>

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 
-export default function FloatingCreatePlanButton() {
+export function FloatingCreatePlanButton() {
   // Obtener la ruta actual
   const pathname = usePathname()
   // Estado para controlar el montaje del componente
@@ -33,20 +33,20 @@ export default function FloatingCreatePlanButton() {
         <motion.button
           className={`flex items-center justify-center gap-2 text-white ${isCreatingPlan ? "w-12 h-12" : "px-4 py-3"} rounded-full shadow-lg transition-all`}
           style={{
-            background: "linear-gradient(135deg, #7AB8BF 0%, #5a8f96 50%, #3a7a82 100%)",
-            boxShadow: "0 4px 15px rgba(122, 184, 191, 0.5)",
+            background: "#7BBDC5", // Color vinotinto (Accent Red)
+            boxShadow: "0 4px 15px rgba(123, 189, 197, 0.5)",
           }}
           whileHover={{
             scale: 1.05,
-            background: "linear-gradient(135deg, #8cc7ce 0%, #6ba1a8 50%, #4a8991 100%)",
-            boxShadow: "0 6px 20px rgba(122, 184, 191, 0.6)",
+            background: "#6BADB5", // Versión más clara del vinotinto
+            boxShadow: "0 6px 20px rgba(123, 189, 197, 0.6)",
           }}
           whileTap={{ scale: 0.95 }}
           animate={{
             boxShadow: [
-              "0 4px 15px rgba(122, 184, 191, 0.3)",
-              "0 4px 15px rgba(122, 184, 191, 0.7)",
-              "0 4px 15px rgba(122, 184, 191, 0.3)",
+              "0 4px 15px rgba(123, 189, 197, 0.3)",
+              "0 4px 15px rgba(123, 189, 197, 0.7)",
+              "0 4px 15px rgba(123, 189, 197, 0.3)",
             ],
           }}
           transition={{
@@ -66,17 +66,11 @@ export default function FloatingCreatePlanButton() {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          {!isCreatingPlan && (
-            <motion.span
-              initial={{ y: 0 }}
-              animate={{ y: [0, -2, 0] }}
-              transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            >
-              Crea tu Plan
-            </motion.span>
-          )}
+          {!isCreatingPlan && <span>Crea tu Plan</span>}
         </motion.button>
       </Link>
     </motion.div>
   )
 }
+
+export default FloatingCreatePlanButton

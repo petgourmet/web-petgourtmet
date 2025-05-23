@@ -154,12 +154,7 @@ export function ProductCard({
         {/* Precio */}
         <div className="mt-auto pt-2 flex justify-between items-center">
           <div>
-            {displayPrice > 0 && (
-              <span className="font-bold text-lg">
-                ${displayPrice.toFixed(2)}
-                {sizes && sizes.length > 0 && <span className="text-xs text-gray-500 ml-1">desde</span>}
-              </span>
-            )}
+            {displayPrice > 0 && <span className="font-bold text-lg text-primary">${displayPrice.toFixed(2)} MXN</span>}
           </div>
         </div>
       </div>

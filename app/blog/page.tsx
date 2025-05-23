@@ -71,19 +71,16 @@ export default async function BlogPage() {
   let error = null
 
   try {
-    // Intentar obtener datos de Supabase
-    const response = await supabase
-      .from("blogs")
-      .select("*, category:category_id(name)")
-      .eq("is_published", true)
-      .order("published_at", { ascending: false })
-      .limit(6)
+    // Intentar obtener datos de Supabase sin filtrar por is_published
+    const response = await supabase.from("blogs").select("*, category:category_id(name)").limit(6)
 
+    // Verificar si hay errores en la respuesta
     if (response.error) {
       console.error("Error fetching blog posts:", response.error)
       error = response.error
       blogPosts = fallbackBlogPosts
     } else {
+      // Si hay datos, usarlos; de lo contrario, usar los datos de ejemplo
       blogPosts = response.data && response.data.length > 0 ? response.data : fallbackBlogPosts
     }
   } catch (err) {
@@ -92,9 +89,18 @@ export default async function BlogPage() {
     blogPosts = fallbackBlogPosts
   }
 
+  // Formatear la fecha de publicación o usar la fecha actual
+  const formatBlogDate = (dateString) => {
+    try {
+      return format(new Date(dateString || new Date()), "d 'de' MMMM, yyyy", { locale: es })
+    } catch (e) {
+      return format(new Date(), "d 'de' MMMM, yyyy", { locale: es })
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen pt-0">
-      <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
+      <div className="responsive-section bg-white dark:bg-gray-900">
         <div className="responsive-container">
           <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection text-center">Nuestro Blog</h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto text-center mb-12">
@@ -126,28 +132,26 @@ export default async function BlogPage() {
             {blogPosts.map((post) => (
               <div
                 key={post.id}
-                className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-xl overflow-hidden shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                className="bg-white shadow-md dark:bg-[#7BBDC5] rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
               >
                 <div className="relative h-48">
                   <Image src={post.cover_image || "/placeholder.svg"} alt={post.title} fill className="object-cover" />
                   {post.category && (
                     <div className="absolute top-4 left-4">
-                      <span className="bg-primary text-white px-3 py-1 rounded-full text-xs font-medium">
+                      <span className="bg-[#7BBDC5] text-white px-3 py-1 rounded-full text-xs font-medium">
                         {post.category.name}
                       </span>
                     </div>
                   )}
                 </div>
                 <div className="p-6">
-                  <p className="text-sm text-gray-500 dark:text-white/70 mb-2">
-                    {format(new Date(post.published_at), "d 'de' MMMM, yyyy", { locale: es })}
-                  </p>
-                  <h3 className="text-xl font-bold mb-2 text-primary dark:text-white font-display">{post.title}</h3>
+                  <p className="text-sm text-gray-500 dark:text-white/70 mb-2">{formatBlogDate(post.published_at)}</p>
+                  <h3 className="text-xl font-bold mb-2 text-[#7BBDC5] dark:text-white font-display">{post.title}</h3>
                   <p className="text-gray-600 dark:text-white mb-4">{post.excerpt}</p>
                   <Button
                     asChild
                     variant="outline"
-                    className="w-full rounded-full border-primary text-primary dark:border-white dark:text-white hover:bg-primary hover:text-white dark:hover:bg-white dark:hover:text-[#e7ae84]"
+                    className="w-full rounded-full border-[#7BBDC5] text-[#7BBDC5] dark:border-white dark:text-white hover:bg-[#7BBDC5] hover:text-white dark:hover:bg-white dark:hover:text-[#7BBDC5]"
                   >
                     <Link href={`/blog/${post.slug}`}>
                       Leer más <ArrowRight className="ml-2 h-4 w-4" />
@@ -159,7 +163,7 @@ export default async function BlogPage() {
           </div>
 
           <div className="text-center">
-            <Button className="bg-primary hover:bg-primary/90 text-white rounded-full px-8 py-6 text-lg shadow-md hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 btn-glow font-display">
+            <Button className="bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white rounded-full px-8 py-6 text-lg shadow-md hover:shadow-lg hover:shadow-[#7BBDC5]/20 transition-all duration-300 btn-glow font-display">
               Cargar más artículos
             </Button>
           </div>

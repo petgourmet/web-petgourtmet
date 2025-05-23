@@ -1,12 +1,10 @@
-import { ThemedBackground } from "@/components/themed-background"
-
 export default function PrivacidadPage() {
   return (
-    <ThemedBackground theme="default">
+    <div className="bg-white min-h-screen">
       <div className="container mx-auto px-4 py-24">
         <h1 className="text-4xl font-bold text-center mb-12">Política de Privacidad</h1>
 
-        <div className="max-w-3xl mx-auto bg-white/80 backdrop-blur-sm rounded-xl shadow-xl p-8">
+        <div className="max-w-3xl mx-auto">
           <div className="prose prose-lg max-w-none">
             <p className="text-sm text-gray-500 mb-6">Última actualización: 1 de enero de 2023</p>
 
@@ -129,6 +127,6 @@ export default function PrivacidadPage() {
           </div>
         </div>
       </div>
-    </ThemedBackground>
+    </div>
   )
 }

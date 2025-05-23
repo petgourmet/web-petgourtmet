@@ -3,7 +3,7 @@
 import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Package, ShoppingBag, Settings, LogOut, LayoutDashboard, Tag, Database } from "lucide-react"
+import { Package, ShoppingBag, LogOut, LayoutDashboard, Tag, FileText } from "lucide-react"
 
 export function AdminSidebar() {
   const { signOut, user } = useAuth()
@@ -30,19 +30,14 @@ export function AdminSidebar() {
       icon: <Tag size={20} />,
     },
     {
+      title: "Blogs",
+      href: "/admin/blogs",
+      icon: <FileText size={20} />,
+    },
+    {
       title: "Pedidos",
       href: "/admin/orders",
       icon: <ShoppingBag size={20} />,
-    },
-    {
-      title: "Configuración",
-      href: "/admin/settings",
-      icon: <Settings size={20} />,
-    },
-    {
-      title: "Inicializar Tablas",
-      href: "/admin/initialize-tables",
-      icon: <Database size={20} />,
     },
   ]
 

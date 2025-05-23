@@ -1,13 +1,12 @@
-import { ThemedBackground } from "@/components/themed-background"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 export default function FaqPage() {
   return (
-    <ThemedBackground theme="default">
+    <div className="bg-white min-h-screen">
       <div className="container mx-auto px-4 py-24">
         <h1 className="text-4xl font-bold text-center mb-12">Preguntas Frecuentes</h1>
 
-        <div className="max-w-3xl mx-auto bg-white/80 backdrop-blur-sm rounded-xl shadow-xl p-8">
+        <div className="max-w-3xl mx-auto">
           <div className="mb-8">
             <h2 className="text-2xl font-semibold mb-6">Sobre Nuestros Productos</h2>
             <Accordion type="single" collapsible className="space-y-4">
@@ -156,6 +155,6 @@ export default function FaqPage() {
           </div>
         </div>
       </div>
-    </ThemedBackground>
+    </div>
   )
 }

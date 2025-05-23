@@ -105,15 +105,7 @@ export function Footer() {
             <h3 className="font-bold text-lg mb-4 text-white uppercase tracking-wide text-sm border-b border-white/20 pb-2">
               Empresa
             </h3>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/sostenibilidad"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
-                >
-                  Sostenibilidad
-                </Link>
-              </li>
+            <ul className="space-y-2">              
               <li>
                 <Link
                   href="/contacto"

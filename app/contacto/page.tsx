@@ -1,111 +1,125 @@
-import { ThemedBackground } from "@/components/themed-background"
-
 export default function ContactoPage() {
   return (
-    <ThemedBackground theme="default">
-      <div className="container mx-auto px-4 py-24 min-h-screen">
-        <h1 className="text-4xl font-bold text-center mb-12">Contáctanos</h1>
+    <div className="bg-gradient-to-br from-orange-50 to-amber-50 min-h-screen">
+      <div className="container mx-auto px-4 py-24">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Left Column - Company Information */}
+            <div className="space-y-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">PET GOURMET SANTA FE</h1>
+                <div className="space-y-3 text-gray-600">
+                  <p className="text-lg">Avenida José María Castorena 425, plaza Cuajimalpa Local 6</p>
+                  <p className="text-lg">Cuajimalpa, Ciudad de México</p>
+                  <p className="text-lg">
+                    <span className="font-medium">Email:</span> contacto@petgourmet.mx
+                  </p>
+                  <p className="text-lg">
+                    <span className="font-medium">Teléfono:</span> +525561269681
+                  </p>
+                </div>
+              </div>
 
-        <div className="max-w-3xl mx-auto bg-white/80 backdrop-blur-sm rounded-xl shadow-xl p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            <div>
-              <h2 className="text-2xl font-semibold mb-4">Información de Contacto</h2>
-              <div className="space-y-4">
-                <p className="flex items-start">
-                  <span className="font-medium w-24">Dirección:</span>
-                  <span>Av. Principal 123, Ciudad de México, México</span>
+              <div className="bg-white/70 backdrop-blur-sm rounded-lg p-6 shadow-sm">
+                <p className="text-gray-700 leading-relaxed">
+                  Visítanos y conoce la Cocina Gourmet para Mascotas Pet Gourmet. Recetas 100% naturales y saludables
+                  para complementar el alimento convencional de nuestros peludos.
                 </p>
-                <p className="flex items-start">
-                  <span className="font-medium w-24">Teléfono:</span>
-                  <span>+52 55 1234 5678</span>
-                </p>
-                <p className="flex items-start">
-                  <span className="font-medium w-24">Email:</span>
-                  <span>info@petgourmet.mx</span>
-                </p>
-                <p className="flex items-start">
-                  <span className="font-medium w-24">Horario:</span>
-                  <span>
-                    Lunes a Viernes: 9:00 - 18:00
-                    <br />
-                    Sábados: 10:00 - 14:00
-                  </span>
-                </p>
+              </div>
+
+              {/* Map Section */}
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="h-80">
+                  <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3762.5!2d-99.2944!3d19.3656!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85ce02c7e5b6d5a7%3A0x8b5c5e5e5e5e5e5e!2sAv.%20Jos%C3%A9%20Mar%C3%ADa%20Castorena%20425%2C%20Cuajimalpa%2C%20Ciudad%20de%20M%C3%A9xico!5e0!3m2!1ses!2smx!4v1234567890"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Ubicación Pet Gourmet Santa Fe"
+                  ></iframe>
+                </div>
               </div>
             </div>
 
-            <div>
-              <h2 className="text-2xl font-semibold mb-4">Envíanos un Mensaje</h2>
-              <form className="space-y-4">
+            {/* Right Column - Contact Form */}
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <h2 className="text-2xl font-semibold text-[#7BBDC5] mb-2">Envíanos un mensaje</h2>
+              <p className="text-gray-600 mb-8">
+                ¡Estaremos atentos a dar respuesta a tus preguntas! Por favor llena el formulario de abajo con tus datos
+                y contáctanos.
+              </p>
+
+              <form className="space-y-6">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium mb-1">
-                    Nombre
+                  <label htmlFor="nombre" className="block text-sm font-medium text-[#7BBDC5] mb-2">
+                    NOMBRE (requerido)*
                   </label>
                   <input
                     type="text"
-                    id="name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="Tu nombre"
+                    id="nombre"
+                    name="nombre"
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors"
+                    placeholder="Escribe tu nombre"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium mb-1">
-                    Email
+                  <label htmlFor="email" className="block text-sm font-medium text-[#7BBDC5] mb-2">
+                    EMAIL (requerido)*
                   </label>
                   <input
                     type="email"
                     id="email"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="tu@email.com"
+                    name="email"
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors"
+                    placeholder="Escribe tu email"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium mb-1">
-                    Asunto
+                  <label htmlFor="celular" className="block text-sm font-medium text-[#7BBDC5] mb-2">
+                    CELULAR (requerido)*
                   </label>
                   <input
-                    type="text"
-                    id="subject"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="Asunto de tu mensaje"
+                    type="tel"
+                    id="celular"
+                    name="celular"
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors"
+                    placeholder="Escribe tu número de celular"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium mb-1">
-                    Mensaje
+                  <label htmlFor="mensaje" className="block text-sm font-medium text-[#7BBDC5] mb-2">
+                    TU MENSAJE (requerido)*
                   </label>
                   <textarea
-                    id="message"
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                    placeholder="Escribe tu mensaje aquí..."
+                    id="mensaje"
+                    name="mensaje"
+                    rows={5}
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors resize-none"
+                    placeholder="Escribe tu mensaje..."
                   ></textarea>
                 </div>
 
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-primary text-white font-medium rounded-md hover:bg-primary/90 transition-colors"
+                  className="w-full bg-[#7BBDC5] text-white font-medium py-3 px-6 rounded-md hover:bg-[#6AABB2] transition-colors duration-200 focus:ring-2 focus:ring-[#7BBDC5] focus:ring-offset-2"
                 >
-                  Enviar Mensaje
+                  ENVIAR
                 </button>
               </form>
             </div>
           </div>
-
-          <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-4">Nuestra Ubicación</h2>
-            <div className="w-full h-80 bg-gray-200 rounded-lg overflow-hidden">
-              {/* Aquí iría un mapa, pero por ahora usamos un placeholder */}
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                <p className="text-gray-500">Mapa de ubicación</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-    </ThemedBackground>
+    </div>
   )
 }

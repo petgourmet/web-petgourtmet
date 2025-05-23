@@ -1,129 +1,158 @@
 "use client"
 
-import Image from "next/image"
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter, Award } from "lucide-react"
+import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
+import { Toaster } from "@/components/toaster"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase/client"
+import type { ProductFeature } from "@/components/product-card"
+
+// Tipo para los productos desde la base de datos
+type Product = {
+  id: number
+  name: string
+  description: string
+  price: number
+  image: string
+  stock: number
+  created_at: string
+  features?: ProductFeature[]
+  rating?: number
+  reviews?: number
+  sizes?: { weight: string; price: number }[]
+  category?: string
+  gallery?: { src: string; alt: string }[]
+}
 
 export default function PremiarPage() {
-  const [products, setProducts] = useState([])
-  const [filteredProducts, setFilteredProducts] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [showDetail, setShowDetail] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
     category: "premiar",
-    priceRange: [0, 100],
+    priceRange: [0, 1000],
     features: [],
     rating: 0,
     sortBy: "relevance",
   })
 
-  // Estado para el modal de detalle del producto
-  const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState(null)
-  const { addToCart } = useCart()
-  const supabase = createClientComponentClient()
-
-  // Características predeterminadas para productos de premiar
-  const DEFAULT_PREMIAR_FEATURES = [
-    { name: "Entrenamiento", color: "pastel-blue" },
-    { name: "Bajo en Calorías", color: "primary" },
-  ]
-
-  // Cargar productos desde Supabase
+  // Cargar productos de la categoría "Premiar" desde la base de datos
   useEffect(() => {
-    async function fetchProducts() {
-      setIsLoading(true)
-      setError("")
-
+    async function loadProducts() {
+      setLoading(true)
       try {
-        console.log("Buscando categoría 'Premiar'...")
-        // Primero, obtener el ID de la categoría "Premiar"
+        // Primero obtenemos el ID de la categoría "Premiar"
         const { data: categoryData, error: categoryError } = await supabase
           .from("categories")
-          .select("id, name")
+          .select("id")
           .ilike("name", "%premi%")
+          .single()
 
         if (categoryError) {
           console.error("Error al obtener la categoría:", categoryError)
-          setError("Error al cargar la categoría. Por favor, intenta de nuevo más tarde.")
-          setIsLoading(false)
+          setLoading(false)
           return
         }
 
-        if (!categoryData || categoryData.length === 0) {
-          console.error("No se encontró la categoría 'Premiar'")
-          setError("No se encontró la categoría de productos. Por favor, intenta de nuevo más tarde.")
-          setIsLoading(false)
-          return
-        }
+        const categoryId = categoryData?.id
 
-        console.log("Categoría encontrada:", categoryData[0])
-        // Obtener el ID de la primera categoría que coincida
-        const categoryId = categoryData[0].id
-        const categoryName = categoryData[0].name
-
-        console.log(`Buscando productos con category_id = ${categoryId}...`)
-        // Obtener productos con esa categoría - ELIMINAMOS el filtro active que no existe
+        // Obtenemos los productos que tienen esta categoría directamente por category_id
         const { data: productsData, error: productsError } = await supabase
           .from("products")
           .select("*, categories(name)")
           .eq("category_id", categoryId)
+          .order("created_at", { ascending: false })
 
         if (productsError) {
-          console.error("Error al obtener productos:", productsError)
-          setError("Error al cargar productos. Por favor, intenta de nuevo más tarde.")
-          setIsLoading(false)
+          console.error("Error al obtener productos por categoría:", productsError)
+          setLoading(false)
           return
         }
-
-        console.log(`Productos encontrados: ${productsData?.length || 0}`)
 
         if (!productsData || productsData.length === 0) {
-          console.log(`No se encontraron productos en la categoría '${categoryName}'`)
           setProducts([])
           setFilteredProducts([])
-          setIsLoading(false)
+          setLoading(false)
           return
         }
 
-        // Transformar los datos al formato esperado por ProductCard
-        const formattedProducts = productsData.map((product) => ({
-          id: product.id,
-          name: product.name || "Producto sin nombre",
-          description: product.description || "Sin descripción",
-          image: product.image_url || "/healthy-dog-training-treats.png", // Imagen por defecto si no hay
-          rating: product.rating || 4.5,
-          reviews: product.reviews_count || 0,
-          price: product.price || 0,
-          features: product.features ? JSON.parse(product.features) : DEFAULT_PREMIAR_FEATURES,
-          sizes: product.sizes ? JSON.parse(product.sizes) : [{ weight: "200g", price: product.price || 0 }],
-          category: product.categories?.name || categoryName,
-          spotlightColor: "rgba(122, 184, 191, 0.2)",
-        }))
+        // Procesar productos para agregar información adicional
+        const processedProducts = await Promise.all(
+          productsData.map(async (product) => {
+            // Obtener el nombre de la categoría
+            const categoryName = product.categories?.name || "Para Premiar"
 
-        console.log("Productos formateados correctamente")
-        setProducts(formattedProducts)
-        setFilteredProducts(formattedProducts)
+            // Obtener características del producto (si existe una tabla para esto)
+            let features: ProductFeature[] = []
+            try {
+              const { data: featuresData } = await supabase
+                .from("product_features")
+                .select("name, color")
+                .eq("product_id", product.id)
+
+              if (featuresData && featuresData.length > 0) {
+                features = featuresData
+              } else {
+                // Características predeterminadas si no hay datos
+                features = [
+                  { name: "Entrenamiento", color: "pastel-blue" },
+                  { name: "Bajo en Calorías", color: "primary" },
+                  { name: "Sabor Irresistible", color: "secondary" },
+                ]
+              }
+            } catch (error) {
+              console.error("Error al cargar características:", error)
+            }
+
+            // Construir la URL completa de la imagen
+            let imageUrl = product.image
+            if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
+              // Si es una ruta relativa en el bucket de Supabase
+              const { data } = supabase.storage.from("products").getPublicUrl(imageUrl)
+              imageUrl = data.publicUrl
+            } else if (!imageUrl) {
+              // Imagen predeterminada si no hay imagen
+              imageUrl = "/healthy-dog-training-treats.png"
+            }
+
+            return {
+              ...product,
+              image: imageUrl,
+              category: categoryName,
+              features,
+              rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
+              reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
+              sizes: [
+                { weight: "200g", price: product.price },
+                { weight: "500g", price: product.price * 1.8 },
+              ],
+              spotlightColor: "rgba(122, 184, 191, 0.2)",
+            }
+          }),
+        )
+
+        setProducts(processedProducts)
+        setFilteredProducts(processedProducts)
       } catch (error) {
-        console.error("Error processing products:", error)
-        setError("Error al procesar los productos. Por favor, intenta de nuevo más tarde.")
+        console.error("Error al cargar productos:", error)
       } finally {
-        setIsLoading(false)
+        setLoading(false)
       }
     }
 
-    fetchProducts()
-  }, [supabase])
+    loadProducts()
+  }, [])
 
-  // Función para mostrar el detalle del producto
-  const handleShowDetail = (product) => {
+  const handleShowDetail = (product: Product) => {
     setSelectedProduct(product)
     setShowDetail(true)
   }
@@ -136,9 +165,18 @@ export default function PremiarPage() {
       return product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
     })
 
+    // Filtrar por características
+    if (filters.features.length > 0) {
+      result = result.filter((product) => {
+        return filters.features.some((feature) =>
+          product.features?.some((f) => f.name.toLowerCase() === feature.toLowerCase()),
+        )
+      })
+    }
+
     // Filtrar por valoración
     if (filters.rating > 0) {
-      result = result.filter((product) => product.rating >= filters.rating)
+      result = result.filter((product) => (product.rating || 0) >= filters.rating)
     }
 
     // Ordenar productos
@@ -147,14 +185,20 @@ export default function PremiarPage() {
     } else if (filters.sortBy === "price-desc") {
       result.sort((a, b) => b.price - a.price)
     } else if (filters.sortBy === "rating") {
-      result.sort((a, b) => b.rating - a.rating)
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
     } else if (filters.sortBy === "popularity") {
-      result.sort((a, b) => b.reviews - a.reviews)
+      result.sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
     }
 
     setFilteredProducts(result)
     setShowFilters(false)
   }
+
+  // Extraer características únicas de todos los productos
+  const allFeatures = Array.from(new Set(products.flatMap((product) => product.features?.map((f) => f.name) || [])))
+
+  // Encontrar el precio máximo para el filtro
+  const maxPrice = Math.max(...products.map((product) => product.price), 20)
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
@@ -162,21 +206,23 @@ export default function PremiarPage() {
         <div className="responsive-container">
           <div className="text-center mb-16">
             <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">Para Premiar</h1>
-            <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto text-center mb-12">
-              Galletas y golosinas saludables perfectas para el entrenamiento y premiar el buen comportamiento.
-              Recompensa a tu mascota con snacks deliciosos y nutritivos.
+            <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto">
+              Deliciosos premios y golosinas para recompensar a tu mascota. Perfectos para entrenamiento o simplemente
+              para consentir a tu amigo peludo.
             </p>
           </div>
 
           {/* Banner de categoría */}
           <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden mb-16">
-            <Image src="/para_premiar.png" alt="Premios para perros" fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-pastel-blue/80 flex items-center">
+            <Image src="/para_premiar.png" alt="Productos para premiar" fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-blue-700/80 flex items-center">
               <div className="p-8 md:p-12 max-w-xl">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-display">Recompensas saludables</h2>
-                <p className="text-white mb-6">Premios deliciosos que no comprometen la salud de tu mascota</p>
-                <Button className="bg-blue-400 text-gray-900 hover:bg-blue-500 font-medium rounded-full">
-                  Ver packs de entrenamiento
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-display">
+                  Recompensas irresistibles
+                </h2>
+                <p className="text-white mb-6">Premios gourmet para entrenar y consentir a tu mascota</p>
+                <Button className="bg-blue-500 text-white hover:bg-blue-600 font-medium rounded-full">
+                  Ver colección
                 </Button>
               </div>
             </div>
@@ -194,61 +240,73 @@ export default function PremiarPage() {
             <div></div> {/* Empty div to maintain spacing */}
           </div>
 
-          {/* Productos de la categoría - USANDO PRODUCTCARD */}
+          {/* Productos de la categoría */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-8 text-primary font-display">Premios más vendidos</h2>
-            {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-              </div>
-            ) : error ? (
-              <div className="text-center py-12">
-                <p className="text-red-500">{error}</p>
-              </div>
-            ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} {...product} onShowDetail={handleShowDetail} />
-                ))}
+            <h2 className="text-2xl font-bold mb-8 text-blue-700 font-display">Premios destacados</h2>
+
+            {loading ? (
+              <div className="flex justify-center items-center py-20">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-700" />
+                <span className="ml-2 text-lg">Cargando productos...</span>
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400">No se encontraron productos en esta categoría.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      id={product.id}
+                      name={product.name}
+                      description={product.description}
+                      image={product.image}
+                      price={product.price}
+                      rating={product.rating}
+                      reviews={product.reviews}
+                      features={product.features}
+                      sizes={product.sizes}
+                      category={product.category}
+                      spotlightColor="rgba(122, 184, 191, 0.2)"
+                      onShowDetail={() => handleShowDetail(product)}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <p className="text-gray-500 dark:text-white">No se encontraron productos en esta categoría.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Sección de consejos */}
-          <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
-            <h2 className="text-2xl font-bold mb-6 text-primary font-display text-center">
-              Consejos para premiar a tu mascota
+          {/* Sección de beneficios */}
+          <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(219,234,254,0.15)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
+            <h2 className="text-2xl font-bold mb-6 text-blue-700 font-display text-center">
+              ¿Por qué elegir nuestros premios?
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-pastel-blue rounded-full flex items-center justify-center mb-4">
-                  <Award className="h-8 w-8 text-white" />
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/treat-ball.png" alt="Entrenamiento efectivo" width={32} height={32} />
                 </div>
-                <h3 className="font-bold mb-2 dark:text-white">Consistencia</h3>
+                <h3 className="font-bold mb-2">Entrenamiento efectivo</h3>
                 <p className="text-gray-600 dark:text-white">
-                  Premia comportamientos específicos de manera consistente para reforzar el aprendizaje.
+                  Tamaño perfecto para sesiones de entrenamiento y refuerzo positivo.
                 </p>
               </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-pastel-blue rounded-full flex items-center justify-center mb-4">
-                  <Award className="h-8 w-8 text-white" />
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/stylized-chicken-icon.png" alt="Sabores irresistibles" width={32} height={32} />
                 </div>
-                <h3 className="font-bold mb-2 dark:text-white">Moderación</h3>
-                <p className="text-gray-600 dark:text-white">
-                  Controla la cantidad de premios para mantener una dieta equilibrada y evitar el sobrepeso.
-                </p>
+                <h3 className="font-bold mb-2">Sabores irresistibles</h3>
+                <p className="text-gray-600 dark:text-white">Variedad de sabores que tu mascota no podrá resistir.</p>
               </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-pastel-blue rounded-full flex items-center justify-center mb-4">
-                  <Award className="h-8 w-8 text-white" />
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/simple-dog-paw.png" alt="Bajos en calorías" width={32} height={32} />
                 </div>
-                <h3 className="font-bold mb-2 dark:text-white">Variedad</h3>
+                <h3 className="font-bold mb-2">Bajos en calorías</h3>
                 <p className="text-gray-600 dark:text-white">
-                  Alterna entre diferentes tipos de premios para mantener el interés y la motivación de tu mascota.
+                  Formulados para ser saludables y no afectar el peso de tu mascota.
                 </p>
               </div>
             </div>
@@ -265,8 +323,12 @@ export default function PremiarPage() {
           setShowFilters={setShowFilters}
           applyFilters={applyFilters}
           categories={["premiar"]}
-          features={["Bajo en Calorías", "Sin Conservantes", "Sabor Irresistible", "Dental", "Entrenamiento"]}
-          maxPrice={20}
+          features={
+            allFeatures.length > 0
+              ? allFeatures
+              : ["Bajo en Calorías", "Sin Conservantes", "Sabor Irresistible", "Dental", "Entrenamiento"]
+          }
+          maxPrice={maxPrice}
         />
       )}
 
@@ -279,6 +341,7 @@ export default function PremiarPage() {
           onAddToCart={addToCart}
         />
       )}
+      <Toaster />
     </div>
   )
 }

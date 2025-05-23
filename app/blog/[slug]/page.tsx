@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { MDXRemote } from "next-mdx-remote/rsc"
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const { data: blog } = await supabase.from("blogs").select("title, excerpt").eq("slug", params.slug).single()
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params
+  const { data: blog } = await supabase.from("blogs").select("title, excerpt").eq("slug", resolvedParams.slug).single()
 
   if (!blog) {
     return {
@@ -24,12 +24,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 }
 
-export default async function BlogPage({ params }: { params: { slug: string } }) {
+export default async function BlogPage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params
   const { data: blog } = await supabase
     .from("blogs")
     .select("*, category:category_id(name)")
-    .eq("slug", params.slug)
-    .eq("is_published", true)
+    .eq("slug", resolvedParams.slug)
+    // Remove the is_published filter since the column doesn't exist
     .single()
 
   if (!blog) {
@@ -39,11 +40,11 @@ export default async function BlogPage({ params }: { params: { slug: string } })
   // Obtener blogs relacionados de la misma categoría
   const { data: relatedBlogs } = await supabase
     .from("blogs")
-    .select("id, title, slug, cover_image, published_at")
+    .select("id, title, slug, cover_image, created_at")
     .eq("category_id", blog.category_id)
-    .eq("is_published", true)
+    // Remove the is_published filter since the column doesn't exist
     .neq("id", blog.id)
-    .order("published_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(3)
 
   return (
@@ -61,8 +62,8 @@ export default async function BlogPage({ params }: { params: { slug: string } })
           <article className="max-w-4xl mx-auto">
             <header className="mb-8">
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-4">
-                <time dateTime={blog.published_at}>
-                  {format(new Date(blog.published_at), "d 'de' MMMM, yyyy", { locale: es })}
+                <time dateTime={blog.created_at}>
+                  {format(new Date(blog.created_at), "d 'de' MMMM, yyyy", { locale: es })}
                 </time>
                 {blog.category && (
                   <>
@@ -84,9 +85,10 @@ export default async function BlogPage({ params }: { params: { slug: string } })
               </div>
             </header>
 
-            <div className="prose prose-lg dark:prose-invert max-w-none">
-              <MDXRemote source={blog.content} />
-            </div>
+            <div
+              className="prose prose-lg dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: blog.content || "" }}
+            />
           </article>
 
           {relatedBlogs && relatedBlogs.length > 0 && (
@@ -108,7 +110,7 @@ export default async function BlogPage({ params }: { params: { slug: string } })
                     </div>
                     <div className="p-6">
                       <p className="text-sm text-gray-500 dark:text-white/70 mb-2">
-                        {format(new Date(relatedBlog.published_at), "d 'de' MMMM, yyyy", { locale: es })}
+                        {format(new Date(relatedBlog.created_at), "d 'de' MMMM, yyyy", { locale: es })}
                       </p>
                       <h3 className="text-xl font-bold mb-4 text-primary dark:text-white font-display">
                         {relatedBlog.title}

@@ -1,17 +1,41 @@
-// This is a placeholder file to resolve the module not found error.
-// You'll need to implement the actual Heading component here.
+import type React from "react"
+import { cn } from "@/lib/utils"
+import type { JSX } from "react/jsx-runtime" // Import JSX to fix the undeclared variable error
 
-import type React from 'react';
-
-interface HeadingProps {
-  level?: 1 | 2 | 3 | 4 | 5 | 6;
-  children: React.ReactNode;
-  className?: string;
+interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  level?: 1 | 2 | 3 | 4 | 5 | 6
+  children: React.ReactNode
+  variant?: "default" | "primary" | "secondary" | "muted"
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl"
 }
 
-const Heading: React.FC<HeadingProps> = ({ level = 1, children, className = '' }) => {
-  const Tag = `h${level}` as keyof JSX.IntrinsicElements;
-  return <Tag className={className}>{children}</Tag>;
-};
+export function Heading({ level = 2, children, className, variant = "default", size = "lg", ...props }: HeadingProps) {
+  const Tag = `h${level}` as keyof JSX.IntrinsicElements
 
-export default Heading;
+  const variantClasses = {
+    default: "text-foreground",
+    primary: "text-primary",
+    secondary: "text-secondary-foreground",
+    muted: "text-muted-foreground",
+  }
+
+  const sizeClasses = {
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-lg",
+    xl: "text-xl",
+    "2xl": "text-2xl",
+    "3xl": "text-3xl",
+  }
+
+  return (
+    <Tag
+      className={cn("font-semibold tracking-tight", variantClasses[variant], sizeClasses[size], className)}
+      {...props}
+    >
+      {children}
+    </Tag>
+  )
+}
+
+export default Heading

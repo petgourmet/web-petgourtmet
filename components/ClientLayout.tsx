@@ -44,4 +44,5 @@ const ClientLayout: React.FC<Props> = ({ children }) => {
   return <>{children}</>
 }
 
+export { ClientLayout }
 export default ClientLayout

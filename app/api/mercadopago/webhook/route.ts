@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/client"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    console.log("Webhook recibido:", body)
 
     // Verificar si es una notificación de pago
     if (body.type !== "payment") {
@@ -32,13 +33,30 @@ export async function POST(request: Request) {
     }
 
     const paymentData = await response.json()
+    console.log("Detalles del pago:", paymentData)
 
-    // Buscar el pedido por el ID de preferencia
-    const { data: orderData, error: orderError } = (await supabaseAdmin
-      ?.from("orders")
-      .select("*")
-      .eq("mercadopago_preference_id", paymentData.preference_id)
-      .single()) || { data: null, error: new Error("Failed to find order") }
+    // Buscar el pedido por el ID de preferencia o referencia externa
+    let orderData = null
+    let orderError = null
+
+    if (paymentData.preference_id) {
+      const result = await supabaseAdmin
+        ?.from("orders")
+        .select("*")
+        .eq("mercadopago_preference_id", paymentData.preference_id)
+        .single()
+
+      orderData = result?.data
+      orderError = result?.error
+    }
+
+    // Si no encontramos por preference_id, intentamos por external_reference
+    if ((!orderData || orderError) && paymentData.external_reference) {
+      const result = await supabaseAdmin?.from("orders").select("*").eq("id", paymentData.external_reference).single()
+
+      orderData = result?.data
+      orderError = result?.error
+    }
 
     if (orderError || !orderData) {
       console.error("Error finding order:", orderError)
@@ -59,6 +77,8 @@ export async function POST(request: Request) {
         payment_status: paymentData.status,
         status: newOrderStatus,
         mercadopago_payment_id: paymentId,
+        payment_method: paymentData.payment_method_id || "mercadopago",
+        payment_id: paymentId,
       })
       .eq("id", orderData.id)) || { error: new Error("Failed to update order") }
 
@@ -67,6 +87,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to update order" }, { status: 500 })
     }
 
+    console.log("Pedido actualizado correctamente:", orderData.id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error in webhook route:", error)

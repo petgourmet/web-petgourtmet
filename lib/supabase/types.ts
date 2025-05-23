@@ -14,6 +14,12 @@ export type Product = {
   rating?: number
   reviews_count?: number
   category_id?: number
+  // Nuevos campos
+  sale_type?: "unit" | "weight"
+  weight_reference?: string
+  subscription_available?: boolean
+  subscription_types?: string[]
+  subscription_discount?: number
 }
 
 export type Category = {
@@ -44,6 +50,7 @@ export type ProductImage = {
   product_id: number
   url: string
   alt: string
+  display_order?: number
 }
 
 export type ProductFeature = {
@@ -60,6 +67,8 @@ export type ProductReview = {
   user_name?: string
   rating: number
   comment?: string
+  verified?: boolean
+  featured?: boolean
   created_at?: string
 }
 

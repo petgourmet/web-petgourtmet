@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter, Check, Loader2 } from "lucide-react"
-import { ProductCard } from "@/components/product-card"
+import { Loader2 } from "lucide-react"
+import { Toaster } from "@/components/toaster"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import type { ProductFeature } from "@/components/product-card"
+import { ProductCategoryLoader } from "@/components/product-category-loader"
 
 // Tipo para los productos desde la base de datos
 type Product = {
@@ -18,7 +19,6 @@ type Product = {
   description: string
   price: number
   image: string
-  category_id: number
   stock: number
   created_at: string
   features?: ProductFeature[]
@@ -29,18 +29,10 @@ type Product = {
   gallery?: { src: string; alt: string }[]
 }
 
-// Características predeterminadas para productos de tipo "Complementar"
-const DEFAULT_COMPLEMENTAR_FEATURES: ProductFeature[] = [
-  { name: "Vitaminas A, D y E", color: "pastel-green" },
-  { name: "Omega 3 y 6", color: "primary" },
-  { name: "Fácil dosificación", color: "secondary" },
-]
-
 export default function ComplementarPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -57,34 +49,23 @@ export default function ComplementarPage() {
   useEffect(() => {
     async function loadProducts() {
       setLoading(true)
-      setError(null)
       try {
-        // Primero obtenemos el ID de la categoría "Complementar" usando ilike para búsqueda insensible a mayúsculas/minúsculas
+        // Primero obtenemos el ID de la categoría "Complementar"
         const { data: categoryData, error: categoryError } = await supabase
           .from("categories")
-          .select("id, name")
+          .select("id")
           .ilike("name", "%complementar%")
+          .single()
 
         if (categoryError) {
           console.error("Error al obtener la categoría:", categoryError)
-          setError(`Error al obtener la categoría: ${categoryError.message}`)
           setLoading(false)
           return
         }
 
-        if (!categoryData || categoryData.length === 0) {
-          console.error("No se encontró la categoría 'Complementar'")
-          setError("No se encontró la categoría 'Complementar'")
-          setLoading(false)
-          return
-        }
+        const categoryId = categoryData?.id
 
-        // Usamos el primer resultado que coincida (podría haber varios)
-        const categoryId = categoryData[0].id
-        const categoryName = categoryData[0].name
-        console.log(`Categoría encontrada: ${categoryName} (ID: ${categoryId})`)
-
-        // Luego obtenemos los productos de esa categoría
+        // Obtenemos los productos que tienen esta categoría directamente por category_id
         const { data: productsData, error: productsError } = await supabase
           .from("products")
           .select("*, categories(name)")
@@ -92,14 +73,12 @@ export default function ComplementarPage() {
           .order("created_at", { ascending: false })
 
         if (productsError) {
-          console.error("Error al obtener productos:", productsError)
-          setError(`Error al obtener productos: ${productsError.message}`)
+          console.error("Error al obtener productos por categoría:", productsError)
           setLoading(false)
           return
         }
 
         if (!productsData || productsData.length === 0) {
-          console.log("No se encontraron productos en la categoría")
           setProducts([])
           setFilteredProducts([])
           setLoading(false)
@@ -107,41 +86,64 @@ export default function ComplementarPage() {
         }
 
         // Procesar productos para agregar información adicional
-        const processedProducts = productsData.map((product) => {
-          // Usar características predeterminadas ya que la tabla product_features no existe
-          const features = DEFAULT_COMPLEMENTAR_FEATURES
+        const processedProducts = await Promise.all(
+          productsData.map(async (product) => {
+            // Obtener el nombre de la categoría
+            const categoryName = product.categories?.name || "Para Complementar"
 
-          // Construir la URL completa de la imagen
-          let imageUrl = product.image
-          if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
-            // Si es una ruta relativa en el bucket de Supabase
-            const { data } = supabase.storage.from("products").getPublicUrl(imageUrl)
-            imageUrl = data.publicUrl
-          } else if (!imageUrl) {
-            // Imagen predeterminada si no hay imagen
-            imageUrl = "/dog-supplement-display.png"
-          }
+            // Obtener características del producto (si existe una tabla para esto)
+            let features: ProductFeature[] = []
+            try {
+              const { data: featuresData } = await supabase
+                .from("product_features")
+                .select("name, color")
+                .eq("product_id", product.id)
 
-          return {
-            ...product,
-            image: imageUrl,
-            category: product.categories?.name || categoryName,
-            features,
-            rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
-            reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
-            sizes: [
-              { weight: product.price < 20 ? "30 tabletas" : "30 sobres", price: product.price },
-              { weight: product.price < 20 ? "60 tabletas" : "60 sobres", price: product.price * 1.8 },
-            ],
-            spotlightColor: "rgba(217, 245, 232, 0.3)",
-          }
-        })
+              if (featuresData && featuresData.length > 0) {
+                features = featuresData
+              } else {
+                // Características predeterminadas si no hay datos
+                features = [
+                  { name: "Vitaminas A, D y E", color: "pastel-green" },
+                  { name: "Omega 3 y 6", color: "primary" },
+                  { name: "Fácil dosificación", color: "secondary" },
+                ]
+              }
+            } catch (error) {
+              console.error("Error al cargar características:", error)
+            }
+
+            // Construir la URL completa de la imagen
+            let imageUrl = product.image
+            if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
+              // Si es una ruta relativa en el bucket de Supabase
+              const { data } = supabase.storage.from("products").getPublicUrl(imageUrl)
+              imageUrl = data.publicUrl
+            } else if (!imageUrl) {
+              // Imagen predeterminada si no hay imagen
+              imageUrl = "/dog-supplement-display.png"
+            }
+
+            return {
+              ...product,
+              image: imageUrl,
+              category: categoryName,
+              features,
+              rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
+              reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
+              sizes: [
+                { weight: "200g", price: product.price },
+                { weight: "500g", price: product.price * 2.2 },
+              ],
+              spotlightColor: "rgba(217, 245, 232, 0.3)",
+            }
+          }),
+        )
 
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error al cargar productos:", error)
-        setError(`Error al cargar productos: ${error.message || "Error desconocido"}`)
       } finally {
         setLoading(false)
       }
@@ -196,7 +198,7 @@ export default function ComplementarPage() {
   const allFeatures = Array.from(new Set(products.flatMap((product) => product.features?.map((f) => f.name) || [])))
 
   // Encontrar el precio máximo para el filtro
-  const maxPrice = Math.max(...products.map((product) => product.price), 50)
+  const maxPrice = Math.max(...products.map((product) => product.price), 30)
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
@@ -205,114 +207,74 @@ export default function ComplementarPage() {
           <div className="text-center mb-16">
             <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">Para Complementar</h1>
             <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto">
-              Suplementos nutricionales y aditivos para mejorar la dieta diaria de tu perro. Potencia su salud y
-              bienestar con nuestros complementos premium.
+              Suplementos y complementos nutricionales para asegurar la salud óptima de tu mascota. Productos de alta
+              calidad para el bienestar completo.
             </p>
           </div>
 
           {/* Banner de categoría */}
           <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden mb-16">
-            <Image src="/para_complementar.png" alt="Suplementos para perros" fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-pastel-green/80 flex items-center">
+            <Image src="/para_complementar.png" alt="Productos para complementar" fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-green-700/80 flex items-center">
               <div className="p-8 md:p-12 max-w-xl">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-display">Nutrición avanzada</h2>
-                <p className="text-white mb-6">Complementos desarrollados por expertos en nutrición canina</p>
-                <Button className="bg-green-400 text-gray-900 hover:bg-green-500 font-medium rounded-full">
-                  Consulta nutricional
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-display">
+                  Nutrición completa y balanceada
+                </h2>
+                <p className="text-white mb-6">Suplementos premium para el bienestar integral de tu mascota</p>
+                <Button className="bg-green-500 text-white hover:bg-green-600 font-medium rounded-full">
+                  Descubrir beneficios
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Controles de filtro y ordenación */}
-          <div className="mb-8 flex justify-between items-center">
-            <Button
-              variant="outline"
-              className="rounded-full flex items-center gap-2"
-              onClick={() => setShowFilters(true)}
-            >
-              <Filter className="h-4 w-4" /> Filtrar
-            </Button>
-          </div>
-
           {/* Productos de la categoría */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-8 text-primary font-display">Suplementos recomendados</h2>
+            <h2 className="text-2xl font-bold mb-8 text-green-700 font-display">Suplementos destacados</h2>
 
             {loading ? (
               <div className="flex justify-center items-center py-20">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <Loader2 className="h-10 w-10 animate-spin text-green-700" />
                 <span className="ml-2 text-lg">Cargando productos...</span>
               </div>
-            ) : error ? (
-              <div className="flex justify-center items-center py-20 text-red-500">
-                <p>{error}</p>
-              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      id={product.id}
-                      name={product.name}
-                      description={product.description}
-                      image={product.image}
-                      price={product.price}
-                      rating={product.rating}
-                      reviews={product.reviews}
-                      features={product.features}
-                      sizes={product.sizes}
-                      category={product.category}
-                      spotlightColor="rgba(217, 245, 232, 0.3)"
-                      onShowDetail={() => handleShowDetail(product)}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <p className="text-gray-500 dark:text-white">No se encontraron productos en esta categoría.</p>
-                  </div>
-                )}
-              </div>
+              <ProductCategoryLoader categorySlug="complementar" />
             )}
           </div>
 
-          {/* Sección informativa */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-            <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md">
-              <h2 className="text-xl font-bold mb-4 text-primary font-display">
-                ¿Por qué son importantes los suplementos?
-              </h2>
-              <p className="text-gray-600 dark:text-white mb-4">
-                Incluso con una dieta equilibrada, algunos perros pueden beneficiarse de suplementos adicionales para
-                abordar necesidades específicas relacionadas con su edad, raza, nivel de actividad o condiciones de
-                salud.
-              </p>
-              <p className="text-gray-600 dark:text-white">
-                Nuestros suplementos están formulados científicamente para proporcionar los nutrientes exactos que tu
-                perro necesita en la dosis adecuada, mejorando su calidad de vida y bienestar general.
-              </p>
-            </div>
-            <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md">
-              <h2 className="text-xl font-bold mb-4 text-primary font-display">¿Cómo elegir el suplemento adecuado?</h2>
-              <ul className="space-y-2 text-gray-600 dark:text-white">
-                <li className="flex items-start">
-                  <Check className="h-5 w-5 text-pastel-green mr-2 mt-0.5" />
-                  <span>Para perros mayores: suplementos articulares y antioxidantes</span>
-                </li>
-                <li className="flex items-start">
-                  <Check className="h-5 w-5 text-pastel-green mr-2 mt-0.5" />
-                  <span>Para cachorros: suplementos para el desarrollo y crecimiento</span>
-                </li>
-                <li className="flex items-start">
-                  <Check className="h-5 w-5 text-pastel-green mr-2 mt-0.5" />
-                  <span>Para perros activos: suplementos para articulaciones y energía</span>
-                </li>
-                <li className="flex items-start">
-                  <Check className="h-5 w-5 text-pastel-green mr-2 mt-0.5" />
-                  <span>Para problemas de piel: ácidos grasos esenciales y vitaminas</span>
-                </li>
-              </ul>
+          {/* Sección de beneficios */}
+          <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(220,252,231,0.15)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
+            <h2 className="text-2xl font-bold mb-6 text-green-700 font-display text-center">
+              Beneficios de nuestros suplementos
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/simple-dog-paw.png" alt="Salud óptima" width={32} height={32} />
+                </div>
+                <h3 className="font-bold mb-2">Salud óptima</h3>
+                <p className="text-gray-600 dark:text-white">
+                  Formulados para cubrir todas las necesidades nutricionales de tu mascota.
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/golden-grain-icon.png" alt="Ingredientes naturales" width={32} height={32} />
+                </div>
+                <h3 className="font-bold mb-2">Ingredientes naturales</h3>
+                <p className="text-gray-600 dark:text-white">
+                  Elaborados con ingredientes de la más alta calidad, sin aditivos artificiales.
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/assorted-vegetables-icon.png" alt="Fácil administración" width={32} height={32} />
+                </div>
+                <h3 className="font-bold mb-2">Fácil administración</h3>
+                <p className="text-gray-600 dark:text-white">
+                  Diseñados para ser fáciles de administrar y con sabor agradable para tu mascota.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -345,6 +307,7 @@ export default function ComplementarPage() {
           onAddToCart={addToCart}
         />
       )}
+      <Toaster />
     </div>
   )
 }

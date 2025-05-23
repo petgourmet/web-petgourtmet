@@ -1,8 +1,7 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
-import { use } from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
@@ -13,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowLeft, Upload, ShieldAlert } from "lucide-react"
+import { Loader2, ArrowLeft, Upload, ShieldAlert, AlertTriangle } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
@@ -21,25 +20,27 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { SecureFileUpload } from "@/components/admin/secure-file-upload"
 import type { Blog, BlogCategory } from "@/lib/supabase/types"
 
-export default function BlogForm({ params }: { params: { id: string } }) {
-  // Usar React.use para desenvolver los parámetros
-  const unwrappedParams = use(params)
+export default function BlogForm({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const isNew = unwrappedParams.id === "new"
+  const resolvedParams = React.use(params)
+  const isNew = resolvedParams.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<BlogCategory[]>([])
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
   const [blog, setBlog] = useState<Partial<Blog>>({
     title: "",
     slug: "",
     excerpt: "",
     content: "",
     cover_image: "",
-    author: "",
     category_id: null,
-    is_published: false,
+    published: false,
+    author_id: null,
+    meta_description: "",
+    read_time: 0,
   })
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
 
@@ -96,15 +97,23 @@ export default function BlogForm({ params }: { params: { id: string } }) {
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
+      setError(null)
       try {
         // Cargar categorías
-        const { data: categoriesData } = await supabase.from("blog_categories").select("*").order("name")
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from("blog_categories")
+          .select("*")
+          .order("name")
+
+        if (categoriesError) {
+          throw categoriesError
+        }
 
         setCategories(categoriesData || [])
 
         // Si no es un nuevo blog, cargar datos del blog
         if (!isNew) {
-          const blogId = Number.parseInt(unwrappedParams.id)
+          const blogId = Number.parseInt(params.id)
 
           // Cargar blog
           const { data: blogData, error: blogError } = await supabase
@@ -116,8 +125,9 @@ export default function BlogForm({ params }: { params: { id: string } }) {
           if (blogError) throw blogError
           setBlog(blogData || {})
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error al cargar datos:", error)
+        setError(`Error al cargar datos: ${error.message}`)
         toast({
           title: "Error",
           description: "No se pudieron cargar los datos del blog. Por favor, inténtalo de nuevo.",
@@ -129,7 +139,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
     }
 
     fetchData()
-  }, [isNew, unwrappedParams.id])
+  }, [isNew, params.id])
 
   const handleBlogChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -142,7 +152,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
   const handleCheckboxChange = (checked: boolean) => {
     setBlog({
       ...blog,
-      is_published: checked,
+      published: checked,
     })
   }
 
@@ -172,6 +182,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+    setError(null)
 
     try {
       // Verificar autenticación antes de continuar
@@ -198,11 +209,19 @@ export default function BlogForm({ params }: { params: { id: string } }) {
       // Usar la imagen subida o la existente
       const imageUrl = uploadedImageUrl || blog.cover_image
 
+      // Crear objeto de datos básico solo con columnas que sabemos que existen
       const blogData = {
-        ...blog,
+        title: blog.title,
+        slug: blog.slug,
+        excerpt: blog.excerpt,
+        content: blog.content,
         cover_image: imageUrl,
-        published_at: blog.is_published ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
+        published: blog.published,
+        category_id: blog.category_id,
+        author_id: blog.author_id,
+        meta_description: blog.meta_description,
+        read_time: blog.read_time,
       }
 
       if (isNew) {
@@ -212,7 +231,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
         if (error) throw error
       } else {
         // Actualizar blog existente
-        const blogId = Number.parseInt(unwrappedParams.id)
+        const blogId = Number.parseInt(params.id)
         const { error } = await supabase.from("blogs").update(blogData).eq("id", blogId)
 
         if (error) throw error
@@ -226,6 +245,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
       router.push("/admin/blogs")
     } catch (error: any) {
       console.error("Error al guardar blog:", error)
+      setError(`Error al guardar blog: ${error.message}`)
       toast({
         title: "Error",
         description: `No se pudo guardar el blog: ${error.message || "Error desconocido"}`,
@@ -254,6 +274,23 @@ export default function BlogForm({ params }: { params: { id: string } }) {
         </Link>
         <h1 className="text-2xl font-bold">{isNew ? "Nuevo Blog" : "Editar Blog"}</h1>
       </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error}
+            <div className="mt-2">
+              <Link href="/admin/initialize-blog-tables">
+                <Button variant="outline" size="sm">
+                  Inicializar Tablas de Blogs
+                </Button>
+              </Link>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!isAuthenticated && (
         <Alert variant="destructive" className="mb-6">
@@ -306,7 +343,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Categoría</Label>
+                <Label htmlFor="category_id">Categoría</Label>
                 <Select
                   value={blog.category_id?.toString() || ""}
                   onValueChange={(value) => setBlog({ ...blog, category_id: value ? Number.parseInt(value) : null })}
@@ -350,14 +387,37 @@ export default function BlogForm({ params }: { params: { id: string } }) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="author">Autor</Label>
-              <Input id="author" name="author" value={blog.author || ""} onChange={handleBlogChange} />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="author_id">Author ID</Label>
+                <Input id="author_id" name="author_id" value={blog.author_id || ""} onChange={handleBlogChange} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="meta_description">Meta Description</Label>
+                <Input
+                  id="meta_description"
+                  name="meta_description"
+                  value={blog.meta_description || ""}
+                  onChange={handleBlogChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="read_time">Read Time</Label>
+                <Input
+                  id="read_time"
+                  name="read_time"
+                  type="number"
+                  value={blog.read_time || 0}
+                  onChange={handleBlogChange}
+                />
+              </div>
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox id="is_published" checked={blog.is_published || false} onCheckedChange={handleCheckboxChange} />
-              <Label htmlFor="is_published">Publicado</Label>
+              <Checkbox id="published" checked={blog.published || false} onCheckedChange={handleCheckboxChange} />
+              <Label htmlFor="published">Publicado</Label>
             </div>
           </CardContent>
         </Card>

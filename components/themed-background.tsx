@@ -2,8 +2,6 @@
 
 import type React from "react"
 
-import { IngredientsParticlesBackgroundDynamic } from "@/components/ingredients-particles-background-dynamic"
-
 interface ThemedBackgroundProps {
   theme?: "default" | "dense" | "sparse" | "subtle"
   children: React.ReactNode
@@ -11,50 +9,21 @@ interface ThemedBackgroundProps {
 }
 
 export function ThemedBackground({ theme = "default", children, depthEffect = true }: ThemedBackgroundProps) {
-  // Configuraciones predefinidas según el tema
-  const getConfig = () => {
+  // Configuraciones de colores según el tema
+  const getBackgroundColor = () => {
     switch (theme) {
       case "dense":
-        return {
-          count: 30,
-          opacity: 0.4,
-          speed: 1.2,
-          maxSize: 60,
-          minSize: 20,
-        }
+        return "bg-gradient-to-b from-blue-50 to-blue-100"
       case "sparse":
-        return {
-          count: 10,
-          opacity: 0.3,
-          speed: 1.5,
-          maxSize: 55,
-          minSize: 25,
-        }
+        return "bg-gradient-to-b from-amber-50 to-amber-100"
       case "subtle":
-        return {
-          count: 15,
-          opacity: 0.2,
-          speed: 0.9,
-          maxSize: 40,
-          minSize: 15,
-        }
+        return "bg-gradient-to-b from-gray-50 to-gray-100"
       default:
-        return {
-          count: 20,
-          opacity: 0.35,
-          speed: 1.1,
-          maxSize: 50,
-          minSize: 20,
-        }
+        return "bg-gradient-to-b from-green-50 to-green-100"
     }
   }
 
-  const config = getConfig()
+  const backgroundColor = getBackgroundColor()
 
-  return (
-    <div className="relative">
-      <IngredientsParticlesBackgroundDynamic {...config} depthEffect={depthEffect} />
-      {children}
-    </div>
-  )
+  return <div className={`relative ${backgroundColor} transition-colors duration-500`}>{children}</div>
 }

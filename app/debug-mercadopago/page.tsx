@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,26 @@ export default function DebugMercadoPago() {
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [configStatus, setConfigStatus] = useState<any>(null)
+
+  // Verificar el estado de la configuración al cargar
+  useEffect(() => {
+    const checkConfig = async () => {
+      try {
+        const response = await fetch("/api/mercadopago/config")
+        const data = await response.json()
+        setConfigStatus({
+          publicKeyConfigured: !!data.publicKey,
+          accessTokenConfigured: data.accessTokenConfigured,
+          appUrlConfigured: data.appUrlConfigured,
+        })
+      } catch (error) {
+        console.error("Error al verificar configuración:", error)
+      }
+    }
+
+    checkConfig()
+  }, [])
 
   const testPreference = async () => {
     setIsLoading(true)
@@ -87,28 +107,35 @@ export default function DebugMercadoPago() {
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Información de Configuración</h2>
+        <h2 className="text-xl font-semibold mb-4">Estado de la Configuración</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="access-token">Access Token</Label>
             <Input
               id="access-token"
-              value={process.env.MERCADOPAGO_ACCESS_TOKEN ? "Configurado" : "No configurado"}
+              value={configStatus?.accessTokenConfigured ? "✅ Configurado" : "❌ No configurado"}
               disabled
+              className={configStatus?.accessTokenConfigured ? "text-green-600" : "text-red-600"}
             />
           </div>
           <div>
             <Label htmlFor="public-key">Public Key</Label>
             <Input
               id="public-key"
-              value={process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY ? "Configurado" : "No configurado"}
+              value={configStatus?.publicKeyConfigured ? "✅ Configurado" : "❌ No configurado"}
               disabled
+              className={configStatus?.publicKeyConfigured ? "text-green-600" : "text-red-600"}
             />
           </div>
           <div>
             <Label htmlFor="app-url">URL de la Aplicación</Label>
-            <Input id="app-url" value={process.env.NEXT_PUBLIC_APP_URL || "No configurado"} disabled />
+            <Input
+              id="app-url"
+              value={configStatus?.appUrlConfigured ? "✅ Configurado" : "❌ No configurado"}
+              disabled
+              className={configStatus?.appUrlConfigured ? "text-green-600" : "text-red-600"}
+            />
           </div>
         </div>
       </div>

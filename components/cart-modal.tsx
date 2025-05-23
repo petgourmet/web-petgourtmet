@@ -5,9 +5,15 @@ import { X, ShoppingCart, Minus, Plus } from "lucide-react"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/components/cart-context"
+import { useRouter } from "next/navigation"
+import { useClientAuth } from "@/hooks/use-client-auth"
 
 export function CartModal() {
   const { cart, removeFromCart, updateCartItemQuantity, calculateCartTotal, setShowCart, setShowCheckout } = useCart()
+  const router = useRouter()
+  const { user } = useClientAuth()
+
+  const hasSubscriptions = cart.some((item) => item.isSubscription)
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -76,7 +82,7 @@ export function CartModal() {
                     </div>
                     <div className="text-right min-w-[80px]">
                       <div className="font-medium">
-                        €{(item.isSubscription ? item.price * 0.9 : item.price).toFixed(2)}
+                        ${(item.isSubscription ? item.price * 0.9 : item.price).toFixed(2)} MXN
                       </div>
                       <Button
                         variant="ghost"
@@ -94,16 +100,16 @@ export function CartModal() {
               <div className="border-t pt-4">
                 <div className="flex justify-between mb-2">
                   <span>Subtotal</span>
-                  <span>€{calculateCartTotal().toFixed(2)}</span>
+                  <span>${calculateCartTotal().toFixed(2)} MXN</span>
                 </div>
                 <div className="flex justify-between mb-4">
                   <span>Envío</span>
-                  <span>{calculateCartTotal() > 30 ? "Gratis" : "€4.99"}</span>
+                  <span>{calculateCartTotal() > 30 ? "Gratis" : "$4.99 MXN"}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg mb-6">
                   <span>Total</span>
                   <span>
-                    €{(calculateCartTotal() > 30 ? calculateCartTotal() : calculateCartTotal() + 4.99).toFixed(2)}
+                    ${(calculateCartTotal() > 30 ? calculateCartTotal() : calculateCartTotal() + 4.99).toFixed(2)} MXN
                   </span>
                 </div>
 
@@ -114,13 +120,22 @@ export function CartModal() {
                   <Button
                     className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full"
                     onClick={() => {
+                      // Verificar si hay suscripciones y si el usuario está autenticado
+                      if (hasSubscriptions && !user) {
+                        // Cerrar el modal del carrito
+                        setShowCart(false)
+                        // Redirigir al login con mensaje sobre suscripciones
+                        router.push("/auth/login?redirect=checkout&subscription=true")
+                        return
+                      }
+
                       // Cerrar el modal del carrito
                       setShowCart(false)
-                      // Mostrar el modal de checkout donde se iniciará el proceso de pago con Mercado Pago
+                      // Mostrar el modal de checkout donde se iniciará el proceso de pago
                       setShowCheckout(true)
                     }}
                   >
-                    Proceder al Pago
+                    {hasSubscriptions && !user ? "Crear Cuenta para Suscripción" : "Proceder al Pago"}
                   </Button>
                 </div>
               </div>

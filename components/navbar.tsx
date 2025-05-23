@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Menu, X, ChevronDown, User } from "lucide-react"
+import { Menu, X, ChevronDown, User, ShoppingBag, Home, Info, Apple, BookOpen, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartButton } from "@/components/cart-button"
 import { useCart } from "@/components/cart-context"
@@ -11,12 +11,16 @@ import { CartModal } from "@/components/cart-modal"
 import { CheckoutModal } from "@/components/checkout-modal"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
 import { useClientAuth } from "@/hooks/use-client-auth"
+import { useMobile } from "@/hooks/use-mobile"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null)
   const { showCart, showCheckout } = useCart()
   const { user, isAdmin, signOut } = useClientAuth()
+  const isMobile = useMobile()
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -27,28 +31,56 @@ export function Navbar() {
       }
     }
 
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false)
+      }
+    }
+
     window.addEventListener("scroll", handleScroll)
+    document.addEventListener("mousedown", handleClickOutside)
+
     return () => {
       window.removeEventListener("scroll", handleScroll)
+      document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [])
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobile) {
+      if (isMenuOpen) {
+        document.body.style.overflow = "hidden"
+      } else {
+        document.body.style.overflow = ""
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [isMenuOpen, isMobile])
+
+  const toggleSubmenu = (menu: string) => {
+    setActiveSubmenu(activeSubmenu === menu ? null : menu)
+  }
 
   return (
     <>
       <header
         className={`w-full sticky top-0 z-50 transition-all duration-500 backdrop-blur-sm ${
-          isScrolled ? "bg-primary/80 shadow-md py-2" : "bg-primary py-4"
+          isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
         }`}
       >
         <div className="container mx-auto px-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center relative group">
+          <Link href="/" className="flex items-center relative group z-10">
             <div className="absolute -inset-2 bg-gradient-radial from-white/20 to-transparent rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 cursor-pointer"></div>
             <Image
               src="/petgourmet-logo.png"
               alt="Pet Gourmet Logo"
               width={150}
               height={40}
-              className="h-12 w-auto animate-logo-wiggle"
+              className="h-10 md:h-12 w-auto animate-logo-wiggle"
             />
           </Link>
 
@@ -160,140 +192,226 @@ export function Navbar() {
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="flex items-center space-x-2 lg:hidden">
-            <ThemeToggleButton />
+          {/* Mobile Menu Button & Icons */}
+          <div className="flex items-center space-x-3 lg:hidden">
             <CartButton />
+            <ThemeToggleButton />
             <button
               className="p-2 rounded-full bg-white text-primary shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle menu"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="lg:hidden bg-primary/95 backdrop-blur-sm py-4 px-4 shadow-md">
-            <nav className="flex flex-col space-y-4">
-              <div className="space-y-2">
-                <div className="font-medium text-white">Productos</div>
-                <div className="pl-4 space-y-2">
-                  <Link
-                    href="/productos"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block text-white/80 hover:text-white transition-colors duration-300"
-                  >
-                    Todos los Productos
-                  </Link>
-                  <Link
-                    href="/celebrar"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block text-white/80 hover:text-white transition-colors duration-300"
-                  >
-                    Para Celebrar
-                  </Link>
-                  <Link
-                    href="/complementar"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block text-white/80 hover:text-white transition-colors duration-300"
-                  >
-                    Para Complementar
-                  </Link>
-                  <Link
-                    href="/premiar"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block text-white/80 hover:text-white transition-colors duration-300"
-                  >
-                    Para Premiar
-                  </Link>
-                  <Link
-                    href="/recetas"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block text-white/80 hover:text-white transition-colors duration-300"
-                  >
-                    Nuestras Recetas
-                  </Link>
-                </div>
-              </div>
-              <Link
-                href="/nosotros"
-                onClick={() => setIsMenuOpen(false)}
-                className="text-white/80 hover:text-white transition-colors duration-300"
-              >
-                Nosotros
-              </Link>
-              <Link
-                href="/nutricion"
-                onClick={() => setIsMenuOpen(false)}
-                className="text-white/80 hover:text-white transition-colors duration-300"
-              >
-                Nutrición
-              </Link>
-              <Link
-                href="/blog"
-                onClick={() => setIsMenuOpen(false)}
-                className="text-white/80 hover:text-white transition-colors duration-300"
-              >
-                Blog
-              </Link>
-
+      {/* Enhanced Mobile Menu */}
+      {isMenuOpen && (
+        <div
+          ref={menuRef}
+          className="lg:hidden fixed inset-0 z-40 bg-white dark:bg-gray-900 pt-20 pb-6 overflow-y-auto"
+        >
+          <div className="container mx-auto px-4">
+            {/* User Section */}
+            <div className="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
               {user ? (
-                <>
-                  <Link
-                    href="/perfil"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center text-white/80 hover:text-white transition-colors duration-300"
-                  >
-                    <User size={18} className="mr-2" />
-                    Mi Perfil
-                  </Link>
-
+                <div className="flex flex-col">
+                  <div className="flex items-center mb-3">
+                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                      <User size={24} />
+                    </div>
+                    <div className="ml-3">
+                      <p className="font-medium">{user.email?.split("@")[0]}</p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Link
+                      href="/perfil"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="text-sm bg-primary/10 text-primary py-2 px-3 rounded-md flex items-center justify-center"
+                    >
+                      <User size={16} className="mr-2" />
+                      Mi Perfil
+                    </Link>
+                    <button
+                      onClick={() => {
+                        signOut()
+                        setIsMenuOpen(false)
+                      }}
+                      className="text-sm bg-red-50 text-red-600 py-2 px-3 rounded-md flex items-center justify-center"
+                    >
+                      <X size={16} className="mr-2" />
+                      Cerrar Sesión
+                    </button>
+                  </div>
                   {isAdmin && (
                     <Link
                       href="/admin/dashboard"
                       onClick={() => setIsMenuOpen(false)}
-                      className="text-white/80 hover:text-white transition-colors duration-300"
+                      className="mt-3 text-sm bg-gray-100 text-gray-800 py-2 px-3 rounded-md flex items-center justify-center"
                     >
                       Panel de Administración
                     </Link>
                   )}
-
-                  <button
-                    onClick={() => {
-                      signOut()
-                      setIsMenuOpen(false)
-                    }}
-                    className="text-red-300 hover:text-red-100 transition-colors duration-300"
-                  >
-                    Cerrar Sesión
-                  </button>
-                </>
+                </div>
               ) : (
-                <Button
-                  asChild
-                  className="bg-white hover:bg-white/90 text-primary rounded-full w-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"
-                >
-                  <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
+                <div className="flex flex-col space-y-3">
+                  <Link
+                    href="/auth/login"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="bg-primary text-white py-3 px-4 rounded-md text-center font-medium"
+                  >
                     Iniciar Sesión
                   </Link>
-                </Button>
+                  <Link
+                    href="/auth/login"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 py-3 px-4 rounded-md text-center font-medium"
+                  >
+                    Crear Cuenta
+                  </Link>
+                </div>
               )}
+            </div>
 
-              <Button
-                asChild
-                className="bg-white hover:bg-white/90 text-primary rounded-full w-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"
+            {/* Main Navigation */}
+            <nav className="space-y-1">
+              <Link
+                href="/"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                <Link href="/productos" onClick={() => setIsMenuOpen(false)}>
-                  Comprar Ahora
-                </Link>
-              </Button>
+                <Home size={20} className="mr-3 text-primary" />
+                <span className="font-medium">Inicio</span>
+              </Link>
+
+              {/* Products Submenu */}
+              <div>
+                <button
+                  onClick={() => toggleSubmenu("products")}
+                  className="flex items-center justify-between w-full py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <div className="flex items-center">
+                    <ShoppingBag size={20} className="mr-3 text-primary" />
+                    <span className="font-medium">Productos</span>
+                  </div>
+                  <ChevronDown
+                    size={18}
+                    className={`transition-transform ${activeSubmenu === "products" ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {activeSubmenu === "products" && (
+                  <div className="ml-10 mt-1 space-y-1 border-l-2 border-primary/20 pl-4">
+                    <Link
+                      href="/productos"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
+                    >
+                      Todos los Productos
+                    </Link>
+                    <Link
+                      href="/celebrar"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
+                    >
+                      Para Celebrar
+                    </Link>
+                    <Link
+                      href="/complementar"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
+                    >
+                      Para Complementar
+                    </Link>
+                    <Link
+                      href="/premiar"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
+                    >
+                      Para Premiar
+                    </Link>
+                    <Link
+                      href="/recetas"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
+                    >
+                      Nuestras Recetas
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              <Link
+                href="/nosotros"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Info size={20} className="mr-3 text-primary" />
+                <span className="font-medium">Nosotros</span>
+              </Link>
+
+              <Link
+                href="/nutricion"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Apple size={20} className="mr-3 text-primary" />
+                <span className="font-medium">Nutrición</span>
+              </Link>
+
+              <Link
+                href="/blog"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <BookOpen size={20} className="mr-3 text-primary" />
+                <span className="font-medium">Blog</span>
+              </Link>
+
+              <Link
+                href="/crear-plan"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Heart size={20} className="mr-3 text-primary" />
+                <span className="font-medium">Crear Plan Personalizado</span>
+              </Link>
             </nav>
+
+            {/* Quick Actions */}
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <Link
+                href="/productos"
+                onClick={() => setIsMenuOpen(false)}
+                className="block w-full bg-primary text-white py-3 px-4 rounded-md text-center font-medium mb-3"
+              >
+                Comprar Ahora
+              </Link>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Link
+                  href="/contacto"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-sm bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 py-2 px-3 rounded-md text-center"
+                >
+                  Contacto
+                </Link>
+                <Link
+                  href="/faq"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-sm bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 py-2 px-3 rounded-md text-center"
+                >
+                  Preguntas Frecuentes
+                </Link>
+              </div>
+            </div>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* Modales de carrito y checkout */}
       {showCart && <CartModal />}
