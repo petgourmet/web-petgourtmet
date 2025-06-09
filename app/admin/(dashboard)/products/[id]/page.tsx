@@ -31,14 +31,26 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: { id: string } }) {
+export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const isNew = params.id === "new"
+  const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  
+  // Resolve params Promise in Next.js 15
+  useEffect(() => {
+    async function resolveParams() {
+      const resolved = await params
+      setResolvedParams(resolved)
+    }
+    resolveParams()
+  }, [params])
+  
+  // Define isNew based on resolved params
+  const isNew = resolvedParams?.id === "new"
   const [product, setProduct] = useState<Partial<Product>>({
     name: "",
     description: "",
@@ -143,6 +155,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     async function fetchData() {
+      // Don't fetch data until params are resolved
+      if (!resolvedParams) return
+      
       setLoading(true)
       try {
         // Cargar categorías
@@ -152,7 +167,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
         // Si no es un nuevo producto, cargar datos del producto
         if (!isNew) {
-          const productId = Number.parseInt(params.id)
+          const productId = Number.parseInt(resolvedParams.id)
 
           // Cargar producto
           const { data: productData, error: productError } = await supabase
@@ -267,7 +282,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     }
 
     fetchData()
-  }, [isNew, params.id, multiCategorySupport])
+  }, [isNew, resolvedParams?.id, multiCategorySupport, resolvedParams])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -454,7 +469,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         }
 
         // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && data.id === Number.parseInt(params.id))) {
+        if (!data || (data && !isNew && resolvedParams && data.id === Number.parseInt(resolvedParams.id))) {
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -489,7 +504,10 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         productId = data[0].id
       } else {
         // Actualizar producto existente
-        productId = Number.parseInt(params.id)
+        if (!resolvedParams) {
+          throw new Error("No se pudo obtener el ID del producto")
+        }
+        productId = Number.parseInt(resolvedParams.id)
         const { error } = await supabase.from("products").update(productData).eq("id", productId)
 
         if (error) throw error
@@ -543,7 +561,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             toast({
               title: "Advertencia",
               description: "Algunas características del producto no se pudieron guardar.",
-              variant: "warning",
+              variant: "default",
             })
           }
         }
@@ -552,7 +570,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar las características del producto.",
-          variant: "warning",
+          variant: "default",
         })
       }
 
@@ -582,7 +600,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             toast({
               title: "Advertencia",
               description: "Algunos tamaños del producto no se pudieron guardar.",
-              variant: "warning",
+              variant: "default",
             })
           }
         }
@@ -591,7 +609,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar los tamaños del producto.",
-          variant: "warning",
+          variant: "default",
         })
       }
 
@@ -628,7 +646,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             toast({
               title: "Advertencia",
               description: `Error al guardar imágenes: ${imagesError.message}`,
-              variant: "warning",
+              variant: "default",
             })
           } else {
             console.log("Imágenes guardadas exitosamente:", insertedImages)
@@ -643,7 +661,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar las imágenes del producto.",
-          variant: "warning",
+          variant: "default",
         })
       }
 
@@ -712,8 +730,8 @@ export default function ProductForm({ params }: { params: { id: string } }) {
   // Cargar imágenes adicionales
   useEffect(() => {
     const loadAdditionalImages = async () => {
-      if (!isNew && params.id) {
-        const productId = Number.parseInt(params.id)
+      if (!isNew && resolvedParams?.id) {
+        const productId = Number.parseInt(resolvedParams.id)
         const { data: imagesData, error: imagesError } = await supabase
           .from("product_images")
           .select("*")
@@ -734,7 +752,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     }
 
     loadAdditionalImages()
-  }, [isNew, params.id])
+  }, [isNew, resolvedParams?.id])
 
   if (loading) {
     return (
@@ -911,7 +929,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                   <Checkbox
                     id="subscription_available"
                     checked={product.subscription_available || false}
-                    onCheckedChange={(checked) => setProduct({ ...product, subscription_available: checked })}
+                    onCheckedChange={(checked) => setProduct({ ...product, subscription_available: checked as boolean })}
                   />
                   <Label htmlFor="subscription_available">Disponible para Suscripción</Label>
                 </div>
@@ -1361,7 +1379,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               <Star
                                 key={i}
                                 className={`w-4 h-4 ${
-                                  i < Math.floor(product.rating) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                                  i < Math.floor(product.rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
                                 }`}
                               />
                             ))}
