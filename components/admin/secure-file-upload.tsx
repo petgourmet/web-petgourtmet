@@ -108,12 +108,20 @@ export function SecureFileUpload({
 
       setProgress(70)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Error al subir archivo")
+      // Verificar si la respuesta es JSON válida
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text()
+        console.error(`[SecureFileUpload] Respuesta no-JSON recibida:`, textResponse)
+        throw new Error(`El servidor devolvió una respuesta inválida: ${textResponse.substring(0, 100)}...`)
       }
 
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || `Error HTTP ${response.status}`)
+      }
+
       console.log(`[SecureFileUpload] Archivo subido exitosamente:`, data)
 
       setProgress(100)
@@ -128,9 +136,15 @@ export function SecureFileUpload({
         description: "El archivo se ha subido correctamente a Supabase Storage.",
       })
     } catch (err: any) {
-      console.error(`[SecureFileUpload] Error inesperado al subir archivo:`, err)
-      setError(`Error inesperado: ${err.message || "Error desconocido"}`)
+      console.error(`[SecureFileUpload] Error al subir archivo:`, err)
+      setError(`Error: ${err.message || "Error desconocido"}`)
       setProgress(0)
+
+      toast({
+        title: "Error al subir archivo",
+        description: err.message || "Ocurrió un error inesperado",
+        variant: "destructive",
+      })
     } finally {
       setIsUploading(false)
     }

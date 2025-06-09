@@ -1,6 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Facebook, Instagram, Twitter, Youtube } from "lucide-react"
+import { Facebook, Instagram, Youtube } from "lucide-react"
 
 export function Footer() {
   return (
@@ -27,25 +27,25 @@ export function Footer() {
             <p className="text-white/80 mb-6">Nutrición premium para tus compañeros</p>
             <div className="flex space-x-4">
               <Link
-                href="#"
+                href="https://web.facebook.com/petgourmetmx?locale=es_LA"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
               >
                 <Facebook size={20} />
               </Link>
               <Link
-                href="#"
+                href="https://www.instagram.com/petgourmet_mx/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
               >
                 <Instagram size={20} />
               </Link>
               <Link
-                href="#"
-                className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
-              >
-                <Twitter size={20} />
-              </Link>
-              <Link
-                href="#"
+                href="https://www.youtube.com/@PetGourmetMexico"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
               >
                 <Youtube size={20} />
@@ -90,14 +90,6 @@ export function Footer() {
                   Para Premiar
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/recetas"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
-                >
-                  Nuestras Recetas
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -105,7 +97,7 @@ export function Footer() {
             <h3 className="font-bold text-lg mb-4 text-white uppercase tracking-wide text-sm border-b border-white/20 pb-2">
               Empresa
             </h3>
-            <ul className="space-y-2">              
+            <ul className="space-y-2">
               <li>
                 <Link
                   href="/contacto"
@@ -127,15 +119,15 @@ export function Footer() {
                   href="/faq"
                   className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                 >
-                  Preguntas Frecuentes
+                  Política de Reembolso
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/envios"
+                  href="/proteccion-datos"
                   className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                 >
-                  Envíos y Devoluciones
+                  Protección de Datos
                 </Link>
               </li>
               <li>

@@ -594,7 +594,7 @@ export function ProductCategoryLoader({
           <span className="ml-2 text-lg">Cargando productos...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
           {filteredProducts.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <p className="text-gray-500 dark:text-white">

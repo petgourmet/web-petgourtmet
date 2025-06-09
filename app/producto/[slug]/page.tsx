@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCart } from "@/components/cart-context"
 import {
-  Star,
   ShoppingCart,
   Check,
   Minus,
@@ -27,6 +26,7 @@ import {
 import Link from "next/link"
 import type { Product } from "@/components/product-category-loader"
 import { Loader2 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 
 export default function ProductDetailPage() {
   const { slug } = useParams()
@@ -443,18 +443,9 @@ export default function ProductDetailPage() {
                   </span>
                 </div>
 
-                {
-                  <div className="flex items-center mb-4">
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                      ))}
-                    </div>
-                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">(5.0 estrellas)</span>
-                  </div>
-                }
-
-                <p className="text-gray-600 dark:text-gray-300 mb-6 text-lg leading-relaxed">{product.description}</p>
+                <div className="text-gray-600 dark:text-gray-300 mb-6 text-lg leading-relaxed prose prose-lg dark:prose-invert max-w-none">
+                  <ReactMarkdown>{product.description}</ReactMarkdown>
+                </div>
 
                 {product.features && product.features.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-6">

@@ -1,12 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/toaster"
-import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter, Loader2, AlertTriangle } from "lucide-react"
-import { ProductCard } from "@/components/product-card"
-import { ProductDetailModal } from "@/components/product-detail-modal"
+import type { Filters } from "@/components/product-filters"
 import { useCart } from "@/components/cart-context"
 import { useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
@@ -147,7 +143,6 @@ export default function ProductosPage() {
             { id: 1, name: "Celebrar" },
             { id: 2, name: "Premiar" },
             { id: 3, name: "Complementar" },
-            { id: 4, name: "Recetas" },
           ])
         } else {
           setCategories(categoriesData)
@@ -322,7 +317,7 @@ export default function ProductosPage() {
   return (
     <div className="flex flex-col min-h-screen pt-20">
       <div className="responsive-container py-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection text-center">Nuestros Productos</h1>
+        <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection text-center">Nuestras Recetas</h1>
         <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto text-center mb-12">
           Descubre nuestra selección de productos premium para mascotas, elaborados con ingredientes de la más alta
           calidad y diseñados para el bienestar de tu amigo peludo.
@@ -330,7 +325,7 @@ export default function ProductosPage() {
 
         {/* Tabs para categorías */}
         <Tabs defaultValue="all" className="w-full mb-12" onValueChange={(value) => setActiveCategory(value)}>
-          <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-2 bg-transparent">
+          <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-transparent">
             <TabsTrigger
               value="all"
               className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
@@ -355,12 +350,6 @@ export default function ProductosPage() {
             >
               Para Complementar
             </TabsTrigger>
-            <TabsTrigger
-              value="recetas"
-              className="data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-full"
-            >
-              Nuestras Recetas
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="mt-8">
@@ -378,12 +367,8 @@ export default function ProductosPage() {
           <TabsContent value="complementar" className="mt-8">
             <ProductCategoryLoader categorySlug="complementar" />
           </TabsContent>
-
-          <TabsContent value="recetas" className="mt-8">
-            <ProductCategoryLoader categorySlug="recetas" />
-          </TabsContent>
         </Tabs>
-      </div>     
+      </div>
 
       <Toaster />
     </div>

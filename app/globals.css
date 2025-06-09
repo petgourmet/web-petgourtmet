@@ -2,8 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Importar archivo de animaciones */
-@import "./globals/_animations.css";
+/* Estilos globales y animaciones incluidas directamente */
 
 :root {
   --background: 0 0% 100%;
@@ -146,7 +145,7 @@ body {
 }
 
 .dark .spotlight-card {
-  --spotlight-color: rgba(140, 36, 43, 0.15);
+  --spotlight-color: rgba(140, 86, 36, 0.15);
 }
 
 .spotlight-card::before {
@@ -188,11 +187,11 @@ body {
 }
 
 .dark .bg-illuminated::before {
-  background: radial-gradient(circle, rgba(140, 36, 43, 0.2), transparent);
+  background: radial-gradient(circle, rgba(140, 86, 36, 0.2), transparent);
 }
 
 .bg-illuminated-secondary::before {
-  background: radial-gradient(circle, rgba(140, 36, 43, 0.2), transparent); /* Cambiado a rojo granate */
+  background: radial-gradient(circle, rgba(140, 86, 36, 0.2), transparent); /* Cambiado a rojo granate */
 }
 
 .bg-pattern {
@@ -268,7 +267,7 @@ body {
 
 .dark .title-shine {
   background: linear-gradient(to right, #8c242b 20%, #b67d1b 40%, #8c242b 60%, #e7ae84 80%);
-  text-shadow: 0 2px 10px rgba(140, 36, 43, 0.1);
+  text-shadow: 0 2px 10px rgba(140, 86, 36, 0.1);
 }
 
 @keyframes shine {
@@ -302,7 +301,7 @@ body {
 }
 
 .dark .text-animated::before {
-  background-color: rgba(140, 36, 43, 0.2);
+  background-color: rgba(140, 86, 36, 0.2);
 }
 
 /* Contenedor responsive */
@@ -471,7 +470,7 @@ body {
 }
 
 .dark .ingredient-glow {
-  filter: drop-shadow(0 0 3px rgba(140, 36, 43, 0.3));
+  filter: drop-shadow(0 0 3px rgba(140, 86, 36, 0.3));
 }
 
 /* Variaciones de animación */

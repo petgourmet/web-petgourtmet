@@ -107,12 +107,12 @@ export function AuthForm() {
   return (
     <div className="w-full max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
       <div className="bg-gradient-to-r from-primary to-primary/80 p-6 flex justify-center">
-        <Link href="/" className="block relative">
+        <Link href="/" className="block relative hover:scale-110 transition-transform duration-300 cursor-pointer">
           <Image src="/petgourmet-logo.png" alt="Pet Gourmet Logo" width={180} height={60} className="h-16 w-auto" />
         </Link>
       </div>
 
-      <div className="p-6">
+      <div className="p-6 hover:scale-105 transition-transform duration-300 cursor-pointer">
         <h2 className="text-2xl font-bold text-center mb-6">{mode === "login" ? "Iniciar Sesión" : "Crear Cuenta"}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">

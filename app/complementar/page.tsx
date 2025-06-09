@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
 import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Loader2 } from "lucide-react"
 import { Toaster } from "@/components/toaster"
@@ -202,36 +201,36 @@ export default function ComplementarPage() {
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
-      <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
-        <div className="responsive-container">
-          <div className="text-center mb-16">
-            <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">Para Complementar</h1>
-            <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto">
-              Suplementos y complementos nutricionales para asegurar la salud óptima de tu mascota. Productos de alta
-              calidad para el bienestar completo.
-            </p>
+      {/* Banner de categoría a ancho completo */}
+      <div className="relative w-full h-64 md:h-80 overflow-hidden">
+        <Image
+          src="/complementar-dog-treat.webp"
+          alt="Productos para complementar"
+          fill
+          className="object-cover saturate-90 brightness-60"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/60 flex flex-col justify-center items-center text-center">
+          <div className="w-full px-4 md:px-8 lg:px-16 flex-1 flex flex-col justify-center">
+            <div className="max-w-4xl mx-auto"></div>
           </div>
 
-          {/* Banner de categoría */}
-          <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden mb-16">
-            <Image src="/para_complementar.png" alt="Productos para complementar" fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-green-700/80 flex items-center">
-              <div className="p-8 md:p-12 max-w-xl">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-display">
-                  Nutrición completa y balanceada
-                </h2>
-                <p className="text-white mb-6">Suplementos premium para el bienestar integral de tu mascota</p>
-                <Button className="bg-green-500 text-white hover:bg-green-600 font-medium rounded-full">
-                  Descubrir beneficios
-                </Button>
-              </div>
+          {/* Contenedor glass en la parte inferior */}
+          <div className="absolute bottom-0 left-0 right-0 bg-black/20 backdrop-blur-md border-t border-white/20 p-6 md:p-8">
+            <div className="max-w-4xl mx-auto text-center">
+              <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">Para Complementar</h2>
+              <p className="text-white/90 text-lg">
+                Suplementos y complementos nutricionales para asegurar la salud óptima de tu mascota. Productos de alta
+                calidad para el bienestar completo.
+              </p>
             </div>
           </div>
+        </div>
+      </div>
 
+      <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
+        <div className="responsive-container">
           {/* Productos de la categoría */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-8 text-green-700 font-display">Suplementos destacados</h2>
-
             {loading ? (
               <div className="flex justify-center items-center py-20">
                 <Loader2 className="h-10 w-10 animate-spin text-green-700" />

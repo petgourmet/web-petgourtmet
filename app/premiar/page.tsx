@@ -11,23 +11,24 @@ import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import type { ProductFeature } from "@/components/product-card"
+import type { Product } from "@/types/product" // Import the Product type
 
 // Tipo para los productos desde la base de datos
-type Product = {
-  id: number
-  name: string
-  description: string
-  price: number
-  image: string
-  stock: number
-  created_at: string
-  features?: ProductFeature[]
-  rating?: number
-  reviews?: number
-  sizes?: { weight: string; price: number }[]
-  category?: string
-  gallery?: { src: string; alt: string }[]
-}
+// type Product = {
+//   id: number
+//   name: string
+//   description: string
+//   price: number
+//   image: string
+//   stock: number
+//   created_at: string
+//   features?: ProductFeature[]
+//   rating?: number
+//   reviews?: number
+//   sizes?: { weight: string; price: number }[]
+//   category?: string
+//   gallery?: { src: string; alt: string }[]
+// }
 
 export default function PremiarPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -35,7 +36,7 @@ export default function PremiarPage() {
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null) // Fixed the declaration
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
     category: "premiar",
@@ -94,23 +95,28 @@ export default function PremiarPage() {
             // Obtener características del producto (si existe una tabla para esto)
             let features: ProductFeature[] = []
             try {
-              const { data: featuresData } = await supabase
+              const { data: featuresData, error: featuresError } = await supabase
                 .from("product_features")
                 .select("name, color")
                 .eq("product_id", product.id)
 
-              if (featuresData && featuresData.length > 0) {
+              if (featuresError) {
+                console.error(`Error al cargar características para el producto ${product.id}:`, featuresError.message)
+                // Opcionalmente, puedes dejar 'features' como un array vacío o asignar un valor por defecto si es crucial
+                // features = []; // o alguna característica de fallback si es necesario
+              } else if (featuresData && featuresData.length > 0) {
                 features = featuresData
-              } else {
-                // Características predeterminadas si no hay datos
-                features = [
-                  { name: "Entrenamiento", color: "pastel-blue" },
-                  { name: "Bajo en Calorías", color: "primary" },
-                  { name: "Sabor Irresistible", color: "secondary" },
-                ]
               }
+              // Ya no hay un 'else' que asigne características de fallback si no se encuentran,
+              // permitiendo que se muestre vacío si un producto realmente no tiene características.
+              // Si quieres un fallback general para productos sin características, puedes añadirlo aquí.
+              // else {
+              //   features = [{ name: "Sin características", color: "default" }];
+              // }
             } catch (error) {
-              console.error("Error al cargar características:", error)
+              console.error(`Excepción al procesar características para el producto ${product.id}:`, error)
+              // Manejo de error en caso de una excepción en el bloque try
+              // features = []; // o alguna característica de fallback
             }
 
             // Construir la URL completa de la imagen
@@ -202,32 +208,34 @@ export default function PremiarPage() {
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
-      <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
-        <div className="responsive-container">
-          <div className="text-center mb-16">
-            <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection">Para Premiar</h1>
-            <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto">
-              Deliciosos premios y golosinas para recompensar a tu mascota. Perfectos para entrenamiento o simplemente
-              para consentir a tu amigo peludo.
-            </p>
+      {/* Banner de categoría a ancho completo */}
+      <div className="relative w-full h-64 md:h-80 overflow-hidden">
+        <Image
+          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20premiar-3zEy8fX4CSDDrmAnYIJpl2cV1t26l3.webp"
+          alt="Productos para premiar"
+          fill
+          className="object-cover saturate-90 brightness-60"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/60 flex flex-col justify-center items-center text-center">
+          <div className="w-full px-4 md:px-8 lg:px-16 flex-1 flex flex-col justify-center">
+            <div className="max-w-4xl mx-auto"></div>
           </div>
 
-          {/* Banner de categoría */}
-          <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden mb-16">
-            <Image src="/para_premiar.png" alt="Productos para premiar" fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-blue-700/80 flex items-center">
-              <div className="p-8 md:p-12 max-w-xl">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-display">
-                  Recompensas irresistibles
-                </h2>
-                <p className="text-white mb-6">Premios gourmet para entrenar y consentir a tu mascota</p>
-                <Button className="bg-blue-500 text-white hover:bg-blue-600 font-medium rounded-full">
-                  Ver colección
-                </Button>
-              </div>
+          {/* Contenedor glass en la parte inferior */}
+          <div className="absolute bottom-0 left-0 right-0 bg-black/20 backdrop-blur-md border-t border-white/20 p-6 md:p-8">
+            <div className="max-w-4xl mx-auto text-center">
+              <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">Para Premiar</h2>
+              <p className="text-white/90 text-lg">
+                Deliciosos premios y golosinas para recompensar a tu mascota. Perfectos para entrenamiento o simplemente
+                para consentir a tu amigo peludo.
+              </p>
             </div>
           </div>
+        </div>
+      </div>
 
+      <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
+        <div className="responsive-container">
           {/* Controles de filtro */}
           <div className="mb-8 flex justify-between items-center">
             <Button
@@ -242,15 +250,13 @@ export default function PremiarPage() {
 
           {/* Productos de la categoría */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-8 text-blue-700 font-display">Premios destacados</h2>
-
             {loading ? (
               <div className="flex justify-center items-center py-20">
                 <Loader2 className="h-10 w-10 animate-spin text-blue-700" />
                 <span className="ml-2 text-lg">Cargando productos...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
                 {filteredProducts.length > 0 ? (
                   filteredProducts.map((product) => (
                     <ProductCard
@@ -276,40 +282,6 @@ export default function PremiarPage() {
                 )}
               </div>
             )}
-          </div>
-
-          {/* Sección de beneficios */}
-          <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(219,234,254,0.15)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
-            <h2 className="text-2xl font-bold mb-6 text-blue-700 font-display text-center">
-              ¿Por qué elegir nuestros premios?
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/treat-ball.png" alt="Entrenamiento efectivo" width={32} height={32} />
-                </div>
-                <h3 className="font-bold mb-2">Entrenamiento efectivo</h3>
-                <p className="text-gray-600 dark:text-white">
-                  Tamaño perfecto para sesiones de entrenamiento y refuerzo positivo.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/stylized-chicken-icon.png" alt="Sabores irresistibles" width={32} height={32} />
-                </div>
-                <h3 className="font-bold mb-2">Sabores irresistibles</h3>
-                <p className="text-gray-600 dark:text-white">Variedad de sabores que tu mascota no podrá resistir.</p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/simple-dog-paw.png" alt="Bajos en calorías" width={32} height={32} />
-                </div>
-                <h3 className="font-bold mb-2">Bajos en calorías</h3>
-                <p className="text-gray-600 dark:text-white">
-                  Formulados para ser saludables y no afectar el peso de tu mascota.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>

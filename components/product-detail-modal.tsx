@@ -216,10 +216,14 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                 <div className="flex flex-wrap gap-3">
                   {product.sizes.map((size, idx) => (
                     <Button
-                      key={idx}
-                      variant={selectedSize === size ? "default" : "outline"}
+                      key={size.id || idx} // Usar size.id como key si está disponible, sino idx
+                      variant={
+                        (selectedSize && size.id && selectedSize.id === size.id) || selectedSize === size
+                          ? "default"
+                          : "outline"
+                      } // Comparar por id si es posible, sino por referencia de objeto
                       className={`rounded-full px-6 py-3 ${
-                        selectedSize === size
+                        (selectedSize && size.id && selectedSize.id === size.id) || selectedSize === size
                           ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
                           : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                       }`}

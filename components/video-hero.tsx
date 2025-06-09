@@ -123,26 +123,19 @@ export function VideoHero() {
       >
         <div className="max-w-4xl animate-fade-in-up">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight font-display">
-            No es comida para perros, es <span className="text-primary">comida de verdad</span>
+            ¡Comida real para amigos reales!
           </h1>
           <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Nutrición premium con ingredientes frescos y naturales para un compañero más sano y feliz
+            Nutrición premium horneada con ingredientes frescos y naturales para un compañero más sano, motivado y
+            feliz.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Button
               onClick={scrollToRecipes}
               size="lg"
               className="rounded-full bg-primary hover:bg-primary/90 text-white px-8 py-7 text-lg font-semibold shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all"
             >
               Descubre Nuestras Recetas
-            </Button>
-            <Button
-              onClick={() => router.push("/productos")}
-              variant="outline"
-              size="lg"
-              className="rounded-full border-white bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 px-8 py-7 text-lg font-semibold shadow-lg hover:scale-105 transition-all"
-            >
-              Explorar Productos
             </Button>
           </div>
         </div>

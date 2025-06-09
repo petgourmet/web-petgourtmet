@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -31,10 +31,9 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
+export default function ProductForm({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const resolvedParams = React.use(params)
-  const isNew = resolvedParams.id === "new"
+  const isNew = params.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -149,7 +148,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
         // Si no es un nuevo producto, cargar datos del producto
         if (!isNew) {
-          const productId = Number.parseInt(resolvedParams.id)
+          const productId = Number.parseInt(params.id)
 
           // Cargar producto
           const { data: productData, error: productError } = await supabase
@@ -264,7 +263,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
     }
 
     fetchData()
-  }, [isNew, resolvedParams.id, multiCategorySupport])
+  }, [isNew, params.id, multiCategorySupport])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -451,7 +450,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         }
 
         // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && data.id === Number.parseInt(resolvedParams.id))) {
+        if (!data || (data && !isNew && data.id === Number.parseInt(params.id))) {
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -486,7 +485,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         productId = data[0].id
       } else {
         // Actualizar producto existente
-        productId = Number.parseInt(resolvedParams.id)
+        productId = Number.parseInt(params.id)
         const { error } = await supabase.from("products").update(productData).eq("id", productId)
 
         if (error) throw error

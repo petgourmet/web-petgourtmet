@@ -1,6 +1,6 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Check, Star } from "lucide-react"
+import { ArrowRight, Check } from "lucide-react"
 import Link from "next/link"
 import { VideoHero } from "@/components/video-hero"
 import "../app/reset.css"
@@ -33,7 +33,9 @@ export default function Home() {
                 gradientFrom: "from-orange-400",
                 gradientTo: "to-orange-600",
                 icon: "🍲",
-                href: "/recetas",
+                image:
+                  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Nuestras%20recetas-hcHtwjxfVN0K9uRVXtR1trM0gOZRDf.webp",
+                href: "/productos",
               },
               {
                 title: "Para Celebrar",
@@ -41,6 +43,8 @@ export default function Home() {
                 gradientFrom: "from-amber-400",
                 gradientTo: "to-amber-600",
                 icon: "🎂",
+                image:
+                  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20celebrar-SjhsRPMm1PELsrFBBIw2vtSIK9AzeV.webp",
                 href: "/celebrar",
               },
               {
@@ -49,6 +53,7 @@ export default function Home() {
                 gradientFrom: "from-emerald-400",
                 gradientTo: "to-emerald-600",
                 icon: "🌿",
+                image: "/complementar-dog-treat.webp",
                 href: "/complementar",
               },
               {
@@ -57,18 +62,31 @@ export default function Home() {
                 gradientFrom: "from-sky-400",
                 gradientTo: "to-sky-600",
                 icon: "🦴",
+                image:
+                  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20premiar-3zEy8fX4CSDDrmAnYIJpl2cV1t26l3.webp",
                 href: "/premiar",
               },
             ].map((category, index) => (
               <Link
                 href={category.href}
                 key={index}
-                className="group relative overflow-hidden rounded-2xl shadow-xl transform transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl h-[400px] flex flex-col cursor-pointer"
+                className="group relative overflow-hidden rounded-2xl shadow-xl transform transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:scale-105 hover:z-10 h-[400px] flex flex-col cursor-pointer"
               >
                 <div className="absolute inset-0 w-full h-full">
                   <div
-                    className={`absolute inset-0 bg-gradient-to-br ${category.gradientFrom} ${category.gradientTo}`}
+                    className={`absolute inset-0 bg-gradient-to-br ${category.gradientFrom} ${category.gradientTo} opacity-30 group-hover:opacity-50 group-hover:shadow-2xl transition-all duration-500`}
                   ></div>
+
+                  {/* Capa para imágenes */}
+                  <div className="absolute inset-0 w-full h-full opacity-100 group-hover:brightness-110 group-hover:contrast-110 transition-all duration-500">
+                    <Image
+                      src={category.image || "/placeholder.svg"}
+                      alt={category.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    />
+                  </div>
 
                   {/* Elementos decorativos */}
                   <div className="absolute top-6 right-6 text-white/10 text-8xl font-bold pointer-events-none">
@@ -79,16 +97,17 @@ export default function Home() {
                   <div className="absolute bottom-1/3 left-1/2 w-12 h-12 bg-white/10 rounded-full pointer-events-none"></div>
                 </div>
 
-                <div className="relative z-10 p-8 mt-auto text-white">
-                  <h3 className="text-2xl font-bold mb-2 group-hover:translate-x-2 transition-transform duration-300 pointer-events-none">
-                    {category.title}
-                  </h3>
-                  <p className="text-white/90 mb-4 group-hover:translate-x-2 transition-transform duration-300 delay-75 pointer-events-none">
-                    {category.description}
-                  </p>
-                  <span className="inline-flex items-center text-sm font-semibold group-hover:translate-x-2 transition-transform duration-300 delay-100 pointer-events-none">
-                    Descubrir <ArrowRight className="ml-2 w-4 h-4 group-hover:ml-3 transition-all" />
-                  </span>
+                {/* Panel translúcido que se expande desde abajo */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm rounded-b-2xl transition-all duration-500 ease-in-out h-16 group-hover:h-48 overflow-hidden">
+                  <div className="p-4 h-full flex flex-col justify-between">
+                    <h3 className="text-2xl font-bold text-white">{category.title}</h3>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                      <p className="text-white/90 mb-2">{category.description}</p>
+                      <span className="inline-flex items-center text-sm font-semibold text-white">
+                        Descubrir <ArrowRight className="ml-2 w-4 h-4 group-hover:ml-3 transition-all" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -97,18 +116,13 @@ export default function Home() {
       </section>
 
       {/* Feature Section */}
-      <section className="py-24 relative overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-amber-50"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-200/20 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/10 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl"></div>
-
+      <section className="py-24 relative overflow-hidden bg-white">
         <div className="container relative z-10 mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-16 items-center">
             <div className="lg:w-1/2 order-2 lg:order-1">
-              <div className="bg-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+              <div className="bg-white p-8 rounded-3xl shadow-xl relative overflow-hidden group transition-all duration-500 hover:shadow-2xl hover:bg-gray-50 hover:transform hover:scale-[1.02]">
                 {/* Decorative corner accent */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px]"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] transition-all duration-500 group-hover:bg-primary/10 group-hover:w-40 group-hover:h-40 group-hover:rounded-bl-[120px]"></div>
 
                 <div className="relative z-10">
                   <div className="inline-block bg-primary/10 rounded-full px-4 py-1 text-primary text-sm font-medium mb-6">
@@ -170,11 +184,9 @@ export default function Home() {
               <div className="relative">
                 {/* Main image with decorative elements */}
                 <div className="relative z-20 rounded-3xl overflow-hidden shadow-2xl transform rotate-2 hover:rotate-0 transition-transform duration-500">
-                  <Image
-                    src="/natural-dog-food-ingredients.png"
-                    alt="Ingredientes naturales"
-                    width={600}
-                    height={400}
+                  <img
+                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/HERO-vDqIBaCFtETXEYMwu8oZS3EIpZSIcU.webp"
+                    alt="Galletas naturales para perros con ingredientes premium"
                     className="w-full h-auto"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
@@ -194,16 +206,6 @@ export default function Home() {
                   />
                 </div>
 
-                <div className="absolute -bottom-8 -left-8 z-10 bg-white rounded-2xl shadow-xl p-3 transform rotate-6">
-                  <Image
-                    src="/assorted-vegetables-icon.png"
-                    alt="Vegetales frescos"
-                    width={60}
-                    height={60}
-                    className="w-16 h-16 object-cover rounded-xl"
-                  />
-                </div>
-
                 {/* Background decorative circles */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full filter blur-md"></div>
                 <div className="absolute top-1/3 right-1/4 w-32 h-32 bg-amber-200/30 rounded-full filter blur-md"></div>
@@ -213,86 +215,18 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 font-display">
-              Lo Que Dicen Nuestros Clientes
-            </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Descubre por qué nuestros clientes y sus mascotas adoran nuestros productos.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Sara y Max",
-                image: "/joyful-dog-owner.png",
-                text: "Desde que cambiamos a esta comida, el pelaje de Max está más brillante y tiene mucha más energía. ¡Ahora adora la hora de comer!",
-              },
-              {
-                name: "Juan y Bella",
-                image: "/happy-labrador-walk.png",
-                text: "Bella solía tener problemas digestivos con otras marcas, pero ha prosperado con esta comida. No más malestar estomacal y está en un peso saludable.",
-              },
-              {
-                name: "Elena y Cooper",
-                image: "/woman-and-golden-retriever-park.png",
-                text: "Cooper es un comedor exigente, pero devora esta comida cada vez. Me encanta poder ver ingredientes reales y saber que está recibiendo una nutrición adecuada.",
-              },
-            ].map((testimonial, i) => (
-              <div
-                key={i}
-                className="bg-white border border-gray-100 rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-shadow duration-300"
-              >
-                <div className="flex items-center mb-6">
-                  <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary mr-4">
-                    <Image
-                      src={testimonial.image || "/placeholder.svg"}
-                      alt={testimonial.name}
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg">{testimonial.name}</h4>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-gray-700 italic">"{testimonial.text}"</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden bg-gradient-to-br from-amber-50 to-orange-100">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-300/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-primary/10 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl"></div>
-
-        {/* Paw print pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div
-            className="absolute top-0 left-0 w-full h-full bg-repeat"
-            style={{ backgroundImage: "url('/simple-dog-paw.png')", backgroundSize: "60px" }}
-          ></div>
-        </div>
-
+      <section className="py-24 relative overflow-hidden bg-white">
         <div className="container relative z-10 mx-auto px-4">
-          <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden">
+          <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:scale-105">
             <div className="flex flex-col md:flex-row">
-              <div className="md:w-2/5 relative">
-                <Image src="/happy-dog-treat.png" alt="Happy dog with treats" fill className="object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent mix-blend-multiply"></div>
+              <div className="md:w-2/5 relative overflow-hidden">
+                <img
+                  src="/unete-familia.webp"
+                  alt="Galletas premium para perros en tazón turquesa con bulldog francés esperando"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent mix-blend-multiply group-hover:from-primary/60 transition-all duration-500"></div>
               </div>
 
               <div className="md:w-3/5 p-8 md:p-12">
@@ -348,11 +282,17 @@ export default function Home() {
             ].map((feature, i) => (
               <div
                 key={i}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300"
+                className="group bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg transition-all duration-500 hover:shadow-2xl hover:bg-white hover:scale-105 cursor-pointer"
               >
-                <div className="text-4xl mb-4">{feature.icon}</div>
-                <h3 className="text-xl font-bold mb-2 text-gray-900">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+                <div className="text-4xl mb-4 transition-transform duration-500 group-hover:scale-110 group-hover:transform">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-bold mb-2 text-gray-900 transition-colors duration-300 group-hover:text-primary">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600 transition-colors duration-300 group-hover:text-gray-800">
+                  {feature.description}
+                </p>
               </div>
             ))}
           </div>

@@ -97,7 +97,7 @@ export function Navbar() {
                     href="/productos"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
                   >
-                    Todos los Productos
+                    Nuestras Recetas
                   </Link>
                   <Link
                     href="/celebrar"
@@ -116,12 +116,6 @@ export function Navbar() {
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
                   >
                     Para Premiar
-                  </Link>
-                  <Link
-                    href="/recetas"
-                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
-                  >
-                    Nuestras Recetas
                   </Link>
                 </div>
               </div>
@@ -178,9 +172,11 @@ export function Navbar() {
             ) : (
               <Button
                 asChild
-                className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"
+                className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow p-2"
               >
-                <Link href="/auth/login">Iniciar Sesión</Link>
+                <Link href="/auth/login">
+                  <User size={20} />
+                </Link>
               </Button>
             )}
 
@@ -311,7 +307,7 @@ export function Navbar() {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
                     >
-                      Todos los Productos
+                      Nuestras Recetas
                     </Link>
                     <Link
                       href="/celebrar"
@@ -333,13 +329,6 @@ export function Navbar() {
                       className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
                     >
                       Para Premiar
-                    </Link>
-                    <Link
-                      href="/recetas"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
-                    >
-                      Nuestras Recetas
                     </Link>
                   </div>
                 )}

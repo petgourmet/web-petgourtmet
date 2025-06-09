@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -19,11 +19,11 @@ import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { SecureFileUpload } from "@/components/admin/secure-file-upload"
 import type { Blog, BlogCategory } from "@/lib/supabase/types"
+import ReactMarkdown from "react-markdown"
 
-export default function BlogForm({ params }: { params: Promise<{ id: string }> }) {
+export default function BlogForm({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const resolvedParams = React.use(params)
-  const isNew = resolvedParams.id === "new"
+  const isNew = params.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<BlogCategory[]>([])
@@ -43,6 +43,7 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
     read_time: 0,
   })
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
 
   // Verificar autenticación y permisos
   useEffect(() => {
@@ -206,6 +207,20 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
         return
       }
 
+      // Obtener el usuario actual para el author_id
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user?.id) {
+        toast({
+          title: "Error de autenticación",
+          description: "No se pudo obtener la información del usuario.",
+          variant: "destructive",
+        })
+        setSaving(false)
+        return
+      }
+
       // Usar la imagen subida o la existente
       const imageUrl = uploadedImageUrl || blog.cover_image
 
@@ -219,7 +234,7 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
         updated_at: new Date().toISOString(),
         published: blog.published,
         category_id: blog.category_id,
-        author_id: blog.author_id,
+        author_id: session.user.id, // Usar el ID del usuario autenticado
         meta_description: blog.meta_description,
         read_time: blog.read_time,
       }
@@ -376,23 +391,35 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="content">Contenido</Label>
-              <Textarea
-                id="content"
-                name="content"
-                value={blog.content || ""}
-                onChange={handleBlogChange}
-                rows={10}
-                required
-              />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="content">Contenido (Markdown)</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
+                  {showPreview ? "Editar" : "Vista Previa"}
+                </Button>
+              </div>
+              {showPreview ? (
+                <div className="min-h-[240px] p-4 border rounded-md bg-gray-50 dark:bg-gray-800">
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{blog.content || "Sin contenido para mostrar"}</ReactMarkdown>
+                  </div>
+                </div>
+              ) : (
+                <Textarea
+                  id="content"
+                  name="content"
+                  value={blog.content || ""}
+                  onChange={handleBlogChange}
+                  rows={10}
+                  required
+                  placeholder="Escribe tu contenido en Markdown aquí..."
+                />
+              )}
+              <p className="text-xs text-gray-500">
+                Puedes usar Markdown: **negrita**, *cursiva*, # títulos, - listas, [enlaces](url), etc.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="author_id">Author ID</Label>
-                <Input id="author_id" name="author_id" value={blog.author_id || ""} onChange={handleBlogChange} />
-              </div>
-
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="meta_description">Meta Description</Label>
                 <Input

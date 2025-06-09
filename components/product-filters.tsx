@@ -4,14 +4,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
-import { X, Star } from "lucide-react"
+import { X } from "lucide-react"
 
 // Tipo para los filtros
 export type Filters = {
   category: string
   priceRange: [number, number]
   features: string[]
-  rating: number
   sortBy: string
 }
 
@@ -126,23 +125,6 @@ export function ProductFilters({
             </div>
 
             <div>
-              <h3 className="font-medium mb-3 dark:text-white">Valoración mínima</h3>
-              <div className="flex items-center space-x-4">
-                {[5, 4, 3, 2, 1].map((rating) => (
-                  <button
-                    key={rating}
-                    className={`flex items-center ${filters.rating === rating ? "text-yellow-400" : "text-gray-300 dark:text-white/70"}`}
-                    onClick={() => setFilters({ ...filters, rating })}
-                  >
-                    {[...Array(rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-current text-gray-300 dark:text-white/30" />
-                    ))}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
               <h3 className="font-medium mb-3 dark:text-white">Ordenar por</h3>
               <RadioGroup
                 value={filters.sortBy}
@@ -199,7 +181,6 @@ export function ProductFilters({
                     category: "all",
                     priceRange: [0, maxPrice],
                     features: [],
-                    rating: 0,
                     sortBy: "relevance",
                   })
                 }}

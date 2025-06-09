@@ -1,7 +1,6 @@
 "use client"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
-import { Star } from "lucide-react"
 import { useState } from "react"
 import type { ProductSize } from "@/lib/supabase/types"
 
@@ -137,17 +136,6 @@ export function ProductCard({
                 +{features.length - 3}
               </Badge>
             )}
-          </div>
-        )}
-
-        {/* Valoración */}
-        {rating && (
-          <div className="flex items-center mb-3 mt-auto">
-            <div className="flex items-center">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-              <span className="font-medium text-sm">{rating.toFixed(1)}</span>
-            </div>
-            {reviews && <span className="text-gray-500 dark:text-gray-400 text-xs ml-2">({reviews} reseñas)</span>}
           </div>
         )}
 

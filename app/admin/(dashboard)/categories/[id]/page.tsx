@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -15,10 +15,9 @@ import { CloudinaryUploader } from "@/components/cloudinary-uploader"
 import { toast } from "@/components/ui/use-toast"
 import type { Category } from "@/lib/supabase/types"
 
-export default function EditCategoryPage({ params }: { params: Promise<{ id: string }> }) {
+export default function EditCategoryPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const resolvedParams = React.use(params)
-  const isNewCategory = resolvedParams.id === "new"
+  const isNewCategory = params.id === "new"
   const pageTitle = isNewCategory ? "Nueva Categoría" : "Editar Categoría"
 
   const [category, setCategory] = useState<Partial<Category>>({
@@ -38,11 +37,11 @@ export default function EditCategoryPage({ params }: { params: Promise<{ id: str
     } else {
       setInitialLoading(false)
     }
-  }, [resolvedParams.id])
+  }, [params.id])
 
   async function fetchCategory() {
     try {
-      const { data, error } = await supabase.from("categories").select("*").eq("id", resolvedParams.id).single()
+      const { data, error } = await supabase.from("categories").select("*").eq("id", params.id).single()
 
       if (error) throw error
 
@@ -105,7 +104,7 @@ export default function EditCategoryPage({ params }: { params: Promise<{ id: str
 
       // Si estamos editando una categoría existente, excluimos la categoría actual de la verificación
       if (!isNewCategory) {
-        slugCheckQuery = slugCheckQuery.neq("id", resolvedParams.id)
+        slugCheckQuery = slugCheckQuery.neq("id", params.id)
       }
 
       const { data: existingCategory, error: slugCheckError } = await slugCheckQuery.maybeSingle()
@@ -123,7 +122,7 @@ export default function EditCategoryPage({ params }: { params: Promise<{ id: str
         result = await supabase.from("categories").insert([category]).select()
       } else {
         // Actualizar categoría existente
-        result = await supabase.from("categories").update(category).eq("id", resolvedParams.id).select()
+        result = await supabase.from("categories").update(category).eq("id", params.id).select()
       }
 
       if (result.error) throw result.error
