@@ -31,9 +31,9 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: { id: string } }) {
+export default function ProductForm() {
   const router = useRouter()
-  const isNew = params.id === "new"
+  const isNew = true // This is always the new product page
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -55,8 +55,12 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     sale_type: "unit", // "unit" o "weight"
     weight_reference: "", // ej: "por kilogramo"
     subscription_available: false,
-    subscription_types: [], // ["monthly", "quarterly", "annual"]
-    subscription_discount: 10, // porcentaje de descuento
+    subscription_types: [], // ["weekly", "monthly", "quarterly", "annual"]
+    // Descuentos por período configurables
+    weekly_discount: 5,
+    monthly_discount: 10,
+    quarterly_discount: 15,
+    annual_discount: 20,
   })
   const [productSizes, setProductSizes] = useState<Partial<ProductSize>[]>([{ weight: "", price: 0, stock: 0 }])
   const [productImages, setProductImages] = useState<Partial<ProductImage>[]>([{ url: "", alt: "" }])
@@ -146,110 +150,13 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
         setCategories(categoriesData || [])
 
-        // Si no es un nuevo producto, cargar datos del producto
-        if (!isNew) {
-          const productId = Number.parseInt(params.id)
-
-          // Cargar producto
-          const { data: productData, error: productError } = await supabase
-            .from("products")
-            .select("*")
-            .eq("id", productId)
-            .single()
-
-          if (productError) throw productError
-          setProduct(productData || {})
-
-          // Si hay soporte para múltiples categorías, cargarlas
-          if (multiCategorySupport) {
-            try {
-              const { data: productCategoriesData } = await supabase
-                .from("product_categories")
-                .select("category_id")
-                .eq("product_id", productId)
-
-              if (productCategoriesData && productCategoriesData.length > 0) {
-                setSelectedCategories(productCategoriesData.map((pc) => pc.category_id))
-              } else {
-                // Si no hay categorías asignadas pero existe category_id, usarlo como categoría única
-                if (productData?.category_id) {
-                  setSelectedCategories([productData.category_id])
-                }
-              }
-            } catch (error) {
-              console.error("Error al cargar categorías múltiples:", error)
-              // Usar la categoría única como fallback
-              if (productData?.category_id) {
-                setSelectedCategories([productData.category_id])
-              }
-            }
-          } else {
-            // Si no hay soporte para múltiples categorías, usar la categoría única
-            if (productData?.category_id) {
-              setSelectedCategories([productData.category_id])
-            }
-          }
-
-          // Cargar tamaños del producto
-          const { data: sizesData } = await supabase.from("product_sizes").select("*").eq("product_id", productId)
-
-          setProductSizes(sizesData?.length ? sizesData : [{ weight: "", price: 0, stock: 0 }])
-
-          // Cargar imágenes del producto
-          const { data: imagesData } = await supabase.from("product_images").select("*").eq("product_id", productId)
-
-          if (imagesData && imagesData.length > 0) {
-            setProductImages(imagesData)
-
-            // También actualizar additionalImages
-            setAdditionalImages(
-              imagesData.map((img) => ({
-                src: img.url || "",
-                alt: img.alt || "",
-              })),
-            )
-          } else {
-            setProductImages([{ url: "", alt: "" }])
-            setAdditionalImages([{ src: "", alt: "" }])
-          }
-
-          // Intentar cargar características del producto
-          try {
-            const { data: featuresData } = await supabase
-              .from("product_features")
-              .select("*")
-              .eq("product_id", productId)
-
-            if (featuresData && featuresData.length > 0) {
-              setProductFeatures(featuresData)
-            }
-          } catch (error) {
-            console.log("Tabla product_features no disponible aún:", error)
-          }
-
-          // Intentar cargar reseñas del producto
-          try {
-            const { data: reviewsData } = await supabase
-              .from("product_reviews")
-              .select("*")
-              .eq("product_id", productId)
-              .order("created_at", { ascending: false })
-
-            if (reviewsData && reviewsData.length > 0) {
-              setProductReviews(reviewsData)
-            }
-          } catch (error) {
-            console.log("Tabla product_reviews no disponible aún:", error)
-          }
-        } else {
-          // Si es un nuevo producto, inicializar additionalImages con un array vacío
-          setAdditionalImages([])
-        }
+        // Inicializar additionalImages con un array vacío para nuevos productos
+        setAdditionalImages([])
       } catch (error) {
         console.error("Error al cargar datos:", error)
         toast({
           title: "Error",
-          description: "No se pudieron cargar los datos del producto. Por favor, inténtalo de nuevo.",
+          description: "No se pudieron cargar los datos. Por favor, inténtalo de nuevo.",
           variant: "destructive",
         })
       } finally {
@@ -258,7 +165,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     }
 
     fetchData()
-  }, [isNew, params.id, multiCategorySupport])
+  }, [multiCategorySupport])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -534,7 +441,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             toast({
               title: "Advertencia",
               description: "Algunas características del producto no se pudieron guardar.",
-              variant: "warning",
+              variant: "default",
             })
           }
         }
@@ -543,7 +450,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar las características del producto.",
-          variant: "warning",
+          variant: "default",
         })
       }
 
@@ -573,7 +480,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             toast({
               title: "Advertencia",
               description: "Algunos tamaños del producto no se pudieron guardar.",
-              variant: "warning",
+              variant: "default",
             })
           }
         }
@@ -582,7 +489,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar los tamaños del producto.",
-          variant: "warning",
+          variant: "default",
         })
       }
 
@@ -594,10 +501,20 @@ export default function ProductForm({ params }: { params: { id: string } }) {
       // Redirigir a la lista de productos
       router.push("/admin/products")
     } catch (error: any) {
-      console.error("Error al guardar producto:", error)
+      // Better error handling to capture more information
+      const errorMessage = error?.message || error?.details || JSON.stringify(error) || "Error desconocido"
+      const errorCode = error?.code || "unknown_error"
+      
+      console.error("Error al guardar producto:", {
+        error,
+        message: errorMessage,
+        code: errorCode,
+        stack: error?.stack
+      })
+      
       toast({
         title: "Error",
-        description: `No se pudo guardar el producto: ${error.message || "Error desconocido"}`,
+        description: `No se pudo guardar el producto: ${errorMessage}`,
         variant: "destructive",
       })
     } finally {

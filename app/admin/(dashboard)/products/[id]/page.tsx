@@ -469,7 +469,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         }
 
         // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && resolvedParams && data.id === Number.parseInt(resolvedParams.id))) {
+        if (!data || (data && !isNew && resolvedParams && !isNaN(Number.parseInt(resolvedParams.id)) && data.id === Number.parseInt(resolvedParams.id))) {
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -507,7 +507,14 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         if (!resolvedParams) {
           throw new Error("No se pudo obtener el ID del producto")
         }
+        
         productId = Number.parseInt(resolvedParams.id)
+        
+        // Verificar que el productId sea válido
+        if (isNaN(productId)) {
+          throw new Error(`ID de producto inválido: ${resolvedParams.id}`)
+        }
+        
         const { error } = await supabase.from("products").update(productData).eq("id", productId)
 
         if (error) throw error
