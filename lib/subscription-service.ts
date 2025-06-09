@@ -87,6 +87,72 @@ export class SubscriptionService {
     return subscriptions || []
   }
 
+  // Función para calcular la próxima fecha de facturación según el período
+  calculateNextBillingDate(frequency: string, currentDate: Date = new Date()): Date {
+    const nextDate = new Date(currentDate)
+
+    switch (frequency) {
+      case "weekly":
+        nextDate.setDate(nextDate.getDate() + 7)
+        break
+      case "biweekly":
+        nextDate.setDate(nextDate.getDate() + 14)
+        break
+      case "monthly":
+        nextDate.setMonth(nextDate.getMonth() + 1)
+        break
+      case "quarterly":
+        nextDate.setMonth(nextDate.getMonth() + 3)
+        break
+      case "annual":
+        nextDate.setFullYear(nextDate.getFullYear() + 1)
+        break
+      default:
+        // Por defecto, mensual
+        nextDate.setMonth(nextDate.getMonth() + 1)
+    }
+
+    return nextDate
+  }
+
+  // Función para obtener el descuento según el período y producto
+  async getDiscountForPeriod(productId: number, frequency: string): Promise<number> {
+    try {
+      const { data: product, error } = await this.supabase
+        .from("products")
+        .select("weekly_discount, monthly_discount, quarterly_discount, annual_discount")
+        .eq("id", productId)
+        .single()
+
+      if (error || !product) {
+        // Usar descuentos por defecto si no se encuentra el producto
+        const defaultDiscounts = {
+          weekly: 5,
+          monthly: 10,
+          quarterly: 15,
+          annual: 20,
+        }
+        return defaultDiscounts[frequency as keyof typeof defaultDiscounts] || 0
+      }
+
+      switch (frequency) {
+        case "weekly":
+          return product.weekly_discount || 5
+        case "monthly":
+          return product.monthly_discount || 10
+        case "quarterly":
+          return product.quarterly_discount || 15
+        case "annual":
+          return product.annual_discount || 20
+        default:
+          return 0
+      }
+    } catch (error) {
+      console.error("Error al obtener descuento:", error)
+      return 0
+    }
+  }
+
   async validateCard(cardNumber: string, expiryDate: string, cvv: string): Promise<boolean> {
     // Validación de número de tarjeta usando algoritmo de Luhn
     const luhnCheck = (num: string) => {

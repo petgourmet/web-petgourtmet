@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, Star, ImageIcon, Trash } from "lucide-react"
+import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, Star, ImageIcon, Trash, Percent } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -55,8 +55,12 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     sale_type: "unit", // "unit" o "weight"
     weight_reference: "", // ej: "por kilogramo"
     subscription_available: false,
-    subscription_types: [], // ["monthly", "quarterly", "annual"]
-    subscription_discount: 10, // porcentaje de descuento
+    subscription_types: [], // ["weekly", "monthly", "quarterly", "annual"]
+    // Descuentos por período
+    weekly_discount: 5,
+    monthly_discount: 10,
+    quarterly_discount: 15,
+    annual_discount: 20,
   })
   const [productSizes, setProductSizes] = useState<Partial<ProductSize>[]>([{ weight: "", price: 0, stock: 0 }])
   const [productImages, setProductImages] = useState<Partial<ProductImage>[]>([{ url: "", alt: "" }])
@@ -916,8 +920,8 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Tipos de Suscripción Disponibles</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {["monthly", "quarterly", "annual"].map((type) => (
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        {["weekly", "monthly", "quarterly", "annual"].map((type) => (
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
                               id={`subscription-${type}`}
@@ -935,24 +939,98 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               }}
                             />
                             <Label htmlFor={`subscription-${type}`} className="cursor-pointer">
-                              {type === "monthly" ? "Mensual" : type === "quarterly" ? "Trimestral" : "Anual"}
+                              {type === "weekly"
+                                ? "Semanal"
+                                : type === "monthly"
+                                  ? "Mensual"
+                                  : type === "quarterly"
+                                    ? "Trimestral"
+                                    : "Anual"}
                             </Label>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="subscription_discount">Descuento por Suscripción (%)</Label>
-                      <Input
-                        id="subscription_discount"
-                        name="subscription_discount"
-                        type="number"
-                        min="0"
-                        max="50"
-                        value={product.subscription_discount || 10}
-                        onChange={handleProductChange}
-                      />
+                    <div className="space-y-4">
+                      <Label>Descuentos por Período de Suscripción</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="weekly_discount">Descuento Semanal (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="weekly_discount"
+                              name="weekly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.weekly_discount || 5}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="monthly_discount">Descuento Mensual (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="monthly_discount"
+                              name="monthly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.monthly_discount || 10}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="quarterly_discount">Descuento Trimestral (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="quarterly_discount"
+                              name="quarterly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.quarterly_discount || 15}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="annual_discount">Descuento Anual (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="annual_discount"
+                              name="annual_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.annual_discount || 20}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Estos descuentos se aplicarán automáticamente según el período de suscripción seleccionado por
+                        el cliente.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1333,14 +1411,41 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                       </div>
                     )}
 
-                    {/* Opción de suscripción */}
+                    {/* Opción de suscripción con descuentos personalizados */}
                     <div>
                       <h3 className="font-bold mb-2">Tipo de compra</h3>
-                      <div className="flex gap-2">
-                        <button className="rounded-full px-4 py-2 bg-primary text-white">Compra única</button>
-                        <button className="rounded-full px-4 py-2 border border-primary text-primary">
-                          Suscripción (-10%)
+                      <div className="space-y-2">
+                        <button className="w-full rounded-lg px-4 py-2 bg-primary text-white text-left">
+                          Compra única - €{product.price?.toFixed(2)}
                         </button>
+                        {product.subscription_available && (
+                          <div className="space-y-1">
+                            {product.subscription_types?.includes("weekly") && (
+                              <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
+                                Suscripción Semanal (-{product.weekly_discount}%) - €
+                                {((product.price || 0) * (1 - (product.weekly_discount || 5) / 100)).toFixed(2)}
+                              </button>
+                            )}
+                            {product.subscription_types?.includes("monthly") && (
+                              <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
+                                Suscripción Mensual (-{product.monthly_discount}%) - €
+                                {((product.price || 0) * (1 - (product.monthly_discount || 10) / 100)).toFixed(2)}
+                              </button>
+                            )}
+                            {product.subscription_types?.includes("quarterly") && (
+                              <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
+                                Suscripción Trimestral (-{product.quarterly_discount}%) - €
+                                {((product.price || 0) * (1 - (product.quarterly_discount || 15) / 100)).toFixed(2)}
+                              </button>
+                            )}
+                            {product.subscription_types?.includes("annual") && (
+                              <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
+                                Suscripción Anual (-{product.annual_discount}%) - €
+                                {((product.price || 0) * (1 - (product.annual_discount || 20) / 100)).toFixed(2)}
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

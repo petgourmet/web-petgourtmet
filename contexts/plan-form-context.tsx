@@ -8,7 +8,7 @@ export type PetSize = "small" | "medium" | "large"
 export type PetActivity = "low" | "medium" | "high"
 export type PetBody = "thin" | "normal" | "overweight"
 export type PlanType = "complete" | "complementary"
-export type PlanFrequency = "biweekly" | "monthly"
+export type PlanFrequency = "weekly" | "biweekly" | "monthly" | "quarterly" | "annual"
 
 export type Allergy = "beef" | "chicken" | "pork" | "none"
 export type Recipe = "meat-festival" | "veggie-delight" | "chicken-feast"

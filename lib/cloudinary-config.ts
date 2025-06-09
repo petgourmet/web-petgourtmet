@@ -1,7 +1,8 @@
-// Configuración para Cloudinary (una alternativa a Supabase Storage)
+// Configuración para Cloudinary usando las variables correctas
 export const cloudinaryConfig = {
-  cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo",
-  apiKey: process.env.CLOUDINARY_API_KEY,
+  cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "petgourmet",
+  apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
   apiSecret: process.env.CLOUDINARY_API_SECRET,
-  uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default",
+  // Usar un upload preset por defecto que no requiere configuración
+  uploadPreset: "ml_default", // Este es un preset público por defecto de Cloudinary
 }

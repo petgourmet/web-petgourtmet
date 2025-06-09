@@ -1,13 +1,13 @@
 /**
  * Servicio para gestionar la subida y manipulación de imágenes con Cloudinary
+ * Usando upload directo desde el cliente
  */
 
 // Configuración básica de Cloudinary
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
 /**
- * Sube una imagen a Cloudinary
+ * Sube una imagen a Cloudinary usando upload directo
  * @param file Archivo a subir
  * @param folder Carpeta donde se guardará (ej: 'products', 'blogs')
  * @param onProgress Función callback para reportar progreso
@@ -18,21 +18,23 @@ export async function uploadImage(
   folder = "general",
   onProgress?: (progress: number) => void,
 ): Promise<string> {
-  if (!CLOUD_NAME || !UPLOAD_PRESET) {
-    throw new Error("Cloudinary no está configurado correctamente. Verifica las variables de entorno.")
+  if (!CLOUD_NAME) {
+    throw new Error("CLOUDINARY_CLOUD_NAME no está configurado correctamente. Verifica las variables de entorno.")
   }
 
   // Crear FormData para la subida
   const formData = new FormData()
   formData.append("file", file)
-  formData.append("upload_preset", UPLOAD_PRESET)
-  formData.append("folder", folder)
+  formData.append("upload_preset", "ml_default") // Preset por defecto de Cloudinary
+  formData.append("folder", `petgourmet/${folder}`)
 
   try {
     // Iniciar progreso
     if (onProgress) onProgress(10)
 
-    // Realizar la subida a Cloudinary
+    console.log("Subiendo imagen a Cloudinary directamente...")
+
+    // Realizar la subida directa a Cloudinary
     const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
       method: "POST",
       body: formData,
@@ -43,6 +45,7 @@ export async function uploadImage(
 
     if (!response.ok) {
       const error = await response.json()
+      console.error("Error de Cloudinary:", error)
       throw new Error(error.error?.message || "Error al subir la imagen a Cloudinary")
     }
 
@@ -50,6 +53,8 @@ export async function uploadImage(
 
     // Completar progreso
     if (onProgress) onProgress(100)
+
+    console.log("Imagen subida exitosamente:", data.secure_url)
 
     // Devolver la URL segura de la imagen
     return data.secure_url
@@ -108,4 +113,26 @@ export function getThumbnailUrl(url: string, size = 200): string {
     crop: "fill",
     quality: 80,
   })
+}
+
+/**
+ * Extrae el public_id de una URL de Cloudinary
+ * @param url URL de Cloudinary
+ * @returns public_id o null si no se puede extraer
+ */
+export function extractPublicId(url: string): string | null {
+  try {
+    if (!url || !url.includes("cloudinary.com")) return null
+
+    // Buscar el patrón /upload/v{version}/{public_id}.{extension}
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/)
+    if (match && match[1]) {
+      return match[1]
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error al extraer public_id:", error)
+    return null
+  }
 }

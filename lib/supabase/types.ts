@@ -19,7 +19,11 @@ export type Product = {
   weight_reference?: string
   subscription_available?: boolean
   subscription_types?: string[]
-  subscription_discount?: number
+  // Descuentos por período configurables
+  weekly_discount?: number
+  monthly_discount?: number
+  quarterly_discount?: number
+  annual_discount?: number
 }
 
 export type Category = {
@@ -100,4 +104,14 @@ export type BlogCategory = {
   id: number
   name: string
   slug: string
+}
+
+// Nuevos tipos para configuración de suscripciones
+export type SubscriptionConfig = {
+  id: number
+  period: "weekly" | "monthly" | "quarterly" | "annual"
+  discount_percentage: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
