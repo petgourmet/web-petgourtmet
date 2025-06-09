@@ -41,31 +41,30 @@ export async function POST(request: NextRequest) {
 
     console.log("[Upload API] Cliente Supabase creado")
 
-    // Verificar que la solicitud tenga contenido
+    // Log de headers para debugging
     const contentType = request.headers.get("content-type")
-    console.log("[Upload API] Content-Type:", contentType)
+    const allHeaders = Object.fromEntries(request.headers.entries())
+    console.log("[Upload API] Headers recibidos:", {
+      contentType,
+      allHeaders,
+    })
 
-    if (!contentType || !contentType.includes("multipart/form-data")) {
-      return NextResponse.json(
-        {
-          error: "Tipo de contenido inválido",
-          details: `Se esperaba multipart/form-data, recibido: ${contentType}`,
-        },
-        { status: 400 },
-      )
-    }
-
-    // Parsear FormData con manejo de errores
+    // Intentar parsear FormData sin validación previa del content-type
     let formData: FormData
     try {
       formData = await request.formData()
       console.log("[Upload API] FormData parseado correctamente")
+
+      // Log de los campos del FormData
+      const formDataEntries = Object.fromEntries(formData.entries())
+      console.log("[Upload API] Campos en FormData:", Object.keys(formDataEntries))
     } catch (parseError: any) {
       console.error("[Upload API] Error al parsear FormData:", parseError)
       return NextResponse.json(
         {
           error: "Error al procesar los datos del formulario",
           details: parseError.message,
+          contentType: contentType,
         },
         { status: 400 },
       )
@@ -79,6 +78,7 @@ export async function POST(request: NextRequest) {
       hasFile: !!file,
       fileName: file?.name,
       fileSize: file?.size,
+      fileType: file?.type,
       bucket,
       path,
     })
@@ -98,6 +98,17 @@ export async function POST(request: NextRequest) {
         {
           error: "No se especificó el bucket",
           details: "El campo 'bucket' es requerido",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Validar que el archivo es realmente un archivo
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        {
+          error: "El objeto proporcionado no es un archivo válido",
+          details: `Tipo recibido: ${typeof file}`,
         },
         { status: 400 },
       )
@@ -173,7 +184,7 @@ export async function POST(request: NextRequest) {
 
     // Subir archivo
     const { data, error } = await supabaseAdmin.storage.from(bucket).upload(fileName, buffer, {
-      contentType: file.type,
+      contentType: file.type || "application/octet-stream",
       upsert: true,
     })
 
