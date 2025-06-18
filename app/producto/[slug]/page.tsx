@@ -40,7 +40,7 @@ export default function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<{ weight: string; price: number } | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [isSubscription, setIsSubscription] = useState(false)
-  const [subscriptionType, setSubscriptionType] = useState<"monthly" | "quarterly" | "annual">("monthly")
+  const [subscriptionType, setSubscriptionType] = useState<"biweekly" | "monthly" | "quarterly" | "annual">("monthly")
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
@@ -222,7 +222,19 @@ export default function ProductDetailPage() {
   // Calcular el descuento según el tipo de suscripción
   const getSubscriptionDiscount = () => {
     if (!isSubscription || !product) return 0
-    return (product.subscription_discount || 10) / 100
+    
+    switch (subscriptionType) {
+      case "biweekly":
+        return (product.biweekly_discount || 20) / 100
+      case "monthly":
+        return (product.monthly_discount || 15) / 100
+      case "quarterly":
+        return (product.quarterly_discount || 10) / 100
+      case "annual":
+        return (product.annual_discount || 5) / 100
+      default:
+        return 0
+    }
   }
 
   // Calcular el precio final
@@ -238,6 +250,8 @@ export default function ProductDetailPage() {
   // Obtener texto de frecuencia de cobro
   const getSubscriptionFrequencyText = () => {
     switch (subscriptionType) {
+      case "biweekly":
+        return "cada 15 días"
       case "monthly":
         return "mensualmente"
       case "quarterly":
@@ -520,7 +534,7 @@ export default function ProductDetailPage() {
                     onClick={() => setIsSubscription(true)}
                     disabled={!product.subscription_available}
                   >
-                    Suscripción {product.subscription_discount ? `(-${product.subscription_discount}%)` : "(-10%)"}
+                    Recibir este mismo producto
                   </Button>
                 </div>
                 {/* Opciones de suscripción */}
@@ -528,6 +542,20 @@ export default function ProductDetailPage() {
                   <div className="mt-3">
                     <h4 className="text-sm font-medium mb-2">Frecuencia de entrega:</h4>
                     <div className="flex flex-wrap gap-2 mb-4">
+                      {product.subscription_types && product.subscription_types.includes("biweekly") && (
+                        <Button
+                          size="sm"
+                          variant={subscriptionType === "biweekly" ? "default" : "outline"}
+                          className={`rounded-full ${
+                            subscriptionType === "biweekly"
+                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                          }`}
+                          onClick={() => setSubscriptionType("biweekly")}
+                        >
+                          Cada 15 días (-{product.biweekly_discount || 20}%)
+                        </Button>
+                      )}
                       {product.subscription_types && product.subscription_types.includes("monthly") && (
                         <Button
                           size="sm"
@@ -539,7 +567,7 @@ export default function ProductDetailPage() {
                           }`}
                           onClick={() => setSubscriptionType("monthly")}
                         >
-                          Mensual (-{product.subscription_discount || 10}%)
+                          Cada mes (-{product.monthly_discount || 15}%)
                         </Button>
                       )}
                       {product.subscription_types && product.subscription_types.includes("quarterly") && (
@@ -553,7 +581,7 @@ export default function ProductDetailPage() {
                           }`}
                           onClick={() => setSubscriptionType("quarterly")}
                         >
-                          Trimestral (-{product.subscription_discount || 10}%)
+                          Cada 3 meses (-{product.quarterly_discount || 10}%)
                         </Button>
                       )}
                       {product.subscription_types && product.subscription_types.includes("annual") && (
@@ -567,7 +595,7 @@ export default function ProductDetailPage() {
                           }`}
                           onClick={() => setSubscriptionType("annual")}
                         >
-                          Anual (-{product.subscription_discount || 10}%)
+                          Cada año (-{product.annual_discount || 5}%)
                         </Button>
                       )}
                     </div>
@@ -655,7 +683,7 @@ export default function ProductDetailPage() {
                     {isSubscription && (
                       <p className="text-sm text-green-600 flex items-center mt-1">
                         <Check className="h-3 w-3 inline mr-1" />
-                        Ahorro del {product.subscription_discount || 10}% aplicado
+                        Ahorro del {(getSubscriptionDiscount() * 100).toFixed(0)}% aplicado
                       </p>
                     )}
                   </div>
@@ -680,13 +708,17 @@ export default function ProductDetailPage() {
                     value="ingredients"
                     className="p-4 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg"
                   >
-                    {product.ingredients || "Información no disponible"}
+                    <div className="whitespace-pre-wrap">
+                      {product.ingredients || "Información no disponible"}
+                    </div>
                   </TabsContent>
                   <TabsContent
                     value="nutritional"
                     className="p-4 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg"
                   >
-                    {product.nutritional_info || "Información no disponible"}
+                    <div className="whitespace-pre-wrap">
+                      {product.nutritional_info || "Información no disponible"}
+                    </div>
                   </TabsContent>
                 </Tabs>
               )}

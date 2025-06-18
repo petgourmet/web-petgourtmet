@@ -196,9 +196,7 @@ export default function NutricionPage() {
               <Link href="/productos" className={pageClasses.cta.primary}>
                 Ver productos
               </Link>
-              <Link href="/crear-plan" className={pageClasses.cta.secondary}>
-                Crear plan personalizado
-              </Link>
+              {/* El botón "Crear plan personalizado" ha sido eliminado según la solicitud */}
             </div>
           </div>
         </div>

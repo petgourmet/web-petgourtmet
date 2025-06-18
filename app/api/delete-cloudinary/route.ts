@@ -13,17 +13,22 @@ export async function POST(request: NextRequest) {
     const { publicId } = await request.json()
 
     if (!publicId) {
-      return NextResponse.json({ error: "No se proporcionó public_id" }, { status: 400 })
+      return NextResponse.json({ error: "Public ID es requerido" }, { status: 400 })
     }
 
-    // Eliminar imagen de Cloudinary
+    console.log("Eliminando imagen:", publicId)
+
+    // Eliminar usando Cloudinary SDK
     const result = await cloudinary.uploader.destroy(publicId)
 
-    console.log("Imagen eliminada de Cloudinary:", result)
+    console.log("Resultado de eliminación:", result)
 
-    return NextResponse.json({ success: true, result })
+    return NextResponse.json({
+      success: result.result === "ok",
+      result: result.result,
+    })
   } catch (error: any) {
-    console.error("Error al eliminar imagen de Cloudinary:", error)
-    return NextResponse.json({ error: `Error al eliminar imagen: ${error.message}` }, { status: 500 })
+    console.error("Error al eliminar imagen:", error)
+    return NextResponse.json({ error: error.message || "Error interno del servidor" }, { status: 500 })
   }
 }

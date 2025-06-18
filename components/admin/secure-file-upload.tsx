@@ -104,6 +104,7 @@ export function SecureFileUpload({
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
+        // NO establecer headers manualmente - el navegador lo hace automáticamente para FormData
       })
 
       setProgress(70)

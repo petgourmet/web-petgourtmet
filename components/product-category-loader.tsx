@@ -29,12 +29,19 @@ export type Product = {
   gallery?: { src: string; alt: string }[]
   ingredients?: string
   nutritionalInfo?: string
+  nutritional_info?: string
   sellByWeight?: boolean
   weightReference?: string
+  subscription_available?: boolean
+  subscription_types?: ("biweekly" | "monthly" | "quarterly" | "annual")[]
+  biweekly_discount?: number
+  monthly_discount?: number
+  quarterly_discount?: number
+  annual_discount?: number
   subscription?: {
     available: boolean
     options?: Array<{
-      type: "monthly" | "quarterly" | "annual"
+      type: "biweekly" | "monthly" | "quarterly" | "annual"
       discount: number
     }>
   }

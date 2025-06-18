@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, Star, ImageIcon, Trash } from "lucide-react"
+import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, Star, ImageIcon, Trash, Percent } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -31,9 +31,9 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm() {
+export default function ProductForm({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const isNew = true // This is always the new product page
+  const isNew = params.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -55,12 +55,8 @@ export default function ProductForm() {
     sale_type: "unit", // "unit" o "weight"
     weight_reference: "", // ej: "por kilogramo"
     subscription_available: false,
-    subscription_types: [], // ["weekly", "monthly", "quarterly", "annual"]
-    // Descuentos por período configurables
-    weekly_discount: 5,
-    monthly_discount: 10,
-    quarterly_discount: 15,
-    annual_discount: 20,
+    subscription_types: [], // ["monthly", "quarterly", "annual"]
+    subscription_discount: 10, // porcentaje de descuento
   })
   const [productSizes, setProductSizes] = useState<Partial<ProductSize>[]>([{ weight: "", price: 0, stock: 0 }])
   const [productImages, setProductImages] = useState<Partial<ProductImage>[]>([{ url: "", alt: "" }])
@@ -150,13 +146,110 @@ export default function ProductForm() {
 
         setCategories(categoriesData || [])
 
-        // Inicializar additionalImages con un array vacío para nuevos productos
-        setAdditionalImages([])
+        // Si no es un nuevo producto, cargar datos del producto
+        if (!isNew) {
+          const productId = Number.parseInt(params.id)
+
+          // Cargar producto
+          const { data: productData, error: productError } = await supabase
+            .from("products")
+            .select("*")
+            .eq("id", productId)
+            .single()
+
+          if (productError) throw productError
+          setProduct(productData || {})
+
+          // Si hay soporte para múltiples categorías, cargarlas
+          if (multiCategorySupport) {
+            try {
+              const { data: productCategoriesData } = await supabase
+                .from("product_categories")
+                .select("category_id")
+                .eq("product_id", productId)
+
+              if (productCategoriesData && productCategoriesData.length > 0) {
+                setSelectedCategories(productCategoriesData.map((pc) => pc.category_id))
+              } else {
+                // Si no hay categorías asignadas pero existe category_id, usarlo como categoría única
+                if (productData?.category_id) {
+                  setSelectedCategories([productData.category_id])
+                }
+              }
+            } catch (error) {
+              console.error("Error al cargar categorías múltiples:", error)
+              // Usar la categoría única como fallback
+              if (productData?.category_id) {
+                setSelectedCategories([productData.category_id])
+              }
+            }
+          } else {
+            // Si no hay soporte para múltiples categorías, usar la categoría única
+            if (productData?.category_id) {
+              setSelectedCategories([productData.category_id])
+            }
+          }
+
+          // Cargar tamaños del producto
+          const { data: sizesData } = await supabase.from("product_sizes").select("*").eq("product_id", productId)
+
+          setProductSizes(sizesData?.length ? sizesData : [{ weight: "", price: 0, stock: 0 }])
+
+          // Cargar imágenes del producto
+          const { data: imagesData } = await supabase.from("product_images").select("*").eq("product_id", productId)
+
+          if (imagesData && imagesData.length > 0) {
+            setProductImages(imagesData)
+
+            // También actualizar additionalImages
+            setAdditionalImages(
+              imagesData.map((img) => ({
+                src: img.url || "",
+                alt: img.alt || "",
+              })),
+            )
+          } else {
+            setProductImages([{ url: "", alt: "" }])
+            setAdditionalImages([{ src: "", alt: "" }])
+          }
+
+          // Intentar cargar características del producto
+          try {
+            const { data: featuresData } = await supabase
+              .from("product_features")
+              .select("*")
+              .eq("product_id", productId)
+
+            if (featuresData && featuresData.length > 0) {
+              setProductFeatures(featuresData)
+            }
+          } catch (error) {
+            console.log("Tabla product_features no disponible aún:", error)
+          }
+
+          // Intentar cargar reseñas del producto
+          try {
+            const { data: reviewsData } = await supabase
+              .from("product_reviews")
+              .select("*")
+              .eq("product_id", productId)
+              .order("created_at", { ascending: false })
+
+            if (reviewsData && reviewsData.length > 0) {
+              setProductReviews(reviewsData)
+            }
+          } catch (error) {
+            console.log("Tabla product_reviews no disponible aún:", error)
+          }
+        } else {
+          // Si es un nuevo producto, inicializar additionalImages con un array vacío
+          setAdditionalImages([])
+        }
       } catch (error) {
         console.error("Error al cargar datos:", error)
         toast({
           title: "Error",
-          description: "No se pudieron cargar los datos. Por favor, inténtalo de nuevo.",
+          description: "No se pudieron cargar los datos del producto. Por favor, inténtalo de nuevo.",
           variant: "destructive",
         })
       } finally {
@@ -165,7 +258,7 @@ export default function ProductForm() {
     }
 
     fetchData()
-  }, [multiCategorySupport])
+  }, [isNew, params.id, multiCategorySupport])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -441,7 +534,7 @@ export default function ProductForm() {
             toast({
               title: "Advertencia",
               description: "Algunas características del producto no se pudieron guardar.",
-              variant: "default",
+              variant: "warning",
             })
           }
         }
@@ -450,7 +543,7 @@ export default function ProductForm() {
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar las características del producto.",
-          variant: "default",
+          variant: "warning",
         })
       }
 
@@ -480,7 +573,7 @@ export default function ProductForm() {
             toast({
               title: "Advertencia",
               description: "Algunos tamaños del producto no se pudieron guardar.",
-              variant: "default",
+              variant: "warning",
             })
           }
         }
@@ -489,7 +582,7 @@ export default function ProductForm() {
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar los tamaños del producto.",
-          variant: "default",
+          variant: "warning",
         })
       }
 
@@ -501,20 +594,10 @@ export default function ProductForm() {
       // Redirigir a la lista de productos
       router.push("/admin/products")
     } catch (error: any) {
-      // Better error handling to capture more information
-      const errorMessage = error?.message || error?.details || JSON.stringify(error) || "Error desconocido"
-      const errorCode = error?.code || "unknown_error"
-      
-      console.error("Error al guardar producto:", {
-        error,
-        message: errorMessage,
-        code: errorCode,
-        stack: error?.stack
-      })
-      
+      console.error("Error al guardar producto:", error)
       toast({
         title: "Error",
-        description: `No se pudo guardar el producto: ${errorMessage}`,
+        description: `No se pudo guardar el producto: ${error.message || "Error desconocido"}`,
         variant: "destructive",
       })
     } finally {
@@ -654,8 +737,13 @@ export default function ProductForm() {
                   name="description"
                   value={product.description || ""}
                   onChange={handleProductChange}
-                  rows={4}
+                  rows={6}
+                  placeholder="Describe el producto detalladamente.&#10;&#10;Puedes usar múltiples líneas para&#10;- Organizar la información&#10;- Crear listas&#10;- Separar párrafos"
+                  className="resize-y min-h-[120px]"
                 />
+                <p className="text-xs text-gray-500">
+                  💡 Tip: Usa saltos de línea para organizar la información. El formato se preservará en la web.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -706,8 +794,8 @@ export default function ProductForm() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>Tipos de Suscripción Disponibles</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {["monthly", "quarterly", "annual"].map((type) => (
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        {["biweekly", "monthly", "quarterly", "annual"].map((type) => (
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
                               id={`subscription-${type}`}
@@ -727,24 +815,98 @@ export default function ProductForm() {
                               }}
                             />
                             <Label htmlFor={`subscription-${type}`} className="cursor-pointer">
-                              {type === "monthly" ? "Mensual" : type === "quarterly" ? "Trimestral" : "Anual"}
+                              {type === "biweekly" 
+                                ? "Quincenal" 
+                                : type === "monthly" 
+                                  ? "Mensual" 
+                                  : type === "quarterly" 
+                                    ? "Trimestral" 
+                                    : "Anual"}
                             </Label>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="subscription_discount">Descuento por Suscripción (%)</Label>
-                      <Input
-                        id="subscription_discount"
-                        name="subscription_discount"
-                        type="number"
-                        min="0"
-                        max="50"
-                        value={product.subscription_discount || 10}
-                        onChange={handleProductChange}
-                      />
+                    <div className="space-y-4">
+                      <Label>Descuentos por Período de Suscripción</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="biweekly_discount">Descuento Quincenal (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="biweekly_discount"
+                              name="biweekly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.biweekly_discount || 20}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="monthly_discount">Descuento Mensual (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="monthly_discount"
+                              name="monthly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.monthly_discount || 15}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="quarterly_discount">Descuento Trimestral (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="quarterly_discount"
+                              name="quarterly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.quarterly_discount || 10}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="annual_discount">Descuento Anual (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="annual_discount"
+                              name="annual_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.annual_discount || 5}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Estos descuentos se aplicarán automáticamente según el período de suscripción seleccionado por
+                        el cliente.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -893,9 +1055,13 @@ export default function ProductForm() {
                   name="nutritional_info"
                   value={product.nutritional_info || ""}
                   onChange={handleProductChange}
-                  rows={4}
-                  placeholder="Proteínas: 20%, Grasas: 10%, etc."
+                  rows={6}
+                  placeholder="Información nutricional detallada:&#10;&#10;Proteínas: 20%&#10;Grasas: 10%&#10;Carbohidratos: 5%&#10;Fibra: 3%&#10;Humedad: 12%&#10;Cenizas: 8%&#10;&#10;Valor energético: 350 kcal/100g"
+                  className="resize-y min-h-[120px]"
                 />
+                <p className="text-xs text-gray-500">
+                  💡 Tip: Organiza la información nutricional en líneas separadas para mejor legibilidad.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -905,9 +1071,13 @@ export default function ProductForm() {
                   name="ingredients"
                   value={product.ingredients || ""}
                   onChange={handleProductChange}
-                  rows={4}
-                  placeholder="Carne de res, arroz integral, etc."
+                  rows={6}
+                  placeholder="Lista de ingredientes:&#10;&#10;- Carne de res fresca (30%)&#10;- Arroz integral (20%)&#10;- Pollo deshidratado (15%)&#10;- Verduras mixtas (10%)&#10;- Aceite de salmón (5%)&#10;- Vitaminas y minerales&#10;&#10;Sin conservantes artificiales."
+                  className="resize-y min-h-[120px]"
                 />
+                <p className="text-xs text-gray-500">
+                  💡 Tip: Lista los ingredientes en orden de cantidad. Usa líneas separadas para mejor presentación.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -1086,7 +1256,9 @@ export default function ProductForm() {
                         </div>
                       )}
 
-                      <p className="text-gray-600 mb-4">{product.description || "Descripción del producto"}</p>
+                      <div className="text-gray-600 mb-4 whitespace-pre-wrap">
+                        {product.description || "Descripción del producto"}
+                      </div>
 
                       {productFeatures.length > 0 && productFeatures[0].name && (
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -1170,10 +1342,14 @@ export default function ProductForm() {
                             <TabsTrigger value="nutritional">Información Nutricional</TabsTrigger>
                           </TabsList>
                           <TabsContent value="ingredients" className="p-4 text-sm text-gray-600">
-                            {product.ingredients || "Información no disponible"}
+                            <div className="whitespace-pre-wrap">
+                              {product.ingredients || "Información no disponible"}
+                            </div>
                           </TabsContent>
                           <TabsContent value="nutritional" className="p-4 text-sm text-gray-600">
-                            {product.nutritional_info || "Información no disponible"}
+                            <div className="whitespace-pre-wrap">
+                              {product.nutritional_info || "Información no disponible"}
+                            </div>
                           </TabsContent>
                         </Tabs>
                       </div>

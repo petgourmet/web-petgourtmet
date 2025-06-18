@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, Star, ImageIcon, Trash, Percent } from "lucide-react"
+import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, ImageIcon, Trash, Percent } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -31,26 +31,14 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
+export default function ProductForm({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
+  const isNew = params.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
-  
-  // Resolve params Promise in Next.js 15
-  useEffect(() => {
-    async function resolveParams() {
-      const resolved = await params
-      setResolvedParams(resolved)
-    }
-    resolveParams()
-  }, [params])
-  
-  // Define isNew based on resolved params
-  const isNew = resolvedParams?.id === "new"
   const [product, setProduct] = useState<Partial<Product>>({
     name: "",
     description: "",
@@ -155,9 +143,6 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
   useEffect(() => {
     async function fetchData() {
-      // Don't fetch data until params are resolved
-      if (!resolvedParams) return
-      
       setLoading(true)
       try {
         // Cargar categorías
@@ -167,7 +152,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
         // Si no es un nuevo producto, cargar datos del producto
         if (!isNew) {
-          const productId = Number.parseInt(resolvedParams.id)
+          const productId = Number.parseInt(params.id)
 
           // Cargar producto
           const { data: productData, error: productError } = await supabase
@@ -282,7 +267,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
     }
 
     fetchData()
-  }, [isNew, resolvedParams?.id, multiCategorySupport, resolvedParams])
+  }, [isNew, params.id, multiCategorySupport])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -469,7 +454,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         }
 
         // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && resolvedParams && !isNaN(Number.parseInt(resolvedParams.id)) && data.id === Number.parseInt(resolvedParams.id))) {
+        if (!data || (data && !isNew && data.id === Number.parseInt(params.id))) {
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -504,17 +489,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         productId = data[0].id
       } else {
         // Actualizar producto existente
-        if (!resolvedParams) {
-          throw new Error("No se pudo obtener el ID del producto")
-        }
-        
-        productId = Number.parseInt(resolvedParams.id)
-        
-        // Verificar que el productId sea válido
-        if (isNaN(productId)) {
-          throw new Error(`ID de producto inválido: ${resolvedParams.id}`)
-        }
-        
+        productId = Number.parseInt(params.id)
         const { error } = await supabase.from("products").update(productData).eq("id", productId)
 
         if (error) throw error
@@ -568,7 +543,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             toast({
               title: "Advertencia",
               description: "Algunas características del producto no se pudieron guardar.",
-              variant: "default",
+              variant: "warning",
             })
           }
         }
@@ -577,7 +552,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar las características del producto.",
-          variant: "default",
+          variant: "warning",
         })
       }
 
@@ -607,7 +582,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             toast({
               title: "Advertencia",
               description: "Algunos tamaños del producto no se pudieron guardar.",
-              variant: "default",
+              variant: "warning",
             })
           }
         }
@@ -616,7 +591,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar los tamaños del producto.",
-          variant: "default",
+          variant: "warning",
         })
       }
 
@@ -653,7 +628,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             toast({
               title: "Advertencia",
               description: `Error al guardar imágenes: ${imagesError.message}`,
-              variant: "default",
+              variant: "warning",
             })
           } else {
             console.log("Imágenes guardadas exitosamente:", insertedImages)
@@ -668,7 +643,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         toast({
           title: "Advertencia",
           description: "Ocurrió un error al procesar las imágenes del producto.",
-          variant: "default",
+          variant: "warning",
         })
       }
 
@@ -737,8 +712,8 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
   // Cargar imágenes adicionales
   useEffect(() => {
     const loadAdditionalImages = async () => {
-      if (!isNew && resolvedParams?.id) {
-        const productId = Number.parseInt(resolvedParams.id)
+      if (!isNew && params.id) {
+        const productId = Number.parseInt(params.id)
         const { data: imagesData, error: imagesError } = await supabase
           .from("product_images")
           .select("*")
@@ -759,7 +734,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
     }
 
     loadAdditionalImages()
-  }, [isNew, resolvedParams?.id])
+  }, [isNew, params.id])
 
   if (loading) {
     return (
@@ -893,8 +868,13 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                   name="description"
                   value={product.description || ""}
                   onChange={handleProductChange}
-                  rows={4}
+                  rows={6}
+                  placeholder="Describe el producto detalladamente.&#10;&#10;Puedes usar múltiples líneas para&#10;- Organizar la información&#10;- Crear listas&#10;- Separar párrafos"
+                  className="resize-y min-h-[120px]"
                 />
+                <p className="text-xs text-gray-500">
+                  💡 Tip: Usa saltos de línea para organizar la información. El formato se preservará en la web.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -936,7 +916,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                   <Checkbox
                     id="subscription_available"
                     checked={product.subscription_available || false}
-                    onCheckedChange={(checked) => setProduct({ ...product, subscription_available: checked as boolean })}
+                    onCheckedChange={(checked) => setProduct({ ...product, subscription_available: checked })}
                   />
                   <Label htmlFor="subscription_available">Disponible para Suscripción</Label>
                 </div>
@@ -946,7 +926,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                     <div className="space-y-2">
                       <Label>Tipos de Suscripción Disponibles</Label>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                        {["weekly", "monthly", "quarterly", "annual"].map((type) => (
+                        {["biweekly", "monthly", "quarterly", "annual"].map((type) => (
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
                               id={`subscription-${type}`}
@@ -964,8 +944,8 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                               }}
                             />
                             <Label htmlFor={`subscription-${type}`} className="cursor-pointer">
-                              {type === "weekly"
-                                ? "Semanal"
+                              {type === "biweekly"
+                                ? "Quincenal"
                                 : type === "monthly"
                                   ? "Mensual"
                                   : type === "quarterly"
@@ -981,16 +961,16 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                       <Label>Descuentos por Período de Suscripción</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="weekly_discount">Descuento Semanal (%)</Label>
+                          <Label htmlFor="biweekly_discount">Descuento Quincenal (%)</Label>
                           <div className="relative">
                             <Input
-                              id="weekly_discount"
-                              name="weekly_discount"
+                              id="biweekly_discount"
+                              name="biweekly_discount"
                               type="number"
                               min="0"
                               max="50"
                               step="0.01"
-                              value={product.weekly_discount || 5}
+                              value={product.biweekly_discount || 20}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -1008,7 +988,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                               min="0"
                               max="50"
                               step="0.01"
-                              value={product.monthly_discount || 10}
+                              value={product.monthly_discount || 15}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -1026,7 +1006,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                               min="0"
                               max="50"
                               step="0.01"
-                              value={product.quarterly_discount || 15}
+                              value={product.quarterly_discount || 10}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -1044,7 +1024,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                               min="0"
                               max="50"
                               step="0.01"
-                              value={product.annual_discount || 20}
+                              value={product.annual_discount || 5}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -1204,9 +1184,13 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                   name="nutritional_info"
                   value={product.nutritional_info || ""}
                   onChange={handleProductChange}
-                  rows={4}
-                  placeholder="Proteínas: 20%, Grasas: 10%, etc."
+                  rows={6}
+                  placeholder="Información nutricional detallada:&#10;&#10;Proteínas: 20%&#10;Grasas: 10%&#10;Carbohidratos: 5%&#10;Fibra: 3%&#10;Humedad: 12%&#10;Cenizas: 8%&#10;&#10;Valor energético: 350 kcal/100g"
+                  className="resize-y min-h-[120px]"
                 />
+                <p className="text-xs text-gray-500">
+                  💡 Tip: Organiza la información nutricional en líneas separadas para mejor legibilidad.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -1216,9 +1200,13 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                   name="ingredients"
                   value={product.ingredients || ""}
                   onChange={handleProductChange}
-                  rows={4}
-                  placeholder="Carne de res, arroz integral, etc."
+                  rows={6}
+                  placeholder="Lista de ingredientes:&#10;&#10;- Carne de res fresca (30%)&#10;- Arroz integral (20%)&#10;- Pollo deshidratado (15%)&#10;- Verduras mixtas (10%)&#10;- Aceite de salmón (5%)&#10;- Vitaminas y minerales&#10;&#10;Sin conservantes artificiales."
+                  className="resize-y min-h-[120px]"
                 />
+                <p className="text-xs text-gray-500">
+                  💡 Tip: Lista los ingredientes en orden de cantidad. Usa líneas separadas para mejor presentación.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -1379,25 +1367,9 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                         {product.name || "Nombre del producto"}
                       </h2>
 
-                      {product.rating !== undefined && (
-                        <div className="flex items-center mb-4">
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-4 h-4 ${
-                                  i < Math.floor(product.rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          {product.reviews_count !== undefined && (
-                            <span className="ml-2 text-sm text-gray-600">({product.reviews_count} reseñas)</span>
-                          )}
-                        </div>
-                      )}
-
-                      <p className="text-gray-600 mb-4">{product.description || "Descripción del producto"}</p>
+                      <div className="text-gray-600 mb-4 whitespace-pre-wrap">
+                        {product.description || "Descripción del producto"}
+                      </div>
 
                       {productFeatures.length > 0 && productFeatures[0].name && (
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -1445,28 +1417,28 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                         </button>
                         {product.subscription_available && (
                           <div className="space-y-1">
-                            {product.subscription_types?.includes("weekly") && (
+                            {product.subscription_types?.includes("biweekly") && (
                               <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
-                                Suscripción Semanal (-{product.weekly_discount}%) - €
-                                {((product.price || 0) * (1 - (product.weekly_discount || 5) / 100)).toFixed(2)}
+                                Suscripción Quincenal (-{product.biweekly_discount || 20}%) - €
+                                {((product.price || 0) * (1 - (product.biweekly_discount || 20) / 100)).toFixed(2)}
                               </button>
                             )}
                             {product.subscription_types?.includes("monthly") && (
                               <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
-                                Suscripción Mensual (-{product.monthly_discount}%) - €
-                                {((product.price || 0) * (1 - (product.monthly_discount || 10) / 100)).toFixed(2)}
+                                Suscripción Mensual (-{product.monthly_discount || 15}%) - €
+                                {((product.price || 0) * (1 - (product.monthly_discount || 15) / 100)).toFixed(2)}
                               </button>
                             )}
                             {product.subscription_types?.includes("quarterly") && (
                               <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
-                                Suscripción Trimestral (-{product.quarterly_discount}%) - €
-                                {((product.price || 0) * (1 - (product.quarterly_discount || 15) / 100)).toFixed(2)}
+                                Suscripción Trimestral (-{product.quarterly_discount || 10}%) - €
+                                {((product.price || 0) * (1 - (product.quarterly_discount || 10) / 100)).toFixed(2)}
                               </button>
                             )}
                             {product.subscription_types?.includes("annual") && (
                               <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
-                                Suscripción Anual (-{product.annual_discount}%) - €
-                                {((product.price || 0) * (1 - (product.annual_discount || 20) / 100)).toFixed(2)}
+                                Suscripción Anual (-{product.annual_discount || 5}%) - €
+                                {((product.price || 0) * (1 - (product.annual_discount || 5) / 100)).toFixed(2)}
                               </button>
                             )}
                           </div>
@@ -1508,10 +1480,14 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                             <TabsTrigger value="nutritional">Información Nutricional</TabsTrigger>
                           </TabsList>
                           <TabsContent value="ingredients" className="p-4 text-sm text-gray-600">
-                            {product.ingredients || "Información no disponible"}
+                            <div className="whitespace-pre-wrap">
+                              {product.ingredients || "Información no disponible"}
+                            </div>
                           </TabsContent>
                           <TabsContent value="nutritional" className="p-4 text-sm text-gray-600">
-                            {product.nutritional_info || "Información no disponible"}
+                            <div className="whitespace-pre-wrap">
+                              {product.nutritional_info || "Información no disponible"}  
+                            </div>
                           </TabsContent>
                         </Tabs>
                       </div>

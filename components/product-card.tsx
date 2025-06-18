@@ -120,7 +120,7 @@ export function ProductCard({
 
       {/* Contenido del producto */}
       <div className="p-4 flex flex-col flex-grow">
-        <h3 className="font-bold text-lg mb-1 line-clamp-1">{name}</h3>
+        <h2 className="font-bold text-sm mb-2">{name}</h2>
         <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">{description}</p>
 
         {/* Características del producto */}

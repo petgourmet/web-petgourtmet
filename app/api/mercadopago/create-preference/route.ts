@@ -6,6 +6,19 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { items, customerData, externalReference, backUrls } = body
 
+    // Validar datos requeridos
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Items son requeridos" }, { status: 400 })
+    }
+
+    if (!customerData || !customerData.email) {
+      return NextResponse.json({ error: "Datos del cliente son requeridos" }, { status: 400 })
+    }
+
+    if (!backUrls || !backUrls.success) {
+      return NextResponse.json({ error: "URLs de retorno son requeridas" }, { status: 400 })
+    }
+
     // Verificar si estamos en modo de prueba
     const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
 
@@ -79,7 +92,7 @@ export async function POST(request: Request) {
 
     // Actualizar el pedido con el ID de preferencia si tenemos una referencia externa
     if (externalReference) {
-      const supabase = createClient()
+      const supabase = await createClient()
       const { error: updateError } = await supabase
         .from("orders")
         .update({ mercadopago_preference_id: data.id })

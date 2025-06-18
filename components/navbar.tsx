@@ -127,7 +127,7 @@ export function Navbar() {
             <Link href="/nutricion" className="btn-rounded text-white hover:text-white/80 btn-glow">
               Nutrición
             </Link>
-            <Link href="/blog" className="btn-rounded text-white hover:text-white/80 btn-glow">
+            <Link href="/blog" className="btn-rounded text-white hover:text-white/80 btn-glow" prefetch={false}>
               Blog
             </Link>
           </nav>
@@ -356,6 +356,7 @@ export function Navbar() {
                 href="/blog"
                 onClick={() => setIsMenuOpen(false)}
                 className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                prefetch={false}
               >
                 <BookOpen size={20} className="mr-3 text-primary" />
                 <span className="font-medium">Blog</span>

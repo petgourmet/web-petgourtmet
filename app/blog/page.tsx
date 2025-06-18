@@ -1,10 +1,5 @@
-import Image from "next/image"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ArrowRight } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import BlogCard from "@/components/blog-card"
 
 export const revalidate = 3600 // Revalidar cada hora
 
@@ -89,15 +84,6 @@ export default async function BlogPage() {
     blogPosts = fallbackBlogPosts
   }
 
-  // Formatear la fecha de publicación o usar la fecha actual
-  const formatBlogDate = (dateString) => {
-    try {
-      return format(new Date(dateString || new Date()), "d 'de' MMMM, yyyy", { locale: es })
-    } catch (e) {
-      return format(new Date(), "d 'de' MMMM, yyyy", { locale: es })
-    }
-  }
-
   return (
     <div className="flex flex-col min-h-screen pt-0">
       <div className="responsive-section bg-white dark:bg-gray-900">
@@ -130,43 +116,18 @@ export default async function BlogPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             {blogPosts.map((post) => (
-              <div
-                key={post.id}
-                className="bg-white shadow-md dark:bg-[#7BBDC5] rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-              >
-                <div className="relative h-48">
-                  <Image src={post.cover_image || "/placeholder.svg"} alt={post.title} fill className="object-cover" />
-                  {post.category && (
-                    <div className="absolute top-4 left-4">
-                      <span className="bg-[#7BBDC5] text-white px-3 py-1 rounded-full text-xs font-medium">
-                        {post.category.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="p-6">
-                  <p className="text-sm text-gray-500 dark:text-white/70 mb-2">{formatBlogDate(post.published_at)}</p>
-                  <h3 className="text-xl font-bold mb-2 text-[#7BBDC5] dark:text-white font-display">{post.title}</h3>
-                  <p className="text-gray-600 dark:text-white mb-4">{post.excerpt}</p>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="w-full rounded-full border-[#7BBDC5] text-[#7BBDC5] dark:border-white dark:text-white hover:bg-[#7BBDC5] hover:text-white dark:hover:bg-white dark:hover:text-[#7BBDC5]"
-                  >
-                    <Link href={`/blog/${post.slug}`}>
-                      Leer más <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </div>
+              <BlogCard key={post.id} post={post} />
             ))}
           </div>
 
+          {/* El botón "Cargar más artículos" ha sido eliminado */}
+          {/* 
           <div className="text-center">
             <Button className="bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white rounded-full px-8 py-6 text-lg shadow-md hover:shadow-lg hover:shadow-[#7BBDC5]/20 transition-all duration-300 btn-glow font-display">
               Cargar más artículos
             </Button>
-          </div>
+          </div> 
+          */}
         </div>
       </div>
     </div>

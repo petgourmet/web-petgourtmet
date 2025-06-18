@@ -1,45 +1,25 @@
 "use client"
 
-import type React from "react"
-import { useEffect, useState } from "react"
+import type { ReactNode } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import SplashScreen from "@/components/splash-screen"
+import { Toaster } from "@/components/toaster"
 import { ScrollToTop } from "@/components/scroll-to-top"
 import WhatsappButton from "@/components/whatsapp-button"
 import FloatingCreatePlanButton from "@/components/floating-create-plan-button"
 import { CartProvider } from "@/components/cart-context"
-import { Toaster } from "@/components/toaster"
 
-interface ClientLayoutProps {
-  children: React.ReactNode
-}
-
-export default function ClientLayout({ children }: ClientLayoutProps) {
-  const [showSplash, setShowSplash] = useState(true)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false)
-    }, 2000)
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (showSplash) {
-    return <SplashScreen />
-  }
-
+export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
     <CartProvider>
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
+        <Toaster />
         <ScrollToTop />
         <WhatsappButton />
         <FloatingCreatePlanButton />
-        <Toaster />
       </div>
     </CartProvider>
   )

@@ -12,13 +12,13 @@ interface AccordionProps {
 const accordionClasses = {
   container: "space-y-4",
   item: "border border-gray-200 rounded-lg overflow-hidden",
-  button: "w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center",
+  button: "w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center", // Modificado p-4 a px-4 py-3
   title: "font-semibold text-gray-900 pr-4",
   icon: "w-5 h-5 text-gray-500 transition-transform",
   iconExpanded: "rotate-180",
-  content: "p-4 bg-white border-t border-gray-200",
+  content: "px-4 py-2 bg-white border-t border-gray-200",
   text: "text-gray-700 text-sm leading-relaxed",
-  paragraph: "mb-2 last:mb-0",
+  paragraph: "mb-1.5 last:mb-0",
 }
 
 export function Accordion({ faqs, expandedIndex, onToggle, className }: AccordionProps) {

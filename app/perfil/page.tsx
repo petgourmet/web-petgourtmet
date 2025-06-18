@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { ThemedBackground } from "@/components/themed-background"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ErrorFallbackImage } from "@/components/error-fallback-image"
 
 type ProfileTab = "personal" | "suscripciones" | "metodos-pago" | "historial-facturacion" | "compras" | "configuracion"
 
@@ -621,10 +622,13 @@ export default function PerfilPage() {
                               <div key={subscription.id} className="border rounded-lg p-4">
                                 <div className="flex items-start justify-between">
                                   <div className="flex items-center space-x-4">
-                                    <img
-                                      src={subscription.products?.image || subscription.product_image}
-                                      alt={subscription.product_name}
-                                      className="w-16 h-16 object-cover rounded-lg"
+                                    <ErrorFallbackImage
+                                      src={subscription.products?.image || subscription.product_image || ""}
+                                      alt={subscription.product_name || "Imagen de producto"}
+                                      width={64}
+                                      height={64}
+                                      className="object-cover rounded-lg"
+                                      fallbackSrc="/placeholder.svg?width=64&height=64"
                                     />
                                     <div>
                                       <h3 className="font-semibold">{subscription.product_name}</h3>
@@ -1026,10 +1030,13 @@ export default function PerfilPage() {
                                 <div className="space-y-2">
                                   {order.order_items?.map((item: any) => (
                                     <div key={item.id} className="flex items-center space-x-3 text-sm">
-                                      <img
-                                        src={item.product_image || "/placeholder.svg"}
-                                        alt={item.product_name}
-                                        className="w-10 h-10 object-cover rounded"
+                                      <ErrorFallbackImage
+                                        src={item.product_image || ""}
+                                        alt={item.product_name || "Imagen de producto"}
+                                        width={40}
+                                        height={40}
+                                        className="object-cover rounded"
+                                        fallbackSrc="/placeholder.svg?width=40&height=40"
                                       />
                                       <span>{item.product_name}</span>
                                       <span className="text-gray-600">x{item.quantity}</span>

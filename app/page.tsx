@@ -89,9 +89,6 @@ export default function Home() {
                   </div>
 
                   {/* Elementos decorativos */}
-                  <div className="absolute top-6 right-6 text-white/10 text-8xl font-bold pointer-events-none">
-                    {category.icon}
-                  </div>
                   <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full pointer-events-none"></div>
                   <div className="absolute top-1/4 left-1/4 w-20 h-20 bg-white/10 rounded-full pointer-events-none"></div>
                   <div className="absolute bottom-1/3 left-1/2 w-12 h-12 bg-white/10 rounded-full pointer-events-none"></div>
@@ -183,7 +180,7 @@ export default function Home() {
             <div className="lg:w-1/2 order-1 lg:order-2">
               <div className="relative">
                 {/* Main image with decorative elements */}
-                <div className="relative z-20 rounded-3xl overflow-hidden shadow-2xl transform rotate-2 hover:rotate-0 transition-transform duration-500">
+                <div className="relative z-20 rounded-3xl overflow-hidden shadow-2xl transition-transform duration-500">
                   <img
                     src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/HERO-vDqIBaCFtETXEYMwu8oZS3EIpZSIcU.webp"
                     alt="Galletas naturales para perros con ingredientes premium"
@@ -193,17 +190,6 @@ export default function Home() {
                   <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-900">
                     Ingredientes de primera calidad
                   </div>
-                </div>
-
-                {/* Floating decorative elements */}
-                <div className="absolute top-10 -right-10 z-10 bg-white rounded-2xl shadow-xl p-3 transform -rotate-6">
-                  <Image
-                    src="/juicy-steak-icon.png"
-                    alt="Carne premium"
-                    width={60}
-                    height={60}
-                    className="w-16 h-16 object-cover rounded-xl"
-                  />
                 </div>
 
                 {/* Background decorative circles */}

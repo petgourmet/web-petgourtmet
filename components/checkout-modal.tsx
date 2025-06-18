@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
 
 export function CheckoutModal() {
-  const { cart, calculateCartTotal, setShowCheckout, clearCart } = useCart()
+  const { cart, calculateCartTotal, setShowCheckout, clearCart, showCheckout } = useCart()
   const router = useRouter()
   const { user } = useClientAuth()
   const [isLoading, setIsLoading] = useState(false)
@@ -318,6 +318,10 @@ export function CheckoutModal() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (!showCheckout) {
+    return null
   }
 
   return (
