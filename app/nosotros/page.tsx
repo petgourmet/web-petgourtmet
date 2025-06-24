@@ -23,7 +23,7 @@ export default function NosotrosPage() {
             </h1>
             <div className="text-xl text-gray-600 mb-10 leading-relaxed space-y-6">
               <p>
-                Pet Gourmet nació en Bogotá - Colombia como idea en 2009. Nuestra primera gran receta fueron los
+                Pet Gourmet nació en Ciudad de mexixo - Colombia como idea en 2009. Nuestra primera gran receta fueron los
                 pasteles de cumpleaños que promocionamos a través de un modesto blog en internet y también entre
                 conocidos y amigos.
               </p>

@@ -92,22 +92,12 @@ export const shippingQuestions: FAQ[] = [
   {
     question: "¿SI NECESITO UN PEDIDO PARA HOY MISMO QUÉ DEBO HACER?",
     answer:
-      "Solo es posible hacer entregas el mismo día en la ciudad de Bogotá, no incluye las localidades de Usme, Tunjuelito, Ciudad Bolívar y Bosa, Tampoco Soacha ni los municipios de la sabana de Bogotá (Si la entrega es en alguno de estos lugares debes elegir ENVÍO FUERA DE BOGOTÁ y el envío se hará mediante Mensajería Certificada tomando generalmente 1 día hábil).\n\nPara entregas el mismo día debes ordenar y pagar tu pedido antes de las 12 del mediodía en esta tienda online o si deseas también puedes comunicarte directamente a la tienda más cercana. y solicitar el servicio de domicilio",
-  },
-  {
-    question: "¿PUEDO LLEGAR A COMPRAR UNA TORTA DIRECTAMENTE EN LA TIENDA SIN RESERVARLA?",
-    answer:
-      "Sí, todos los días tenemos disponible una cantidad limitada de tortas de cumpleaños listas para entrega inmediata en nuestros puntos de venta. Puedes llegar y comprar una de ellas sin reserva pero lo más aconsejable es que antes de ir consultes la disponibilidad del día en el punto de venta de tu preferencia. Si la tienda no tiene la torta lista también existe la posibilidad de que puedas llevarte a casa los productos Ultracongelados.",
-  },
+      "Para entregas el mismo día debes ordenar y pagar tu pedido antes de las 12 del mediodía en esta tienda online o si deseas también puedes comunicarte directamente a la tienda más cercana. y solicitar el servicio de domicilio",
+  },  
   {
     question: "¿PUEDO RESERVARLA PARA OTRO DÍA?",
     answer:
-      "Por supuesto, elige la presentación, el tamaño, la receta y la fecha de entrega deseada. Si vives en BOGOTÁ y se trata de una torta perronal de 400 gms puedes encargarla telefónicamente 1 día antes (de lunes a viernes) y recogerla al día siguiente. Si no vives en BOGOTÁ debes ordenarla y pagarla en la sección RECETAS GOURMET de esta página y elegir la opción ENVÍO FUERA DE BOGOTÁ por Mensajería Tradicional con entregas entre 1 a 4 días dependiendo del lugar de destino.",
-  },
-  {
-    question: "¿Y SI LA TORTA ES MÁS GRANDE, DE 700 O 1000 GRAMOS?",
-    answer:
-      "Para tortas de estos tamaños es necesario acercarse a cualquiera de nuestros puntos de venta en BOGOTÁ para reservarla y recogerla después, o puedes pagarla en la sección TIENDA y elegir Recoger en Tienda. Si no vives en BOGOTÁ debes ordenarla y pagarla en la sección RECETAS GOURMET de esta página y elegir la opción ENVÍO FUERA DE BOGOTÁ por Mensajería Tradicional con entregas entre 1 a 4 días dependiendo del lugar de destino.",
+      "Por supuesto, elige la presentación, el tamaño, la receta y la fecha de entrega deseada. Si vives en Ciudad de mexixo Por supuesto, elige la presentación, el tamaño, la receta que quieres y contactanos vía WhatApp para agendar la fecha de entrega deseada",
   },
   {
     question: "¿PUEDO COMPRAR DESDE CUALQUIER PARTE DEL PAÍS?",
@@ -117,21 +107,21 @@ export const shippingQuestions: FAQ[] = [
   {
     question: "¿SI ORDENO ONLINE, CUÁNDO RECIBO MI PEDIDO?",
     answer:
-      "Si estás en Bogotá puedes recibir tu pedido el mismo día o antes de 24 horas dependiendo de la hora en que generes el pedido, recomendamos que sea antes de las 12 pm para entregas el mismo día NO FESTIVO. Solo hasta que la plataforma digital confirma como efectivo el pago, procedemos a organizar tu pedido.\n\nEn nuestra tienda contamos permanentemente con todas las recetas listas o Ultracongeladas. Lo que significa que tu pedido no debe superar las 48 horas HÁBILES en ser entregado. En BOGOTÁ generalmente no tarda más de 48 horas, pero debes considerar que a lugares apartados del país, como San Andrés, Pasto, Leticia, Cúcuta y algunos otros, el envío puede llegar a tardarse hasta más de 72 horas. POR RAZONES DE LOGÍSTICA NO ENVIAMOS PEDIDOS LOS VIERNES, SÓLO ENVIAMOS PEDIDOS DE LUNES A JUEVES PARA QUE SEAN ENTREGADOS DE MARTES A VIERNES/SÁBADO.",
+      "Si estás en CDMX puedes recibir tu pedido el mismo día o antes de 24 horas dependiendo de la hora en que generes el pedido, recomendamos que sea antes de las 12 pm para entregas el mismo día, NO FESTIVO. Una vez nuestra plataforma digital confirma que el pago se procesó correctamente, procedemos a organizar tu pedido. Contamos permanentemente con todas las recetas listas. Lo que significa que tu pedido no debe superar las 48 horas HÁBILES en ser entregado.",
   },
   {
     question: "¿EXISTE UN VALOR MÍNIMO PARA ORDENAR EN ESTA TIENDA ONLINE?",
-    answer: "Sí, $25.000",
+    answer: "No, no existe un valor mínimo para ordenar en esta tienda online.",
   },
   {
     question: "¿CÓMO PUEDO PAGAR? PUEDO COMPRAR SI NO TENGO TARJETA CRÉDITO O DÉBITO?",
     answer:
-      "Puedes pagar usando cualquier tarjeta débito o crédito y aún si no cuentas con tarjeta puedes pagar en efectivo en los puntos Baloto, Efecty y otros sistemas de pago en efectivo habilitados de todo el país con un código que te da el sistema.",
+      "Puedes pagar usando cualquier tarjeta débito o crédito u otro método aceptado por Mercado pago",
   },
   {
     question: "¿PUEDO SABER EL ESTADO DE MI ENVÍO?",
     answer:
-      "Hacemos todos nuestros envíos por correo certificado a través de COMPAÑÍAS DE CORREO RECONOCIDAS. Una vez sale de nuestra tienda, en lo posible te enviamos el número de guía al correo electrónico registrado.",
+      "Contactanos vía WhatsApp o por correo electrónico y te informaremos el estado de tu envío.",
   },
 ]
 
