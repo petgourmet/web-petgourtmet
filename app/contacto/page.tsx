@@ -7,7 +7,7 @@ export default function ContactoPage() {
             {/* Left Column - Company Information */}
             <div className="space-y-8">
               <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">PET GOURMET SANTA FE</h1>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">CENTRO DE PRODUCCIÓN PET GOURMET</h1>
                 <div className="space-y-3 text-gray-600">
                   <p className="text-lg">Avenida José María Castorena 425, plaza Cuajimalpa Local 6</p>
                   <p className="text-lg">Cuajimalpa, Ciudad de México</p>
@@ -22,7 +22,7 @@ export default function ContactoPage() {
 
               <div className="bg-white/70 backdrop-blur-sm rounded-lg p-6 shadow-sm">
                 <p className="text-gray-700 leading-relaxed">
-                  Visítanos y conoce la Cocina Gourmet para Mascotas Pet Gourmet. Recetas 100% naturales y saludables
+                  Suscribete y conoce la Cocina Gourmet para Mascotas Pet Gourmet. Recetas 100% naturales y saludables
                   para complementar el alimento convencional de nuestros peludos.
                 </p>
               </div>
