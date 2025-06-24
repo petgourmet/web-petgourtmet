@@ -15,7 +15,7 @@ export function ContactSection() {
                 <MapPin className="w-5 h-5 text-primary mt-1 mr-3" />
                 <div>
                   <p className="font-medium">Dirección</p>
-                  <p className="text-gray-600">Av. Principal 123, Ciudad de México, México</p>
+                  <p className="text-gray-600">Avenida José María Castorena 425, plaza Cuajimalpa Local 6 Cuajimalpa, Ciudad de México</p>
                 </div>
               </div>
 

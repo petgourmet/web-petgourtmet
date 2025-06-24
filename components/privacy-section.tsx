@@ -73,7 +73,7 @@ export function PrivacySection() {
           <h3 className="text-xl font-semibold mt-6 mb-3">9. Contacto</h3>
           <p>
             Si tiene preguntas sobre esta Política de Privacidad, por favor contáctenos a través de la sección de
-            Contacto de nuestra plataforma o envíenos un correo electrónico a privacidad@petgourmet.mx.
+            Contacto de nuestra plataforma o envíenos un correo electrónico a contacto@petgourmet.mx.
           </p>
         </div>
       </div>

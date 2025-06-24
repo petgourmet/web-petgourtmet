@@ -98,7 +98,7 @@ export default function PrivacidadPage() {
                 <li>Retirar su consentimiento en cualquier momento</li>
                 <li>Presentar una queja ante una autoridad de protección de datos</li>
               </ul>
-              <p className="mt-4">Para ejercer estos derechos, contáctenos a través de privacidad@petgourmet.mx.</p>
+              <p className="mt-4">Para ejercer estos derechos, contáctenos a través de contacto@petgourmet.mx.</p>
             </section>
 
             <section className="mb-8">
@@ -117,11 +117,11 @@ export default function PrivacidadPage() {
                 contáctenos a:
               </p>
               <p className="mt-4">
-                <strong>Email:</strong> privacidad@petgourmet.mx
+                <strong>Email:</strong> contacto@petgourmet.mx
                 <br />
-                <strong>Teléfono:</strong> +52 55 1234 5678
+                <strong>Teléfono:</strong> +525561269681
                 <br />
-                <strong>Dirección:</strong> Av. Principal 123, Ciudad de México, México
+                <strong>Dirección:</strong> Avenida José María Castorena 425, plaza Cuajimalpa Local 6 Cuajimalpa, Ciudad de México
               </p>
             </section>
           </div>
