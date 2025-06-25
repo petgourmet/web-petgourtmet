@@ -97,7 +97,7 @@ export const shippingQuestions: FAQ[] = [
   {
     question: "¿PUEDO RESERVARLA PARA OTRO DÍA?",
     answer:
-      "Por supuesto, elige la presentación, el tamaño, la receta y la fecha de entrega deseada. Si vives en Ciudad de mexixo Por supuesto, elige la presentación, el tamaño, la receta que quieres y contactanos vía WhatApp para agendar la fecha de entrega deseada",
+      "Por supuesto, elige la presentación, el tamaño, la receta y la fecha de entrega deseada. Si vives en Ciudad de México Por supuesto, elige la presentación, el tamaño, la receta que quieres y contactanos vía WhatApp para agendar la fecha de entrega deseada",
   },
   {
     question: "¿PUEDO COMPRAR DESDE CUALQUIER PARTE DEL PAÍS?",

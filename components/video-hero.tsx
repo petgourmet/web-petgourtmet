@@ -100,7 +100,7 @@ export function VideoHero() {
 
         {/* Iframe del Video */}
         <iframe
-          src="https://player.vimeo.com/video/1086091427?background=1&autoplay=1&loop=1&byline=0&title=0&muted=1&quality=720p&dnt=1"
+          src="https://www.youtube.com/embed/dOZPu4XrA1k?autoplay=1&mute=1&loop=1&playlist=dOZPu4XrA1k&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0"
           className={`absolute inset-0 h-full w-full transition-opacity ${TRANSITION_DURATION} ease-in-out ${
             isVideoPlayerReady ? "opacity-100" : "opacity-0"
           }`}
@@ -116,14 +116,13 @@ export function VideoHero() {
           title="Pet Gourmet Background Video"
           onLoad={handleVideoPlayerLoad}
           frameBorder="0"
-          loading="lazy"
         />
       </div>
 
       {/* Overlay oscuro sobre el video una vez cargado */}
       {isVideoPlayerReady && (
         <div
-          className={`absolute inset-0 z-10 bg-gradient-to-b from-black/60 via-black/30 to-white/70 md:to-white pointer-events-none transition-opacity ${TRANSITION_DURATION} ease-in-out opacity-100`}
+          className={`absolute inset-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-white/70 md:to-white pointer-events-none transition-opacity ${TRANSITION_DURATION} ease-in-out opacity-100`}
         ></div>
       )}
 
