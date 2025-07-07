@@ -3,6 +3,8 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { toast } from "@/components/ui/use-toast"
+import { useGoogleAnalytics } from "@/hooks/use-google-analytics"
+import { useFacebookPixel } from "@/hooks/use-facebook-pixel"
 
 export type CartItem = {
   id: number
@@ -33,6 +35,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
+  const { trackAddToCart, trackBeginCheckout } = useGoogleAnalytics()
+  const { trackAddToCart: fbTrackAddToCart, trackInitiateCheckout } = useFacebookPixel()
 
   // Cargar carrito del localStorage al iniciar
   useEffect(() => {
@@ -74,6 +78,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           title: "Producto añadido",
           description: `${item.name} ha sido añadido a tu carrito.`,
         })
+        
+        // Track add to cart event
+        trackAddToCart(
+          item.id.toString(),
+          item.name,
+          item.isSubscription ? "subscription" : "one-time",
+          item.price,
+          item.quantity
+        )
+        
+        // Track Facebook Pixel add to cart
+        fbTrackAddToCart(
+          item.id.toString(),
+          item.name,
+          item.price,
+          item.quantity
+        )
+        
         return [...prevCart, item]
       }
     })
@@ -110,6 +132,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }, 0)
   }
 
+  const handleSetShowCheckout = (show: boolean) => {
+    setShowCheckout(show)
+    
+    // Track begin checkout when opening checkout
+    if (show && cart.length > 0) {
+      const total = calculateCartTotal()
+      const items = cart.map(item => ({
+        item_id: item.id.toString(),
+        item_name: item.name,
+        category: item.isSubscription ? "subscription" : "one-time",
+        price: item.isSubscription ? item.price * 0.9 : item.price,
+        quantity: item.quantity,
+      }))
+      
+      trackBeginCheckout(total, items)
+      
+      // Track Facebook Pixel initiate checkout
+      const contentIds = cart.map(item => item.id.toString())
+      trackInitiateCheckout(total, cart.length, contentIds)
+    }
+  }
+
   return (
     <CartContext.Provider
       value={{
@@ -122,7 +166,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         showCart,
         setShowCart,
         showCheckout,
-        setShowCheckout,
+        setShowCheckout: handleSetShowCheckout,
       }}
     >
       {children}

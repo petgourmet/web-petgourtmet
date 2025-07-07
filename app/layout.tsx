@@ -4,6 +4,8 @@ import { Montserrat, Baloo_2 } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./ClientLayout"
 import { ThemeProvider } from "@/components/theme-provider"
+import { GoogleAnalytics } from "@/components/google-analytics"
+import { FacebookPixel } from "@/components/facebook-pixel"
 
 // Fuente principal para el contenido general
 const montserrat = Montserrat({
@@ -91,6 +93,8 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>
+        <GoogleAnalytics />
+        <FacebookPixel />
         <ThemeProvider defaultTheme="light" storageKey="pet-gourmet-theme">
           <ClientLayout>{children}</ClientLayout>
         </ThemeProvider>
