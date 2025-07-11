@@ -39,10 +39,8 @@ export default function PremiarPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null) // Fixed the declaration
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
-    category: "premiar",
     priceRange: [0, 1000],
     features: [],
-    rating: 0,
     sortBy: "relevance",
   })
 
@@ -180,11 +178,6 @@ export default function PremiarPage() {
       })
     }
 
-    // Filtrar por valoración
-    if (filters.rating > 0) {
-      result = result.filter((product) => (product.rating || 0) >= filters.rating)
-    }
-
     // Ordenar productos
     if (filters.sortBy === "price-asc") {
       result.sort((a, b) => a.price - b.price)
@@ -294,7 +287,6 @@ export default function PremiarPage() {
           showFilters={showFilters}
           setShowFilters={setShowFilters}
           applyFilters={applyFilters}
-          categories={["premiar"]}
           features={
             allFeatures.length > 0
               ? allFeatures

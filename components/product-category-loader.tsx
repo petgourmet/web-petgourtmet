@@ -336,10 +336,8 @@ export function ProductCategoryLoader({
   const [showFilters, setShowFilters] = useState(false)
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
-    category: categorySlug,
     priceRange: [0, 1000],
     features: [],
-    rating: 0,
     sortBy: "relevance",
   })
 
@@ -538,13 +536,6 @@ export function ProductCategoryLoader({
   const applyFilters = () => {
     let result = [...products]
 
-    // Filtrar por categoría (solo si se muestran todas las categorías)
-    if (showAllCategories && filters.category !== "all") {
-      result = result.filter((product) => {
-        return product.category?.toLowerCase().includes(filters.category.toLowerCase())
-      })
-    }
-
     // Filtrar por rango de precio
     result = result.filter((product) => {
       return product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
@@ -557,11 +548,6 @@ export function ProductCategoryLoader({
           product.features?.some((f) => f.name.toLowerCase() === feature.toLowerCase()),
         )
       })
-    }
-
-    // Filtrar por valoración
-    if (filters.rating > 0) {
-      result = result.filter((product) => (product.rating || 0) >= filters.rating)
     }
 
     // Ordenar productos
@@ -612,10 +598,8 @@ export function ProductCategoryLoader({
                 className="mt-4 rounded-full"
                 onClick={() => {
                   setFilters({
-                    category: categorySlug,
                     priceRange: [0, maxPrice],
                     features: [],
-                    rating: 0,
                     sortBy: "relevance",
                   })
                   setFilteredProducts(products)
@@ -654,7 +638,6 @@ export function ProductCategoryLoader({
           showFilters={showFilters}
           setShowFilters={setShowFilters}
           applyFilters={applyFilters}
-          categories={showAllCategories ? ["all", ...categories.map((c) => c.name.toLowerCase())] : [categorySlug]}
           features={allFeatures.length > 0 ? allFeatures : ["Natural", "Sin Conservantes", "Alta Calidad"]}
           maxPrice={maxPrice}
         />

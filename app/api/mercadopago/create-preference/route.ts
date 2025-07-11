@@ -63,10 +63,14 @@ export async function POST(request: Request) {
           zip_code: customerData.address.zip_code,
         },
       },
-      back_urls: backUrls,
+      back_urls: {
+        success: backUrls.success,
+        failure: backUrls.failure || backUrls.success,
+        pending: backUrls.pending || backUrls.success
+      },
       auto_return: "approved",
       external_reference: externalReference,
-      notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/mercadopago/webhook`,
+      notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mercadopago/webhook`,
     }
 
     // Llamar a la API de Mercado Pago

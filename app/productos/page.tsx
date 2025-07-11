@@ -106,10 +106,8 @@ export default function ProductosPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
-    category: "all",
     priceRange: [0, 1000],
     features: [],
-    rating: 0,
     sortBy: "relevance",
   })
   const [activeCategory, setActiveCategory] = useState("all")
@@ -267,13 +265,6 @@ export default function ProductosPage() {
   const applyFilters = () => {
     let result = [...products]
 
-    // Filtrar por categoría
-    if (filters.category !== "all") {
-      result = result.filter((product) => {
-        return product.category?.toLowerCase() === filters.category.toLowerCase()
-      })
-    }
-
     // Filtrar por rango de precio
     result = result.filter((product) => {
       return product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
@@ -286,11 +277,6 @@ export default function ProductosPage() {
           product.features?.some((f) => f.name.toLowerCase() === feature.toLowerCase()),
         )
       })
-    }
-
-    // Filtrar por valoración
-    if (filters.rating > 0) {
-      result = result.filter((product) => (product.rating || 0) >= filters.rating)
     }
 
     // Ordenar productos

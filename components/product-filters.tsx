@@ -8,7 +8,6 @@ import { X } from "lucide-react"
 
 // Tipo para los filtros
 export type Filters = {
-  category: string
   priceRange: [number, number]
   features: string[]
   sortBy: string
@@ -20,7 +19,6 @@ interface ProductFiltersProps {
   showFilters: boolean
   setShowFilters: (show: boolean) => void
   applyFilters: () => void
-  categories: string[]
   features: string[]
   maxPrice: number
 }
@@ -31,7 +29,6 @@ export function ProductFilters({
   showFilters,
   setShowFilters,
   applyFilters,
-  categories = ["all", "celebrar", "complementar", "premiar", "recetas"],
   features = ["Natural", "Hipoalergénico", "Sin Conservantes", "Alta Palatabilidad", "Bajo en Calorías"],
   maxPrice = 100,
 }: ProductFiltersProps) {
@@ -40,37 +37,12 @@ export function ProductFilters({
       <div className="bg-white dark:bg-[#e7ae84] rounded-3xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-primary font-display">Filtrar Productos</h2>
             <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)}>
               <X className="h-5 w-5" />
             </Button>
           </div>
 
           <div className="space-y-6">
-            <div>
-              <h3 className="font-medium mb-3">Categoría</h3>
-              <RadioGroup
-                value={filters.category}
-                onValueChange={(value) => setFilters({ ...filters, category: value })}
-                className="space-y-2"
-              >
-                {categories.map((category) => (
-                  <div key={category} className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      id={`category-${category}`}
-                      value={category}
-                      className="dark:border-white dark:text-white"
-                    />
-                    <Label htmlFor={`category-${category}`} className="dark:text-white">
-                      {category === "all"
-                        ? "Todos los productos"
-                        : category.charAt(0).toUpperCase() + category.slice(1)}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-
             <div>
               <h3 className="font-medium mb-3">Rango de Precio</h3>
               <div className="px-2">
@@ -178,7 +150,6 @@ export function ProductFilters({
                 className="flex-1 rounded-full"
                 onClick={() => {
                   setFilters({
-                    category: "all",
                     priceRange: [0, maxPrice],
                     features: [],
                     sortBy: "relevance",

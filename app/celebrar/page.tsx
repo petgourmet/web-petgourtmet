@@ -37,10 +37,8 @@ export default function CelebrarPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
-    category: "celebrar",
     priceRange: [0, 1000],
     features: [],
-    rating: 0,
     sortBy: "relevance",
   })
 
@@ -391,11 +389,6 @@ export default function CelebrarPage() {
       })
     }
 
-    // Filtrar por valoración
-    if (filters.rating > 0) {
-      result = result.filter((product) => (product.rating || 0) >= filters.rating)
-    }
-
     // Ordenar productos
     if (filters.sortBy === "price-asc") {
       result.sort((a, b) => a.price - b.price)
@@ -518,7 +511,6 @@ export default function CelebrarPage() {
           showFilters={showFilters}
           setShowFilters={setShowFilters}
           applyFilters={applyFilters}
-          categories={["celebrar"]}
           features={
             allFeatures.length > 0
               ? allFeatures

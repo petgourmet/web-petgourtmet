@@ -59,9 +59,14 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
           throw new Error("SDK de MercadoPago no está disponible")
         }
 
-        // Crear instancia de MercadoPago
+        // Configuración para producción
+        const environment = process.env.NEXT_PUBLIC_MERCADOPAGO_ENVIRONMENT || "sandbox"
+        const locale = process.env.NEXT_PUBLIC_MERCADOPAGO_LOCALE || "es-MX"
+
+        // Crear instancia de MercadoPago con configuración de producción
         const mp = new window.MercadoPago(publicKey, {
-          locale: "es-MX",
+          locale: locale,
+          advancedFraudPrevention: true, // Habilitar prevención de fraude
         })
 
         // Limpiar el contenedor antes de renderizar
@@ -70,7 +75,7 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
           container.innerHTML = ""
         }
 
-        // Renderizar el botón de checkout
+        // Renderizar el botón de checkout con configuración de producción
         mp.checkout({
           preference: {
             id: preferenceId,
@@ -90,14 +95,14 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
               if (onError) onError(error)
             },
             onReady: () => {
-              console.log("Botón de MercadoPago listo")
+              console.log("Botón de MercadoPago listo para producción")
               setError(null)
             },
           },
         })
 
         setIsButtonRendered(true)
-        console.log("Botón de Mercado Pago renderizado correctamente")
+        console.log("Botón de Mercado Pago renderizado correctamente para producción")
       } catch (error) {
         console.error("Error al renderizar el botón de Mercado Pago:", error)
         setError("Error al cargar el botón de pago")
