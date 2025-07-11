@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     console.log("1. Testing Supabase connection...")
     const { data: connectionTest, error: connectionError } = await supabase
       .from('orders')
-      .select('count(*)')
+      .select('*', { count: 'exact' })
       .limit(1)
     
     if (connectionError) {

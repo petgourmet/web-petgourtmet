@@ -19,7 +19,7 @@ export async function GET() {
     // Verificar conexión a Supabase
     const { data: testConnection, error: connectionError } = await supabase
       .from('orders')
-      .select('count(*)')
+      .select('*', { count: 'exact' })
       .limit(1)
     
     // Obtener las últimas órdenes

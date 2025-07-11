@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       
       const { data, error } = await supabase
         .from('orders')
-        .select('count(*)')
+        .select('*', { count: 'exact' })
         .limit(1)
       
       if (error) {
