@@ -29,43 +29,52 @@ export async function POST(request: Request) {
     // Generar número de orden único
     const orderNumber = `PG${Date.now()}`
     
-    const orderData = {
-      id: externalReference,
+    // Crear orden con la estructura real de la tabla
+    const formDataForStorage = {
       order_number: orderNumber,
+      customer_data: {
+        firstName: customerData.firstName,
+        lastName: customerData.lastName,
+        email: customerData.email,
+        phone: customerData.phone,
+        address: customerData.address
+      },
       items: items,
       subtotal: subtotal,
-      total: total,
-      status: 'pending',
-      payment_status: 'pending',
-      // Usar campos que probablemente existan
-      user_email: customerData.email,
-      shipping_address: {
-        street_name: customerData.address.street_name,
-        street_number: customerData.address.street_number,
-        zip_code: customerData.address.zip_code,
-        city: customerData.address.city,
-        state: customerData.address.state,
-        country: customerData.address.country,
-        full_address: `${customerData.address.street_name} ${customerData.address.street_number}, ${customerData.address.city}, ${customerData.address.state} ${customerData.address.zip_code}, ${customerData.address.country}`
-      },
-      // Guardar todos los datos del cliente en un campo notes o metadata si existe
-      notes: JSON.stringify({
-        customer_name: `${customerData.firstName} ${customerData.lastName}`,
-        customer_email: customerData.email,
-        customer_phone: customerData.phone,
-        customer_address: customerData.address,
-        form_data: customerData
-      })
+      frequency: customerData.frequency || 'none',
+      created_at: new Date().toISOString()
     }
 
-    const { error: orderError } = await supabase
+    const orderData = {
+      // No incluir ID, que es autoincremental
+      status: 'pending',
+      payment_status: 'pending',
+      total: total,
+      user_id: null, // Se puede actualizar si hay usuario autenticado
+      customer_name: `${customerData.firstName} ${customerData.lastName}`,
+      customer_phone: customerData.phone,
+      shipping_address: JSON.stringify(formDataForStorage), // Usar para almacenar todos los datos
+      payment_intent_id: externalReference // Usar para rastrear la orden
+    }
+
+    console.log("Creating order with data:", JSON.stringify(orderData, null, 2))
+
+    const { error: orderError, data: createdOrder } = await supabase
       .from('orders')
       .insert(orderData)
+      .select()
 
     if (orderError) {
       console.error('Error creating order:', orderError)
-      return NextResponse.json({ error: 'Error creando la orden', details: orderError }, { status: 500 })
+      return NextResponse.json({ 
+        error: 'Error creando la orden', 
+        details: orderError,
+        attemptedData: orderData
+      }, { status: 500 })
     }
+
+    const orderId = createdOrder[0].id
+    console.log("Order created successfully with ID:", orderId)
 
     // Verificar si estamos en modo de prueba
     const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -113,12 +122,12 @@ export async function POST(request: Request) {
         },
       },
       back_urls: {
-        success: `${backUrls.success}?order_id=${externalReference}&order_number=${orderData.order_number}&payment_id={{payment_id}}`,
-        failure: `${backUrls.failure || '/error-pago'}?order_id=${externalReference}&order_number=${orderData.order_number}&error={{error}}`,
-        pending: `${backUrls.pending || '/pago-pendiente'}?order_id=${externalReference}&order_number=${orderData.order_number}&payment_id={{payment_id}}`
+        success: `${backUrls.success}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`,
+        failure: `${backUrls.failure || '/error-pago'}?order_id=${orderId}&order_number=${orderNumber}&error={{error}}`,
+        pending: `${backUrls.pending || '/pago-pendiente'}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`
       },
       auto_return: "approved",
-      external_reference: externalReference,
+      external_reference: orderId.toString(), // Usar el ID real de la orden
       notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mercadopago/webhook`,
     }
 
@@ -143,17 +152,17 @@ export async function POST(request: Request) {
 
     const data = await response.json()
 
-    // Actualizar el pedido con el ID de preferencia si tenemos una referencia externa
-    if (externalReference) {
-      const supabase = await createClient()
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({ mercadopago_preference_id: data.id })
-        .eq("id", externalReference)
+    // Actualizar el pedido con el ID de preferencia
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({ 
+        payment_intent_id: `${data.id}|${externalReference}` // Guardar ambos IDs
+      })
+      .eq("id", orderId)
 
-      if (updateError) {
-        console.error("Error updating order with preference ID:", updateError)
-      }
+    if (updateError) {
+      console.error("Error updating order with preference ID:", updateError)
+      // No fallar por esto
     }
 
     return NextResponse.json({
@@ -161,7 +170,8 @@ export async function POST(request: Request) {
       preferenceId: data.id,
       initPoint: data.init_point,
       sandboxInitPoint: data.sandbox_init_point,
-      orderId: externalReference
+      orderId: orderId,
+      externalReference: externalReference
     })
   } catch (error) {
     console.error("Error in create-preference route:", error)

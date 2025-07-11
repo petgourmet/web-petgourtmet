@@ -323,40 +323,64 @@ export default function OrderDetailPage() {
             <CardContent>
               <div className="space-y-4">
                 {(() => {
-                  // Intentar parsear los datos del formulario desde notes
+                  // Intentar parsear los datos del formulario desde shipping_address
+                  let orderMetadata = null
                   let customerData = null
+                  
                   try {
-                    if (order.notes) {
-                      customerData = JSON.parse(order.notes)
+                    if (order.shipping_address) {
+                      orderMetadata = JSON.parse(order.shipping_address)
+                      customerData = orderMetadata.customer_data || orderMetadata
                     }
                   } catch (e) {
-                    console.error('Error parsing customer data from notes:', e)
+                    console.error('Error parsing order metadata:', e)
                   }
 
-                  if (customerData && customerData.customer_name) {
+                  if (customerData && (customerData.firstName || customerData.customer_name)) {
                     // Mostrar datos del formulario de checkout
+                    const fullName = customerData.firstName && customerData.lastName 
+                      ? `${customerData.firstName} ${customerData.lastName}`
+                      : customerData.customer_name || order.customer_name
+
                     return (
                       <>
                         <div>
                           <p className="text-sm text-muted-foreground">Nombre Completo</p>
-                          <p className="font-medium">{customerData.customer_name}</p>
+                          <p className="font-medium">{fullName}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{customerData.customer_email}</p>
+                          <p className="font-medium">{customerData.email || customerData.customer_email || "No especificado"}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Teléfono</p>
-                          <p className="font-medium">{customerData.customer_phone || "No especificado"}</p>
+                          <p className="font-medium">{customerData.phone || order.customer_phone || "No especificado"}</p>
                         </div>
-                        {customerData.customer_address && (
+                        {customerData.address && (
                           <>
                             <div className="mt-6">
-                              <h3 className="mb-2 font-medium">Dirección de Envío del Formulario</h3>
+                              <h3 className="mb-2 font-medium">Dirección de Envío</h3>
                               <div className="rounded-md bg-muted p-3">
-                                <p>{customerData.customer_address.street_name} {customerData.customer_address.street_number}</p>
-                                <p>{customerData.customer_address.city}, {customerData.customer_address.state} {customerData.customer_address.zip_code}</p>
-                                <p>{customerData.customer_address.country}</p>
+                                <p>{customerData.address.street_name} {customerData.address.street_number}</p>
+                                <p>{customerData.address.city}, {customerData.address.state} {customerData.address.zip_code}</p>
+                                <p>{customerData.address.country}</p>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {orderMetadata && orderMetadata.frequency && orderMetadata.frequency !== 'none' && (
+                          <>
+                            <div className="mt-6">
+                              <h3 className="mb-2 font-medium text-blue-600">Información de Suscripción</h3>
+                              <div className="rounded-md bg-blue-50 p-3">
+                                <p><strong>Frecuencia:</strong> {
+                                  orderMetadata.frequency === 'weekly' ? 'Semanal' :
+                                  orderMetadata.frequency === 'monthly' ? 'Mensual' :
+                                  orderMetadata.frequency === 'quarterly' ? 'Trimestral' :
+                                  orderMetadata.frequency === 'annual' ? 'Anual' :
+                                  orderMetadata.frequency
+                                }</p>
+                                <p><strong>Estado:</strong> Suscripción activa</p>
                               </div>
                             </div>
                           </>
@@ -369,15 +393,15 @@ export default function OrderDetailPage() {
                       <>
                         <div>
                           <p className="text-sm text-muted-foreground">Nombre</p>
-                          <p className="font-medium">{order.profiles?.full_name || "No especificado"}</p>
+                          <p className="font-medium">{order.customer_name || order.profiles?.full_name || "No especificado"}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{order.profiles?.email || order.user_email || "No especificado"}</p>
+                          <p className="font-medium">{order.profiles?.email || "No especificado"}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Teléfono</p>
-                          <p className="font-medium">{order.profiles?.phone || "No especificado"}</p>
+                          <p className="font-medium">{order.customer_phone || order.profiles?.phone || "No especificado"}</p>
                         </div>
                       </>
                     )
@@ -388,77 +412,66 @@ export default function OrderDetailPage() {
               <div className="mt-6">
                 <h3 className="mb-2 font-medium">Dirección de Envío</h3>
                 <div className="rounded-md bg-muted p-3">
-                  {order.shipping_address ? (
-                    typeof order.shipping_address === 'string' ? (
-                      <p>{order.shipping_address}</p>
-                    ) : (
-                      <>
-                        <p>{order.shipping_address.street_name} {order.shipping_address.street_number}</p>
-                        <p>
-                          {order.shipping_address.city}, {order.shipping_address.state}{" "}
-                          {order.shipping_address.zip_code}
-                        </p>
-                        <p>{order.shipping_address.country}</p>
-                        {order.shipping_address.full_address && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            Dirección completa: {order.shipping_address.full_address}
-                          </p>
-                        )}
-                      </>
-                    )
-                  ) : (
-                    <p className="text-muted-foreground">No hay dirección de envío</p>
-                  )}
+                  {(() => {
+                    try {
+                      const metadata = order.shipping_address ? JSON.parse(order.shipping_address) : null
+                      const address = metadata?.customer_data?.address || metadata?.address
+
+                      if (address && typeof address === 'object') {
+                        return (
+                          <>
+                            <p>{address.street_name} {address.street_number}</p>
+                            <p>{address.city}, {address.state} {address.zip_code}</p>
+                            <p>{address.country}</p>
+                          </>
+                        )
+                      } else if (typeof order.shipping_address === 'string' && !order.shipping_address.startsWith('{')) {
+                        return <p>{order.shipping_address}</p>
+                      } else {
+                        return <p className="text-muted-foreground">No hay dirección de envío</p>
+                      }
+                    } catch (e) {
+                      return <p className="text-muted-foreground">No hay dirección de envío</p>
+                    }
+                  })()}
                 </div>
               </div>
 
               {/* Sección para mostrar datos completos del formulario */}
               {(() => {
-                let formData = null
+                let metadata = null
                 try {
-                  if (order.notes) {
-                    const parsedData = JSON.parse(order.notes)
-                    if (parsedData.form_data) {
-                      formData = parsedData.form_data
-                    }
-                  }
+                  metadata = order.shipping_address ? JSON.parse(order.shipping_address) : null
                 } catch (e) {
-                  console.error('Error parsing form data:', e)
+                  console.error('Error parsing metadata:', e)
                 }
 
-                if (formData) {
+                if (metadata && metadata.items) {
                   return (
                     <div className="mt-6">
-                      <h3 className="mb-2 font-medium">Datos Completos del Formulario</h3>
+                      <h3 className="mb-2 font-medium">Datos Completos del Pedido</h3>
                       <div className="rounded-md bg-muted p-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <p className="font-medium text-muted-foreground">Nombre:</p>
-                            <p>{formData.firstName}</p>
+                            <p className="font-medium text-muted-foreground">Número de Orden:</p>
+                            <p>{metadata.order_number}</p>
                           </div>
                           <div>
-                            <p className="font-medium text-muted-foreground">Apellido:</p>
-                            <p>{formData.lastName}</p>
-                          </div>
-                          <div>
-                            <p className="font-medium text-muted-foreground">Email:</p>
-                            <p>{formData.email}</p>
-                          </div>
-                          <div>
-                            <p className="font-medium text-muted-foreground">Teléfono:</p>
-                            <p>{formData.phone}</p>
+                            <p className="font-medium text-muted-foreground">Subtotal:</p>
+                            <p>${metadata.subtotal}</p>
                           </div>
                         </div>
-                        {formData.address && (
+                        {metadata.items && metadata.items.length > 0 && (
                           <div className="mt-4">
-                            <p className="font-medium text-muted-foreground mb-2">Dirección completa:</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                              <p><span className="text-muted-foreground">Calle:</span> {formData.address.street_name}</p>
-                              <p><span className="text-muted-foreground">Número:</span> {formData.address.street_number}</p>
-                              <p><span className="text-muted-foreground">Ciudad:</span> {formData.address.city}</p>
-                              <p><span className="text-muted-foreground">Estado:</span> {formData.address.state}</p>
-                              <p><span className="text-muted-foreground">Código Postal:</span> {formData.address.zip_code}</p>
-                              <p><span className="text-muted-foreground">País:</span> {formData.address.country}</p>
+                            <p className="font-medium text-muted-foreground mb-2">Productos:</p>
+                            <div className="space-y-2">
+                              {metadata.items.map((item: any, index: number) => (
+                                <div key={index} className="text-sm">
+                                  <span className="font-medium">{item.title}</span> - 
+                                  Cantidad: {item.quantity} - 
+                                  Precio: ${item.unit_price}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}

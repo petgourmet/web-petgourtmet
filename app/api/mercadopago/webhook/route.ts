@@ -64,24 +64,29 @@ export async function POST(request: Request) {
     const paymentData = await response.json()
     console.log("Detalles del pago:", paymentData)
 
-    // Buscar el pedido por el ID de preferencia o referencia externa
+    // Buscar el pedido por el ID de referencia externa o payment_intent_id
     let orderData = null
     let orderError = null
 
-    if (paymentData.preference_id) {
+    if (paymentData.external_reference) {
+      // Buscar por external_reference (que debería ser el ID de la orden)
       const result = await supabaseAdmin
         ?.from("orders")
         .select("*")
-        .eq("mercadopago_preference_id", paymentData.preference_id)
+        .eq("id", paymentData.external_reference)
         .single()
 
       orderData = result?.data
       orderError = result?.error
     }
 
-    // Si no encontramos por preference_id, intentamos por external_reference
-    if ((!orderData || orderError) && paymentData.external_reference) {
-      const result = await supabaseAdmin?.from("orders").select("*").eq("id", paymentData.external_reference).single()
+    // Si no encontramos por external_reference, intentamos por payment_intent_id
+    if ((!orderData || orderError) && paymentData.preference_id) {
+      const result = await supabaseAdmin
+        ?.from("orders")
+        .select("*")
+        .ilike("payment_intent_id", `%${paymentData.preference_id}%`)
+        .single()
 
       orderData = result?.data
       orderError = result?.error
