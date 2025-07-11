@@ -9,7 +9,9 @@ export async function POST(request: Request) {
     console.log(`Timestamp: ${timestamp}`)
     console.log(`Environment: ${process.env.NODE_ENV}`)
     
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                   'https://petgourmet.mx'
     const results: {
       diagnostic_id: string;
       timestamp: string;

@@ -41,7 +41,9 @@ export async function POST(request: Request) {
     // Hacer la llamada al endpoint real de create-preference
     console.log("2. Making request to real MercadoPago endpoint...")
     
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                   'https://petgourmet.mx'
     const endpointUrl = `${baseUrl}/api/mercadopago/create-preference`
     
     console.log(`Calling endpoint: ${endpointUrl}`)

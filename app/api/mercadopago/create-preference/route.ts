@@ -12,7 +12,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     console.log("Request body parsed successfully:", JSON.stringify(body, null, 2))
     
-    const { items, customerData, externalReference, backUrls } = body
+    const { orderData } = body
+    
+    // Extraer datos del orderData
+    const { customer_data: customerData, items } = orderData
 
     // Validar datos requeridos
     console.log("Validating required data...")
@@ -25,17 +28,12 @@ export async function POST(request: Request) {
       console.log("Validation failed: Customer data is required")
       return NextResponse.json({ error: "Datos del cliente son requeridos" }, { status: 400 })
     }
-
-    if (!backUrls || !backUrls.success) {
-      console.log("Validation failed: Back URLs are required")
-      return NextResponse.json({ error: "URLs de retorno son requeridas" }, { status: 400 })
-    }
     
     console.log("All validations passed")
 
     // Calcular el total de la orden
     console.log("Calculating order total...")
-    const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
+    const subtotal = orderData.subtotal || items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
     const total = subtotal // Por ahora sin impuestos ni envío
     console.log(`Calculated total: ${total}`)
     
@@ -61,13 +59,13 @@ export async function POST(request: Request) {
       },
       items: items,
       subtotal: subtotal,
-      frequency: customerData.frequency || 'none',
+      frequency: orderData.frequency || 'none',
       created_at: new Date().toISOString()
     }
     console.log("Form data prepared:", JSON.stringify(formDataForStorage, null, 2))
 
     console.log("Preparing order data for database insertion...")
-    const orderData = {
+    const orderDataForDB = {
       // No incluir ID, que es autoincremental
       status: 'pending',
       payment_status: 'pending',
@@ -76,25 +74,25 @@ export async function POST(request: Request) {
       customer_name: `${customerData.firstName} ${customerData.lastName}`,
       customer_phone: customerData.phone,
       shipping_address: JSON.stringify(formDataForStorage), // Usar para almacenar todos los datos
-      payment_intent_id: externalReference // Usar para rastrear la orden
+      payment_intent_id: null // Se actualizará después de crear la preferencia
     }
 
-    console.log("Order data prepared for insertion:", JSON.stringify(orderData, null, 2))
+    console.log("Order data prepared for insertion:", JSON.stringify(orderDataForDB, null, 2))
 
     console.log("Attempting to insert order into database...")
     const { error: orderError, data: createdOrder } = await supabase
       .from('orders')
-      .insert(orderData)
+      .insert(orderDataForDB)
       .select()
 
     if (orderError) {
       console.error('ERROR CREATING ORDER:', orderError)
       console.error('Order error details:', JSON.stringify(orderError, null, 2))
-      console.error('Attempted order data:', JSON.stringify(orderData, null, 2))
+      console.error('Attempted order data:', JSON.stringify(orderDataForDB, null, 2))
       return NextResponse.json({ 
         error: 'Error creando la orden', 
         details: orderError,
-        attemptedData: orderData,
+        attemptedData: orderDataForDB,
         step: 'database_insertion'
       }, { status: 500 })
     }
@@ -114,6 +112,14 @@ export async function POST(request: Request) {
     // Verificar si estamos en modo de prueba
     const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
     console.log("Test mode check:", isTestMode)
+
+    // Generar URLs de retorno
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'
+    const backUrls = {
+      success: `${baseUrl}/gracias-por-tu-compra`,
+      failure: `${baseUrl}/error-pago`,
+      pending: `${baseUrl}/pago-pendiente`
+    }
 
     if (isTestMode) {
       // En modo de prueba, devolver una respuesta simulada
@@ -214,7 +220,7 @@ export async function POST(request: Request) {
     const { error: updateError } = await supabase
       .from("orders")
       .update({ 
-        payment_intent_id: `${data.id}|${externalReference}` // Guardar ambos IDs
+        payment_intent_id: data.id // Guardar el ID de la preferencia de MercadoPago
       })
       .eq("id", orderId)
 
@@ -233,7 +239,7 @@ export async function POST(request: Request) {
       sandboxInitPoint: data.sandbox_init_point,
       orderId: orderId,
       orderNumber: orderNumber,
-      externalReference: externalReference
+      externalReference: orderId.toString()
     })
   } catch (error) {
     console.error("=== ERROR IN CREATE-PREFERENCE ROUTE ===")
