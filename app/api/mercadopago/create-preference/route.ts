@@ -19,6 +19,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "URLs de retorno son requeridas" }, { status: 400 })
     }
 
+    // Calcular el total de la orden
+    const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
+    const total = subtotal // Por ahora sin impuestos ni envío
+    
+    // Crear la orden en Supabase con todos los datos del formulario
+    const supabase = await createClient()
+    
+    const orderData = {
+      id: externalReference,
+      items: items,
+      subtotal: subtotal,
+      total: total,
+      status: 'pending',
+      payment_status: 'pending',
+      // Datos del cliente del formulario
+      customer_name: `${customerData.firstName} ${customerData.lastName}`,
+      customer_email: customerData.email,
+      customer_phone: customerData.phone,
+      // Dirección de envío
+      shipping_address: {
+        street_name: customerData.address.street_name,
+        street_number: customerData.address.street_number,
+        zip_code: customerData.address.zip_code,
+        city: customerData.address.city,
+        state: customerData.address.state,
+        country: customerData.address.country,
+        full_address: `${customerData.address.street_name} ${customerData.address.street_number}, ${customerData.address.city}, ${customerData.address.state} ${customerData.address.zip_code}, ${customerData.address.country}`
+      },
+      // Datos completos del formulario para referencia
+      form_data: customerData
+    }
+
+    const { error: orderError } = await supabase
+      .from('orders')
+      .insert(orderData)
+
+    if (orderError) {
+      console.error('Error creating order:', orderError)
+      return NextResponse.json({ error: 'Error creando la orden', details: orderError }, { status: 500 })
+    }
+
     // Verificar si estamos en modo de prueba
     const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
 
@@ -28,6 +69,7 @@ export async function POST(request: Request) {
         success: true,
         preferenceId: `test_preference_${Date.now()}`,
         initPoint: backUrls.success,
+        orderId: externalReference
       })
     }
 
@@ -112,6 +154,7 @@ export async function POST(request: Request) {
       preferenceId: data.id,
       initPoint: data.init_point,
       sandboxInitPoint: data.sandbox_init_point,
+      orderId: externalReference
     })
   } catch (error) {
     console.error("Error in create-preference route:", error)
