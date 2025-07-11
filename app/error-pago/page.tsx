@@ -18,7 +18,7 @@ export default async function ErrorPagoPage({
     redirect("/")
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Obtener detalles del pedido
   const { data: order, error: orderError } = await supabase
@@ -39,7 +39,10 @@ export default async function ErrorPagoPage({
           <AlertTriangle className="h-20 w-20 text-red-500" />
         </div>
 
-        <Heading title="Error en el pago" description="Ha ocurrido un problema al procesar tu pago" />
+        <Heading title="Error en el pago">
+          Error en el pago
+        </Heading>
+        <p className="text-gray-600 mt-2">Ha ocurrido un problema al procesar tu pago</p>
 
         <div className="mt-8 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

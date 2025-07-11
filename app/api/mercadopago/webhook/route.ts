@@ -92,23 +92,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    // Actualizar el estado del pedido
+    // Actualizar el estado del pedido según el tipo de pago y estado
     let newOrderStatus = "pending"
+    let paymentStatus = paymentData.status
+    
+    // Determinar el estado del pedido basado en el estado del pago
     if (paymentData.status === "approved") {
       newOrderStatus = "processing"
-    } else if (paymentData.status === "rejected") {
+      paymentStatus = "paid"
+    } else if (paymentData.status === "rejected" || paymentData.status === "cancelled") {
       newOrderStatus = "cancelled"
+      paymentStatus = "failed"
+    } else if (paymentData.status === "pending") {
+      // Para pagos en efectivo o transferencia, mantener como pendiente
+      newOrderStatus = "pending"
+      paymentStatus = "pending"
+    }
+
+    // Información adicional del método de pago
+    let paymentMethodInfo = paymentData.payment_method_id || "mercadopago"
+    if (paymentData.payment_type_id === "ticket" || paymentData.payment_type_id === "bank_transfer") {
+      paymentMethodInfo = "efectivo"
+    }
+
+    const updateData: any = {
+      payment_status: paymentStatus,
+      status: newOrderStatus,
+      mercadopago_payment_id: paymentId,
+      payment_method: paymentMethodInfo,
+      payment_id: paymentId,
+    }
+
+    // Si el pago es aprobado, también actualizar la fecha de confirmación
+    if (paymentStatus === "paid") {
+      updateData.confirmed_at = new Date().toISOString()
     }
 
     const { error: updateError } = (await supabaseAdmin
       ?.from("orders")
-      .update({
-        payment_status: paymentData.status,
-        status: newOrderStatus,
-        mercadopago_payment_id: paymentId,
-        payment_method: paymentData.payment_method_id || "mercadopago",
-        payment_id: paymentId,
-      })
+      .update(updateData)
       .eq("id", orderData.id)) || { error: new Error("Failed to update order") }
 
     if (updateError) {

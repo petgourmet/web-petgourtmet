@@ -18,7 +18,7 @@ export default async function PagoPendientePage({
     redirect("/")
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Obtener detalles del pedido
   const { data: order, error: orderError } = await supabase
@@ -39,7 +39,10 @@ export default async function PagoPendientePage({
           <Clock className="h-20 w-20 text-yellow-500" />
         </div>
 
-        <Heading title="Pago en proceso" description="Tu pago está siendo procesado" />
+        <Heading title="Pago en proceso">
+          Pago en proceso
+        </Heading>
+        <p className="text-gray-600 mt-2">Tu pago está siendo procesado</p>
 
         <div className="mt-8 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -70,20 +73,45 @@ export default async function PagoPendientePage({
               <li>Verificaciones adicionales de seguridad</li>
               <li>Procesamiento por parte del banco</li>
               <li>Métodos de pago que requieren confirmación adicional</li>
+              <li>Pago en efectivo pendiente de confirmación</li>
             </ul>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-blue-700 mb-2">¿Qué debes hacer?</h3>
-            <p className="text-blue-600">
-              No es necesario que hagas nada en este momento. Te notificaremos por email cuando el pago se haya
-              completado.
-            </p>
-            <p className="text-blue-600 mt-2">
-              Si después de 24 horas no has recibido confirmación, por favor contacta con nuestro servicio de atención
-              al cliente.
-            </p>
-          </div>
+          {/* Instrucciones específicas para pago en efectivo */}
+          {order.payment_method === "efectivo" || order.payment_method === "cash" ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h3 className="text-lg font-semibold text-blue-700 mb-2">Pago en Efectivo - Instrucciones</h3>
+              <div className="text-blue-600 space-y-2">
+                <p><strong>¡Tu pedido está confirmado!</strong> Solo necesitas completar el pago en efectivo.</p>
+                <p><strong>¿Qué debes hacer?</strong></p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Realiza el pago en efectivo por <strong>${order.total} MXN</strong></li>
+                  <li>Una vez realizado el pago, comunícate con nosotros para confirmar</li>
+                  <li>Envía tu comprobante de pago al WhatsApp: <strong>+52 123 456 7890</strong></li>
+                  <li>Incluye tu número de pedido: <strong>{order.order_number}</strong></li>
+                </ul>
+                <div className="bg-blue-100 rounded p-3 mt-3">
+                  <p className="font-semibold">Datos para transferencia bancaria:</p>
+                  <p>Banco: BBVA Bancomer</p>
+                  <p>Cuenta: 1234567890</p>
+                  <p>CLABE: 012345678901234567</p>
+                  <p>Titular: PetGourmet S.A. de C.V.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-blue-700 mb-2">¿Qué debes hacer?</h3>
+              <p className="text-blue-600">
+                No es necesario que hagas nada en este momento. Te notificaremos por email cuando el pago se haya
+                completado.
+              </p>
+              <p className="text-blue-600 mt-2">
+                Si después de 24 horas no has recibido confirmación, por favor contacta con nuestro servicio de atención
+                al cliente.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-10 flex flex-col md:flex-row justify-center gap-4">

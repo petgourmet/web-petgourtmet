@@ -261,6 +261,57 @@ export default function OrderDetailPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Botón para confirmar pago en efectivo */}
+              {order.payment_status === "pending" && (order.payment_method === "efectivo" || order.payment_method === "cash") && (
+                <div className="mb-6">
+                  <h3 className="mb-2 font-medium text-green-600">Confirmar Pago en Efectivo</h3>
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                    <p className="text-sm text-green-700 mb-3">
+                      Este pedido está pendiente de confirmación de pago en efectivo.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        if (confirm("¿Confirmas que has recibido el pago en efectivo por este pedido?")) {
+                          try {
+                            setUpdating(true)
+                            const response = await fetch("/api/admin/confirm-payment", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                orderId: order.id,
+                                paymentMethod: "efectivo",
+                                notes: "Pago en efectivo confirmado manualmente"
+                              })
+                            })
+                            
+                            if (response.ok) {
+                              await fetchOrderDetails(order.id)
+                              alert("Pago confirmado exitosamente")
+                            } else {
+                              alert("Error al confirmar el pago")
+                            }
+                          } catch (error) {
+                            console.error("Error:", error)
+                            alert("Error al confirmar el pago")
+                          } finally {
+                            setUpdating(false)
+                          }
+                        }
+                      }}
+                      disabled={updating}
+                      className="inline-flex items-center rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {updating ? (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle className="mr-1 h-4 w-4" />
+                      )}
+                      Confirmar Pago Recibido
+                    </button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -271,37 +322,204 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Nombre</p>
-                  <p className="font-medium">{order.profiles?.full_name || "No especificado"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{order.profiles?.email || "No especificado"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Teléfono</p>
-                  <p className="font-medium">{order.profiles?.phone || "No especificado"}</p>
-                </div>
+                {(() => {
+                  // Intentar parsear los datos del formulario desde notes
+                  let customerData = null
+                  try {
+                    if (order.notes) {
+                      customerData = JSON.parse(order.notes)
+                    }
+                  } catch (e) {
+                    console.error('Error parsing customer data from notes:', e)
+                  }
+
+                  if (customerData && customerData.customer_name) {
+                    // Mostrar datos del formulario de checkout
+                    return (
+                      <>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Nombre Completo</p>
+                          <p className="font-medium">{customerData.customer_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium">{customerData.customer_email}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Teléfono</p>
+                          <p className="font-medium">{customerData.customer_phone || "No especificado"}</p>
+                        </div>
+                        {customerData.customer_address && (
+                          <>
+                            <div className="mt-6">
+                              <h3 className="mb-2 font-medium">Dirección de Envío del Formulario</h3>
+                              <div className="rounded-md bg-muted p-3">
+                                <p>{customerData.customer_address.street_name} {customerData.customer_address.street_number}</p>
+                                <p>{customerData.customer_address.city}, {customerData.customer_address.state} {customerData.customer_address.zip_code}</p>
+                                <p>{customerData.customer_address.country}</p>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )
+                  } else {
+                    // Fallback a datos del perfil
+                    return (
+                      <>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Nombre</p>
+                          <p className="font-medium">{order.profiles?.full_name || "No especificado"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium">{order.profiles?.email || order.user_email || "No especificado"}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Teléfono</p>
+                          <p className="font-medium">{order.profiles?.phone || "No especificado"}</p>
+                        </div>
+                      </>
+                    )
+                  }
+                })()}
               </div>
 
               <div className="mt-6">
                 <h3 className="mb-2 font-medium">Dirección de Envío</h3>
                 <div className="rounded-md bg-muted p-3">
                   {order.shipping_address ? (
-                    <>
-                      <p>{order.shipping_address.street}</p>
-                      <p>
-                        {order.shipping_address.city}, {order.shipping_address.state}{" "}
-                        {order.shipping_address.postal_code}
-                      </p>
-                      <p>{order.shipping_address.country}</p>
-                    </>
+                    typeof order.shipping_address === 'string' ? (
+                      <p>{order.shipping_address}</p>
+                    ) : (
+                      <>
+                        <p>{order.shipping_address.street_name} {order.shipping_address.street_number}</p>
+                        <p>
+                          {order.shipping_address.city}, {order.shipping_address.state}{" "}
+                          {order.shipping_address.zip_code}
+                        </p>
+                        <p>{order.shipping_address.country}</p>
+                        {order.shipping_address.full_address && (
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Dirección completa: {order.shipping_address.full_address}
+                          </p>
+                        )}
+                      </>
+                    )
                   ) : (
                     <p className="text-muted-foreground">No hay dirección de envío</p>
                   )}
                 </div>
               </div>
+
+              {/* Sección para mostrar datos completos del formulario */}
+              {(() => {
+                let formData = null
+                try {
+                  if (order.notes) {
+                    const parsedData = JSON.parse(order.notes)
+                    if (parsedData.form_data) {
+                      formData = parsedData.form_data
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error parsing form data:', e)
+                }
+
+                if (formData) {
+                  return (
+                    <div className="mt-6">
+                      <h3 className="mb-2 font-medium">Datos Completos del Formulario</h3>
+                      <div className="rounded-md bg-muted p-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="font-medium text-muted-foreground">Nombre:</p>
+                            <p>{formData.firstName}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-muted-foreground">Apellido:</p>
+                            <p>{formData.lastName}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-muted-foreground">Email:</p>
+                            <p>{formData.email}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-muted-foreground">Teléfono:</p>
+                            <p>{formData.phone}</p>
+                          </div>
+                        </div>
+                        {formData.address && (
+                          <div className="mt-4">
+                            <p className="font-medium text-muted-foreground mb-2">Dirección completa:</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                              <p><span className="text-muted-foreground">Calle:</span> {formData.address.street_name}</p>
+                              <p><span className="text-muted-foreground">Número:</span> {formData.address.street_number}</p>
+                              <p><span className="text-muted-foreground">Ciudad:</span> {formData.address.city}</p>
+                              <p><span className="text-muted-foreground">Estado:</span> {formData.address.state}</p>
+                              <p><span className="text-muted-foreground">Código Postal:</span> {formData.address.zip_code}</p>
+                              <p><span className="text-muted-foreground">País:</span> {formData.address.country}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+
+              {/* Información de suscripción si aplica */}
+              {(() => {
+                let formData = null
+                try {
+                  formData = order.notes ? JSON.parse(order.notes) : null
+                } catch (e) {
+                  console.error("Error parsing form data:", e)
+                }
+                
+                const isSubscription = formData?.frequency && formData?.frequency !== "none"
+                
+                if (isSubscription) {
+                  return (
+                    <div className="mb-6">
+                      <h3 className="mb-3 font-medium text-blue-600">Información de Suscripción</h3>
+                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-blue-600 font-medium">Frecuencia</p>
+                            <p className="text-blue-700">
+                              {formData.frequency === "weekly" ? "Semanal" :
+                               formData.frequency === "monthly" ? "Mensual" :
+                               formData.frequency === "quarterly" ? "Trimestral" :
+                               formData.frequency === "annual" ? "Anual" : formData.frequency}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-blue-600 font-medium">Estado</p>
+                            <p className="text-blue-700">
+                              {order.payment_status === "approved" ? "Activa" : "Pendiente de activación"}
+                            </p>
+                          </div>
+                          {formData.subscriptionStartDate && (
+                            <div>
+                              <p className="text-sm text-blue-600 font-medium">Fecha de inicio</p>
+                              <p className="text-blue-700">{new Date(formData.subscriptionStartDate).toLocaleDateString()}</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-3 rounded bg-blue-100 p-3">
+                          <p className="text-sm text-blue-700">
+                            <strong>Nota:</strong> Este pedido generará una suscripción automática que se procesará 
+                            según la frecuencia seleccionada una vez que el pago sea confirmado.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+                return null
+              })()}
             </CardContent>
           </Card>
         </div>

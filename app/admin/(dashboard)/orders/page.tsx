@@ -149,7 +149,8 @@ export default function OrdersAdminPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="p-3 text-left">ID</th>
-                    <th className="p-3 text-left">ID Usuario</th>
+                    <th className="p-3 text-left">Cliente</th>
+                    <th className="p-3 text-left">Email</th>
                     <th className="p-3 text-left">Fecha</th>
                     <th className="p-3 text-left">Estado</th>
                     <th className="p-3 text-left">Pago</th>
@@ -160,33 +161,50 @@ export default function OrdersAdminPage() {
                 <tbody>
                   {orders.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
                         No se encontraron pedidos
                       </td>
                     </tr>
                   ) : (
-                    orders.map((order) => (
-                      <tr key={order.id} className="border-b">
-                        <td className="p-3">#{typeof order.id === "string" ? order.id.substring(0, 8) : order.id}</td>
-                        <td className="p-3">{order.user_id || "Usuario anónimo"}</td>
-                        <td className="p-3">{formatDate(order.created_at)}</td>
-                        <td className="p-3">
-                          <OrderStatusBadge status={order.status} />
-                        </td>
-                        <td className="p-3">
-                          <PaymentStatusBadge status={order.payment_status} />
-                        </td>
-                        <td className="p-3 text-right">{formatCurrency(order.total || 0)}</td>
-                        <td className="p-3 text-center">
-                          <Link
-                            href={`/admin/orders/${order.id}`}
-                            className="inline-flex items-center rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-white"
-                          >
-                            Ver detalles
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
+                    orders.map((order) => {
+                      // Intentar extraer información del cliente desde notes
+                      let customerInfo = null
+                      try {
+                        if (order.notes) {
+                          const parsedNotes = JSON.parse(order.notes)
+                          customerInfo = {
+                            name: parsedNotes.customer_name,
+                            email: parsedNotes.customer_email
+                          }
+                        }
+                      } catch (e) {
+                        // Si no se puede parsear, usar valores por defecto
+                      }
+
+                      return (
+                        <tr key={order.id} className="border-b">
+                          <td className="p-3">#{typeof order.id === "string" ? order.id.substring(0, 8) : order.id}</td>
+                          <td className="p-3">{customerInfo?.name || order.profiles?.full_name || "Cliente anónimo"}</td>
+                          <td className="p-3">{customerInfo?.email || order.user_email || order.profiles?.email || "No especificado"}</td>
+                          <td className="p-3">{formatDate(order.created_at)}</td>
+                          <td className="p-3">
+                            <OrderStatusBadge status={order.status} />
+                          </td>
+                          <td className="p-3">
+                            <PaymentStatusBadge status={order.payment_status} />
+                          </td>
+                          <td className="p-3 text-right">{formatCurrency(order.total || 0)}</td>
+                          <td className="p-3 text-center">
+                            <Link
+                              href={`/admin/orders/${order.id}`}
+                              className="inline-flex items-center rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-white"
+                            >
+                              Ver detalles
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>

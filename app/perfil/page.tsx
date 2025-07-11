@@ -437,6 +437,102 @@ export default function PerfilPage() {
     }
   }
 
+  // Funciones para gestionar suscripciones
+  const pauseSubscription = async (subscriptionId: string) => {
+    try {
+      const { error } = await supabase
+        .from("user_subscriptions")
+        .update({ 
+          status: "paused",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", subscriptionId)
+        .eq("user_id", user?.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Suscripción pausada",
+        description: "Tu suscripción ha sido pausada exitosamente",
+      })
+
+      // Recargar suscripciones
+      await fetchSubscriptions()
+    } catch (error) {
+      console.error("Error al pausar suscripción:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo pausar la suscripción",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const resumeSubscription = async (subscriptionId: string) => {
+    try {
+      const { error } = await supabase
+        .from("user_subscriptions")
+        .update({ 
+          status: "active",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", subscriptionId)
+        .eq("user_id", user?.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Suscripción reanudada",
+        description: "Tu suscripción ha sido reanudada exitosamente",
+      })
+
+      // Recargar suscripciones
+      await fetchSubscriptions()
+    } catch (error) {
+      console.error("Error al reanudar suscripción:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo reanudar la suscripción",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const cancelSubscription = async (subscriptionId: string) => {
+    if (!confirm("¿Estás seguro de que deseas cancelar esta suscripción? Esta acción no se puede deshacer.")) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from("user_subscriptions")
+        .update({ 
+          status: "cancelled",
+          cancel_at_period_end: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", subscriptionId)
+        .eq("user_id", user?.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Suscripción cancelada",
+        description: "Tu suscripción será cancelada al final del período actual",
+      })
+
+      // Recargar suscripciones
+      await fetchSubscriptions()
+    } catch (error) {
+      console.error("Error al cancelar suscripción:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la suscripción",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <AuthGuard>
       <ThemedBackground theme="default">
@@ -666,7 +762,10 @@ export default function PerfilPage() {
                                     <div className="flex space-x-2">
                                       {subscription.status === "active" && (
                                         <>
-                                          <button className="flex items-center space-x-1 text-yellow-600 hover:text-yellow-700">
+                                          <button 
+                                            onClick={() => pauseSubscription(subscription.id)}
+                                            className="flex items-center space-x-1 text-yellow-600 hover:text-yellow-700"
+                                          >
                                             <Pause size={16} />
                                             <span>Pausar</span>
                                           </button>
@@ -674,14 +773,20 @@ export default function PerfilPage() {
                                             <Edit size={16} />
                                             <span>Modificar</span>
                                           </button>
-                                          <button className="flex items-center space-x-1 text-red-600 hover:text-red-700">
+                                          <button 
+                                            onClick={() => cancelSubscription(subscription.id)}
+                                            className="flex items-center space-x-1 text-red-600 hover:text-red-700"
+                                          >
                                             <XCircle size={16} />
                                             <span>Cancelar</span>
                                           </button>
                                         </>
                                       )}
                                       {subscription.status === "paused" && (
-                                        <button className="flex items-center space-x-1 text-green-600 hover:text-green-700">
+                                        <button 
+                                          onClick={() => resumeSubscription(subscription.id)}
+                                          className="flex items-center space-x-1 text-green-600 hover:text-green-700"
+                                        >
                                           <Play size={16} />
                                           <span>Reanudar</span>
                                         </button>

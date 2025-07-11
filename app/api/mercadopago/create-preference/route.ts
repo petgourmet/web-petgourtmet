@@ -23,21 +23,22 @@ export async function POST(request: Request) {
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
     const total = subtotal // Por ahora sin impuestos ni envío
     
-    // Crear la orden en Supabase con todos los datos del formulario
+    // Crear la orden en Supabase con los datos disponibles
     const supabase = await createClient()
+    
+    // Generar número de orden único
+    const orderNumber = `PG${Date.now()}`
     
     const orderData = {
       id: externalReference,
+      order_number: orderNumber,
       items: items,
       subtotal: subtotal,
       total: total,
       status: 'pending',
       payment_status: 'pending',
-      // Datos del cliente del formulario
-      customer_name: `${customerData.firstName} ${customerData.lastName}`,
-      customer_email: customerData.email,
-      customer_phone: customerData.phone,
-      // Dirección de envío
+      // Usar campos que probablemente existan
+      user_email: customerData.email,
       shipping_address: {
         street_name: customerData.address.street_name,
         street_number: customerData.address.street_number,
@@ -47,8 +48,14 @@ export async function POST(request: Request) {
         country: customerData.address.country,
         full_address: `${customerData.address.street_name} ${customerData.address.street_number}, ${customerData.address.city}, ${customerData.address.state} ${customerData.address.zip_code}, ${customerData.address.country}`
       },
-      // Datos completos del formulario para referencia
-      form_data: customerData
+      // Guardar todos los datos del cliente en un campo notes o metadata si existe
+      notes: JSON.stringify({
+        customer_name: `${customerData.firstName} ${customerData.lastName}`,
+        customer_email: customerData.email,
+        customer_phone: customerData.phone,
+        customer_address: customerData.address,
+        form_data: customerData
+      })
     }
 
     const { error: orderError } = await supabase
@@ -106,9 +113,9 @@ export async function POST(request: Request) {
         },
       },
       back_urls: {
-        success: backUrls.success,
-        failure: backUrls.failure || backUrls.success,
-        pending: backUrls.pending || backUrls.success
+        success: `${backUrls.success}?order_id=${externalReference}&order_number=${orderData.order_number}&payment_id={{payment_id}}`,
+        failure: `${backUrls.failure || '/error-pago'}?order_id=${externalReference}&order_number=${orderData.order_number}&error={{error}}`,
+        pending: `${backUrls.pending || '/pago-pendiente'}?order_id=${externalReference}&order_number=${orderData.order_number}&payment_id={{payment_id}}`
       },
       auto_return: "approved",
       external_reference: externalReference,
