@@ -46,11 +46,13 @@ export async function POST(request: Request) {
     
     console.log("All validations passed")
 
-    // Calcular el total de la orden
+    // Calcular el total de la orden incluyendo envío e impuestos
     console.log("Calculating order total...")
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
-    const total = subtotal // Por ahora sin impuestos ni envío
-    console.log(`Calculated total: ${total}`)
+    const shipping = 99.0  // Costo fijo de envío
+    const taxes = subtotal * 0.16  // 16% de IVA
+    const total = subtotal + shipping + taxes
+    console.log(`Calculated subtotal: ${subtotal}, shipping: ${shipping}, taxes: ${taxes}, total: ${total}`)
     
     // Crear la orden en Supabase con los datos disponibles
     console.log("Creating Supabase service client...")
@@ -74,6 +76,9 @@ export async function POST(request: Request) {
       },
       items: items,
       subtotal: subtotal,
+      shipping_cost: shipping,
+      taxes: taxes,
+      total: total,
       frequency: 'none', // Default value
       created_at: new Date().toISOString()
     }

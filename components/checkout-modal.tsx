@@ -192,6 +192,9 @@ export function CheckoutModal() {
         country: shippingInfo.country,
       })
 
+      // TODO: Remover esta sección que crea orden duplicada
+      // Solo mantener el flujo de MercadoPago que ya crea la orden completa
+      /*
       // Usar la API route para crear el pedido (evita problemas de RLS)
       const response = await fetch("/api/orders/create", {
         method: "POST",
@@ -222,11 +225,75 @@ export function CheckoutModal() {
       }
 
       const { orderId } = await response.json()
+      */
+
+      // Generar un external reference único para MercadoPago
+      const externalReference = `${orderNumber}_${Date.now()}`
 
       if (isTestMode) {
-        // En modo de pruebas, simular un pago exitoso
-        console.log("Modo de pruebas: Simulando pago exitoso")
-        await simulateSuccessfulPayment(orderId)
+        // En modo de pruebas, crear orden usando el endpoint de MercadoPago
+        // pero sin redirección real
+        console.log("Modo de pruebas: Creando orden completa...")
+
+        // Preparar los datos como se haría para MercadoPago
+        const items = cart.map((item) => ({
+          id: item.id,
+          name: item.name,
+          title: item.name,
+          description: `${item.size || "Standard"}${item.isSubscription ? " (Suscripción)" : ""}`,
+          image: item.image,
+          picture_url: item.image,
+          quantity: item.quantity,
+          price: item.isSubscription ? item.price * 0.9 : item.price,
+          unit_price: item.isSubscription ? item.price * 0.9 : item.price,
+        }))
+
+        const userEmail = user?.email || "cliente@petgourmet.mx"
+        const customerData = {
+          firstName: customerInfo.firstName,
+          lastName: customerInfo.lastName,
+          email: userEmail,
+          phone: customerInfo.phone,
+          address: {
+            street_name: shippingInfo.address.split(" ").slice(0, -1).join(" ") || shippingInfo.address,
+            street_number: shippingInfo.address.split(" ").pop() || "0",
+            zip_code: shippingInfo.postalCode,
+            city: shippingInfo.city,
+            state: shippingInfo.state,
+            country: shippingInfo.country,
+          },
+        }
+
+        // Crear preferencia de prueba que guardará la orden
+        const testResponse = await fetch("/api/mercadopago/create-preference", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            items,
+            customerData,
+            externalReference,
+            backUrls: {
+              success: `${window.location.origin}/gracias-por-tu-compra`,
+              failure: `${window.location.origin}/error-pago`,
+              pending: `${window.location.origin}/pago-pendiente`,
+            },
+            testMode: true, // Indicar que es modo de prueba
+          }),
+        })
+
+        const testData = await testResponse.json()
+        if (!testResponse.ok) {
+          throw new Error(testData.error || "Error al crear orden de prueba")
+        }
+
+        console.log("Orden de prueba creada:", testData)
+
+        // Simular pago exitoso
+        if (testData.orderId) {
+          await simulateSuccessfulPayment(testData.orderId)
+        }
 
         // Limpiar el carrito
         clearCart()
@@ -239,7 +306,8 @@ export function CheckoutModal() {
         })
 
         // Redirigir a la página de agradecimiento
-        router.push(`/gracias-por-tu-compra?order_id=${orderId}`)
+        router.push(`/gracias-por-tu-compra?order_id=${testData.orderId || 'test'}`)
+
       } else {
         // En modo normal, crear preferencia de pago en Mercado Pago
         console.log("Creando preferencia de pago en Mercado Pago...")
@@ -284,11 +352,11 @@ export function CheckoutModal() {
           body: JSON.stringify({
             items,
             customerData,
-            externalReference: orderId,
+            externalReference,
             backUrls: {
-              success: `${window.location.origin}/gracias-por-tu-compra?order_id=${orderId}`,
-              failure: `${window.location.origin}/error-pago?order_id=${orderId}`,
-              pending: `${window.location.origin}/pago-pendiente?order_id=${orderId}`,
+              success: `${window.location.origin}/gracias-por-tu-compra`,
+              failure: `${window.location.origin}/error-pago`,
+              pending: `${window.location.origin}/pago-pendiente`,
             },
           }),
         })
