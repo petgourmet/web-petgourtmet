@@ -117,20 +117,38 @@ export default function OrderDetailPage() {
     )
   }
 
-  return (
-    <AuthGuard requireAdmin={true}>
+  if (!order) {
+    return (
       <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.back()}
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              Volver
-            </button>
-            <h1 className="text-2xl font-bold">Pedido #{order.id.substring(0, 8)}</h1>
-          </div>
+        <button
+          onClick={() => router.back()}
+          className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Volver
+        </button>
+        <div className="rounded-md bg-yellow-50 p-4 text-yellow-800">
+          <p>No se encontró la orden</p>
+        </div>
+      </div>
+    )
+  }
+
+  try {
+    return (
+      <AuthGuard requireAdmin={true}>
+        <div className="p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.back()}
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                Volver
+              </button>
+              <h1 className="text-2xl font-bold">Pedido #{typeof order.id === 'string' ? order.id.substring(0, 8) : order.id}</h1>
+            </div>
           <div className="flex items-center gap-2">
             <OrderStatusBadge status={order.status} />
             <PaymentStatusBadge status={order.payment_status} />
@@ -172,27 +190,49 @@ export default function OrderDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {order.items && order.items.length > 0 ? (
-                        order.items.map((item: any, index: number) => (
-                          <tr key={index} className="border-b">
-                            <td className="p-2">
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                {item.variant && <p className="text-sm text-muted-foreground">{item.variant}</p>}
-                              </div>
-                            </td>
-                            <td className="p-2 text-center">{item.quantity}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.price)}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.price * item.quantity)}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                            No hay productos en este pedido
-                          </td>
-                        </tr>
-                      )}
+                      {(() => {
+                        // Intentar obtener items desde shipping_address o desde items directamente
+                        let items = []
+                        
+                        try {
+                          if (order.items && Array.isArray(order.items)) {
+                            items = order.items
+                          } else if (order.shipping_address) {
+                            const metadata = JSON.parse(order.shipping_address)
+                            items = metadata.items || []
+                          } else if (order.items && typeof order.items === 'string') {
+                            items = JSON.parse(order.items)
+                          }
+                        } catch (e) {
+                          console.error('Error parsing items:', e)
+                          items = []
+                        }
+
+                        if (items && items.length > 0) {
+                          return items.map((item: any, index: number) => (
+                            <tr key={index} className="border-b">
+                              <td className="p-2">
+                                <div>
+                                  <p className="font-medium">{item.title || item.name || "Producto sin nombre"}</p>
+                                  {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+                                  {item.variant && <p className="text-sm text-muted-foreground">{item.variant}</p>}
+                                </div>
+                              </td>
+                              <td className="p-2 text-center">{item.quantity || 1}</td>
+                              <td className="p-2 text-right">{formatCurrency(item.unit_price || item.price || 0)}</td>
+                              <td className="p-2 text-right">{formatCurrency((item.unit_price || item.price || 0) * (item.quantity || 1))}</td>
+                            </tr>
+                          ))
+                        } else {
+                          return (
+                            <tr>
+                              <td colSpan={4} className="p-4 text-center text-muted-foreground">
+                                No hay productos en este pedido
+                              </td>
+                            </tr>
+                          )
+                        }
+                      })()}
                     </tbody>
                     <tfoot>
                       <tr className="border-t">
@@ -328,19 +368,20 @@ export default function OrderDetailPage() {
                   let customerData = null
                   
                   try {
-                    if (order.shipping_address) {
+                    if (order.shipping_address && typeof order.shipping_address === 'string') {
                       orderMetadata = JSON.parse(order.shipping_address)
-                      customerData = orderMetadata.customer_data || orderMetadata
+                      customerData = orderMetadata?.customer_data || orderMetadata
                     }
                   } catch (e) {
                     console.error('Error parsing order metadata:', e)
+                    console.error('shipping_address content:', order.shipping_address)
                   }
 
-                  if (customerData && (customerData.firstName || customerData.customer_name)) {
+                  if (customerData && (customerData.firstName || customerData.customer_name || customerData.email)) {
                     // Mostrar datos del formulario de checkout
                     const fullName = customerData.firstName && customerData.lastName 
                       ? `${customerData.firstName} ${customerData.lastName}`
-                      : customerData.customer_name || order.customer_name
+                      : customerData.customer_name || order.customer_name || "No especificado"
 
                     return (
                       <>
@@ -350,20 +391,20 @@ export default function OrderDetailPage() {
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{customerData.email || customerData.customer_email || "No especificado"}</p>
+                          <p className="font-medium">{customerData.email || customerData.customer_email || order.user_email || "No especificado"}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Teléfono</p>
                           <p className="font-medium">{customerData.phone || order.customer_phone || "No especificado"}</p>
                         </div>
-                        {customerData.address && (
+                        {customerData.address && typeof customerData.address === 'object' && (
                           <>
                             <div className="mt-6">
                               <h3 className="mb-2 font-medium">Dirección de Envío</h3>
                               <div className="rounded-md bg-muted p-3">
                                 <p>{customerData.address.street_name} {customerData.address.street_number}</p>
-                                <p>{customerData.address.city}, {customerData.address.state} {customerData.address.zip_code}</p>
-                                <p>{customerData.address.country}</p>
+                                {customerData.address.city && <p>{customerData.address.city}, {customerData.address.state} {customerData.address.zip_code}</p>}
+                                {customerData.address.country && <p>{customerData.address.country}</p>}
                               </div>
                             </div>
                           </>
@@ -414,15 +455,25 @@ export default function OrderDetailPage() {
                 <div className="rounded-md bg-muted p-3">
                   {(() => {
                     try {
-                      const metadata = order.shipping_address ? JSON.parse(order.shipping_address) : null
+                      if (!order.shipping_address) {
+                        return <p className="text-muted-foreground">No hay dirección de envío</p>
+                      }
+
+                      let metadata = null
+                      if (typeof order.shipping_address === 'string' && order.shipping_address.startsWith('{')) {
+                        metadata = JSON.parse(order.shipping_address)
+                      }
+
                       const address = metadata?.customer_data?.address || metadata?.address
 
                       if (address && typeof address === 'object') {
                         return (
                           <>
-                            <p>{address.street_name} {address.street_number}</p>
-                            <p>{address.city}, {address.state} {address.zip_code}</p>
-                            <p>{address.country}</p>
+                            <p>{address.street_name || ''} {address.street_number || ''}</p>
+                            {(address.city || address.state || address.zip_code) && (
+                              <p>{address.city || ''}{address.state ? `, ${address.state}` : ''} {address.zip_code || ''}</p>
+                            )}
+                            {address.country && <p>{address.country}</p>}
                           </>
                         )
                       } else if (typeof order.shipping_address === 'string' && !order.shipping_address.startsWith('{')) {
@@ -431,7 +482,8 @@ export default function OrderDetailPage() {
                         return <p className="text-muted-foreground">No hay dirección de envío</p>
                       }
                     } catch (e) {
-                      return <p className="text-muted-foreground">No hay dirección de envío</p>
+                      console.error('Error parsing shipping address:', e)
+                      return <p className="text-muted-foreground">Error al cargar dirección</p>
                     }
                   })()}
                 </div>
@@ -539,6 +591,30 @@ export default function OrderDetailPage() {
       </div>
     </AuthGuard>
   )
+  } catch (renderError) {
+    console.error('Error rendering order details:', renderError)
+    return (
+      <div className="p-6">
+        <button
+          onClick={() => router.back()}
+          className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Volver
+        </button>
+        <div className="rounded-md bg-red-50 p-4 text-red-800">
+          <p>Error al cargar los detalles del pedido</p>
+          <p className="text-sm mt-2">Por favor, intenta recargar la página.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 rounded-md bg-red-100 px-3 py-1 text-sm font-medium text-red-800"
+          >
+            Recargar página
+          </button>
+        </div>
+      </div>
+    )
+  }
 }
 
 // Componente para mostrar el estado del pedido
