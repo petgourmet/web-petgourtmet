@@ -26,10 +26,10 @@ export default function OrderDetailPage() {
       setLoading(true)
       setError(null)
 
-      // Obtener detalles del pedido
+      // Obtener detalles del pedido (sin join con profiles que no existe)
       const { data, error } = await supabase
         .from("orders")
-        .select("*, profiles(email, full_name, phone)")
+        .select("*")
         .eq("id", orderId)
         .single()
 
@@ -388,20 +388,20 @@ export default function OrderDetailPage() {
                       </>
                     )
                   } else {
-                    // Fallback a datos del perfil
+                    // Fallback a datos básicos de la orden
                     return (
                       <>
                         <div>
                           <p className="text-sm text-muted-foreground">Nombre</p>
-                          <p className="font-medium">{order.customer_name || order.profiles?.full_name || "No especificado"}</p>
+                          <p className="font-medium">{order.customer_name || "Cliente anónimo"}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{order.profiles?.email || "No especificado"}</p>
+                          <p className="font-medium">{order.user_email || "No especificado"}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Teléfono</p>
-                          <p className="font-medium">{order.customer_phone || order.profiles?.phone || "No especificado"}</p>
+                          <p className="font-medium">{order.customer_phone || "No especificado"}</p>
                         </div>
                       </>
                     )

@@ -167,25 +167,48 @@ export default function OrdersAdminPage() {
                     </tr>
                   ) : (
                     orders.map((order) => {
-                      // Intentar extraer información del cliente desde notes
+                      // Extraer información del cliente desde shipping_address donde realmente está
                       let customerInfo = null
                       try {
-                        if (order.notes) {
+                        if (order.shipping_address) {
+                          const parsedShipping = JSON.parse(order.shipping_address)
+                          // Los datos están en customer_data dentro del shipping_address
+                          if (parsedShipping.customer_data) {
+                            customerInfo = {
+                              name: order.customer_name || 
+                                   (parsedShipping.customer_data.firstName + ' ' + parsedShipping.customer_data.lastName) ||
+                                   parsedShipping.customer_data.firstName ||
+                                   'Cliente anónimo',
+                              email: parsedShipping.customer_data.email || 'No especificado',
+                              phone: order.customer_phone || parsedShipping.customer_data.phone || 'No especificado',
+                              address: parsedShipping.customer_data.address || null,
+                              items: parsedShipping.items || [],
+                              orderNumber: parsedShipping.order_number || `#${order.id}`
+                            }
+                          }
+                        }
+                        
+                        // Fallback para órdenes sin shipping_address (órdenes antiguas)
+                        if (!customerInfo && order.notes) {
                           const parsedNotes = JSON.parse(order.notes)
                           customerInfo = {
-                            name: parsedNotes.customer_name,
-                            email: parsedNotes.customer_email
+                            name: parsedNotes.customer_name || 'Cliente anónimo',
+                            email: parsedNotes.customer_email || 'No especificado'
                           }
                         }
                       } catch (e) {
-                        // Si no se puede parsear, usar valores por defecto
+                        // Si no se puede parsear, usar valores de fallback
+                        customerInfo = {
+                          name: order.customer_name || 'Cliente anónimo',
+                          email: order.user_email || 'No especificado'
+                        }
                       }
 
                       return (
                         <tr key={order.id} className="border-b">
-                          <td className="p-3">#{typeof order.id === "string" ? order.id.substring(0, 8) : order.id}</td>
-                          <td className="p-3">{customerInfo?.name || order.profiles?.full_name || "Cliente anónimo"}</td>
-                          <td className="p-3">{customerInfo?.email || order.user_email || order.profiles?.email || "No especificado"}</td>
+                          <td className="p-3">#{customerInfo?.orderNumber || order.id}</td>
+                          <td className="p-3">{customerInfo?.name || "Cliente anónimo"}</td>
+                          <td className="p-3">{customerInfo?.email || "No especificado"}</td>
                           <td className="p-3">{formatDate(order.created_at)}</td>
                           <td className="p-3">
                             <OrderStatusBadge status={order.status} />
