@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service"
 
 export async function POST(request: Request) {
   console.log("=== CREATE PREFERENCE ENDPOINT CALLED ===")
@@ -12,10 +12,25 @@ export async function POST(request: Request) {
     const body = await request.json()
     console.log("Request body parsed successfully:", JSON.stringify(body, null, 2))
     
-    const { orderData } = body
+    // Manejar ambos formatos: el nuevo (orderData) y el frontend actual (items, customerData directo)
+    let customerData, items, externalReference, backUrls
     
-    // Extraer datos del orderData
-    const { customer_data: customerData, items } = orderData
+    if (body.orderData) {
+      // Formato nuevo con orderData
+      const { orderData } = body
+      customerData = orderData.customer_data
+      items = orderData.items
+      externalReference = body.externalReference
+      backUrls = body.backUrls
+    } else {
+      // Formato del frontend actual
+      customerData = body.customerData
+      items = body.items
+      externalReference = body.externalReference
+      backUrls = body.backUrls
+    }
+    
+    console.log("Extracted data:", { customerData, items, externalReference, backUrls })
 
     // Validar datos requeridos
     console.log("Validating required data...")
@@ -33,14 +48,14 @@ export async function POST(request: Request) {
 
     // Calcular el total de la orden
     console.log("Calculating order total...")
-    const subtotal = orderData.subtotal || items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
+    const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
     const total = subtotal // Por ahora sin impuestos ni envío
     console.log(`Calculated total: ${total}`)
     
     // Crear la orden en Supabase con los datos disponibles
-    console.log("Creating Supabase client...")
-    const supabase = await createClient()
-    console.log("Supabase client created successfully")
+    console.log("Creating Supabase service client...")
+    const supabase = createServiceClient()
+    console.log("Supabase service client created successfully")
     
     // Generar número de orden único
     const orderNumber = `PG${Date.now()}`
@@ -59,7 +74,7 @@ export async function POST(request: Request) {
       },
       items: items,
       subtotal: subtotal,
-      frequency: orderData.frequency || 'none',
+      frequency: 'none', // Default value
       created_at: new Date().toISOString()
     }
     console.log("Form data prepared:", JSON.stringify(formDataForStorage, null, 2))
@@ -115,11 +130,14 @@ export async function POST(request: Request) {
 
     // Generar URLs de retorno
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'
-    const backUrls = {
+    const defaultBackUrls = {
       success: `${baseUrl}/gracias-por-tu-compra`,
       failure: `${baseUrl}/error-pago`,
       pending: `${baseUrl}/pago-pendiente`
     }
+    
+    // Usar las URLs del frontend si están disponibles, sino usar las por defecto
+    const finalBackUrls = backUrls || defaultBackUrls
 
     if (isTestMode) {
       // En modo de prueba, devolver una respuesta simulada
@@ -127,7 +145,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         preferenceId: `test_preference_${Date.now()}`,
-        initPoint: backUrls.success,
+        initPoint: finalBackUrls.success,
         orderId: orderId,
         testMode: true
       })
@@ -173,9 +191,9 @@ export async function POST(request: Request) {
         },
       },
       back_urls: {
-        success: `${backUrls.success}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`,
-        failure: `${backUrls.failure || '/error-pago'}?order_id=${orderId}&order_number=${orderNumber}&error={{error}}`,
-        pending: `${backUrls.pending || '/pago-pendiente'}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`
+        success: `${finalBackUrls.success}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`,
+        failure: `${finalBackUrls.failure || '/error-pago'}?order_id=${orderId}&order_number=${orderNumber}&error={{error}}`,
+        pending: `${finalBackUrls.pending || '/pago-pendiente'}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`
       },
       auto_return: "approved",
       external_reference: orderId.toString(), // Usar el ID real de la orden
