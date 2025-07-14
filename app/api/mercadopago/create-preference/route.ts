@@ -171,17 +171,47 @@ export async function POST(request: Request) {
 
     // Crear la preferencia en Mercado Pago
     console.log("Preparing MercadoPago preference...")
+    
+    // Preparar los ítems de productos
+    const productItems = items.map((item: any) => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      picture_url: item.picture_url,
+      category_id: "pet_food",
+      quantity: item.quantity,
+      currency_id: "MXN",
+      unit_price: item.unit_price,
+    }))
+
+    // Agregar envío como ítem separado
+    const shippingItem = {
+      id: "shipping",
+      title: "Envío a domicilio",
+      description: "Costo de envío",
+      category_id: "shipping",
+      quantity: 1,
+      currency_id: "MXN",
+      unit_price: shipping,
+    }
+
+    // Agregar impuestos como ítem separado
+    const taxItem = {
+      id: "taxes",
+      title: "IVA (16%)",
+      description: "Impuesto al valor agregado",
+      category_id: "taxes",
+      quantity: 1,
+      currency_id: "MXN",
+      unit_price: Math.round(taxes * 100) / 100, // Redondear a 2 decimales
+    }
+
+    // Combinar todos los ítems
+    const allItems = [...productItems, shippingItem, taxItem]
+    console.log("All items for MercadoPago:", JSON.stringify(allItems, null, 2))
+    
     const preference = {
-      items: items.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        picture_url: item.picture_url,
-        category_id: "pet_food",
-        quantity: item.quantity,
-        currency_id: "MXN",
-        unit_price: item.unit_price,
-      })),
+      items: allItems,
       payer: {
         name: customerData.firstName,
         surname: customerData.lastName,
