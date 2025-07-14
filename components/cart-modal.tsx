@@ -104,12 +104,12 @@ export function CartModal() {
                 </div>
                 <div className="flex justify-between mb-4">
                   <span>Envío</span>
-                  <span>{calculateCartTotal() > 30 ? "Gratis" : "$4.99 MXN"}</span>
+                  <span>{calculateCartTotal() > 500 ? "Gratis" : "$99.00 MXN"}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg mb-6">
                   <span>Total</span>
                   <span>
-                    ${(calculateCartTotal() > 30 ? calculateCartTotal() : calculateCartTotal() + 4.99).toFixed(2)} MXN
+                    ${(calculateCartTotal() > 500 ? calculateCartTotal() : calculateCartTotal() + 99).toFixed(2)} MXN
                   </span>
                 </div>
 

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     // Calcular el total de la orden incluyendo envío e impuestos
     console.log("Calculating order total...")
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
-    const shipping = 99.0  // Costo fijo de envío
+    const shipping = subtotal > 500 ? 0 : 99.0  // Envío gratis por compras mayores a $500
     const taxes = subtotal * 0.16  // 16% de IVA
     const total = subtotal + shipping + taxes
     console.log(`Calculated subtotal: ${subtotal}, shipping: ${shipping}, taxes: ${taxes}, total: ${total}`)
@@ -184,19 +184,22 @@ export async function POST(request: Request) {
       unit_price: item.unit_price,
     }))
 
-    // Agregar envío como ítem separado
-    const shippingItem = {
-      id: "shipping",
-      title: "Envío a domicilio",
-      description: "Costo de envío",
-      category_id: "shipping",
-      quantity: 1,
-      currency_id: "MXN",
-      unit_price: shipping,
+    // Agregar envío como ítem separado solo si no es gratis
+    const additionalItems = []
+    if (shipping > 0) {
+      additionalItems.push({
+        id: "shipping",
+        title: "Envío a domicilio",
+        description: "Costo de envío",
+        category_id: "shipping",
+        quantity: 1,
+        currency_id: "MXN",
+        unit_price: shipping,
+      })
     }
 
     // Agregar impuestos como ítem separado
-    const taxItem = {
+    additionalItems.push({
       id: "taxes",
       title: "IVA (16%)",
       description: "Impuesto al valor agregado",
@@ -204,10 +207,10 @@ export async function POST(request: Request) {
       quantity: 1,
       currency_id: "MXN",
       unit_price: Math.round(taxes * 100) / 100, // Redondear a 2 decimales
-    }
+    })
 
     // Combinar todos los ítems
-    const allItems = [...productItems, shippingItem, taxItem]
+    const allItems = [...productItems, ...additionalItems]
     console.log("All items for MercadoPago:", JSON.stringify(allItems, null, 2))
     
     const preference = {
