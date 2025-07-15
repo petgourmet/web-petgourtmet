@@ -47,21 +47,40 @@ export default function PerfilPage() {
     if (!user) return
     setLoadingSubscriptions(true)
     try {
+      // Buscar órdenes que contengan suscripciones
       const { data, error } = await supabase
-        .from("user_subscriptions")
-        .select(`
-        *,
-        products (
-          name,
-          image,
-          slug
-        )
-      `)
-        .eq("user_id", user.id)
+        .from("orders")
+        .select("*")
+        .or(`user_id.eq.${user.id},customer_name.ilike.%${user.email}%`)
         .order("created_at", { ascending: false })
 
       if (error) throw error
-      setSubscriptions(data || [])
+      
+      // Filtrar y procesar órdenes que contengan suscripciones
+      const subscriptionOrders = (data || []).filter(order => {
+        if (!order.shipping_address) return false
+        try {
+          const orderData = typeof order.shipping_address === 'string' 
+            ? JSON.parse(order.shipping_address) 
+            : order.shipping_address
+          
+          return orderData?.items?.some((item: any) => item.isSubscription || item.subscription)
+        } catch (e) {
+          return false
+        }
+      }).map(order => {
+        const orderData = typeof order.shipping_address === 'string' 
+          ? JSON.parse(order.shipping_address) 
+          : order.shipping_address
+        
+        return {
+          ...order,
+          orderData,
+          subscriptionItems: orderData?.items?.filter((item: any) => item.isSubscription || item.subscription) || []
+        }
+      })
+      
+      setSubscriptions(subscriptionOrders)
     } catch (error) {
       console.error("Error al cargar suscripciones:", error)
       toast({
@@ -102,44 +121,93 @@ export default function PerfilPage() {
   const fetchBillingHistory = async () => {
     if (!user) return
     try {
+      // Obtener órdenes completadas como historial de facturación
       const { data, error } = await supabase
-        .from("subscription_billing_history")
-        .select(`
-        *,
-        user_subscriptions (
-          product_name,
-          subscription_type
-        )
-      `)
-        .eq("user_id", user.id)
-        .order("billing_date", { ascending: false })
+        .from("orders")
+        .select("*")
+        .or(`user_id.eq.${user.id},customer_name.ilike.%${user.email}%`)
+        .in("payment_status", ["completed", "processing"])
+        .order("created_at", { ascending: false })
         .limit(20)
 
       if (error) throw error
-      setBillingHistory(data || [])
+      
+      // Procesar los datos para el historial de facturación
+      const processedBilling = (data || []).map(order => {
+        let orderData = null
+        if (order.shipping_address) {
+          try {
+            orderData = typeof order.shipping_address === 'string' 
+              ? JSON.parse(order.shipping_address) 
+              : order.shipping_address
+          } catch (e) {
+            console.error('Error parsing shipping_address:', e)
+          }
+        }
+        
+        return {
+          id: order.id,
+          billing_date: order.created_at,
+          amount: order.total,
+          status: order.payment_status,
+          order_number: orderData?.order_number || `PG-${order.id}`,
+          items: orderData?.items || [],
+          customer_data: orderData?.customer_data || {}
+        }
+      })
+      
+      setBillingHistory(processedBilling)
     } catch (error) {
       console.error("Error al cargar historial de facturación:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el historial de facturación",
+        variant: "destructive",
+      })
     }
   }
 
   const fetchOrders = async () => {
     if (!user) return
     try {
+      // Buscar órdenes por email del usuario ya que user_id puede ser null
       const { data, error } = await supabase
         .from("orders")
-        .select(`
-        *,
-        order_items (
-          *
-        )
-      `)
-        .eq("user_id", user.id)
+        .select("*")
+        .or(`user_id.eq.${user.id},customer_name.ilike.%${user.email}%`)
         .order("created_at", { ascending: false })
 
       if (error) throw error
-      setOrders(data || [])
+      
+      // Procesar los datos de shipping_address para mostrar información completa
+      const processedOrders = (data || []).map(order => {
+        let orderData = null
+        if (order.shipping_address) {
+          try {
+            orderData = typeof order.shipping_address === 'string' 
+              ? JSON.parse(order.shipping_address) 
+              : order.shipping_address
+          } catch (e) {
+            console.error('Error parsing shipping_address:', e)
+          }
+        }
+        
+        return {
+          ...order,
+          orderData,
+          items: orderData?.items || [],
+          customer_data: orderData?.customer_data || {}
+        }
+      })
+      
+      setOrders(processedOrders)
     } catch (error) {
       console.error("Error al cargar historial de compras:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el historial de compras",
+        variant: "destructive",
+      })
     }
   }
 
@@ -714,84 +782,62 @@ export default function PerfilPage() {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {subscriptions.map((subscription) => (
-                              <div key={subscription.id} className="border rounded-lg p-4">
+                            {subscriptions.map((order) => (
+                              <div key={order.id} className="border rounded-lg p-4">
                                 <div className="flex items-start justify-between">
-                                  <div className="flex items-center space-x-4">
-                                    <ErrorFallbackImage
-                                      src={subscription.products?.image || subscription.product_image || ""}
-                                      alt={subscription.product_name || "Imagen de producto"}
-                                      width={64}
-                                      height={64}
-                                      className="object-cover rounded-lg"
-                                      fallbackSrc="/placeholder.svg?width=64&height=64"
-                                    />
-                                    <div>
-                                      <h3 className="font-semibold">{subscription.product_name}</h3>
-                                      <p className="text-sm text-gray-600">
-                                        {subscription.subscription_type === "monthly" && "Mensual"}
-                                        {subscription.subscription_type === "quarterly" && "Trimestral"}
-                                        {subscription.subscription_type === "annual" && "Anual"}
-                                        {subscription.size && ` - ${subscription.size}`}
-                                      </p>
-                                      <p className="text-sm text-gray-600">Cantidad: {subscription.quantity}</p>
-                                      <p className="text-lg font-bold text-primary">€{subscription.discounted_price}</p>
+                                  <div>
+                                    <h3 className="font-semibold">Orden #{order.orderData?.order_number || order.id}</h3>
+                                    <p className="text-sm text-gray-600 mb-2">
+                                      Cliente: {order.customer_name}
+                                    </p>
+                                    <div className="space-y-2">
+                                      {order.subscriptionItems.map((item: any, index: number) => (
+                                        <div key={index} className="flex items-center space-x-4">
+                                          <ErrorFallbackImage
+                                            src={item.image || item.picture_url || ""}
+                                            alt={item.name || item.title || "Producto"}
+                                            width={48}
+                                            height={48}
+                                            className="object-cover rounded-lg"
+                                            fallbackSrc="/placeholder.svg?width=48&height=48"
+                                          />
+                                          <div>
+                                            <p className="font-medium">{item.name || item.title}</p>
+                                            <p className="text-sm text-gray-600">
+                                              Suscripción - Cantidad: {item.quantity}
+                                            </p>
+                                            <p className="text-sm font-bold text-primary">
+                                              ${item.price || item.unit_price} MXN
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
                                   <div className="flex items-center space-x-2">
                                     <span
                                       className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        subscription.status === "active"
+                                        order.payment_status === "completed"
                                           ? "bg-green-100 text-green-800"
-                                          : subscription.status === "paused"
+                                          : order.payment_status === "pending"
                                             ? "bg-yellow-100 text-yellow-800"
                                             : "bg-red-100 text-red-800"
                                       }`}
                                     >
-                                      {subscription.status === "active" && "Activa"}
-                                      {subscription.status === "paused" && "Pausada"}
-                                      {subscription.status === "cancelled" && "Cancelada"}
+                                      {order.payment_status === "completed" && "Pagado"}
+                                      {order.payment_status === "pending" && "Pendiente"}
+                                      {order.payment_status === "failed" && "Fallido"}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="mt-4 pt-4 border-t">
                                   <div className="flex items-center justify-between text-sm text-gray-600">
                                     <span>
-                                      Próximo cobro: {new Date(subscription.next_billing_date).toLocaleDateString()}
+                                      Fecha: {new Date(order.created_at).toLocaleDateString()}
                                     </span>
-                                    <div className="flex space-x-2">
-                                      {subscription.status === "active" && (
-                                        <>
-                                          <button 
-                                            onClick={() => pauseSubscription(subscription.id)}
-                                            className="flex items-center space-x-1 text-yellow-600 hover:text-yellow-700"
-                                          >
-                                            <Pause size={16} />
-                                            <span>Pausar</span>
-                                          </button>
-                                          <button className="flex items-center space-x-1 text-blue-600 hover:text-blue-700">
-                                            <Edit size={16} />
-                                            <span>Modificar</span>
-                                          </button>
-                                          <button 
-                                            onClick={() => cancelSubscription(subscription.id)}
-                                            className="flex items-center space-x-1 text-red-600 hover:text-red-700"
-                                          >
-                                            <XCircle size={16} />
-                                            <span>Cancelar</span>
-                                          </button>
-                                        </>
-                                      )}
-                                      {subscription.status === "paused" && (
-                                        <button 
-                                          onClick={() => resumeSubscription(subscription.id)}
-                                          className="flex items-center space-x-1 text-green-600 hover:text-green-700"
-                                        >
-                                          <Play size={16} />
-                                          <span>Reanudar</span>
-                                        </button>
-                                      )}
-                                    </div>
+                                    <span className="font-bold">
+                                      Total: ${order.total} MXN
+                                    </span>
                                   </div>
                                 </div>
                               </div>
@@ -1057,19 +1103,21 @@ export default function PerfilPage() {
                               <div key={billing.id} className="border rounded-lg p-4">
                                 <div className="flex items-center justify-between">
                                   <div>
-                                    <p className="font-medium">{billing.user_subscriptions?.product_name}</p>
+                                    <p className="font-medium">Factura #{billing.order_number}</p>
                                     <p className="text-sm text-gray-600">
-                                      {new Date(billing.billing_date).toLocaleDateString()} -
-                                      {billing.user_subscriptions?.subscription_type === "monthly" &&
-                                        " Suscripción Mensual"}
-                                      {billing.user_subscriptions?.subscription_type === "quarterly" &&
-                                        " Suscripción Trimestral"}
-                                      {billing.user_subscriptions?.subscription_type === "annual" &&
-                                        " Suscripción Anual"}
+                                      {new Date(billing.billing_date).toLocaleDateString()}
                                     </p>
+                                    <div className="text-sm text-gray-600 mt-1">
+                                      {billing.items?.map((item: any, index: number) => (
+                                        <span key={index}>
+                                          {item.name || item.title}
+                                          {index < billing.items.length - 1 && ", "}
+                                        </span>
+                                      ))}
+                                    </div>
                                   </div>
                                   <div className="text-right">
-                                    <p className="font-bold">€{billing.amount}</p>
+                                    <p className="font-bold">${billing.amount} MXN</p>
                                     <span
                                       className={`px-2 py-1 rounded-full text-xs font-medium ${
                                         billing.status === "completed"
@@ -1079,9 +1127,10 @@ export default function PerfilPage() {
                                             : "bg-red-100 text-red-800"
                                       }`}
                                     >
-                                      {billing.status === "completed" && "Completado"}
+                                      {billing.status === "completed" && "Pagado"}
                                       {billing.status === "pending" && "Pendiente"}
                                       {billing.status === "failed" && "Fallido"}
+                                      {billing.status === "processing" && "Procesando"}
                                     </span>
                                   </div>
                                 </div>
@@ -1112,42 +1161,58 @@ export default function PerfilPage() {
                               <div key={order.id} className="border rounded-lg p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div>
-                                    <p className="font-medium">Pedido #{order.order_number}</p>
+                                    <p className="font-medium">Pedido #{order.orderData?.order_number || order.id}</p>
                                     <p className="text-sm text-gray-600">
                                       {new Date(order.created_at).toLocaleDateString()}
                                     </p>
+                                    <p className="text-sm text-gray-600">
+                                      Cliente: {order.customer_name}
+                                    </p>
                                   </div>
                                   <div className="text-right">
-                                    <p className="font-bold">€{order.total}</p>
+                                    <p className="font-bold">${order.total} MXN</p>
                                     <span
                                       className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        order.status === "completed"
+                                        order.payment_status === "completed"
                                           ? "bg-green-100 text-green-800"
-                                          : order.status === "pending"
+                                          : order.payment_status === "pending"
                                             ? "bg-yellow-100 text-yellow-800"
                                             : "bg-red-100 text-red-800"
                                       }`}
                                     >
-                                      {order.status}
+                                      {order.payment_status === "completed" && "Completado"}
+                                      {order.payment_status === "pending" && "Pendiente"}
+                                      {order.payment_status === "failed" && "Fallido"}
+                                      {order.payment_status === "processing" && "Procesando"}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="space-y-2">
-                                  {order.order_items?.map((item: any) => (
-                                    <div key={item.id} className="flex items-center space-x-3 text-sm">
+                                  {order.items?.map((item: any, index: number) => (
+                                    <div key={index} className="flex items-center space-x-3 text-sm">
                                       <ErrorFallbackImage
-                                        src={item.product_image || ""}
-                                        alt={item.product_name || "Imagen de producto"}
+                                        src={item.image || item.picture_url || ""}
+                                        alt={item.name || item.title || "Producto"}
                                         width={40}
                                         height={40}
                                         className="object-cover rounded"
                                         fallbackSrc="/placeholder.svg?width=40&height=40"
                                       />
-                                      <span>{item.product_name}</span>
+                                      <span className="flex-1">{item.name || item.title}</span>
                                       <span className="text-gray-600">x{item.quantity}</span>
-                                      <span className="font-medium">€{item.price}</span>
+                                      <span className="font-medium">${item.price || item.unit_price} MXN</span>
+                                      {item.isSubscription && (
+                                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                          Suscripción
+                                        </span>
+                                      )}
                                     </div>
                                   ))}
+                                  {(!order.items || order.items.length === 0) && (
+                                    <p className="text-sm text-gray-500 italic">
+                                      Detalles de productos no disponibles
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             ))}
