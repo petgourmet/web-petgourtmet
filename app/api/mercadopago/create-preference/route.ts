@@ -176,13 +176,24 @@ export async function POST(request: Request) {
     const productItems = items.map((item: any) => ({
       id: item.id,
       title: item.title,
-      description: item.description,
+      description: item.description || "Producto Pet Gourmet",
       picture_url: item.picture_url,
       category_id: "pet_food",
       quantity: item.quantity,
       currency_id: "MXN",
-      unit_price: item.unit_price,
+      unit_price: Math.round(item.unit_price * 100) / 100, // Asegurar 2 decimales
     }))
+
+    // Validar que todos los precios sean válidos
+    for (const item of productItems) {
+      if (!item.unit_price || item.unit_price <= 0) {
+        console.error("Invalid item price:", item)
+        return NextResponse.json({ 
+          error: "Precio de producto inválido",
+          step: 'price_validation'
+        }, { status: 400 })
+      }
+    }
 
     // Agregar envío como ítem separado solo si no es gratis
     const additionalItems = []
@@ -194,7 +205,7 @@ export async function POST(request: Request) {
         category_id: "shipping",
         quantity: 1,
         currency_id: "MXN",
-        unit_price: shipping,
+        unit_price: Math.round(shipping * 100) / 100, // Asegurar 2 decimales
       })
     }
 
@@ -214,9 +225,9 @@ export async function POST(request: Request) {
           number: customerData.phone,
         },
         address: {
-          street_name: customerData.address.street_name,
-          street_number: customerData.address.street_number,
-          zip_code: customerData.address.zip_code,
+          street_name: customerData.address.street_name || "N/A",
+          street_number: customerData.address.street_number || "0",
+          zip_code: customerData.address.zip_code || "00000",
         },
       },
       back_urls: {
@@ -226,7 +237,9 @@ export async function POST(request: Request) {
       },
       auto_return: "approved",
       external_reference: orderId.toString(), // Usar el ID real de la orden
-      notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mercadopago/webhook`,
+      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/webhooks/mercadopago`,
+      statement_descriptor: "PETGOURMET",
+      expires: false,
     }
     
     console.log("MercadoPago preference prepared:", JSON.stringify(preference, null, 2))
