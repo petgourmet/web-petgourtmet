@@ -46,12 +46,12 @@ export async function POST(request: Request) {
     
     console.log("All validations passed")
 
-    // Calcular el total de la orden incluyendo envío e impuestos
+    // Calcular el total de la orden incluyendo envío
     console.log("Calculating order total...")
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
     const shipping = subtotal > 500 ? 0 : 99.0  // Envío gratis por compras mayores a $500
-    const taxes = subtotal * 0.16  // 16% de IVA
-    const total = subtotal + shipping + taxes
+    const taxes = 0  // Los impuestos ya están incluidos en el precio del producto
+    const total = subtotal + shipping
     console.log(`Calculated subtotal: ${subtotal}, shipping: ${shipping}, taxes: ${taxes}, total: ${total}`)
     
     // Crear la orden en Supabase con los datos disponibles
@@ -198,16 +198,7 @@ export async function POST(request: Request) {
       })
     }
 
-    // Agregar impuestos como ítem separado
-    additionalItems.push({
-      id: "taxes",
-      title: "IVA (16%)",
-      description: "Impuesto al valor agregado",
-      category_id: "taxes",
-      quantity: 1,
-      currency_id: "MXN",
-      unit_price: Math.round(taxes * 100) / 100, // Redondear a 2 decimales
-    })
+    // No agregar impuestos ya que están incluidos en el precio del producto
 
     // Combinar todos los ítems
     const allItems = [...productItems, ...additionalItems]

@@ -176,8 +176,7 @@ export function CheckoutModal() {
       // Calcular el total
       const subtotal = calculateCartTotal()
       const shipping = subtotal > 500 ? 0 : 99 // Envío gratis por compras mayores a $500 MXN
-      const taxes = subtotal * 0.16
-      const total = subtotal + shipping + taxes
+      const total = subtotal + shipping
 
       // Generar un número de orden único
       const orderNumber = `PG-${Date.now().toString().slice(-6)}`
@@ -522,18 +521,13 @@ export function CheckoutModal() {
                     <span>Envío</span>
                     <span>{calculateCartTotal() > 500 ? "Gratis" : "$99.00 MXN"}</span>
                   </div>
-                  <div className="flex justify-between mb-2">
-                    <span>Impuestos</span>
-                    <span>${(calculateCartTotal() * 0.16).toFixed(2)} MXN</span>
-                  </div>
                   <div className="flex justify-between font-bold text-lg mt-4">
                     <span>Total</span>
                     <span>
                       $
                       {(
                         calculateCartTotal() +
-                        (calculateCartTotal() > 500 ? 0 : 99) +
-                        calculateCartTotal() * 0.16
+                        (calculateCartTotal() > 500 ? 0 : 99)
                       ).toFixed(2)}{" "}
                       MXN
                     </span>
