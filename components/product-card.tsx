@@ -120,8 +120,48 @@ export function ProductCard({
 
       {/* Contenido del producto */}
       <div className="p-4 flex flex-col flex-grow">
-        <h2 className="font-bold text-sm mb-2">{name}</h2>
-        <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">{description}</p>
+        <h2 
+          className="font-bold text-sm mb-2 cursor-pointer hover:text-primary transition-colors duration-200"
+          onClick={() =>
+            onShowDetail &&
+            onShowDetail({
+              id,
+              name,
+              description,
+              image,
+              rating,
+              reviews,
+              price,
+              sizes,
+              features,
+              category,
+              gallery,
+            })
+          }
+        >
+          {name}
+        </h2>
+        <p 
+          className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2 cursor-pointer hover:text-primary transition-colors duration-200"
+          onClick={() =>
+            onShowDetail &&
+            onShowDetail({
+              id,
+              name,
+              description,
+              image,
+              rating,
+              reviews,
+              price,
+              sizes,
+              features,
+              category,
+              gallery,
+            })
+          }
+        >
+          {description}
+        </p>
 
         {/* Características del producto */}
         {features && features.length > 0 && (
