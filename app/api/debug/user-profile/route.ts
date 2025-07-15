@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase/client"
+import { createServiceClient } from "@/lib/supabase/service"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
         example: "/api/debug/user-profile?email=test@example.com"
       }, { status: 400 })
     }
+
+    const supabase = createServiceClient()
 
     // Obtener perfil por email (si existe tabla profiles)
     const { data: profile, error: profileError } = await supabase
