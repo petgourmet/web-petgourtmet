@@ -130,6 +130,9 @@ export function Navbar() {
             <Link href="/blog" className="btn-rounded text-white hover:text-white/80 btn-glow" prefetch={false}>
               Blog
             </Link>
+            <Link href="/tiendas" className="btn-rounded text-white hover:text-white/80 btn-glow">
+              Tiendas
+            </Link>
           </nav>
 
           <div className="hidden lg:flex items-center space-x-4">
@@ -360,6 +363,26 @@ export function Navbar() {
               >
                 <BookOpen size={20} className="mr-3 text-primary" />
                 <span className="font-medium">Blog</span>
+              </Link>
+
+              <Link
+                href="/tiendas"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <svg
+                  className="mr-3 text-primary w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V9l2.5-1.25L12 6l6.5 1.75L21 9v10a2 2 0 0 1-2 2h-4" />
+                  <polyline points="9,21 9,15 15,15 15,21" />
+                </svg>
+                <span className="font-medium">Tiendas</span>
               </Link>
 
               <Link
