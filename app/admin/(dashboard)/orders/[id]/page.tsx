@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
-import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle } from "lucide-react"
+import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail } from "lucide-react"
 import { AuthGuard } from "@/components/admin/auth-guard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { toast } from "sonner"
 
 export default function OrderDetailPage() {
   const params = useParams()
@@ -51,18 +52,57 @@ export default function OrderDetailPage() {
     try {
       setUpdating(true)
 
-      const { error } = await supabase.from("orders").update({ status }).eq("id", order.id)
+      // Usar la nueva API que envía emails automáticamente
+      const response = await fetch('/api/admin/update-order-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+          newStatus: status,
+          sendEmail: true
+        })
+      })
 
-      if (error) throw error
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al actualizar estado')
+      }
 
       // Actualizar el pedido en el estado
       setOrder({ ...order, status })
+      
+      // Mostrar mensaje de éxito con confirmación de email
+      toast.success(
+        `Estado actualizado a ${getStatusLabel(status)}`,
+        {
+          description: "✉️ Email de notificación enviado al cliente",
+          duration: 5000,
+        }
+      )
+
     } catch (error: any) {
       console.error("Error al actualizar estado del pedido:", error)
-      alert(`Error: ${error.message}`)
+      toast.error("Error al actualizar estado", {
+        description: error.message,
+        duration: 5000,
+      })
     } finally {
       setUpdating(false)
     }
+  }
+
+  // Función auxiliar para obtener el label del estado
+  function getStatusLabel(status: string) {
+    const labels: Record<string, string> = {
+      pending: "Pendiente",
+      processing: "Procesando", 
+      completed: "Completado",
+      cancelled: "Cancelado"
+    }
+    return labels[status] || status
   }
 
   // Formatear número como moneda
@@ -270,34 +310,42 @@ export default function OrderDetailPage() {
 
               <div className="mb-6">
                 <h3 className="mb-2 font-medium">Actualizar Estado</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  <Mail className="inline h-4 w-4 mr-1" />
+                  Al cambiar el estado se enviará una notificación por email al cliente
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => updateOrderStatus("pending")}
                     disabled={updating || order.status === "pending"}
-                    className="inline-flex items-center rounded-md bg-yellow-50 px-3 py-1.5 text-sm font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-100 disabled:opacity-50"
+                    className="inline-flex items-center rounded-md bg-yellow-50 px-3 py-1.5 text-sm font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-100 disabled:opacity-50 transition-colors"
                   >
-                    <Package className="mr-1 h-4 w-4" /> Pendiente
+                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Package className="mr-1 h-4 w-4" />} 
+                    Pendiente
                   </button>
                   <button
                     onClick={() => updateOrderStatus("processing")}
                     disabled={updating || order.status === "processing"}
-                    className="inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50"
+                    className="inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors"
                   >
-                    <Truck className="mr-1 h-4 w-4" /> Procesando
+                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Truck className="mr-1 h-4 w-4" />} 
+                    Procesando
                   </button>
                   <button
                     onClick={() => updateOrderStatus("completed")}
                     disabled={updating || order.status === "completed"}
-                    className="inline-flex items-center rounded-md bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50"
+                    className="inline-flex items-center rounded-md bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50 transition-colors"
                   >
-                    <CheckCircle className="mr-1 h-4 w-4" /> Completado
+                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-1 h-4 w-4" />} 
+                    Completado
                   </button>
                   <button
                     onClick={() => updateOrderStatus("cancelled")}
                     disabled={updating || order.status === "cancelled"}
-                    className="inline-flex items-center rounded-md bg-red-50 px-3 py-1.5 text-sm font-medium text-red-800 ring-1 ring-inset ring-red-600/20 hover:bg-red-100 disabled:opacity-50"
+                    className="inline-flex items-center rounded-md bg-red-50 px-3 py-1.5 text-sm font-medium text-red-800 ring-1 ring-inset ring-red-600/20 hover:bg-red-100 disabled:opacity-50 transition-colors"
                   >
-                    <XCircle className="mr-1 h-4 w-4" /> Cancelado
+                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircle className="mr-1 h-4 w-4" />} 
+                    Cancelado
                   </button>
                 </div>
               </div>

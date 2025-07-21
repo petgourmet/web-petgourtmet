@@ -3,7 +3,7 @@
 import type { ReactNode } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { Toaster } from "@/components/toaster"
+import { Toaster } from "@/components/ui/sonner"
 import { ScrollToTop } from "@/components/scroll-to-top"
 import WhatsappButton from "@/components/whatsapp-button"
 import FloatingCreatePlanButton from "@/components/floating-create-plan-button"
