@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { CheckCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -67,16 +66,15 @@ export default function HomeNewsletter() {
             Tu suscripción ha sido confirmada. Revisa tu email para más información.
           </p>
         </div>
-        <Button 
+        <button 
           onClick={() => {
             setIsSuccess(false)
             setEmail('')
           }}
-          variant="outline"
-          className="w-full"
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
         >
           Suscribir otro email
-        </Button>
+        </button>
       </div>
     )
   }
@@ -94,10 +92,10 @@ export default function HomeNewsletter() {
           className="w-full px-6 py-4 rounded-xl border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent disabled:opacity-50"
         />
       </div>
-      <Button 
+      <button 
         type="submit"
         disabled={isLoading || !email.trim()}
-        className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl px-8 py-4 h-auto text-lg font-semibold transition-all duration-300 hover:shadow-lg disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 w-full bg-primary hover:bg-primary/90 text-white rounded-xl px-8 py-4 h-auto text-lg font-semibold transition-all duration-300 hover:shadow-lg"
       >
         {isLoading ? (
           <>
@@ -110,7 +108,7 @@ export default function HomeNewsletter() {
             Unirme a la comunidad
           </>
         )}
-      </Button>
+      </button>
       <p className="text-sm text-gray-500 text-center">
         Al suscribirte, aceptas recibir correos electrónicos de Pet Gourmet.
         <br />
