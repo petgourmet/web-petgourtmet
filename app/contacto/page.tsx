@@ -1,122 +1,195 @@
-export default function ContactoPage() {
+'use client'
+
+import { useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Phone, Mail, MapPin, Clock, Send, CheckCircle } from 'lucide-react'
+
+export default function ContactPage() {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setError('')
+    
+    const formData = new FormData(e.target as HTMLFormElement)
+    const data = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string,
+      message: formData.get('message') as string,
+    }
+    
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+      
+      const result = await response.json()
+      
+      if (response.ok) {
+        setIsSuccess(true)
+        // Limpiar formulario
+        ;(e.target as HTMLFormElement).reset()
+      } else {
+        setError(result.error || 'Error al enviar el mensaje')
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error)
+      setError('Error de conexión. Inténtalo de nuevo.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <div className="bg-gradient-to-br from-orange-50 to-amber-50 min-h-screen">
-      <div className="container mx-auto px-4 py-24">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Left Column - Company Information */}
-            <div className="space-y-8">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">CENTRO DE PRODUCCIÓN PET GOURMET</h1>
-                <div className="space-y-3 text-gray-600">
-                  <p className="text-lg">Avenida José María Castorena 425, plaza Cuajimalpa Local 6</p>
-                  <p className="text-lg">Cuajimalpa, Ciudad de México</p>
-                  <p className="text-lg">
-                    <span className="font-medium">Email:</span> contacto@petgourmet.mx
-                  </p>
-                  <p className="text-lg">
-                    <span className="font-medium">Teléfono:</span> +525561269681
-                  </p>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/80 py-12 px-4">
+      <div className="container mx-auto max-w-6xl">
+        <div className="grid lg:grid-cols-2 gap-12">
+          {/* Header Section */}
+          <div className="text-center lg:text-left mb-8 lg:mb-0">
+            <h1 className="text-4xl md:text-6xl font-bold mb-4">
+              Contáctanos
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl">
+              ¿Tienes alguna pregunta sobre nuestros productos o necesitas ayuda? 
+              Estamos aquí para ayudarte a encontrar la mejor alimentación para tu mascota.
+            </p>
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-lg p-6 shadow-sm">
-                <p className="text-gray-700 leading-relaxed">
-                  Suscribete y conoce la Cocina Gourmet para Mascotas Pet Gourmet. Recetas 100% naturales y saludables
-                  para complementar el alimento convencional de nuestros peludos.
-                </p>
+            {/* Contact Info */}
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center justify-center lg:justify-start gap-3">
+                <Phone className="h-5 w-5 text-[#7BBDC5]" />
+                <span>+52 55 6126 9681</span>
               </div>
-
-              {/* Map Section */}
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="h-80">
-                  <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3762.5!2d-99.2944!3d19.3656!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85ce02c7e5b6d5a7%3A0x8b5c5e5e5e5e5e5e!2sAv.%20Jos%C3%A9%20Mar%C3%ADa%20Castorena%20425%2C%20Cuajimalpa%2C%20Ciudad%20de%20M%C3%A9xico!5e0!3m2!1ses!2smx!4v1234567890"
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="Ubicación Pet Gourmet Santa Fe"
-                  ></iframe>
-                </div>
+              <div className="flex items-center justify-center lg:justify-start gap-3">
+                <Mail className="h-5 w-5 text-[#7BBDC5]" />
+                <span>contacto@petgourmet.mx</span>
+              </div>
+              <div className="flex items-center justify-center lg:justify-start gap-3">
+                <MapPin className="h-5 w-5 text-[#7BBDC5]" />
+                <span>Avenida José María Castorena 425, plaza Cuajimalpa Local 6</span>
+              </div>
+              <div className="flex items-center justify-center lg:justify-start gap-3">
+                <Clock className="h-5 w-5 text-[#7BBDC5]" />
+                <span>Lun - Vie: 9:00 AM - 6:00 PM</span>
               </div>
             </div>
+          </div>
 
-            {/* Right Column - Contact Form */}
-            <div className="bg-white rounded-xl shadow-lg p-8">
-              <h2 className="text-2xl font-semibold text-[#7BBDC5] mb-2">Envíanos un mensaje</h2>
-              <p className="text-gray-600 mb-8">
-                ¡Estaremos atentos a dar respuesta a tus preguntas! Por favor llena el formulario de abajo con tus datos
-                y contáctanos.
-              </p>
-
-              <form className="space-y-6">
-                <div>
-                  <label htmlFor="nombre" className="block text-sm font-medium text-[#7BBDC5] mb-2">
-                    NOMBRE (requerido)*
-                  </label>
-                  <input
-                    type="text"
-                    id="nombre"
-                    name="nombre"
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors"
-                    placeholder="Escribe tu nombre"
-                  />
+          {/* Contact Form */}
+          <div>
+            {/* Mensaje de éxito */}
+            {isSuccess && (
+              <div className="mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-3 flex-shrink-0" />
+                  <p className="text-green-800">
+                    ¡Tu mensaje ha sido enviado exitosamente! Te responderemos en un plazo máximo de 24 horas.
+                  </p>
                 </div>
+              </div>
+            )}
 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-[#7BBDC5] mb-2">
-                    EMAIL (requerido)*
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors"
-                    placeholder="Escribe tu email"
-                  />
+            {/* Mensaje de error */}
+            {error && (
+              <div className="mb-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800">{error}</p>
                 </div>
+              </div>
+            )}
 
-                <div>
-                  <label htmlFor="celular" className="block text-sm font-medium text-[#7BBDC5] mb-2">
-                    CELULAR (requerido)*
-                  </label>
-                  <input
-                    type="tel"
-                    id="celular"
-                    name="celular"
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors"
-                    placeholder="Escribe tu número de celular"
-                  />
-                </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Envíanos un mensaje</CardTitle>
+                <CardDescription>
+                  Completa el formulario y nos pondremos en contacto contigo lo antes posible.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nombre completo *</Label>
+                      <Input 
+                        id="name"
+                        name="name"
+                        placeholder="Tu nombre completo"
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Teléfono</Label>
+                      <Input 
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="Tu número de teléfono"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
 
-                <div>
-                  <label htmlFor="mensaje" className="block text-sm font-medium text-[#7BBDC5] mb-2">
-                    TU MENSAJE (requerido)*
-                  </label>
-                  <textarea
-                    id="mensaje"
-                    name="mensaje"
-                    rows={5}
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#7BBDC5] focus:border-[#7BBDC5] transition-colors resize-none"
-                    placeholder="Escribe tu mensaje..."
-                  ></textarea>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input 
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="tu@email.com"
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-[#7BBDC5] text-white font-medium py-3 px-6 rounded-md hover:bg-[#6AABB2] transition-colors duration-200 focus:ring-2 focus:ring-[#7BBDC5] focus:ring-offset-2"
-                >
-                  ENVIAR
-                </button>
-              </form>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="message">Mensaje *</Label>
+                    <Textarea 
+                      id="message"
+                      name="message"
+                      placeholder="Cuéntanos en qué podemos ayudarte..."
+                      rows={6}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Enviar mensaje
+                      </>
+                    )}
+                  </Button>
+
+                  <p className="text-sm text-muted-foreground text-center">
+                    Al enviar este formulario, recibirás un email de confirmación y nos pondremos en contacto contigo.
+                  </p>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

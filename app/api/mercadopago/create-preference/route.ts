@@ -289,6 +289,29 @@ export async function POST(request: Request) {
       // No fallar por esto, pero loggearlo
     } else {
       console.log("Order updated with preference ID successfully")
+
+    // Enviar email de confirmación de orden creada
+    try {
+      const { sendOrderStatusEmail } = await import('@/lib/email-service')
+      
+      const customerName = customerData.firstName && customerData.lastName 
+        ? `${customerData.firstName} ${customerData.lastName}`
+        : customerData.firstName || customerData.email
+      
+      console.log('Sending order confirmation email')
+      
+      await sendOrderStatusEmail(
+        'pending',
+        customerData.email,
+        orderNumber,
+        customerName
+      )
+      
+      console.log('Order confirmation email sent successfully')
+    } catch (emailError) {
+      console.error('Error sending order confirmation email:', emailError)
+      // No fallar por errores de email
+    }
     }
 
     console.log("=== CREATE PREFERENCE COMPLETED SUCCESSFULLY ===")

@@ -72,12 +72,15 @@ export async function POST(request: Request) {
 
     // Determinar el nuevo estado basado en el estado del pago
     let newPaymentStatus = 'pending'
-    let newOrderStatus = order.status
+    let newOrderStatus = order.status // NO cambiar el status de orden aquí
 
     switch (paymentData.status) {
       case 'approved':
         newPaymentStatus = 'completed'
-        newOrderStatus = 'completed' // Cambiar orden a completada cuando el pago es aprobado
+        // Si el pago es aprobado Y la orden aún está pendiente, cambiar a processing
+        if (order.status === 'pending') {
+          newOrderStatus = 'processing'
+        }
         break
       case 'pending':
         newPaymentStatus = 'pending'
@@ -85,6 +88,7 @@ export async function POST(request: Request) {
       case 'rejected':
       case 'cancelled':
         newPaymentStatus = 'failed'
+        newOrderStatus = 'cancelled' // Cancelar orden si el pago falla
         break
       default:
         console.log('Unknown payment status:', paymentData.status)
@@ -111,10 +115,53 @@ export async function POST(request: Request) {
 
     console.log('Order updated successfully')
 
-    // Si el pago fue aprobado, podrías enviar un email de confirmación aquí
+    // Si el pago fue aprobado, enviar email de confirmación
     if (newPaymentStatus === 'completed') {
       console.log('Payment completed for order:', order.id)
-      // TODO: Enviar email de confirmación al cliente
+      
+      try {
+        // Extraer información del cliente del shipping_address
+        let customerData = null
+        let orderNumber = null
+        
+        if (order.shipping_address) {
+          try {
+            const shippingData = typeof order.shipping_address === 'string' 
+              ? JSON.parse(order.shipping_address) 
+              : order.shipping_address
+            
+            customerData = shippingData.customer_data
+            orderNumber = shippingData.order_number
+          } catch (e) {
+            console.error('Error parsing shipping_address:', e)
+          }
+        }
+        
+        if (customerData?.email && newOrderStatus === 'processing') {
+          // Solo enviar email si el estado cambió a processing
+          const { sendOrderStatusEmail } = await import('@/lib/email-service')
+          
+          const customerName = customerData.firstName && customerData.lastName 
+            ? `${customerData.firstName} ${customerData.lastName}`
+            : customerData.firstName || customerData.email
+          
+          const finalOrderNumber = orderNumber || `PG-${order.id}`
+          
+          console.log('Sending processing email after payment confirmation')
+          
+          await sendOrderStatusEmail(
+            'processing',
+            customerData.email,
+            finalOrderNumber,
+            customerName
+          )
+          
+          console.log('Email sent successfully')
+        }
+      } catch (emailError) {
+        console.error('Error sending email:', emailError)
+        // No fallar por errores de email
+      }
     }
 
     return NextResponse.json({ 
