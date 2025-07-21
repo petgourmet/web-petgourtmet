@@ -261,7 +261,7 @@ export async function sendContactEmails(formData: ContactFormData) {
     // Email de notificación al admin
     const adminEmailOptions = {
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
-      to: process.env.SMTP_USER, // Enviar al email admin
+      to: 'contacto@petgourmet.mx', // Enviar notificaciones al email principal
       subject: adminTemplate.subject,
       html: adminTemplate.html
     }
@@ -318,13 +318,45 @@ export async function sendNewsletterEmail(email: string) {
     // También notificar al admin
     const adminNotification = {
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
-      to: process.env.SMTP_USER,
+      to: 'contacto@petgourmet.mx', // Enviar notificaciones al email principal
       subject: `[Pet Gourmet] Nueva suscripción al newsletter: ${email}`,
       html: `
-        <h2>Nueva suscripción al newsletter</h2>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-MX')}</p>
-        <p>El email de confirmación fue enviado exitosamente.</p>
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Nueva Suscripción Newsletter</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #7BBDC5;">📧 Nueva suscripción al newsletter</h1>
+              
+              <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                <h3 style="margin-top: 0; color: #155724;">Nuevo suscriptor agregado</h3>
+                <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+                <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-MX', { 
+                  timeZone: 'America/Mexico_City'
+                })}</p>
+                <p><strong>Estado:</strong> Email de confirmación enviado exitosamente ✅</p>
+              </div>
+              
+              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>📋 Acciones recomendadas:</strong></p>
+                <ul>
+                  <li>Agregar el email a la lista de marketing</li>
+                  <li>Considerar envío de ofertas exclusivas</li>
+                  <li>Incluir en próximas campañas de newsletter</li>
+                </ul>
+              </div>
+              
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+              <p style="color: #666; font-size: 12px; text-align: center;">
+                Sistema automático de notificaciones - Pet Gourmet<br>
+                Generado el ${new Date().toLocaleString('es-MX')}
+              </p>
+            </div>
+          </body>
+        </html>
       `
     }
     

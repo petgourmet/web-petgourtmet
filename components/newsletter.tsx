@@ -10,6 +10,7 @@ export default function Newsletter() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [subscribedEmail, setSubscribedEmail] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,6 +29,7 @@ export default function Newsletter() {
       const result = await response.json()
 
       if (response.ok) {
+        setSubscribedEmail(email)
         setIsSuccess(true)
         setEmail('')
       } else {
@@ -47,13 +49,33 @@ export default function Newsletter() {
         <div className="container mx-auto px-4 text-center">
           <div className="max-w-2xl mx-auto">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8">
-              <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
+              <CheckCircle className="h-16 w-16 text-white mx-auto mb-4 animate-pulse" />
               <h2 className="text-3xl font-bold text-white mb-4">
                 ¡Gracias por suscribirte!
               </h2>
-              <p className="text-white/90 text-lg">
-                Revisa tu email para confirmar la suscripción. Pronto recibirás ofertas exclusivas y consejos para tu mascota.
+              <p className="text-white/90 text-lg mb-6">
+                Tu suscripción ha sido <strong>confirmada exitosamente</strong>. 
+                Revisa tu email para más información.
               </p>
+              <div className="bg-white/20 rounded-lg p-4 mb-6">
+                <p className="text-white font-semibold">📧 Email enviado a:</p>
+                <p className="text-white/90">{subscribedEmail}</p>
+              </div>
+              <p className="text-white/80 text-sm">
+                Pronto recibirás ofertas exclusivas y consejos para tu mascota.
+              </p>
+              <div className="mt-6">
+                <button 
+                  onClick={() => {
+                    setIsSuccess(false)
+                    setSubscribedEmail('')
+                    setEmail('')
+                  }}
+                  className="text-white/80 hover:text-white underline text-sm transition-colors"
+                >
+                  ← Suscribir otro email
+                </button>
+              </div>
             </div>
           </div>
         </div>
