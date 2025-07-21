@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, Check } from "lucide-react"
 import Link from "next/link"
 import { VideoHero } from "@/components/video-hero"
+import HomeNewsletter from "@/components/home-newsletter"
 import "../app/reset.css"
 
 export default function Home() {
@@ -228,21 +229,7 @@ export default function Home() {
                 </p>
 
                 <div className="space-y-4">
-                  <div className="relative">
-                    <input
-                      type="email"
-                      placeholder="Tu correo electrónico"
-                      className="w-full px-6 py-4 rounded-xl border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent"
-                    />
-                  </div>
-                  <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl px-8 py-4 h-auto text-lg font-semibold transition-all duration-300 hover:shadow-lg">
-                    Unirme a la comunidad
-                  </Button>
-                  <p className="text-sm text-gray-500 text-center">
-                    Al suscribirte, aceptas recibir correos electrónicos de Pet Gourmet.
-                    <br />
-                    Puedes darte de baja en cualquier momento.
-                  </p>
+                  <HomeNewsletter />
                 </div>
               </div>
             </div>
