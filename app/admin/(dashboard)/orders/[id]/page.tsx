@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
-import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail } from "lucide-react"
+import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail, Clock, Calendar, CreditCard, Pause, Play, Square } from "lucide-react"
 import { AuthGuard } from "@/components/admin/auth-guard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
@@ -459,19 +459,11 @@ export default function OrderDetailPage() {
                         )}
                         {orderMetadata && orderMetadata.frequency && orderMetadata.frequency !== 'none' && (
                           <>
-                            <div className="mt-6">
-                              <h3 className="mb-2 font-medium text-blue-600">Información de Suscripción</h3>
-                              <div className="rounded-md bg-blue-50 p-3">
-                                <p><strong>Frecuencia:</strong> {
-                                  orderMetadata.frequency === 'weekly' ? 'Semanal' :
-                                  orderMetadata.frequency === 'monthly' ? 'Mensual' :
-                                  orderMetadata.frequency === 'quarterly' ? 'Trimestral' :
-                                  orderMetadata.frequency === 'annual' ? 'Anual' :
-                                  orderMetadata.frequency
-                                }</p>
-                                <p><strong>Estado:</strong> Suscripción activa</p>
-                              </div>
-                            </div>
+                            <SubscriptionInfo 
+                              orderId={order.id}
+                              frequency={orderMetadata.frequency}
+                              orderNumber={orderMetadata.order_number}
+                            />
                           </>
                         )}
                       </>
@@ -719,5 +711,267 @@ function PaymentStatusBadge({ status }: { status: string }) {
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${bgColor}`}>
       {status === "paid" ? "Pagado" : status === "pending" ? "Pendiente" : status === "failed" ? "Fallido" : status}
     </span>
+  )
+}
+
+// Componente para información de suscripción con temporizador
+function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number, frequency: string, orderNumber?: string }) {
+  const [subscriptionData, setSubscriptionData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [countdown, setCountdown] = useState<string>("")
+  const [updating, setUpdating] = useState(false)
+
+  useEffect(() => {
+    fetchSubscriptionData()
+  }, [orderId])
+
+  // Actualizar countdown cada minuto
+  useEffect(() => {
+    if (subscriptionData?.next_payment_date) {
+      updateCountdown()
+      const interval = setInterval(updateCountdown, 60000) // Cada minuto
+      return () => clearInterval(interval)
+    }
+  }, [subscriptionData?.next_payment_date])
+
+  const fetchSubscriptionData = async () => {
+    try {
+      setLoading(true)
+      
+      // Buscar suscripción relacionada con esta orden
+      const { data: subscription, error } = await supabase
+        .from('user_subscriptions')
+        .select(`
+          *,
+          products (
+            name,
+            description,
+            images
+          )
+        `)
+        .or(`order_id.eq.${orderId},external_reference.like.%${orderId}%,external_reference.like.%${orderNumber}%`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error fetching subscription:', error)
+      } else {
+        setSubscriptionData(subscription)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateCountdown = () => {
+    if (!subscriptionData?.next_payment_date) return
+    
+    const now = new Date()
+    const nextPayment = new Date(subscriptionData.next_payment_date)
+    const diffTime = nextPayment.getTime() - now.getTime()
+    
+    if (diffTime <= 0) {
+      setCountdown("¡Pago vencido!")
+      return
+    }
+    
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 1) {
+      setCountdown("¡Mañana!")
+    } else if (diffDays <= 3) {
+      setCountdown(`¡En ${diffDays} días!`)
+    } else if (diffDays <= 7) {
+      setCountdown(`En ${diffDays} días`)
+    } else {
+      setCountdown(`En ${diffDays} días`)
+    }
+  }
+
+  const handleSubscriptionAction = async (action: 'cancel' | 'pause' | 'reactivate') => {
+    if (!subscriptionData?.user_id) return
+    
+    try {
+      setUpdating(true)
+      
+      const response = await fetch(`/api/subscriptions/user/${subscriptionData.user_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: subscriptionData.id,
+          action
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast.success(`Suscripción ${action === 'cancel' ? 'cancelada' : action === 'pause' ? 'pausada' : 'reactivada'} exitosamente`)
+        fetchSubscriptionData() // Actualizar datos
+      } else {
+        throw new Error(result.error || 'Error procesando acción')
+      }
+    } catch (error: any) {
+      toast.error(`Error: ${error.message}`)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-MX', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getFrequencyLabel = (freq: string) => {
+    const labels: Record<string, string> = {
+      'weekly': 'Semanal',
+      'monthly': 'Mensual', 
+      'quarterly': 'Trimestral',
+      'annual': 'Anual'
+    }
+    return labels[freq] || freq
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'authorized': return 'bg-green-100 text-green-800'
+      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'cancelled': return 'bg-red-100 text-red-800'
+      case 'paused': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="mt-6">
+        <h3 className="mb-2 font-medium text-blue-600">Información de Suscripción</h3>
+        <div className="rounded-md bg-blue-50 p-3 flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Cargando información de suscripción...</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-6">
+      <h3 className="mb-3 font-medium text-blue-600 flex items-center gap-2">
+        <CreditCard className="w-5 h-5" />
+        Información de Suscripción
+      </h3>
+      
+      <div className="space-y-4">
+        {/* Información básica */}
+        <div className="rounded-md bg-blue-50 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p><strong>Frecuencia:</strong> {getFrequencyLabel(frequency)}</p>
+              {subscriptionData && (
+                <>
+                  <p className="flex items-center gap-2">
+                    <strong>Estado:</strong> 
+                    <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(subscriptionData.status)}`}>
+                      {subscriptionData.status === 'authorized' ? 'Activa' :
+                       subscriptionData.status === 'pending' ? 'Pendiente' :
+                       subscriptionData.status === 'cancelled' ? 'Cancelada' :
+                       subscriptionData.status === 'paused' ? 'Pausada' : subscriptionData.status}
+                    </span>
+                  </p>
+                  <p><strong>Cobros realizados:</strong> {subscriptionData.charges_made || 0}</p>
+                </>
+              )}
+            </div>
+            
+            {subscriptionData && (
+              <div>
+                <p><strong>Monto:</strong> ${subscriptionData.amount?.toFixed(2) || '0.00'} MXN</p>
+                <p><strong>Último pago:</strong> {
+                  subscriptionData.last_payment_date 
+                    ? formatDate(subscriptionData.last_payment_date)
+                    : 'Ninguno'
+                }</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Temporizador de próximo pago */}
+        {subscriptionData?.next_payment_date && subscriptionData.status === 'authorized' && (
+          <div className="rounded-md bg-amber-50 border border-amber-200 p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-full">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-amber-800">Próximo Pago</p>
+                  <p className="text-sm text-amber-600">
+                    {formatDate(subscriptionData.next_payment_date)}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-amber-800">{countdown}</p>
+                <p className="text-xs text-amber-600">hasta el cobro</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Acciones de suscripción */}
+        {subscriptionData && (
+          <div className="flex gap-2 pt-2">
+            {subscriptionData.status === 'authorized' && (
+              <>
+                <button
+                  onClick={() => handleSubscriptionAction('pause')}
+                  disabled={updating}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium hover:bg-yellow-200 disabled:opacity-50"
+                >
+                  <Pause className="w-3 h-3" />
+                  {updating ? 'Pausando...' : 'Pausar'}
+                </button>
+                <button
+                  onClick={() => handleSubscriptionAction('cancel')}
+                  disabled={updating}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-800 rounded-md text-sm font-medium hover:bg-red-200 disabled:opacity-50"
+                >
+                  <Square className="w-3 h-3" />
+                  {updating ? 'Cancelando...' : 'Cancelar'}
+                </button>
+              </>
+            )}
+            {subscriptionData.status === 'paused' && (
+              <button
+                onClick={() => handleSubscriptionAction('reactivate')}
+                disabled={updating}
+                className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-800 rounded-md text-sm font-medium hover:bg-green-200 disabled:opacity-50"
+              >
+                <Play className="w-3 h-3" />
+                {updating ? 'Reactivando...' : 'Reactivar'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Mensaje si no hay suscripción activa */}
+        {!subscriptionData && (
+          <div className="rounded-md bg-gray-50 p-3 text-center text-gray-600">
+            <p>No se encontró suscripción activa para esta orden.</p>
+            <p className="text-sm mt-1">La suscripción puede estar pendiente de activación o haber sido cancelada.</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase/client"
 import type { ProductFeature } from "@/components/product-card"
 import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProductDetailModal } from "@/components/product-detail-modal"
 
 // Tipo para los productos desde la base de datos
 type Product = {

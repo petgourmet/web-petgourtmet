@@ -44,15 +44,59 @@ export async function GET(
           // Buscar suscripción relacionada si existe
           const { data: subscription } = await supabaseAdmin
             .from("user_subscriptions")
-            .select("*")
-            .eq("order_id", orderId)
-            .single()
+            .select(`
+              *,
+              products (
+                name,
+                description,
+                images
+              )
+            `)
+            .or(`order_id.eq.${orderId},external_reference.like.%${orderId}%`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
 
           subscriptionInfo = {
             isSubscription: true,
             frequency: formData.frequency,
             startDate: formData.subscriptionStartDate,
-            subscription: subscription
+            subscription: subscription,
+            nextPaymentDate: subscription?.next_payment_date,
+            subscriptionStatus: subscription?.status || 'not_found',
+            chargesMade: subscription?.charges_made || 0,
+            mercadopagoId: subscription?.mercadopago_subscription_id
+          }
+        }
+      }
+      
+      // También verificar por shipping_address si no encontramos en notes
+      if (!subscriptionInfo && order.shipping_address) {
+        const shippingData = JSON.parse(order.shipping_address)
+        if (shippingData.frequency && shippingData.frequency !== "none") {
+          const { data: subscription } = await supabaseAdmin
+            .from("user_subscriptions")
+            .select(`
+              *,
+              products (
+                name,
+                description,
+                images
+              )
+            `)
+            .or(`order_id.eq.${orderId},external_reference.like.%${orderId}%`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          subscriptionInfo = {
+            isSubscription: true,
+            frequency: shippingData.frequency,
+            subscription: subscription,
+            nextPaymentDate: subscription?.next_payment_date,
+            subscriptionStatus: subscription?.status || 'not_found',
+            chargesMade: subscription?.charges_made || 0,
+            mercadopagoId: subscription?.mercadopago_subscription_id
           }
         }
       }

@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { Loader2, UserCheck, UserX, Shield, AlertCircle } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { AuthGuard } from "@/components/admin/auth-guard"
 
 export default function UsersAdminPage() {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { toast } = useToast()
 
   useEffect(() => {
     fetchUsers()
@@ -31,11 +30,7 @@ export default function UsersAdminPage() {
     } catch (error: any) {
       console.error("Error al cargar usuarios:", error)
       setError(error.message)
-      toast({
-        title: "Error",
-        description: `No se pudieron cargar los usuarios: ${error.message}`,
-        variant: "destructive",
-      })
+      toast.error(`No se pudieron cargar los usuarios: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -60,17 +55,12 @@ export default function UsersAdminPage() {
       // Actualizar la lista de usuarios
       setUsers(users.map((user) => (user.id === userId ? { ...user, role } : user)))
 
-      toast({
-        title: "Éxito",
-        description: `Usuario actualizado a rol: ${role}`,
-      })
+      await fetchUsers()
+
+      toast.success(`Rol de usuario actualizado a ${role}`)
     } catch (error: any) {
       console.error("Error al actualizar rol:", error)
-      toast({
-        title: "Error",
-        description: `No se pudo actualizar el rol del usuario: ${error.message}`,
-        variant: "destructive",
-      })
+      toast.error(`Error al actualizar rol: ${error.message}`)
     }
   }
 

@@ -385,6 +385,7 @@ export function Navbar() {
                 <span className="font-medium">Tiendas</span>
               </Link>
 
+              {/* Crear Plan - Temporalmente oculto 
               <Link
                 href="/crear-plan"
                 onClick={() => setIsMenuOpen(false)}
@@ -393,6 +394,7 @@ export function Navbar() {
                 <Heart size={20} className="mr-3 text-primary" />
                 <span className="font-medium">Crear Plan Personalizado</span>
               </Link>
+              */}
             </nav>
 
             {/* Quick Actions */}

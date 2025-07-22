@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
+import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import type { ProductFeature } from "@/components/product-card"
@@ -334,6 +335,8 @@ export function ProductCategoryLoader({
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [showDetail, setShowDetail] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
     priceRange: [0, 1000],
@@ -528,10 +531,21 @@ export function ProductCategoryLoader({
   const router = useRouter()
 
   const handleShowDetail = (product: Product) => {
-    // Generar un slug a partir del nombre del producto si no existe
-    const slug = product.slug || product.name.toLowerCase().replace(/\s+/g, "-")
-    router.push(`/producto/${slug}?id=${product.id}`)
+    setSelectedProduct(product)
+    setShowDetail(true)
   }
+
+  // Mapear el producto al tipo esperado por el modal
+  const mapProductForModal = (product: Product) => ({
+    ...product,
+    sizes: product.sizes?.map((size, index) => ({
+      id: index + 1,
+      product_id: product.id,
+      weight: size.weight,
+      price: size.price,
+      stock: 100
+    }))
+  })
 
   const applyFilters = () => {
     let result = [...products]
@@ -640,6 +654,16 @@ export function ProductCategoryLoader({
           applyFilters={applyFilters}
           features={allFeatures.length > 0 ? allFeatures : ["Natural", "Sin Conservantes", "Alta Calidad"]}
           maxPrice={maxPrice}
+        />
+      )}
+
+      {/* Modal de detalle del producto */}
+      {selectedProduct && (
+        <ProductDetailModal
+          product={mapProductForModal(selectedProduct)}
+          isOpen={showDetail}
+          onClose={() => setShowDetail(false)}
+          onAddToCart={addToCart}
         />
       )}
     </>
