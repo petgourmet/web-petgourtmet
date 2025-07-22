@@ -25,6 +25,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
+  const [showFullDescription, setShowFullDescription] = useState(false)
 
   const imageContainerRef = useRef<HTMLDivElement>(null)
 
@@ -192,7 +193,19 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                 </div>
               )}
 
-              <p className="text-gray-600 dark:text-gray-300 mb-6 text-lg leading-relaxed">{product.description}</p>
+              <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm md:text-lg leading-relaxed">
+                <span className={showFullDescription ? "" : "line-clamp-3"}>
+                  {product.description}
+                </span>
+                {product.description && product.description.length > 150 && (
+                  <button
+                    onClick={() => setShowFullDescription(!showFullDescription)}
+                    className="text-[#7BBDC5] hover:text-[#7BBDC5]/80 font-medium ml-2 underline"
+                  >
+                    {showFullDescription ? "Ver menos" : "Ver más"}
+                  </button>
+                )}
+              </p>
 
               {product.features && product.features.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-6">
@@ -302,7 +315,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Precio total:</p>
-                  <p className="text-3xl font-bold text-[#7BBDC5]">
+                  <p className="text-lg font-bold text-[#7BBDC5]">
                     $
                     {(
                       (selectedSize ? selectedSize.price : product.price || 0) *
