@@ -377,3 +377,243 @@ export async function sendNewsletterEmail(email: string) {
     }
   }
 }
+
+// Interface para recordatorio de pago de suscripción
+export interface SubscriptionPaymentReminderData {
+  userEmail: string
+  userName: string
+  productName: string
+  nextPaymentDate: string
+  amount: number
+  subscriptionId: string
+}
+
+// Interface para confirmación de pago de suscripción
+export interface SubscriptionPaymentSuccessData {
+  userEmail: string
+  userName: string
+  productName: string
+  amount: number
+  paymentDate: string
+  nextPaymentDate: string
+}
+
+// Función para enviar recordatorio de pago de suscripción
+export const sendSubscriptionPaymentReminder = async (data: SubscriptionPaymentReminderData) => {
+  try {
+    const transporter = createTransporter()
+    
+    const paymentDate = new Date(data.nextPaymentDate).toLocaleDateString('es-MX', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+
+    // Email al cliente
+    const customerReminder = {
+      from: `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+      to: data.userEmail,
+      subject: '🔔 Recordatorio de pago - Tu suscripción Pet Gourmet',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Recordatorio de Pago</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+              </div>
+              
+              <div style="background: linear-gradient(135deg, #7BBDC5 0%, #5A9EA6 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+                <h1 style="margin: 0; font-size: 28px;">🔔 Recordatorio de Pago</h1>
+                <p style="margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;">Tu próximo pago se procesará pronto</p>
+              </div>
+
+              <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
+                <h2 style="color: #7BBDC5; margin-top: 0;">Hola ${data.userName},</h2>
+                <p>Te recordamos que tu suscripción a <strong>${data.productName}</strong> tiene un pago programado para el <strong>${paymentDate}</strong>.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7BBDC5;">
+                  <h3 style="margin-top: 0; color: #333;">Detalles del pago:</h3>
+                  <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 10px;"><strong>Producto:</strong> ${data.productName}</li>
+                    <li style="margin-bottom: 10px;"><strong>Monto:</strong> $${data.amount.toLocaleString('es-MX')} MXN</li>
+                    <li style="margin-bottom: 10px;"><strong>Fecha de cargo:</strong> ${paymentDate}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div style="background: #e8f4f5; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                <h3 style="color: #7BBDC5; margin-top: 0;">💡 ¿Qué pasará?</h3>
+                <p>El cargo se realizará automáticamente en tu método de pago registrado. No necesitas hacer nada, pero asegúrate de que tu tarjeta tenga fondos suficientes.</p>
+              </div>
+
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://petgourmet.mx/perfil" style="background: #7BBDC5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+                  Ver Mi Suscripción
+                </a>
+              </div>
+
+              <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin-bottom: 25px;">
+                <h4 style="color: #d68910; margin-top: 0;">¿Necesitas cambiar algo?</h4>
+                <p style="margin-bottom: 0;">Si necesitas actualizar tu método de pago o gestionar tu suscripción, visita tu perfil o contáctanos.</p>
+              </div>
+
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+              <p style="color: #666; font-size: 12px; text-align: center;">
+                Este es un recordatorio automático de Pet Gourmet<br>
+                Si tienes preguntas, contáctanos en contacto@petgourmet.mx
+              </p>
+            </div>
+          </body>
+        </html>
+      `
+    }
+
+    const result = await transporter.sendMail(customerReminder)
+
+    console.log('Subscription payment reminder sent successfully:', result.messageId)
+    
+    return {
+      success: true,
+      messageId: result.messageId
+    }
+    
+  } catch (error) {
+    console.error('Error sending subscription payment reminder:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+// Función para confirmar pago exitoso de suscripción
+export const sendSubscriptionPaymentSuccess = async (data: SubscriptionPaymentSuccessData) => {
+  try {
+    const transporter = createTransporter()
+    
+    const paymentDate = new Date(data.paymentDate).toLocaleDateString('es-MX', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+
+    const nextPaymentDate = new Date(data.nextPaymentDate).toLocaleDateString('es-MX', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+
+    // Email al cliente
+    const customerConfirmation = {
+      from: `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+      to: data.userEmail,
+      subject: '✅ Pago procesado exitosamente - Pet Gourmet',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Pago Procesado</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+              </div>
+              
+              <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+                <h1 style="margin: 0; font-size: 28px;">✅ ¡Pago Exitoso!</h1>
+                <p style="margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;">Tu suscripción sigue activa</p>
+              </div>
+
+              <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
+                <h2 style="color: #28a745; margin-top: 0;">Hola ${data.userName},</h2>
+                <p>¡Excelentes noticias! Hemos procesado exitosamente el pago de tu suscripción a <strong>${data.productName}</strong>.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #28a745;">
+                  <h3 style="margin-top: 0; color: #333;">Detalles del pago:</h3>
+                  <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 10px;"><strong>Producto:</strong> ${data.productName}</li>
+                    <li style="margin-bottom: 10px;"><strong>Monto pagado:</strong> $${data.amount.toLocaleString('es-MX')} MXN</li>
+                    <li style="margin-bottom: 10px;"><strong>Fecha de pago:</strong> ${paymentDate}</li>
+                    <li style="margin-bottom: 10px;"><strong>Próximo pago:</strong> ${nextPaymentDate}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                <h3 style="color: #155724; margin-top: 0;">🚚 ¿Qué sigue?</h3>
+                <p style="color: #155724; margin-bottom: 0;">Tu pedido será preparado y enviado según tu programación de suscripción. Te notificaremos cuando esté en camino.</p>
+              </div>
+
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://petgourmet.mx/perfil" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block; margin-right: 10px;">
+                  Ver Mi Perfil
+                </a>
+                <a href="https://petgourmet.mx/productos" style="background: #7BBDC5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+                  Ver Productos
+                </a>
+              </div>
+
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+              <p style="color: #666; font-size: 12px; text-align: center;">
+                Gracias por confiar en Pet Gourmet<br>
+                Si tienes preguntas, contáctanos en contacto@petgourmet.mx
+              </p>
+            </div>
+          </body>
+        </html>
+      `
+    }
+
+    // Email al admin
+    const adminNotification = {
+      from: `"Pet Gourmet System" <${process.env.SMTP_USER}>`,
+      to: 'contacto@petgourmet.mx',
+      subject: `💰 Pago de suscripción procesado - ${data.productName}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: Arial, sans-serif;">
+            <h2>💰 Pago de Suscripción Procesado</h2>
+            <p><strong>Cliente:</strong> ${data.userName} (${data.userEmail})</p>
+            <p><strong>Producto:</strong> ${data.productName}</p>
+            <p><strong>Monto:</strong> $${data.amount.toLocaleString('es-MX')} MXN</p>
+            <p><strong>Fecha de pago:</strong> ${paymentDate}</p>
+            <p><strong>Próximo pago:</strong> ${nextPaymentDate}</p>
+            <hr>
+            <p style="color: #666; font-size: 12px;">
+              Sistema automático de notificaciones - Pet Gourmet<br>
+              Generado el ${new Date().toLocaleString('es-MX')}
+            </p>
+          </body>
+        </html>
+      `
+    }
+
+    const result = await transporter.sendMail(customerConfirmation)
+    await transporter.sendMail(adminNotification)
+
+    console.log('Subscription payment success notification sent:', result.messageId)
+    
+    return {
+      success: true,
+      messageId: result.messageId
+    }
+    
+  } catch (error) {
+    console.error('Error sending subscription payment success notification:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
