@@ -1,22 +1,42 @@
+'use client'
+
+import { useEffect } from 'react'
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { Heading } from "@/components/ui/heading"
-import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { CheckCircle, Package, Clock, CreditCard } from "lucide-react"
+import { CheckCircle, Package, Clock, CreditCard, Heart, Star, Gift } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { useCart } from "@/components/cart-context"
+
+interface GraciasPorTuCompraProps {
+  searchParams: { 
+    order_id?: string
+    order_number?: string
+    payment_id?: string 
+  }
+}
+
+function ClearCartComponent() {
+  const { clearCart } = useCart()
+  
+  useEffect(() => {
+    // Limpiar carrito cuando llegamos a esta página
+    clearCart()
+  }, [clearCart])
+  
+  return null
+}
 
 export default async function GraciasPorTuCompraPage({
   searchParams,
-}: {
-  searchParams: { order_id?: string; order_number?: string; payment_id?: string }
-}) {
+}: GraciasPorTuCompraProps) {
   const orderId = searchParams.order_id
   const orderNumber = searchParams.order_number
   const paymentId = searchParams.payment_id
 
-  if (!orderId || !orderNumber) {
+  if (!orderId) {
     redirect("/")
   }
 
@@ -27,182 +47,197 @@ export default async function GraciasPorTuCompraPage({
     .from("orders")
     .select("*, profiles(email, full_name, phone)")
     .eq("id", orderId)
-    .eq("order_number", orderNumber)
     .single()
 
   if (orderError || !order) {
     redirect("/")
   }
 
-  // Parsear datos del formulario si existen
-  let formData = null
+  // Parsear datos del pedido
+  let orderData = null
   try {
-    formData = order.notes ? JSON.parse(order.notes) : null
+    orderData = order.shipping_address ? JSON.parse(order.shipping_address) : null
   } catch (e) {
-    console.error("Error parsing form data:", e)
+    console.error("Error parsing order data:", e)
   }
 
-  const customerName = formData?.firstName && formData?.lastName 
-    ? `${formData.firstName} ${formData.lastName}`
+  const customerName = orderData?.customer_data?.firstName && orderData?.customer_data?.lastName 
+    ? `${orderData.customer_data.firstName} ${orderData.customer_data.lastName}`
     : order.customer_name || order.profiles?.full_name || "Cliente"
 
-  const customerEmail = formData?.email || order.profiles?.email || "No especificado"
+  const customerEmail = orderData?.customer_data?.email || order.profiles?.email || "No especificado"
 
   // Determinar si es una suscripción
-  const isSubscription = formData?.frequency && formData?.frequency !== "none"
+  const isSubscription = orderData?.frequency && orderData?.frequency !== "none"
 
   return (
-    <div className="container max-w-4xl py-12">
-      <div className="bg-white rounded-3xl shadow-md p-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
-            <CheckCircle className="h-20 w-20 text-green-500" />
+    <>
+      <ClearCartComponent />
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50">
+        <div className="container max-w-5xl py-12 relative z-10">
+          {/* Hero Section */}
+          <div className="text-center mb-12">
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="absolute inset-0 animate-ping bg-green-400 rounded-full opacity-25"></div>
+                <CheckCircle className="h-24 w-24 text-green-500 relative z-10" />
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+              ¡Gracias por tu compra, {customerName}! 
+              <Heart className="inline h-8 w-8 text-red-500 ml-2" />
+            </h1>
+            <p className="text-xl text-gray-600 mb-6">
+              Tu pedido ha sido procesado exitosamente y ya estamos preparando todo con amor para tu mascota
+            </p>
+            <div className="flex justify-center space-x-2">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="h-6 w-6 text-yellow-400 fill-current" />
+              ))}
+            </div>
           </div>
-          <Heading title="¡Gracias por tu compra!">
-            ¡Gracias por tu compra!
-          </Heading>
-          <p className="text-gray-600 mt-2">Tu pedido ha sido procesado exitosamente</p>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Información del pedido */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Detalles del pedido
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <strong>Número de pedido:</strong> {order.order_number}
-              </div>
-              <div>
-                <strong>Fecha:</strong> {new Date(order.created_at).toLocaleDateString()}
-              </div>
-              <div>
-                <strong>Total:</strong> ${order.total} MXN
-              </div>
-              <div>
-                <strong>Estado:</strong> 
-                <span className={`ml-2 px-2 py-1 rounded text-sm ${
-                  order.status === "processing" ? "bg-green-100 text-green-700" :
-                  order.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                  "bg-gray-100 text-gray-700"
-                }`}>
-                  {order.status === "processing" ? "En proceso" : 
-                   order.status === "pending" ? "Pendiente" : order.status}
-                </span>
-              </div>
-              {paymentId && (
-                <div>
-                  <strong>ID de pago:</strong> {paymentId}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Información del pedido */}
+            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Package className="h-6 w-6" />
+                  Detalles del pedido
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-6">
+                <div className="flex justify-between">
+                  <strong>Número de pedido:</strong> 
+                  <Badge variant="outline" className="font-mono">#{order.id}</Badge>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Información del cliente */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Información del cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <strong>Nombre:</strong> {customerName}
-              </div>
-              <div>
-                <strong>Email:</strong> {customerEmail}
-              </div>
-              {(formData?.phone || order.customer_phone || order.profiles?.phone) && (
-                <div>
-                  <strong>Teléfono:</strong> {formData?.phone || order.customer_phone || order.profiles?.phone}
+                <div className="flex justify-between">
+                  <strong>Fecha:</strong> 
+                  <span>{new Date(order.created_at).toLocaleDateString('es-MX', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}</span>
                 </div>
-              )}
-              {order.shipping_address && (
-                <div>
-                  <strong>Dirección de envío:</strong>
-                  <div className="text-sm text-gray-600 mt-1">
-                    {order.shipping_address}
+                <div className="flex justify-between">
+                  <strong>Total:</strong> 
+                  <span className="text-2xl font-bold text-green-600">${order.total} MXN</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <strong>Estado:</strong> 
+                  <Badge className={
+                    order.status === "processing" ? "bg-green-500" :
+                    order.status === "pending" ? "bg-yellow-500" :
+                    "bg-gray-500"
+                  }>
+                    {order.status === "processing" ? "✅ En proceso" : 
+                     order.status === "pending" ? "⏳ Pendiente" : order.status}
+                  </Badge>
+                </div>
+                {paymentId && (
+                  <div className="flex justify-between">
+                    <strong>ID de pago:</strong> 
+                    <span className="font-mono text-sm">{paymentId}</span>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Información de suscripción si aplica */}
-        {isSubscription && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-600">
-                <Clock className="h-5 w-5" />
-                Detalles de suscripción
+            {/* Información del cliente */}
+            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CreditCard className="h-6 w-6" />
+                  Información del cliente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-6">
+                <div className="flex justify-between">
+                  <strong>Nombre:</strong> 
+                  <span>{customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <strong>Email:</strong> 
+                  <span className="text-sm">{customerEmail}</span>
+                </div>
+                {(orderData?.customer_data?.phone || order.customer_phone || order.profiles?.phone) && (
+                  <div className="flex justify-between">
+                    <strong>Teléfono:</strong> 
+                    <span>{orderData?.customer_data?.phone || order.customer_phone || order.profiles?.phone}</span>
+                  </div>
+                )}
+                {orderData?.customer_data?.address && (
+                  <div>
+                    <strong>Dirección de envío:</strong>
+                    <div className="text-sm text-gray-600 mt-1 p-2 bg-gray-50 rounded">
+                      {orderData.customer_data.address.street_name} {orderData.customer_data.address.street_number}<br/>
+                      {orderData.customer_data.address.city}, {orderData.customer_data.address.state}<br/>
+                      CP: {orderData.customer_data.address.zip_code}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Próximos pasos */}
+          <Card className="mt-8 shadow-lg border-0 bg-gradient-to-r from-green-50 to-emerald-50">
+            <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-t-lg">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Package className="h-6 w-6" />
+                ¿Qué sigue ahora?
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <strong>Frecuencia:</strong> 
-                <span className="ml-2">
-                  {formData.frequency === "weekly" ? "Semanal" :
-                   formData.frequency === "monthly" ? "Mensual" :
-                   formData.frequency === "quarterly" ? "Trimestral" :
-                   formData.frequency === "annual" ? "Anual" : formData.frequency}
-                </span>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-700 mb-2">¡Has activado una suscripción!</h4>
-                <p className="text-blue-600 text-sm">
-                  Tu próximo pedido se procesará automáticamente según la frecuencia seleccionada. 
-                  Puedes gestionar tu suscripción desde tu perfil de usuario.
-                </p>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <Package className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h4 className="font-semibold mb-2">Preparamos tu pedido</h4>
+                  <p className="text-sm text-gray-600">Nuestro equipo está seleccionando cuidadosamente cada producto</p>
+                </div>
+                <div className="text-center">
+                  <div className="bg-yellow-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <Clock className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <h4 className="font-semibold mb-2">Procesamos y enviamos</h4>
+                  <p className="text-sm text-gray-600">Te notificaremos por email cuando tu pedido esté en camino</p>
+                </div>
+                <div className="text-center">
+                  <div className="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                    <Heart className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h4 className="font-semibold mb-2">¡Tu mascota disfruta!</h4>
+                  <p className="text-sm text-gray-600">Nutrición premium para una vida más saludable y feliz</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        <Separator className="my-8" />
-
-        {/* Estado del pago y próximos pasos */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold text-green-700 mb-3">¿Qué sigue ahora?</h3>
-          <div className="space-y-2 text-green-600">
-            <p>✅ Recibirás un correo electrónico de confirmación con todos los detalles</p>
-            <p>✅ Te notificaremos cuando tu pedido esté listo para envío</p>
-            <p>✅ Podrás hacer seguimiento del estado desde tu perfil de usuario</p>
-            {isSubscription && (
-              <p>✅ Tu suscripción está activa y se renovará automáticamente</p>
-            )}
-          </div>
-        </div>
-
-        {/* Estado específico del pago */}
-        {order.payment_status === "pending" && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <h4 className="font-semibold text-yellow-700 mb-2">Pago en proceso</h4>
-            <p className="text-yellow-600 text-sm">
-              Tu pago está siendo procesado. Te notificaremos cuando se complete la transacción.
+          {/* Botones de acción */}
+          <div className="mt-8 text-center space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button asChild size="lg" className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600">
+                <Link href="/productos">
+                  <Package className="mr-2 h-5 w-5" />
+                  Continuar Comprando
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link href="/perfil">
+                  Ver Mis Pedidos
+                </Link>
+              </Button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mt-6">
+              ¿Tienes alguna pregunta? <Link href="/contacto" className="text-blue-600 hover:underline">Contáctanos</Link>
             </p>
           </div>
-        )}
-
-        <div className="flex flex-col md:flex-row justify-center gap-4 mt-8">
-          <Button asChild className="bg-primary hover:bg-primary/90 text-white">
-            <Link href="/">Continuar comprando</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/perfil">Ver mis pedidos</Link>
-          </Button>
-          {isSubscription && (
-            <Button asChild variant="outline">
-              <Link href="/perfil?tab=subscriptions">Gestionar suscripción</Link>
-            </Button>
-          )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
