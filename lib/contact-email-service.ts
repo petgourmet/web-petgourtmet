@@ -42,20 +42,22 @@ export const getCustomerConfirmationTemplate = (formData: ContactFormData) => ({
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+              <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+            </div>
           </div>
           
-          <h1 style="color: #7BBDC5;">¡Gracias por contactarnos, ${formData.name}!</h1>
+          <h1 style="color: #7AB8BF;">¡Gracias por contactarnos, ${formData.name}!</h1>
           
           <p>Hemos recibido tu mensaje y queremos confirmarte que llegó correctamente a nuestro equipo.</p>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #7BBDC5;">Resumen de tu mensaje:</h3>
+            <h3 style="margin-top: 0; color: #7AB8BF;">Resumen de tu mensaje:</h3>
             <p><strong>Nombre:</strong> ${formData.name}</p>
             <p><strong>Email:</strong> ${formData.email}</p>
             ${formData.phone ? `<p><strong>Teléfono:</strong> ${formData.phone}</p>` : ''}
             <p><strong>Mensaje:</strong></p>
-            <p style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #7BBDC5;">
+            <p style="background-color: white; padding: 15px; border-radius: 4px; border-left: 4px solid #7AB8BF;">
               ${formData.message}
             </p>
           </div>
@@ -102,36 +104,36 @@ export const getAdminNotificationTemplate = (formData: ContactFormData) => ({
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #7BBDC5;">🔔 Nuevo mensaje de contacto</h1>
+          <h1 style="color: #7AB8BF;">🔔 Nuevo mensaje de contacto</h1>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #333;">Detalles del contacto:</h3>
             
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7BBDC5; color: white; font-weight: bold;">Nombre</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Nombre</td>
                 <td style="padding: 8px 12px; border: 1px solid #ddd;">${formData.name}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7BBDC5; color: white; font-weight: bold;">Email</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Email</td>
                 <td style="padding: 8px 12px; border: 1px solid #ddd;">
                   <a href="mailto:${formData.email}">${formData.email}</a>
                 </td>
               </tr>
               ${formData.phone ? `
               <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7BBDC5; color: white; font-weight: bold;">Teléfono</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Teléfono</td>
                 <td style="padding: 8px 12px; border: 1px solid #ddd;">
                   <a href="tel:${formData.phone}">${formData.phone}</a>
                 </td>
               </tr>
               ` : ''}
               <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7BBDC5; color: white; font-weight: bold;">Tipo de formulario</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Tipo de formulario</td>
                 <td style="padding: 8px 12px; border: 1px solid #ddd;">${formData.formType}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7BBDC5; color: white; font-weight: bold;">Fecha</td>
+                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Fecha</td>
                 <td style="padding: 8px 12px; border: 1px solid #ddd;">${new Date().toLocaleString('es-MX', { 
                   timeZone: 'America/Mexico_City'
                 })}</td>
@@ -182,21 +184,23 @@ export const getNewsletterConfirmationTemplate = (email: string) => ({
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+              <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+            </div>
           </div>
           
-          <h1 style="color: #7BBDC5; text-align: center;">¡Bienvenido a nuestra manada! 🐾</h1>
+          <h1 style="color: #7AB8BF; text-align: center;">¡Bienvenido a nuestra manada! 🐾</h1>
           
           <p>¡Hola!</p>
           <p>Gracias por suscribirte al newsletter de Pet Gourmet. Nos emociona tenerte como parte de nuestra familia.</p>
           
           <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-            <h3 style="margin-top: 0; color: #155724;">🎉 ¡Suscripción confirmada!</h3>
+            <h3 style="margin-top: 0; color: #8c4a23;">🎉 ¡Suscripción confirmada!</h3>
             <p>Tu email <strong>${email}</strong> ha sido agregado exitosamente a nuestra lista.</p>
           </div>
           
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #7BBDC5;">¿Qué puedes esperar?</h3>
+            <h3 style="margin-top: 0; color: #7AB8BF;">¿Qué puedes esperar?</h3>
             <ul>
               <li>🏷️ <strong>Ofertas exclusivas</strong> para suscriptores</li>
               <li>🍽️ <strong>Consejos de nutrición</strong> para tu mascota</li>
@@ -208,7 +212,7 @@ export const getNewsletterConfirmationTemplate = (email: string) => ({
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="https://petgourmet.mx/productos" 
-               style="background-color: #7BBDC5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+               style="background-color: #7AB8BF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
               🛒 Explorar Productos
             </a>
           </div>
@@ -329,10 +333,10 @@ export async function sendNewsletterEmail(email: string) {
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #7BBDC5;">📧 Nueva suscripción al newsletter</h1>
+              <h1 style="color: #7AB8BF;">📧 Nueva suscripción al newsletter</h1>
               
               <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
-                <h3 style="margin-top: 0; color: #155724;">Nuevo suscriptor agregado</h3>
+                <h3 style="margin-top: 0; color: #8c4a23;">Nuevo suscriptor agregado</h3>
                 <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
                 <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-MX', { 
                   timeZone: 'America/Mexico_City'
@@ -425,19 +429,21 @@ export const sendSubscriptionPaymentReminder = async (data: SubscriptionPaymentR
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="text-align: center; margin-bottom: 30px;">
-                <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                  <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+                </div>
               </div>
               
-              <div style="background: linear-gradient(135deg, #7BBDC5 0%, #5A9EA6 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+              <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
                 <h1 style="margin: 0; font-size: 28px;">🔔 Recordatorio de Pago</h1>
                 <p style="margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;">Tu próximo pago se procesará pronto</p>
               </div>
 
               <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
-                <h2 style="color: #7BBDC5; margin-top: 0;">Hola ${data.userName},</h2>
+                <h2 style="color: #7AB8BF; margin-top: 0;">Hola ${data.userName},</h2>
                 <p>Te recordamos que tu suscripción a <strong>${data.productName}</strong> tiene un pago programado para el <strong>${paymentDate}</strong>.</p>
                 
-                <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7BBDC5;">
+                <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #7AB8BF;">
                   <h3 style="margin-top: 0; color: #333;">Detalles del pago:</h3>
                   <ul style="list-style: none; padding: 0;">
                     <li style="margin-bottom: 10px;"><strong>Producto:</strong> ${data.productName}</li>
@@ -448,12 +454,12 @@ export const sendSubscriptionPaymentReminder = async (data: SubscriptionPaymentR
               </div>
 
               <div style="background: #e8f4f5; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-                <h3 style="color: #7BBDC5; margin-top: 0;">💡 ¿Qué pasará?</h3>
+                <h3 style="color: #7AB8BF; margin-top: 0;">💡 ¿Qué pasará?</h3>
                 <p>El cargo se realizará automáticamente en tu método de pago registrado. No necesitas hacer nada, pero asegúrate de que tu tarjeta tenga fondos suficientes.</p>
               </div>
 
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://petgourmet.mx/perfil" style="background: #7BBDC5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+                <a href="https://petgourmet.mx/perfil" style="background: #7AB8BF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
                   Ver Mi Suscripción
                 </a>
               </div>
@@ -526,7 +532,9 @@ export const sendSubscriptionPaymentSuccess = async (data: SubscriptionPaymentSu
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="text-align: center; margin-bottom: 30px;">
-                <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                  <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+                </div>
               </div>
               
               <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
@@ -558,7 +566,7 @@ export const sendSubscriptionPaymentSuccess = async (data: SubscriptionPaymentSu
                 <a href="https://petgourmet.mx/perfil" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block; margin-right: 10px;">
                   Ver Mi Perfil
                 </a>
-                <a href="https://petgourmet.mx/productos" style="background: #7BBDC5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+                <a href="https://petgourmet.mx/productos" style="background: #7AB8BF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
                   Ver Productos
                 </a>
               </div>

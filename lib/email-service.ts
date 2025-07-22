@@ -41,15 +41,17 @@ export const emailTemplates = {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
-              <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+              </div>
             </div>
             
-            <h1 style="color: #2c5aa0;">¡Gracias por tu compra, ${customerName}!</h1>
+            <h1 style="color: #7AB8BF;">¡Gracias por tu compra, ${customerName}!</h1>
             
             <p>Tu orden <strong>#${orderNumber}</strong> ha sido recibida exitosamente.</p>
             
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #2c5aa0;">Estado de tu pedido:</h3>
+              <h3 style="margin-top: 0; color: #7AB8BF;">Estado de tu pedido:</h3>
               <p><strong>📦 PENDIENTE:</strong> Estamos preparando tu pedido con mucho amor.</p>
               <p>Te notificaremos cuando esté listo para envío.</p>
             </div>
@@ -78,15 +80,17 @@ export const emailTemplates = {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
-              <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+              </div>
             </div>
             
-            <h1 style="color: #28a745;">¡Tu pedido está en camino, ${customerName}!</h1>
+            <h1 style="color: #7AB8BF;">¡Tu pedido está en camino, ${customerName}!</h1>
             
             <p>Tu orden <strong>#${orderNumber}</strong> ha sido enviada y está en camino hacia ti.</p>
             
-            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
-              <h3 style="margin-top: 0; color: #155724;">Estado de tu pedido:</h3>
+            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7AB8BF;">
+              <h3 style="margin-top: 0; color: #8c4a23;">Estado de tu pedido:</h3>
               <p><strong>🚚 EN CAMINO:</strong> Tu pedido ha salido de nuestras instalaciones.</p>
               <p>Pronto recibirás la nutrición premium que tu mascota merece.</p>
             </div>
@@ -115,16 +119,18 @@ export const emailTemplates = {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
-              <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+              </div>
             </div>
             
-            <h1 style="color: #28a745;">¡Pedido entregado exitosamente! 🎉</h1>
+            <h1 style="color: #7AB8BF;">¡Pedido entregado exitosamente! 🎉</h1>
             
             <p>¡Hola ${customerName}!</p>
             <p>Tu orden <strong>#${orderNumber}</strong> ha sido entregada con éxito.</p>
             
-            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
-              <h3 style="margin-top: 0; color: #155724;">¡Disfruta tu compra!</h3>
+            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7AB8BF;">
+              <h3 style="margin-top: 0; color: #8c4a23;">¡Disfruta tu compra!</h3>
               <p><strong>✅ ENTREGADO:</strong> Tu pedido ha llegado a su destino.</p>
               <p>Esperamos que tu mascota disfrute la nutrición premium de Pet Gourmet.</p>
             </div>
@@ -156,10 +162,12 @@ export const emailTemplates = {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
-              <img src="https://petgourmet.mx/logo.png" alt="Pet Gourmet" style="max-width: 200px;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+              </div>
             </div>
             
-            <h1 style="color: #dc3545;">Lamentamos informarte sobre tu pedido</h1>
+            <h1 style="color: #7AB8BF;">Lamentamos informarte sobre tu pedido</h1>
             
             <p>Hola ${customerName},</p>
             <p>Lamentamos informarte que tu orden <strong>#${orderNumber}</strong> ha sido cancelada.</p>
