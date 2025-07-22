@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       },
       auto_return: "approved",
       external_reference: externalReference,
-      notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mercadopago/webhook`,
+      notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
     }
 
     console.log("Creating MercadoPago preference:", JSON.stringify(preference, null, 2))

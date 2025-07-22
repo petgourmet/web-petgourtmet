@@ -32,16 +32,16 @@ export async function POST() {
       },
       externalReference: `test_frontend_${Date.now()}`,
       backUrls: {
-        success: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/gracias-por-tu-compra`,
-        failure: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/error-pago`,
-        pending: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/pago-pendiente`
+        success: `${process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'}/gracias-por-tu-compra`,
+        failure: `${process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'}/error-pago`,
+        pending: `${process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'}/pago-pendiente`
       }
     }
     
     console.log("Frontend data prepared:", JSON.stringify(frontendData, null, 2))
     
     // Llamar al endpoint real con el formato del frontend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mercadopago/create-preference`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'}/api/mercadopago/create-preference`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

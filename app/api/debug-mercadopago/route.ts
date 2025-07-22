@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     // Obtener la URL base de la aplicación
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://petgourmet.mx"
 
     // Crear una preferencia de prueba simple
     const preference = {

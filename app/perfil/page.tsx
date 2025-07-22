@@ -47,41 +47,49 @@ export default function PerfilPage() {
     if (!user) return
     setLoadingSubscriptions(true)
     try {
-      // Buscar órdenes que contengan suscripciones
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .or(`user_id.eq.${user.id},customer_name.ilike.%${user.email}%`)
-        .order("created_at", { ascending: false })
+      // Obtener suscripciones reales desde la API de MercadoPago
+      const response = await fetch(`/api/subscriptions/user/${user.id}`)
+      const result = await response.json()
 
-      if (error) throw error
-      
-      // Filtrar y procesar órdenes que contengan suscripciones
-      const subscriptionOrders = (data || []).filter(order => {
-        if (!order.shipping_address) return false
-        try {
+      if (response.ok && result.success) {
+        setSubscriptions(result.subscriptions || [])
+      } else {
+        // Fallback: buscar órdenes que contengan suscripciones
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .or(`user_id.eq.${user.id},customer_name.ilike.%${user.email}%`)
+          .order("created_at", { ascending: false })
+
+        if (error) throw error
+        
+        // Filtrar y procesar órdenes que contengan suscripciones
+        const subscriptionOrders = (data || []).filter(order => {
+          if (!order.shipping_address) return false
+          try {
+            const orderData = typeof order.shipping_address === 'string' 
+              ? JSON.parse(order.shipping_address) 
+              : order.shipping_address
+            
+            return orderData?.items?.some((item: any) => item.isSubscription || item.subscription)
+          } catch (e) {
+            return false
+          }
+        }).map(order => {
           const orderData = typeof order.shipping_address === 'string' 
             ? JSON.parse(order.shipping_address) 
             : order.shipping_address
           
-          return orderData?.items?.some((item: any) => item.isSubscription || item.subscription)
-        } catch (e) {
-          return false
-        }
-      }).map(order => {
-        const orderData = typeof order.shipping_address === 'string' 
-          ? JSON.parse(order.shipping_address) 
-          : order.shipping_address
+          return {
+            ...order,
+            orderData,
+            customer_name: orderData?.customer_data?.full_name || orderData?.customer_data?.name || user?.email || "Cliente",
+            subscriptionItems: orderData?.items?.filter((item: any) => item.isSubscription || item.subscription) || []
+          }
+        })
         
-        return {
-          ...order,
-          orderData,
-          customer_name: orderData?.customer_data?.full_name || orderData?.customer_data?.name || user?.email || "Cliente",
-          subscriptionItems: orderData?.items?.filter((item: any) => item.isSubscription || item.subscription) || []
-        }
-      })
-      
-      setSubscriptions(subscriptionOrders)
+        setSubscriptions(subscriptionOrders)
+      }
     } catch (error) {
       console.error("Error al cargar suscripciones:", error)
       toast({
@@ -459,15 +467,33 @@ export default function PerfilPage() {
   // Funciones para gestionar suscripciones
   const pauseSubscription = async (subscriptionId: string) => {
     try {
-      toast({
-        title: "Función no disponible",
-        description: "La gestión de suscripciones estará disponible próximamente",
+      const response = await fetch(`/api/subscriptions/user/${user?.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId,
+          action: 'pause'
+        })
       })
-    } catch (error) {
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          title: "Suscripción pausada",
+          description: "Tu suscripción ha sido pausada correctamente",
+        })
+        await fetchSubscriptions() // Refrescar lista
+      } else {
+        throw new Error(result.error || 'Error pausando suscripción')
+      }
+    } catch (error: any) {
       console.error("Error al pausar suscripción:", error)
       toast({
         title: "Error",
-        description: "No se pudo pausar la suscripción",
+        description: error.message || "No se pudo pausar la suscripción",
         variant: "destructive",
       })
     }
@@ -475,15 +501,33 @@ export default function PerfilPage() {
 
   const resumeSubscription = async (subscriptionId: string) => {
     try {
-      toast({
-        title: "Función no disponible",
-        description: "La gestión de suscripciones estará disponible próximamente",
+      const response = await fetch(`/api/subscriptions/user/${user?.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId,
+          action: 'reactivate'
+        })
       })
-    } catch (error) {
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          title: "Suscripción reactivada",
+          description: "Tu suscripción ha sido reactivada correctamente",
+        })
+        await fetchSubscriptions() // Refrescar lista
+      } else {
+        throw new Error(result.error || 'Error reactivando suscripción')
+      }
+    } catch (error: any) {
       console.error("Error al reanudar suscripción:", error)
       toast({
         title: "Error",
-        description: "No se pudo reanudar la suscripción",
+        description: error.message || "No se pudo reanudar la suscripción",
         variant: "destructive",
       })
     }
@@ -495,15 +539,33 @@ export default function PerfilPage() {
     }
 
     try {
-      toast({
-        title: "Función no disponible",
-        description: "La cancelación de suscripciones estará disponible próximamente",
+      const response = await fetch(`/api/subscriptions/user/${user?.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId,
+          action: 'cancel'
+        })
       })
-    } catch (error) {
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          title: "Suscripción cancelada",
+          description: "Tu suscripción ha sido cancelada correctamente",
+        })
+        await fetchSubscriptions() // Refrescar lista
+      } else {
+        throw new Error(result.error || 'Error cancelando suscripción')
+      }
+    } catch (error: any) {
       console.error("Error al cancelar suscripción:", error)
       toast({
         title: "Error",
-        description: "No se pudo cancelar la suscripción",
+        description: error.message || "No se pudo cancelar la suscripción",
         variant: "destructive",
       })
     }

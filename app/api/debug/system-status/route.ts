@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       }
       
       // Llamar al endpoint real
-      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/mercadopago/create-preference`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'}/api/mercadopago/create-preference`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
