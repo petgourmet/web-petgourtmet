@@ -10,14 +10,7 @@ interface GraciasPorTuCompraProps {
   searchParams: { 
     order_id?: string
     order_number?: string
-    payment_id?: string
-    status?: string
-    payment_type?: string
-    collection_id?: string
-    collection_status?: string
-    merchant_order_id?: string
-    preference_id?: string
-    external_reference?: string
+    payment_id?: string 
   }
 }
 
@@ -26,44 +19,22 @@ export default async function GraciasPorTuCompraPage({
 }: GraciasPorTuCompraProps) {
   const orderId = searchParams.order_id
   const orderNumber = searchParams.order_number
-  const paymentId = searchParams.payment_id || searchParams.collection_id
-  const paymentStatus = searchParams.status || searchParams.collection_status
-  const externalReference = searchParams.external_reference
+  const paymentId = searchParams.payment_id
 
-  console.log('Parámetros recibidos en página de agradecimiento:', searchParams)
-
-  if (!orderId && !externalReference) {
-    console.log('Redirigiendo a home - no hay order_id ni external_reference')
+  if (!orderId) {
     redirect("/")
   }
 
   const supabase = await createClient()
 
   // Obtener detalles del pedido
-  let order, orderError
-  
-  if (orderId) {
-    // Buscar por order_id
-    const result = await supabase
-      .from("orders")
-      .select("*, profiles(email, full_name, phone)")
-      .eq("id", orderId)
-      .single()
-    order = result.data
-    orderError = result.error
-  } else if (externalReference) {
-    // Buscar por external_reference si no hay order_id
-    const result = await supabase
-      .from("orders")
-      .select("*, profiles(email, full_name, phone)")
-      .eq("id", externalReference)
-      .single()
-    order = result.data
-    orderError = result.error
-  }
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("*, profiles(email, full_name, phone)")
+    .eq("id", orderId)
+    .single()
 
   if (orderError || !order) {
-    console.log('Error al obtener orden:', orderError)
     redirect("/")
   }
 

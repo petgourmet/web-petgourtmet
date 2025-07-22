@@ -274,7 +274,7 @@ export function CheckoutModal() {
             customerData,
             externalReference,
             backUrls: {
-              success: `${window.location.origin}/gracias-por-tu-compra`,
+              success: `${window.location.origin}/processing-payment`,
               failure: `${window.location.origin}/error-pago`,
               pending: `${window.location.origin}/pago-pendiente`,
             },
@@ -353,7 +353,7 @@ export function CheckoutModal() {
             customerData,
             externalReference,
             backUrls: {
-              success: `${window.location.origin}/gracias-por-tu-compra`,
+              success: `${window.location.origin}/processing-payment`,
               failure: `${window.location.origin}/error-pago`,
               pending: `${window.location.origin}/pago-pendiente`,
             },
@@ -368,9 +368,18 @@ export function CheckoutModal() {
 
         console.log("Preferencia creada:", mpData)
 
+        // Limpiar el carrito antes de redirigir al SDK de MercadoPago
+        clearCart()
+
+        // Cerrar el modal antes de la redirección
+        setShowCheckout(false)
+
         // Redirigir al usuario a la página de pago de Mercado Pago
         if (mpData.initPoint) {
-          window.location.href = mpData.initPoint
+          // Agregar un pequeño delay para asegurar que el estado se actualice
+          setTimeout(() => {
+            window.location.href = mpData.initPoint
+          }, 100)
         } else {
           throw new Error("No se recibió la URL de pago de Mercado Pago")
         }

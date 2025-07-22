@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     // Generar URLs de retorno
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'
     const defaultBackUrls = {
-      success: `${baseUrl}/gracias-por-tu-compra`,
+      success: `${baseUrl}/processing-payment`,
       failure: `${baseUrl}/error-pago`,
       pending: `${baseUrl}/pago-pendiente`
     }
@@ -231,11 +231,12 @@ export async function POST(request: Request) {
         },
       },
       back_urls: {
-        success: `${finalBackUrls.success}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`,
-        failure: `${finalBackUrls.failure || '/error-pago'}?order_id=${orderId}&order_number=${orderNumber}&error={{error}}`,
-        pending: `${finalBackUrls.pending || '/pago-pendiente'}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}`
+        success: `${finalBackUrls.success}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}&status=approved`,
+        failure: `${finalBackUrls.failure || '/error-pago'}?order_id=${orderId}&order_number=${orderNumber}&error={{error}}&status=failure`,
+        pending: `${finalBackUrls.pending || '/pago-pendiente'}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}&status=pending`
       },
-      auto_return: "approved",
+      auto_return: "approved", // Redirigir automáticamente cuando el pago sea aprobado
+      binary_mode: false, // Usar el checkout estándar de MercadoPago
       external_reference: orderId.toString(), // Usar el ID real de la orden
       notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
       statement_descriptor: "PETGOURMET",
