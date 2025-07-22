@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { X, CreditCard, Loader2, User } from "lucide-react"
+import { X, CreditCard, Loader2, User, Lock } from "lucide-react"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -580,11 +580,9 @@ export function CheckoutModal() {
                 {error && <p className="text-red-500 text-center mt-2">{error}</p>}
 
                 <div className="text-center text-sm text-gray-500">
-                  <p>Pago seguro garantizado</p>
-                  <div className="flex justify-center gap-2 mt-2">
-                    <Image src="/stylized-payment-network.png" alt="Visa" width={40} height={30} />
-                    <Image src="/interlocking-circles.png" alt="Mastercard" width={40} height={30} />
-                    <Image src="/paypal-logo-closeup.png" alt="PayPal" width={40} height={30} />
+                  <div className="flex justify-center items-center gap-2">
+                    <Lock className="h-4 w-4 text-green-600" />
+                    <p>Pago seguro garantizado</p>
                   </div>
                 </div>
               </div>
