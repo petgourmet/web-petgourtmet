@@ -164,7 +164,7 @@ export async function POST(request: Request) {
       },
       auto_return: "approved",
       external_reference: insertedOrder.id.toString(),
-      notification_url: `https://petgourmet.mx/api/mercadopago/webhook`,
+      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
       statement_descriptor: "PETGOURMET"
     }
     

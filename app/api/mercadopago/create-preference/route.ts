@@ -237,7 +237,7 @@ export async function POST(request: Request) {
       },
       auto_return: "approved",
       external_reference: orderId.toString(), // Usar el ID real de la orden
-      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/webhooks/mercadopago`,
+      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
       statement_descriptor: "PETGOURMET",
       expires: false,
     }
