@@ -27,6 +27,9 @@ export type ProductCardProps = {
   category?: string
   spotlightColor?: string
   gallery?: ProductGalleryItem[]
+  ingredients?: string
+  nutritionalInfo?: string
+  nutritional_info?: string
   onShowDetail?: (product: any) => void
 }
 

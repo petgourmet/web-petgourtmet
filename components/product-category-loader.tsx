@@ -538,6 +538,8 @@ export function ProductCategoryLoader({
   // Mapear el producto al tipo esperado por el modal
   const mapProductForModal = (product: Product) => ({
     ...product,
+    ingredients: product.ingredients,
+    nutritionalInfo: product.nutritional_info || product.nutritionalInfo,
     sizes: product.sizes?.map((size, index) => ({
       id: index + 1,
       product_id: product.id,

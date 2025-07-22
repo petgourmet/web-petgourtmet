@@ -181,7 +181,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                       <Star
                         key={i}
                         className={`w-5 h-5 ${
-                          i < Math.floor(product.rating) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                          i < Math.floor(product.rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
                         }`}
                       />
                     ))}
@@ -236,7 +236,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
               </div>
             )}
 
-            {/* Tipo de compra */}
+            {/* Tipo de compra - OCULTO TEMPORALMENTE */}
+            {false && (
             <div>
               <h3 className="font-bold mb-3 text-lg">Tipo de compra</h3>
               <div className="flex gap-3">
@@ -270,6 +271,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                 </p>
               )}
             </div>
+            )}
 
             {/* Cantidad */}
             <div>

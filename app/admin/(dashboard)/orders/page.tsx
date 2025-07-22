@@ -153,7 +153,6 @@ export default function OrdersAdminPage() {
                     <th className="p-3 text-left">Email</th>
                     <th className="p-3 text-left">Fecha</th>
                     <th className="p-3 text-left">Estado</th>
-                    <th className="p-3 text-left">Pago</th>
                     <th className="p-3 text-right">Total</th>
                     <th className="p-3 text-center">Acciones</th>
                   </tr>
@@ -161,7 +160,7 @@ export default function OrdersAdminPage() {
                 <tbody>
                   {orders.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
                         No se encontraron pedidos
                       </td>
                     </tr>
@@ -212,9 +211,6 @@ export default function OrdersAdminPage() {
                           <td className="p-3">{formatDate(order.created_at)}</td>
                           <td className="p-3">
                             <OrderStatusBadge status={order.status} />
-                          </td>
-                          <td className="p-3">
-                            <PaymentStatusBadge status={order.payment_status} />
                           </td>
                           <td className="p-3 text-right">{formatCurrency(order.total || 0)}</td>
                           <td className="p-3 text-center">
@@ -300,29 +296,6 @@ function OrderStatusBadge({ status }: { status: string }) {
             : status === "pending"
               ? "Pendiente"
               : status}
-    </span>
-  )
-}
-
-// Componente para mostrar el estado del pago
-function PaymentStatusBadge({ status }: { status: string }) {
-  let bgColor = "bg-gray-100 text-gray-800"
-
-  switch (status) {
-    case "paid":
-      bgColor = "bg-green-100 text-green-800"
-      break
-    case "pending":
-      bgColor = "bg-yellow-100 text-yellow-800"
-      break
-    case "failed":
-      bgColor = "bg-red-100 text-red-800"
-      break
-  }
-
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${bgColor}`}>
-      {status === "paid" ? "Pagado" : status === "pending" ? "Pendiente" : status === "failed" ? "Fallido" : status}
     </span>
   )
 }
