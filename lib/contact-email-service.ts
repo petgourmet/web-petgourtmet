@@ -42,7 +42,7 @@ export const getCustomerConfirmationTemplate = (formData: ContactFormData) => ({
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+            <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
               <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
             </div>
           </div>
@@ -184,7 +184,7 @@ export const getNewsletterConfirmationTemplate = (email: string) => ({
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+            <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
               <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
             </div>
           </div>
@@ -429,7 +429,7 @@ export const sendSubscriptionPaymentReminder = async (data: SubscriptionPaymentR
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="text-align: center; margin-bottom: 30px;">
-                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
                   <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
                 </div>
               </div>
@@ -532,7 +532,7 @@ export const sendSubscriptionPaymentSuccess = async (data: SubscriptionPaymentSu
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="text-align: center; margin-bottom: 30px;">
-                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #b67d1b 50%, #e7ae84 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
                   <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
                 </div>
               </div>
