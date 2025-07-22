@@ -1,6 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Facebook, Instagram, Youtube } from "lucide-react"
+import { Facebook, Instagram, Youtube, Heart } from "lucide-react"
 
 export function Footer() {
   return (
@@ -151,7 +151,17 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/20 mt-12 pt-8 text-center text-white/80 text-sm">
-          <p>&copy; {new Date().getFullYear()} Pet Gourmet. Todos los derechos reservados.</p>
+          <div className="flex items-center justify-center gap-2">
+            <p>&copy; {new Date().getFullYear()} Pet Gourmet. Todos los derechos reservados.</p>
+            <Link 
+              href="https://www.v1tr0.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-red-400 hover:text-red-300 transition-colors duration-200"
+            >
+              <Heart className="h-4 w-4 fill-current" />
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
