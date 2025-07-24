@@ -21,6 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { slugify } from "@/lib/utils"
 import { CloudinaryUploader } from "@/components/cloudinary-uploader"
 import Image from "next/image"
+import { ProductImageViewer } from "@/components/shared/product-image-viewer"
 
 const FEATURE_COLORS = [
   { name: "Verde pastel", value: "pastel-green" },
@@ -1329,35 +1330,16 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
                   {/* Galería de imágenes */}
                   <div className="space-y-4">
-                    <div className="aspect-square relative rounded-xl overflow-hidden bg-gray-100">
-                      {product.image ? (
-                        <Image
-                          src={product.image || "/placeholder.svg"}
-                          alt={product.name || ""}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400">
-                          <ImageIcon className="h-16 w-16" />
-                        </div>
-                      )}
-                    </div>
-
-                    {productImages.length > 0 && productImages[0].url && (
-                      <div className="flex gap-2 overflow-x-auto pb-2">
-                        {productImages
-                          .filter((img) => img.url)
-                          .map((img, idx) => (
-                            <div
-                              key={idx}
-                              className="relative w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 border-transparent"
-                            >
-                              <Image src={img.url || ""} alt={img.alt || ""} fill className="object-cover" />
-                            </div>
-                          ))}
-                      </div>
-                    )}
+                    <ProductImageViewer
+                      images={[
+                        ...(product.image ? [{ src: product.image, alt: product.name || "Imagen principal" }] : []),
+                        ...productImages.filter(img => img.url).map(img => ({ src: img.url!, alt: img.alt || "Imagen del producto" }))
+                      ]}
+                      className="w-full"
+                      showThumbnails={true}
+                      enableZoom={true}
+                      aspectRatio="square"
+                    />
                   </div>
 
                   {/* Información del producto */}

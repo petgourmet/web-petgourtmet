@@ -462,6 +462,27 @@ export function ProductCategoryLoader({
               imageUrl = `/placeholder.svg?text=${encodeURIComponent(product.name)}`
             }
 
+            // Obtener imágenes adicionales del producto
+            let gallery = []
+            try {
+              const { data: imagesData, error: imagesError } = await supabase
+                .from("product_images")
+                .select("url, alt, display_order")
+                .eq("product_id", product.id)
+                .order("display_order", { ascending: true })
+
+              if (imagesError) {
+                console.error("Error al cargar imágenes:", imagesError.message)
+              } else if (imagesData && imagesData.length > 0) {
+                gallery = imagesData.map(img => ({
+                  src: img.url,
+                  alt: img.alt || `Imagen del producto ${product.name}`
+                }))
+              }
+            } catch (error) {
+              console.error("Error al procesar imágenes:", error)
+            }
+
             // Obtener tamaños del producto
             let sizes = []
             try {
@@ -509,6 +530,7 @@ export function ProductCategoryLoader({
               rating: product.rating || 4.5,
               reviews: product.reviews || Math.floor(Math.random() * 100) + 50,
               sizes,
+              gallery,
               spotlightColor,
             }
           }),

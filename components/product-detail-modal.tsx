@@ -4,12 +4,13 @@ import type React from "react"
 
 import { useState, useRef } from "react"
 import Image from "next/image"
-import { X, Star, ShoppingCart, Check, Minus, Plus, ZoomIn, ChevronLeft, ChevronRight } from "lucide-react"
+import { X, Star, ShoppingCart, Check, Minus, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { CartItem } from "./cart-context"
 import type { ProductCardProps } from "./product-card"
+import { ProductImageViewer } from "./shared/product-image-viewer"
 
 type ProductDetailModalProps = {
   product: ProductCardProps
@@ -22,12 +23,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null)
   const [quantity, setQuantity] = useState(1)
   const [isSubscription, setIsSubscription] = useState(false)
-  const [activeImageIndex, setActiveImageIndex] = useState(0)
-  const [isZoomed, setIsZoomed] = useState(false)
-  const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
   const [showFullDescription, setShowFullDescription] = useState(false)
-
-  const imageContainerRef = useRef<HTMLDivElement>(null)
 
   if (!isOpen) return null
 
@@ -59,35 +55,15 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const incrementQuantity = () => setQuantity((prev) => prev + 1)
   const decrementQuantity = () => setQuantity((prev) => (prev > 1 ? prev - 1 : 1))
 
-  // Combinar imagen principal con imágenes adicionales
-  const allImages = [{ src: product.image, alt: product.name }, ...(product.gallery || [])].filter(
-    (img) => img.src && img.src.trim() !== "",
-  )
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isZoomed || !imageContainerRef.current) return
-
-    const rect = imageContainerRef.current.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-
-    setZoomPosition({ x, y })
-  }
-
-  const nextImage = () => {
-    setActiveImageIndex((prev) => (prev + 1) % allImages.length)
-  }
-
-  const prevImage = () => {
-    setActiveImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)
-  }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto relative mx-auto my-auto" style={{ position: 'relative', transform: 'translate(0, 0)' }}>
         <div className="sticky top-0 z-10 flex justify-end p-4 bg-white dark:bg-gray-800 border-b">
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
             <X className="h-5 w-5" />
@@ -95,103 +71,24 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6">
-          {/* Galería de imágenes mejorada */}
+          {/* Visor de imágenes */}
           <div className="space-y-4">
-            {/* Imagen principal con zoom */}
-            <div className="relative">
-              <div
-                className="aspect-square relative rounded-xl overflow-hidden bg-gray-100 cursor-zoom-in group"
-                onMouseMove={handleMouseMove}
-                onMouseEnter={() => setIsZoomed(true)}
-                onMouseLeave={() => setIsZoomed(false)}
-                ref={imageContainerRef}
-              >
-                <Image
-                  src={allImages[activeImageIndex]?.src || "/placeholder.svg"}
-                  alt={allImages[activeImageIndex]?.alt || product.name}
-                  fill
-                  className={`object-cover transition-transform duration-200 ${isZoomed ? "scale-150" : "scale-100"}`}
-                  style={
-                    isZoomed
-                      ? {
-                          transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                        }
-                      : {}
-                  }
-                />
-
-                {/* Indicador de zoom */}
-                <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ZoomIn className="h-4 w-4" />
-                </div>
-
-                {/* Navegación de imágenes */}
-                {allImages.length > 1 && (
-                  <>
-                    <button
-                      onClick={prevImage}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Miniaturas */}
-            {allImages.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {allImages.map((img, idx) => (
-                  <div
-                    key={idx}
-                    className={`relative w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                      idx === activeImageIndex
-                        ? "border-[#7BBDC5] ring-2 ring-[#7BBDC5]/30"
-                        : "border-gray-200 hover:border-[#7BBDC5]/50"
-                    }`}
-                    onClick={() => setActiveImageIndex(idx)}
-                  >
-                    <Image
-                      src={img.src || "/placeholder.svg"}
-                      alt={img.alt || `Imagen ${idx + 1}`}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <ProductImageViewer
+              images={[
+                { src: product.image, alt: product.name },
+                ...(product.gallery || [])
+              ]}
+              className="w-full"
+              showThumbnails={true}
+              enableZoom={true}
+              aspectRatio="square"
+            />
           </div>
 
           {/* Información del producto */}
           <div className="space-y-6">
             <div>
               <h2 className="text-3xl font-bold text-[#7BBDC5] font-display mb-2">{product.name}</h2>
-
-              {product.rating && (
-                <div className="flex items-center mb-4">
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-5 h-5 ${
-                          i < Math.floor(product.rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  {product.reviews && (
-                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">({product.reviews} reseñas)</span>
-                  )}
-                </div>
-              )}
 
               <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm md:text-lg leading-relaxed">
                 <span className={showFullDescription ? "" : "line-clamp-3"}>
