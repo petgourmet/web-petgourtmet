@@ -534,7 +534,7 @@ export default function ProductDetailPage() {
                     onClick={() => setIsSubscription(true)}
                     disabled={!product.subscription_available}
                   >
-                    Repetir esta compra:
+                    Repetir compra
                   </Button>
                 </div>
                 {/* Opciones de suscripción */}

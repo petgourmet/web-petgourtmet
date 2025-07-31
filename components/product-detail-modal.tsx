@@ -220,7 +220,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                       }
                     }}
                   >
-                    Suscripción
+                    Repetir compra
                   </Button>
                 )}
               </div>
