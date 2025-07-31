@@ -14,6 +14,8 @@ export type ProductGalleryItem = {
   alt: string
 }
 
+export type SubscriptionType = 'biweekly' | 'monthly' | 'quarterly' | 'annual'
+
 export type ProductCardProps = {
   id: number
   name: string
@@ -30,6 +32,14 @@ export type ProductCardProps = {
   ingredients?: string
   nutritionalInfo?: string
   nutritional_info?: string
+  subscription_available?: boolean
+  subscription_types?: SubscriptionType[]
+  subscription_discount?: number
+  biweekly_discount?: number
+  monthly_discount?: number
+  quarterly_discount?: number
+  annual_discount?: number
+  purchase_types?: string[]
   onShowDetail?: (product: any) => void
 }
 

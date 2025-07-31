@@ -6,6 +6,8 @@ import { toast } from "@/components/ui/use-toast"
 import { useGoogleAnalytics } from "@/hooks/use-google-analytics"
 import { useFacebookPixel } from "@/hooks/use-facebook-pixel"
 
+import type { SubscriptionType } from "./product-card"
+
 export type CartItem = {
   id: number
   name: string
@@ -14,6 +16,8 @@ export type CartItem = {
   size: string
   quantity: number
   isSubscription: boolean
+  subscriptionType?: SubscriptionType
+  subscriptionDiscount?: number
 }
 
 type CartContextType = {

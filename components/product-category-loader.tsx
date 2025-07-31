@@ -583,7 +583,7 @@ export function ProductCategoryLoader({
     if (filters.features.length > 0) {
       result = result.filter((product) => {
         return filters.features.some((feature) =>
-          product.features?.some((f) => f.name.toLowerCase() === feature.toLowerCase()),
+          product.features?.some((f) => f.name?.toLowerCase() === feature.toLowerCase()),
         )
       })
     }

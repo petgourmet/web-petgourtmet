@@ -1,21 +1,142 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/client"
+import crypto from 'crypto'
+
+// Función para validar la firma del webhook
+function validateWebhookSignature(payload: string, signature: string): boolean {
+  const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.warn('⚠️ MERCADOPAGO_WEBHOOK_SECRET no está configurado')
+    return true // En desarrollo, permitir sin validación
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', webhookSecret)
+    .update(payload)
+    .digest('hex')
+
+  return signature === expectedSignature
+}
+
+// Función para actualizar historial de suscripciones
+async function updateSubscriptionBilling(paymentData: any) {
+  try {
+    // Buscar la suscripción relacionada
+    let subscriptionId = paymentData.metadata?.subscription_id
+    
+    if (!subscriptionId && paymentData.external_reference) {
+      // Intentar encontrar la suscripción por external_reference
+      const { data: subscription } = await supabaseAdmin
+        .from('user_subscriptions')
+        .select('id')
+        .eq('id', paymentData.external_reference)
+        .single()
+      
+      subscriptionId = subscription?.id
+    }
+
+    if (!subscriptionId) {
+      console.warn(`⚠️ No se pudo encontrar suscripción para el pago ${paymentData.id}`)
+      return false
+    }
+
+    // Verificar si ya existe un registro para este pago
+    const { data: existingRecord } = await supabaseAdmin
+      .from('subscription_billing_history')
+      .select('id')
+      .eq('mercadopago_payment_id', paymentData.id.toString())
+      .single()
+
+    const billingData = {
+      subscription_id: subscriptionId,
+      billing_date: paymentData.date_created,
+      amount: paymentData.transaction_amount,
+      status: paymentData.status,
+      payment_method: paymentData.payment_method_id,
+      mercadopago_payment_id: paymentData.id.toString(),
+      payment_details: {
+        status_detail: paymentData.status_detail,
+        currency_id: paymentData.currency_id,
+        payment_type_id: paymentData.payment_type_id,
+        date_approved: paymentData.date_approved,
+        payer_email: paymentData.payer?.email
+      }
+    }
+
+    if (existingRecord) {
+      // Actualizar registro existente
+      const { error } = await supabaseAdmin
+        .from('subscription_billing_history')
+        .update(billingData)
+        .eq('id', existingRecord.id)
+
+      if (error) {
+        console.error('❌ Error al actualizar historial de suscripción:', error)
+        return false
+      } else {
+        console.log(`✅ Historial de suscripción actualizado para pago ${paymentData.id}`)
+      }
+    } else {
+      // Crear nuevo registro
+      const { error } = await supabaseAdmin
+        .from('subscription_billing_history')
+        .insert(billingData)
+
+      if (error) {
+        console.error('❌ Error al crear historial de suscripción:', error)
+        return false
+      } else {
+        console.log(`✅ Nuevo historial de suscripción creado para pago ${paymentData.id}`)
+      }
+    }
+
+    // Actualizar la fecha de último cobro en la suscripción si el pago fue aprobado
+    if (paymentData.status === 'approved' || paymentData.status === 'paid') {
+      const { error: subscriptionError } = await supabaseAdmin
+        .from('user_subscriptions')
+        .update({ 
+          last_billing_date: paymentData.date_created,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', subscriptionId)
+
+      if (subscriptionError) {
+        console.error('❌ Error al actualizar suscripción:', subscriptionError)
+        return false
+      } else {
+        console.log(`✅ Suscripción ${subscriptionId} actualizada con último cobro`)
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('💥 Error al procesar suscripción:', error)
+    return false
+  }
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    console.log("Webhook recibido:", body)
-
-    // Verificar la firma del webhook si está configurado el secret
-    const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET
-    if (webhookSecret) {
-      const signature = request.headers.get('x-signature')
-      const requestId = request.headers.get('x-request-id')
-      
-      // Aquí podrías validar la firma usando el secret
-      // Por ahora lo dejamos como opcional
-      console.log("Webhook signature validation:", { signature, requestId })
+    console.log('🔔 Webhook de MercadoPago recibido')
+    
+    const bodyText = await request.text()
+    const signature = request.headers.get('x-signature') || ''
+    
+    // Validar firma del webhook
+    if (!validateWebhookSignature(bodyText, signature)) {
+      console.error('❌ Firma del webhook inválida')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
+
+    const body = JSON.parse(bodyText)
+    
+    console.log('📋 Datos del webhook:', {
+      id: body.id,
+      type: body.type,
+      action: body.action,
+      data_id: body.data?.id,
+      live_mode: body.live_mode
+    })
 
     // Verificar si es una notificación de pago
     if (body.type !== "payment" && body.type !== "preapproval") {
@@ -62,7 +183,37 @@ export async function POST(request: Request) {
     }
 
     const paymentData = await response.json()
-    console.log("Detalles del pago:", paymentData)
+    
+    // Logging detallado del pago
+    console.log('💳 Detalles completos del pago:', {
+      id: paymentData.id,
+      status: paymentData.status,
+      status_detail: paymentData.status_detail,
+      amount: paymentData.transaction_amount,
+      currency: paymentData.currency_id,
+      payment_method: paymentData.payment_method_id,
+      payment_type: paymentData.payment_type_id,
+      external_reference: paymentData.external_reference,
+      date_created: paymentData.date_created,
+      date_approved: paymentData.date_approved,
+      payer_email: paymentData.payer?.email,
+      metadata: paymentData.metadata
+    })
+
+    // Intentar procesar como suscripción primero
+    const subscriptionProcessed = await updateSubscriptionBilling(paymentData)
+    
+    if (subscriptionProcessed) {
+      console.log('✅ Pago procesado como suscripción exitosamente')
+      return NextResponse.json({ 
+        success: true, 
+        type: 'subscription',
+        payment_id: paymentData.id,
+        status: paymentData.status
+      })
+    }
+    
+    console.log('🛒 Procesando como pedido regular...')
 
     // Buscar el pedido por el ID de referencia externa o payment_intent_id
     let orderData = null
@@ -143,10 +294,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to update order" }, { status: 500 })
     }
 
-    console.log("Pedido actualizado correctamente:", orderData.id)
-    return NextResponse.json({ success: true })
+    console.log('✅ Pedido actualizado correctamente:', {
+      order_id: orderData.id,
+      payment_id: paymentId,
+      new_status: newOrderStatus,
+      payment_status: paymentStatus,
+      payment_method: paymentMethodInfo
+    })
+    
+    return NextResponse.json({ 
+      success: true, 
+      type: 'order',
+      order_id: orderData.id,
+      payment_id: paymentId,
+      status: newOrderStatus
+    })
   } catch (error) {
-    console.error("Error in webhook route:", error)
+    console.error('💥 Error crítico en webhook de MercadoPago:', {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
+}
+
+// Endpoint GET para verificar que el webhook está funcionando
+export async function GET() {
+  return NextResponse.json({
+    message: 'MercadoPago Webhook endpoint is active',
+    timestamp: new Date().toISOString(),
+    version: '2.0 - Enhanced with subscription support'
+  })
 }

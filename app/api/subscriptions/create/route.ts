@@ -31,49 +31,84 @@ export async function POST(request: NextRequest) {
       quantity = 1
     } = body
 
-    // Validaciones básicas
+    // Validaciones básicas según documentación de MercadoPago
     if (!payer_email) {
       return NextResponse.json(
-        { error: 'payer_email es requerido' },
+        { error: 'payer_email es requerido según documentación de MercadoPago' },
         { status: 400 }
       )
     }
 
-    if (!preapproval_plan_id && !auto_recurring) {
-      return NextResponse.json(
-        { error: 'Se requiere preapproval_plan_id o auto_recurring' },
-        { status: 400 }
-      )
-    }
-
-    // Si no hay plan, validar auto_recurring
+    // Validaciones para suscripciones sin plan
     if (!preapproval_plan_id) {
-      if (!reason || !auto_recurring?.transaction_amount || !auto_recurring?.frequency) {
+      if (!reason) {
+        return NextResponse.json(
+          { error: 'reason es requerido para suscripciones sin plan asociado' },
+          { status: 400 }
+        )
+      }
+      if (!external_reference) {
+        return NextResponse.json(
+          { error: 'external_reference es requerido para suscripciones sin plan asociado' },
+          { status: 400 }
+        )
+      }
+      if (!auto_recurring?.transaction_amount || !auto_recurring?.frequency) {
         return NextResponse.json(
           { 
-            error: 'Para suscripciones sin plan se requiere: reason, auto_recurring.transaction_amount, auto_recurring.frequency' 
+            error: 'auto_recurring con transaction_amount y frequency son requeridos para suscripciones sin plan' 
           },
           { status: 400 }
         )
       }
     }
 
-    // Generar fechas por defecto
+    // Generar fechas por defecto si no se proporcionan
     const startDate = new Date()
     startDate.setDate(startDate.getDate() + 1) // Comenzar mañana
     
     const endDate = new Date()
     endDate.setFullYear(endDate.getFullYear() + 1) // Terminar en 1 año
 
-    // Datos de la suscripción
-    const subscriptionData = {
-      preapproval_plan_id: preapproval_plan_id || undefined,
-      reason: reason || `Suscripción Pet Gourmet - ${payer_email}`,
-      external_reference: external_reference || `PG-${Date.now()}-${user_id || 'guest'}`,
-      payer_email,
-      card_token_id,
-      back_url: `${APP_URL}/perfil/suscripciones`,
-      auto_recurring: auto_recurring || {
+    // Datos de la suscripción según documentación de MercadoPago
+    const subscriptionData: any = {
+      payer_email // Campo requerido
+    }
+
+    // Campos opcionales según documentación
+    if (preapproval_plan_id) {
+      subscriptionData.preapproval_plan_id = preapproval_plan_id
+    }
+
+    if (reason || !preapproval_plan_id) {
+      subscriptionData.reason = reason || `Suscripción Pet Gourmet - ${payer_email}`
+    }
+
+    if (external_reference || !preapproval_plan_id) {
+      subscriptionData.external_reference = external_reference || `PG-${Date.now()}-${user_id || 'guest'}`
+    }
+
+    if (card_token_id) {
+      subscriptionData.card_token_id = card_token_id
+    }
+
+    // back_url es requerido para suscripciones sin plan
+    if (!preapproval_plan_id) {
+      subscriptionData.back_url = `${APP_URL}/perfil/suscripciones`
+    } else if (back_url) {
+      subscriptionData.back_url = back_url
+    }
+
+    // Status: pending (sin método de pago) o authorized (con método de pago)
+    if (card_token_id) {
+      subscriptionData.status = "authorized"
+    } else {
+      subscriptionData.status = "pending"
+    }
+
+    // auto_recurring para configuración de recurrencia
+    if (auto_recurring || !preapproval_plan_id) {
+      subscriptionData.auto_recurring = auto_recurring || {
         frequency: 1,
         frequency_type: "months" as const,
         start_date: startDate.toISOString(),

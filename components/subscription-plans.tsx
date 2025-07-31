@@ -83,42 +83,16 @@ export default function SubscriptionPlans({
     setCreatingSubscription(plan.id)
 
     try {
-      // Primero crear el plan en MercadoPago si no existe
-      const planResponse = await fetch('/api/subscriptions/plans', {
+      // Crear suscripción sin plan usando la nueva API
+      const subscriptionResponse = await fetch('/api/subscriptions/create-without-plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          reason: `${plan.name} - ${productName}`,
-          frequency: plan.frequency,
-          frequency_type: plan.frequency_type === 'weeks' ? 'days' : 'months',
-          transaction_amount: calculateDiscountedPrice(plan),
-          repetitions: 12, // 1 año de suscripción
-          billing_day_proportional: false
-        })
-      })
-
-      const planResult = await planResponse.json()
-      
-      if (!planResult.success) {
-        throw new Error(planResult.error || 'Error creando plan')
-      }
-
-      // Crear la suscripción
-      const subscriptionResponse = await fetch('/api/subscriptions/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          preapproval_plan_id: planResult.plan.id,
           reason: `${plan.name} - ${productName}`,
           external_reference: `PG-${Date.now()}-${userId}`,
           payer_email: userEmail,
-          user_id: userId,
-          product_id: productId,
-          quantity: 1,
           auto_recurring: {
             frequency: plan.frequency_type === 'weeks' ? plan.frequency * 7 : plan.frequency,
             frequency_type: plan.frequency_type === 'weeks' ? 'days' : 'months',
@@ -126,7 +100,12 @@ export default function SubscriptionPlans({
             end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // En 1 año
             transaction_amount: calculateDiscountedPrice(plan),
             currency_id: 'MXN'
-          }
+          },
+          back_url: 'https://petgourmet.mx/perfil/suscripciones',
+          status: 'pending', // Sin método de pago, el usuario lo agregará en MercadoPago
+          user_id: userId,
+          product_id: productId,
+          quantity: 1
         })
       })
 

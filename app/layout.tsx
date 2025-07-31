@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Montserrat, Baloo_2 } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./ClientLayout"
@@ -25,12 +25,16 @@ const baloo = Baloo_2({
   preload: true,
 })
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#7AB8BF',
+}
+
 export const metadata: Metadata = {
   title: "Pet Gourmet - Alimento Premium para Perros Felices",
   description:
     "Descubre nuestra gama de alimentos naturales y nutritivos para perros, elaborados con ingredientes de alta calidad para la salud y felicidad de tu mascota.",
-  viewport: "width=device-width, initial-scale=1",
-  themeColor: "#7AB8BF",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   icons: {
     icon: [
