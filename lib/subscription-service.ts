@@ -1,4 +1,9 @@
 import { createClient } from "@/lib/supabase/client"
+import { 
+  validateEnvironmentVariables,
+  logValidationErrors,
+  type ValidationResult
+} from './checkout-validators'
 
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -13,8 +18,36 @@ export interface SubscriptionPayment {
 
 export class SubscriptionService {
   private supabase = createClient()
+  private isValidEnvironment: boolean
+
+  constructor() {
+    // Validar variables de entorno al inicializar
+    const envValidation = validateEnvironmentVariables()
+    this.isValidEnvironment = envValidation.isValid
+    
+    if (!this.isValidEnvironment) {
+      console.error('❌ Error en configuración del entorno:')
+      logValidationErrors('SubscriptionService', envValidation)
+    }
+  }
 
   async processRecurringPayment(payment: SubscriptionPayment) {
+    console.log(`🔄 Procesando pago recurrente para suscripción: ${payment.subscriptionId}`)
+    
+    // Verificar configuración del entorno
+    if (!this.isValidEnvironment) {
+      throw new Error('Configuración del entorno inválida para procesar pagos')
+    }
+    
+    // Validar parámetros de entrada
+    if (!payment.subscriptionId || typeof payment.subscriptionId !== 'string') {
+      throw new Error('ID de suscripción inválido')
+    }
+    
+    if (!payment || typeof payment !== 'object') {
+      throw new Error('Datos de pago inválidos')
+    }
+    
     try {
       if (IS_TEST_MODE) {
         // Simular pago en modo prueba

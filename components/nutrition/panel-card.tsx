@@ -40,7 +40,7 @@ export function PanelCard({ id, title, description, bgImage, icon, isActive, onC
       onClick={() => onClick(id)}
       role="button"
       tabIndex={0}
-      aria-label={`Ver preguntas sobre ${title.toLowerCase()}`}
+      aria-label={`Ver preguntas sobre ${title?.toLowerCase() || ''}`}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()

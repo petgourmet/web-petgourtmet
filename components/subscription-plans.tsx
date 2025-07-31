@@ -221,7 +221,7 @@ export default function SubscriptionPlans({
                 <div className="space-y-4 mb-6">
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <Calendar className="h-4 w-4 text-primary" />
-                    <span>Entrega {getFrequencyText(plan).toLowerCase()}</span>
+                    <span>Entrega {getFrequencyText(plan)?.toLowerCase() || ''}</span>
                   </div>
                   
                   <div className="flex items-center gap-3 text-sm text-gray-600">

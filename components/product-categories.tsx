@@ -68,7 +68,7 @@ export function ProductCategories() {
               href={
                 category.title === "Nuestras Recetas"
                   ? "/productos"
-                  : `/${category.title.toLowerCase().replace(/\s+/g, "-").replace("para-", "")}`
+                  : `/${category.title?.toLowerCase().replace(/\s+/g, "-").replace("para-", "") || ''}`
               }
               key={category.id}
               className="block group"

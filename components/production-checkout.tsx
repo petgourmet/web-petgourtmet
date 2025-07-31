@@ -6,9 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { ShoppingCart, CreditCard, User, MapPin, Mail, Phone } from 'lucide-react'
+import { ShoppingCart, CreditCard, User, MapPin, Mail, Phone, AlertTriangle } from 'lucide-react'
 import { MercadoPagoButton } from '@/components/mercadopago-button'
 import { useCart } from '@/components/cart-context'
+import { 
+  validateCompleteCheckout, 
+  sanitizeCustomerData, 
+  logValidationErrors,
+  type CustomerData,
+  type CartItem,
+  type ValidationResult
+} from '@/lib/checkout-validators'
 
 interface CheckoutFormData {
   firstName: string
@@ -50,6 +58,8 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
   const [preferenceId, setPreferenceId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([])
   const [currentStep, setCurrentStep] = useState<'cart' | 'form' | 'payment'>('cart')
 
   const totalPrice = calculateCartTotal()
@@ -73,19 +83,36 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
   }
 
   const validateForm = (): boolean => {
-    const required = [
-      formData.firstName,
-      formData.lastName,
-      formData.email,
-      formData.phone,
-      formData.address.street_name,
-      formData.address.street_number,
-      formData.address.zip_code,
-      formData.address.city,
-      formData.address.state
-    ]
-
-    return required.every(field => field.trim() !== '')
+    // Sanitizar datos antes de validar
+    const sanitizedData = sanitizeCustomerData(formData)
+    
+    // Convertir cart a formato esperado por el validador
+    const cartItems: CartItem[] = cart.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      isSubscription: item.isSubscription,
+      size: item.size,
+      image: item.image
+    }))
+    
+    // Validar usando los validadores robustos
+    const validation = validateCompleteCheckout(sanitizedData, cartItems)
+    
+    // Actualizar estados de validación
+    setValidationErrors(validation.errors)
+    setValidationWarnings(validation.warnings || [])
+    
+    // Log para debugging
+    logValidationErrors('ProductionCheckout', validation)
+    
+    // Actualizar formData con datos sanitizados si es válido
+    if (validation.isValid) {
+      setFormData(sanitizedData)
+    }
+    
+    return validation.isValid
   }
 
   const createPreference = async () => {
@@ -242,6 +269,35 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Mostrar errores de validación */}
+              {validationErrors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <h4 className="text-sm font-medium text-red-800">Errores de validación:</h4>
+                  </div>
+                  <ul className="text-sm text-red-700 space-y-1">
+                    {validationErrors.map((error, index) => (
+                      <li key={index}>• {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Mostrar advertencias de validación */}
+              {validationWarnings.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <h4 className="text-sm font-medium text-yellow-800">Advertencias:</h4>
+                  </div>
+                  <ul className="text-sm text-yellow-700 space-y-1">
+                    {validationWarnings.map((warning, index) => (
+                      <li key={index}>• {warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">Nombre *</Label>

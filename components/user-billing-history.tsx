@@ -51,7 +51,7 @@ export default function UserBillingHistory({ userId, userEmail }: UserBillingHis
   }
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase() || '') {
       case 'completed':
         return 'text-green-600 bg-green-100'
       case 'processing':
@@ -67,7 +67,7 @@ export default function UserBillingHistory({ userId, userEmail }: UserBillingHis
   }
 
   const getStatusText = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase() || '') {
       case 'completed':
         return 'Pagado'
       case 'processing':
@@ -203,7 +203,7 @@ export default function UserBillingHistory({ userId, userEmail }: UserBillingHis
                   Ver detalle
                 </button>
                 
-                {invoice.status.toLowerCase() === 'completed' && (
+                {invoice.status?.toLowerCase() === 'completed' && (
                   <button
                     onClick={() => handleDownloadInvoice(invoice.id.toString())}
                     className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
@@ -316,7 +316,7 @@ export default function UserBillingHistory({ userId, userEmail }: UserBillingHis
               >
                 Cerrar
               </button>
-              {selectedInvoice.status.toLowerCase() === 'completed' && (
+              {selectedInvoice.status?.toLowerCase() === 'completed' && (
                 <button
                   onClick={() => {
                     handleDownloadInvoice(selectedInvoice.id.toString())

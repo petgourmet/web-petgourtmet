@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
+import { 
+  validateCompleteCheckout, 
+  validateMercadoPagoPreference,
+  sanitizeCustomerData,
+  logValidationErrors,
+  checkRateLimit,
+  type CustomerData,
+  type CartItem
+} from "@/lib/checkout-validators"
 
 export async function POST(request: Request) {
   console.log("=== CREATE PREFERENCE ENDPOINT CALLED ===")
@@ -32,16 +41,44 @@ export async function POST(request: Request) {
     
     console.log("Extracted data:", { customerData, items, externalReference, backUrls })
 
-    // Validar datos requeridos
-    console.log("Validating required data...")
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      console.log("Validation failed: Items are required")
-      return NextResponse.json({ error: "Items son requeridos" }, { status: 400 })
+    // Rate limiting básico
+    const clientIP = request.headers.get('x-forwarded-for') || 'unknown'
+    if (!checkRateLimit(clientIP, 10, 60000)) {
+      console.log(`Rate limit exceeded for IP: ${clientIP}`)
+      return NextResponse.json({ error: "Demasiadas solicitudes, intenta más tarde" }, { status: 429 })
     }
 
-    if (!customerData || !customerData.email) {
-      console.log("Validation failed: Customer data is required")
-      return NextResponse.json({ error: "Datos del cliente son requeridos" }, { status: 400 })
+    // Validar datos usando validadores robustos
+    console.log("Validating data with robust validators...")
+    
+    // Convertir items a formato esperado
+    const cartItems: CartItem[] = items.map((item: any) => ({
+      id: item.id,
+      name: item.title || item.name,
+      price: item.unit_price || item.price,
+      quantity: item.quantity,
+      isSubscription: item.isSubscription || false,
+      size: item.size,
+      image: item.picture_url || item.image
+    }))
+    
+    // Sanitizar datos del cliente
+    const sanitizedCustomerData = sanitizeCustomerData(customerData as CustomerData)
+    
+    // Validar checkout completo
+    const validation = validateCompleteCheckout(sanitizedCustomerData, cartItems)
+    
+    if (!validation.isValid) {
+      logValidationErrors('create-preference API', validation)
+      return NextResponse.json({ 
+        error: "Datos de validación incorrectos", 
+        details: validation.errors 
+      }, { status: 400 })
+    }
+    
+    // Log advertencias si las hay
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.warn('⚠️ Advertencias de validación:', validation.warnings)
     }
     
     console.log("All validations passed")

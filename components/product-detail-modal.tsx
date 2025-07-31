@@ -303,7 +303,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                         Ahorro del {getSubscriptionDiscount(selectedSubscriptionType)}% aplicado
                       </p>
                       <p className="text-xs text-gray-500">
-                        Entrega {subscriptionTypeLabels[selectedSubscriptionType].toLowerCase()}
+                        Entrega {selectedSubscriptionType ? subscriptionTypeLabels[selectedSubscriptionType].toLowerCase() : ''}
                       </p>
                     </div>
                   )}

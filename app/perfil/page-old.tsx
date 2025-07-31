@@ -218,7 +218,8 @@ export default function PerfilPage() {
               ? JSON.parse(order.shipping_address) 
               : order.shipping_address
             
-            return orderData?.customer_data?.email?.toLowerCase() === user.email?.toLowerCase()
+            return orderData?.customer_data?.email && user.email && 
+                   orderData.customer_data.email.toLowerCase() === user.email.toLowerCase()
           } catch (e) {
             return false
           }

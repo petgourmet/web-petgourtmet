@@ -126,7 +126,7 @@ export default function UserPaymentMethods({ userId }: UserPaymentMethodsProps) 
   }
 
   const getBrandIcon = (brand: string) => {
-    const brandLower = brand.toLowerCase()
+    const brandLower = brand?.toLowerCase() || ''
     
     if (brandLower.includes('visa')) {
       return '💳'

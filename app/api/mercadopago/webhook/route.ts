@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/client"
 import crypto from 'crypto'
+import { 
+  validateWebhookSignature,
+  checkRateLimit,
+  logValidationErrors
+} from "@/lib/checkout-validators"
 
-// Función para validar la firma del webhook
-function validateWebhookSignature(payload: string, signature: string): boolean {
-  const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET
-  if (!webhookSecret) {
-    console.warn('⚠️ MERCADOPAGO_WEBHOOK_SECRET no está configurado')
-    return true // En desarrollo, permitir sin validación
-  }
-
-  const expectedSignature = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(payload)
-    .digest('hex')
-
-  return signature === expectedSignature
+// Función para validar la firma del webhook (ahora usa el validador centralizado)
+function validateWebhookSignatureLocal(payload: string, signature: string): boolean {
+  const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
+  return validateWebhookSignature(payload, signature, webhookSecret)
 }
 
 // Función para actualizar historial de suscripciones
@@ -119,11 +114,18 @@ export async function POST(request: Request) {
   try {
     console.log('🔔 Webhook de MercadoPago recibido')
     
+    // Rate limiting para webhooks
+    const clientIP = request.headers.get('x-forwarded-for') || 'webhook'
+    if (!checkRateLimit(`webhook_${clientIP}`, 50, 60000)) {
+      console.log(`Rate limit exceeded for webhook IP: ${clientIP}`)
+      return NextResponse.json({ error: "Too many webhook requests" }, { status: 429 })
+    }
+    
     const bodyText = await request.text()
     const signature = request.headers.get('x-signature') || ''
     
     // Validar firma del webhook
-    if (!validateWebhookSignature(bodyText, signature)) {
+    if (!validateWebhookSignatureLocal(bodyText, signature)) {
       console.error('❌ Firma del webhook inválida')
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }

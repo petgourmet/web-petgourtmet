@@ -71,7 +71,7 @@ export function ProductFilters({
                 {features.map((feature) => (
                   <div key={feature} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`feature-${feature.toLowerCase().replace(/\s+/g, "-")}`}
+                      id={`feature-${feature?.toLowerCase().replace(/\s+/g, "-") || ''}`}
                       checked={filters.features.includes(feature)}
                       onCheckedChange={(checked) => {
                         if (checked) {
@@ -86,7 +86,7 @@ export function ProductFilters({
                       className="dark:border-white"
                     />
                     <Label
-                      htmlFor={`feature-${feature.toLowerCase().replace(/\s+/g, "-")}`}
+                      htmlFor={`feature-${feature?.toLowerCase().replace(/\s+/g, "-") || ''}`}
                       className="dark:text-white"
                     >
                       {feature}

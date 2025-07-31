@@ -54,7 +54,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
   }
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase() || '') {
       case 'completed':
         return 'text-green-600 bg-green-100'
       case 'processing':
@@ -70,7 +70,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
   }
 
   const getStatusText = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase() || '') {
       case 'completed':
         return 'Completado'
       case 'processing':
@@ -89,7 +89,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
   const getShippingStatusColor = (status?: string) => {
     if (!status) return 'text-gray-600 bg-gray-100'
     
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase() || '') {
       case 'delivered':
         return 'text-green-600 bg-green-100'
       case 'shipped':
@@ -105,7 +105,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
   const getShippingStatusText = (status?: string) => {
     if (!status) return 'Sin información'
     
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase() || '') {
       case 'delivered':
         return 'Entregado'
       case 'shipped':
@@ -121,7 +121,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
 
   const filteredPurchases = purchases.filter(purchase => {
     if (filter === 'all') return true
-    return purchase.payment_status.toLowerCase() === filter
+    return purchase.payment_status?.toLowerCase() === filter
   })
 
   const handleViewPurchase = (purchase: PurchaseItem) => {
@@ -259,7 +259,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
                                 Cantidad: {item.quantity} • ${(item.price || 0).toFixed(2)} c/u
                               </div>
                             </div>
-                            {purchase.payment_status.toLowerCase() === 'completed' && (
+                            {purchase.payment_status?.toLowerCase() === 'completed' && (
                               <button
                                 onClick={() => handleRateProduct(item.id)}
                                 className="text-yellow-500 hover:text-yellow-600 p-1"
@@ -303,7 +303,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
                     Ver detalle
                   </button>
 
-                  {purchase.payment_status.toLowerCase() === 'completed' && (
+                  {purchase.payment_status?.toLowerCase() === 'completed' && (
                     <>
                       <button
                         onClick={() => handleReorder(purchase.id)}
@@ -427,7 +427,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
                         <div className="font-semibold text-gray-900">
                           ${((item.quantity || 1) * (item.price || 0)).toFixed(2)}
                         </div>
-                        {selectedPurchase.payment_status.toLowerCase() === 'completed' && (
+                        {selectedPurchase.payment_status?.toLowerCase() === 'completed' && (
                           <button
                             onClick={() => handleRateProduct(item.id)}
                             className="text-yellow-500 hover:text-yellow-600 mt-1 text-sm flex items-center gap-1"
@@ -450,7 +450,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
               >
                 Cerrar
               </button>
-              {selectedPurchase.payment_status.toLowerCase() === 'completed' && (
+              {selectedPurchase.payment_status?.toLowerCase() === 'completed' && (
                 <button
                   onClick={() => {
                     handleReorder(selectedPurchase.id)

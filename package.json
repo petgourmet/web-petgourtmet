@@ -7,7 +7,9 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "verify-mercadopago": "node scripts/verify-mercadopago.js"
+    "verify-mercadopago": "node scripts/verify-mercadopago.js",
+    "pre-production-check": "tsx scripts/pre-production-check.ts",
+    "production-ready": "npm run lint && npm run pre-production-check && npm run build"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -76,6 +78,7 @@
     "@types/react-dom": "^19",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.20.3",
     "typescript": "^5"
   }
 }

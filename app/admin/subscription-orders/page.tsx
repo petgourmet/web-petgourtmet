@@ -463,10 +463,10 @@ export default function AdminSubscriptionOrdersPage() {
   // Filtrar suscripciones
   const filteredSubscriptions = subscriptions.filter(sub => {
     const matchesSearch = 
-      sub.user_profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.user_profile?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.id.toLowerCase().includes(searchTerm.toLowerCase())
+      (sub.user_profile?.full_name && sub.user_profile.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (sub.user_profile?.email && sub.user_profile.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (sub.product?.name && sub.product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (sub.id && sub.id.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesStatus = statusFilter === "all" || 
       (statusFilter === "active" && sub.is_active) ||
