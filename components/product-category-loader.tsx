@@ -6,8 +6,10 @@ import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
+import { ProductGridSkeleton } from "@/components/product-card-skeleton"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
+import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
 
@@ -424,120 +426,87 @@ export function ProductCategoryLoader({
           return
         }
 
-        // Procesar productos para agregar información adicional
-        const processedProducts = await Promise.all(
-          productsData.map(async (product) => {
-            // Obtener la categoría del producto
-            const categoryName = product.categories?.name || categoryInfo.displayName
+        // ✅ OPTIMIZACIÓN: Una sola consulta JOIN en lugar de N+1 queries
+        const productIds = productsData.map(p => p.id)
+        
+        // Obtener todas las características de una vez
+        const { data: allFeatures } = await supabase
+          .from("product_features")
+          .select("product_id, name, color")
+          .in("product_id", productIds)
+        
+        // Obtener todas las imágenes de una vez
+        const { data: allImages } = await supabase
+          .from("product_images")
+          .select("product_id, url, alt, display_order")
+          .in("product_id", productIds)
+          .order("display_order", { ascending: true })
+        
+        // Obtener todos los tamaños de una vez
+        const { data: allSizes } = await supabase
+          .from("product_sizes")
+          .select("product_id, weight, price")
+          .in("product_id", productIds)
 
-            // Obtener características del producto
-            let features: ProductFeature[] = []
-            try {
-              const { data: featuresData, error: featuresError } = await supabase
-                .from("product_features")
-                .select("name, color")
-                .eq("product_id", product.id)
+        // Procesar productos con datos ya cargados
+        const processedProducts = productsData.map((product) => {
+          // Obtener la categoría del producto
+          const categoryName = product.categories?.name || categoryInfo.displayName
 
-              if (featuresError) {
-                console.error("Error al cargar características:", featuresError.message)
-              } else if (featuresData && featuresData.length > 0) {
-                features = featuresData
-              }
-            } catch (error) {
-              console.error("Error al procesar características:", error)
-            }
+          // Filtrar características para este producto
+          const features = allFeatures?.filter(f => f.product_id === product.id) || []
 
-            // Construir la URL completa de la imagen
-            let imageUrl = product.image
-            if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
-              try {
-                // Si es una ruta relativa en el bucket de Supabase
-                const { data } = supabase.storage.from("products").getPublicUrl(imageUrl)
-                imageUrl = data.publicUrl
-              } catch (error) {
-                console.error("Error al obtener URL de imagen:", error)
-                imageUrl = `/placeholder.svg?text=${encodeURIComponent(product.name)}`
-              }
-            } else if (!imageUrl) {
-              imageUrl = `/placeholder.svg?text=${encodeURIComponent(product.name)}`
-            }
+          // ✅ OPTIMIZACIÓN: Usar función optimizada para URLs de imágenes
+          const imageUrl = getOptimizedImageUrl(product.image, 400, 85)
 
-            // Obtener imágenes adicionales del producto
-            let gallery = []
-            try {
-              const { data: imagesData, error: imagesError } = await supabase
-                .from("product_images")
-                .select("url, alt, display_order")
-                .eq("product_id", product.id)
-                .order("display_order", { ascending: true })
+          // Filtrar imágenes para este producto
+          const gallery = allImages?.filter(img => img.product_id === product.id)
+            .map(img => ({
+              src: img.url,
+              alt: img.alt || `Imagen del producto ${product.name}`
+            })) || []
 
-              if (imagesError) {
-                console.error("Error al cargar imágenes:", imagesError.message)
-              } else if (imagesData && imagesData.length > 0) {
-                gallery = imagesData.map(img => ({
-                  src: img.url,
-                  alt: img.alt || `Imagen del producto ${product.name}`
-                }))
-              }
-            } catch (error) {
-              console.error("Error al procesar imágenes:", error)
-            }
+          // Filtrar tamaños para este producto
+          let sizes = allSizes?.filter(size => size.product_id === product.id) || []
+          if (sizes.length === 0) {
+            // Tamaños predeterminados si no hay datos
+            sizes = [
+              { weight: "200g", price: product.price },
+              { weight: "500g", price: product.price * 2.2 },
+            ]
+          }
 
-            // Obtener tamaños del producto
-            let sizes = []
-            try {
-              const { data: sizesData, error: sizesError } = await supabase
-                .from("product_sizes")
-                .select("weight, price")
-                .eq("product_id", product.id)
+          // Determinar el color de spotlight según la categoría
+          let spotlightColor = "rgba(249, 215, 232, 0.08)"
+          if (categorySlug === "celebrar") {
+            spotlightColor = "rgba(255, 236, 179, 0.08)"
+          } else if (categorySlug === "complementar") {
+            spotlightColor = "rgba(217, 245, 232, 0.3)"
+          } else if (categorySlug === "premiar") {
+            spotlightColor = "rgba(122, 184, 191, 0.2)"
+          } else if (categorySlug === "recetas") {
+            spotlightColor = "rgba(249, 215, 232, 0.3)"
+          }
 
-              if (sizesError) {
-                console.error("Error al cargar tamaños:", sizesError.message)
-              } else if (sizesData && sizesData.length > 0) {
-                sizes = sizesData
-              } else {
-                // Tamaños predeterminados si no hay datos
-                sizes = [
-                  { weight: "200g", price: product.price },
-                  { weight: "500g", price: product.price * 2.2 },
-                ]
-              }
-            } catch (error) {
-              console.error("Error al procesar tamaños:", error)
-              sizes = [
-                { weight: "200g", price: product.price },
-                { weight: "500g", price: product.price * 2.2 },
-              ]
-            }
-
-            // Determinar el color de spotlight según la categoría
-            let spotlightColor = "rgba(249, 215, 232, 0.08)"
-            if (categorySlug === "celebrar") {
-              spotlightColor = "rgba(255, 236, 179, 0.08)"
-            } else if (categorySlug === "complementar") {
-              spotlightColor = "rgba(217, 245, 232, 0.3)"
-            } else if (categorySlug === "premiar") {
-              spotlightColor = "rgba(122, 184, 191, 0.2)"
-            } else if (categorySlug === "recetas") {
-              spotlightColor = "rgba(249, 215, 232, 0.3)"
-            }
-
-            return {
-              ...product,
-              image: imageUrl,
-              category: categoryName,
-              features,
-              rating: product.rating || 4.5,
-              reviews: product.reviews || Math.floor(Math.random() * 100) + 50,
-              sizes,
-              gallery,
-              spotlightColor,
-            }
-          }),
-        )
+          return {
+            ...product,
+            image: imageUrl,
+            category: categoryName,
+            features,
+            rating: product.rating || 4.5,
+            reviews: product.reviews || Math.floor(Math.random() * 100) + 50,
+            sizes,
+            gallery,
+            spotlightColor,
+          }
+        })
 
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
+        
+        // ✅ OPTIMIZACIÓN: Precargar imágenes críticas (primera fila)
+        const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)
+        preloadCriticalImages(criticalImages)
       } catch (error) {
         console.error("Error al cargar productos:", error)
         setProducts([])
@@ -620,10 +589,7 @@ export function ProductCategoryLoader({
 
       {/* Grid de productos */}
       {loading ? (
-        <div className="flex justify-center items-center py-20">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <span className="ml-2 text-lg">Cargando productos...</span>
-        </div>
+        <ProductGridSkeleton />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
           {filteredProducts.length === 0 ? (
