@@ -20,36 +20,165 @@ export default function OrdersAdminPage() {
 
   useEffect(() => {
     fetchOrders()
+    
+    // ✅ IMPLEMENTAR TIEMPO REAL: Suscribirse a cambios en orders
+    const ordersChannel = supabase
+      .channel('admin_orders_realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders'
+      }, (payload) => {
+        console.log('[ADMIN] Cambio en orders detectado:', payload)
+        
+        // Refrescar órdenes automáticamente
+        fetchOrders()
+        
+        // Mostrar notificación para nuevas órdenes
+        if (payload.eventType === 'INSERT') {
+          console.log('Nueva orden recibida')
+        }
+      })
+      .subscribe()
+
+    // También escuchar cambios en order_items para actualizaciones de productos
+    const orderItemsChannel = supabase
+      .channel('admin_order_items_realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'order_items'
+      }, (payload) => {
+        console.log('[ADMIN] Cambio en order_items detectado:', payload)
+        fetchOrders()
+      })
+      .subscribe()
+
+    // Cleanup: Desuscribirse cuando el componente se desmonte
+    return () => {
+      ordersChannel.unsubscribe()
+      orderItemsChannel.unsubscribe()
+    }
   }, [currentPage, statusFilter])
 
   async function fetchOrders() {
+    console.log('🚀 Iniciando fetchOrders...')
+    
     try {
       setLoading(true)
       setError(null)
 
-      // Construir la consulta base
-      let query = supabase.from("orders").select("*", { count: "exact" }).order("created_at", { ascending: false })
+      // Cargar órdenes desde la base de datos
+        const { data: ordersData, error: ordersError } = await supabase
+          .from("orders")
+          .select("*")
+          .order("created_at", { ascending: false })
 
+      if (ordersError) {
+        console.error('❌ Error en consulta orders:', ordersError)
+        throw new Error(`Consulta fallida: ${ordersError.message}`)
+      }
+
+      console.log(`✅ Consulta exitosa. Órdenes: ${ordersData?.length || 0}`)
+
+      // Cargar order_items por separado para evitar errores de JOIN
+      const { data: orderItemsData, error: itemsError } = await supabase
+        .from("order_items")
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image_url
+          )
+        `)
+
+      if (itemsError) {
+        console.warn('⚠️ Error cargando order_items:', itemsError)
+        // No lanzar error, continuar sin items
+      }
+
+      console.log(`✅ Order items cargados: ${orderItemsData?.length || 0}`)
+
+      // Procesar órdenes combinando con order_items
+       const processedOrders = ordersData?.map(order => {
+         // Encontrar items para esta orden
+         const orderItems = orderItemsData?.filter(item => item.order_id === order.id) || []
+         
+         // Calcular total si no está disponible
+         const calculatedTotal = order.total || 
+           orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+
+         // Parsear shipping_address si es string JSON
+         let parsedShippingAddress = null
+         let customerInfo = null
+         if (order.shipping_address) {
+           try {
+             parsedShippingAddress = typeof order.shipping_address === 'string' 
+               ? JSON.parse(order.shipping_address) 
+               : order.shipping_address
+             
+             // Extraer información del cliente desde customer_data
+             if (parsedShippingAddress?.customer_data) {
+               const customerData = parsedShippingAddress.customer_data
+               customerInfo = {
+                 name: customerData.firstName && customerData.lastName 
+                   ? `${customerData.firstName} ${customerData.lastName}`
+                   : customerData.firstName || customerData.name || 'Cliente anónimo',
+                 email: customerData.email || order.user_email || 'No especificado',
+                 phone: customerData.phone || 'No especificado'
+               }
+             }
+           } catch (e) {
+             console.warn('Error parsing shipping_address:', e)
+           }
+         }
+
+         return {
+           ...order,
+           total: calculatedTotal,
+           items: orderItems,
+           customer_name: customerInfo?.name || 'Cliente anónimo',
+           customer_email: customerInfo?.email || order.user_email || 'No especificado',
+           customer_phone: customerInfo?.phone || 'No especificado',
+           payment_status: order.payment_status || 'pending',
+           user_id: order.user_id,
+           shipping_address: parsedShippingAddress || {}
+         }
+       }) || []
+      
       // Aplicar filtro de estado si no es "all"
+      let filteredOrders = processedOrders
       if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter)
+        filteredOrders = processedOrders.filter(order => order.status === statusFilter)
+      }
+
+      // Aplicar búsqueda si hay término de búsqueda
+      if (searchTerm.trim()) {
+        filteredOrders = filteredOrders.filter(order => 
+          order.id.toString().includes(searchTerm) ||
+          order.customer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
+        )
       }
 
       // Aplicar paginación
       const from = (currentPage - 1) * ordersPerPage
-      const to = from + ordersPerPage - 1
-      query = query.range(from, to)
+      const to = from + ordersPerPage
+      const paginatedOrders = filteredOrders.slice(from, to)
 
-      // Ejecutar la consulta
-      const { data, error, count } = await query
-
-      if (error) throw error
-
-      setOrders(data || [])
-      setTotalOrders(count || 0)
+      setOrders(paginatedOrders)
+      setTotalOrders(filteredOrders.length)
+      
     } catch (error: any) {
-      console.error("Error al cargar pedidos:", error)
-      setError(error.message)
+      console.error("❌ Error al cargar pedidos:", {
+        error,
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint
+      })
+      setError(error?.message || 'Error desconocido al cargar pedidos')
     } finally {
       setLoading(false)
     }
@@ -199,7 +328,7 @@ export default function OrdersAdminPage() {
                         // Si no se puede parsear, usar valores de fallback
                         customerInfo = {
                           name: order.customer_name || 'Cliente anónimo',
-                          email: order.user_email || 'No especificado'
+                          email: order.customer_email || order.user_email || 'No especificado'
                         }
                       }
 
@@ -207,7 +336,7 @@ export default function OrdersAdminPage() {
                         <tr key={order.id} className="border-b">
                           <td className="p-3">#{customerInfo?.orderNumber || order.id}</td>
                           <td className="p-3">{customerInfo?.name || "Cliente anónimo"}</td>
-                          <td className="p-3">{customerInfo?.email || "No especificado"}</td>
+                          <td className="p-3">{customerInfo?.email || order.user_email || "No especificado"}</td>
                           <td className="p-3">{formatDate(order.created_at)}</td>
                           <td className="p-3">
                             <OrderStatusBadge status={order.status} />

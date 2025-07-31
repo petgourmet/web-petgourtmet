@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { createClient } from "@/lib/supabase/client"
 import UserBillingHistory from "@/components/user-billing-history"
+import RealtimeStatus from "@/components/realtime-status"
 import { 
   User, 
   Package,
@@ -110,7 +111,6 @@ interface Subscription {
 
 export default function PerfilPage() {
   const { user, loading } = useClientAuth()
-  const supabase = createClient()
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
@@ -121,19 +121,27 @@ export default function PerfilPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions' | 'billing'>('profile')
 
   useEffect(() => {
+    console.log('🔍 useEffect del perfil - Estado:', { loading, hasUser: !!user, userId: user?.id })
     if (!loading && user) {
+      console.log('✅ Iniciando carga de datos para usuario:', user.id)
       initializeData()
+    } else {
+      console.log('⏳ Esperando autenticación...', { loading, hasUser: !!user })
     }
-  }, [user, loading])
+  }, [user?.id, loading])
 
   const initializeData = async () => {
     setIsLoading(true)
+    console.log('🔄 Iniciando carga de datos del perfil...')
     try {
       await Promise.all([
         fetchUserProfile(),
         fetchOrders(),
         fetchSubscriptions()
       ])
+      console.log('✅ Carga de datos completada')
+    } catch (error) {
+      console.error('❌ Error en initializeData:', error)
     } finally {
       setIsLoading(false)
     }
@@ -143,6 +151,7 @@ export default function PerfilPage() {
     if (!user) return
     
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -173,35 +182,92 @@ export default function PerfilPage() {
     if (!user) return
     
     try {
-      const { data: ordersData, error: ordersError } = await supabase
+      const supabase = createClient()
+      // Cargar órdenes del usuario desde las tablas 'orders' y 'order_items'
+      // Primero obtener las órdenes del usuario desde la tabla 'orders'
+      const { data: userOrders, error: ordersError } = await supabase
         .from('orders')
-        .select(`
-          *,
-          order_items (
-            *,
-            products (
-              id,
-              name,
-              image,
-              price
-            )
-          )
-        `)
+        .select('id')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
 
       if (ordersError) {
-        console.error('Error fetching orders:', ordersError)
+        console.error('Error fetching user orders:', ordersError)
+        setOrders([])
         return
       }
 
-      const processedOrders = ordersData?.map(order => ({
-        ...order,
-        items: order.order_items || [],
-        total_items: order.order_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0
-      })) || []
+      if (!userOrders || userOrders.length === 0) {
+        console.log('No se encontraron órdenes para el usuario')
+        setOrders([])
+        return
+      }
+
+      const orderIds = userOrders.map(order => order.id)
+      console.log(`Órdenes del usuario encontradas: ${orderIds.length}`, orderIds)
+
+      // Ahora cargar order_items para esas órdenes específicas
+      const { data: orderItemsData, error: itemsError } = await supabase
+        .from('order_items')
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price
+          )
+        `)
+        .in('order_id', orderIds)
+
+      if (itemsError) {
+        console.error('Error fetching order items:', itemsError)
+        // No hacer return, continuar con array vacío
+        setOrders([])
+        return
+      }
+
+      console.log(`✅ Order items cargados: ${orderItemsData?.length || 0}`)
+
+      // Agrupar order_items por order_id para reconstruir órdenes
+      const orderGroups = orderItemsData?.reduce((groups, item) => {
+        const orderId = item.order_id
+        if (!groups[orderId]) {
+          groups[orderId] = []
+        }
+        groups[orderId].push(item)
+        return groups
+      }, {} as Record<string, any[]>) || {}
+
+      // Reconstruir órdenes desde los grupos de items
+      const processedOrders = Object.entries(orderGroups).map(([orderId, items]) => {
+        // Calcular total de la orden
+        const total = items.reduce((sum, item) => sum + (item.quantity * item.price), 0)
+        
+        // Calcular total de items
+        const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
+
+        // Usar información del primer item para datos de la orden
+        const firstItem = items[0]
+        
+        return {
+          id: orderId,
+          user_id: user.id,
+          total: total,
+          payment_status: 'completed', // Asumir completado si existe en order_items
+          status: 'completed',
+          created_at: firstItem.created_at || new Date().toISOString(),
+          customer_email: user.email,
+          items: items,
+          total_items: totalItems,
+          source_table: 'order_items'
+        }
+      })
+
+      // Ordenar por fecha de creación (más recientes primero)
+      processedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
       setOrders(processedOrders)
+      
     } catch (error) {
       console.error('Error loading orders:', error)
       toast.error('No se pudieron cargar las compras')
@@ -211,8 +277,9 @@ export default function PerfilPage() {
   const fetchSubscriptions = async () => {
     if (!user) return
     try {
-      console.log('🔍 Buscando suscripciones para usuario:', user.id)
-      console.log('📧 Email del usuario:', user.email)
+      const supabase = createClient()
+      console.log('Buscando suscripciones para usuario:', user.id)
+      console.log('Email del usuario:', user.email)
       
       const { data: userSubscriptionsData, error: subscriptionsError } = await supabase
         .from('user_subscriptions')
@@ -233,14 +300,16 @@ export default function PerfilPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      console.log('📊 Resultado de user_subscriptions:', {
+      console.log('Resultado de user_subscriptions:', {
         error: subscriptionsError,
         count: userSubscriptionsData?.length || 0,
         data: userSubscriptionsData
       })
 
       if (subscriptionsError) {
-        console.error('❌ Error al obtener user_subscriptions:', subscriptionsError)
+        console.error('Error al obtener user_subscriptions:', subscriptionsError)
+        // No hacer return, continuar con array vacío
+        setSubscriptions([])
         return
       }
 
@@ -291,6 +360,7 @@ export default function PerfilPage() {
     
     setIsSaving(true)
     try {
+      const supabase = createClient()
       const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: profile.full_name,
@@ -388,10 +458,13 @@ export default function PerfilPage() {
                 Gestiona tu información personal y revisa tus compras
               </p>
             </div>
-            <Badge variant="secondary" className="flex items-center gap-1 w-fit">
-              <User className="h-3 w-3" />
-              {profile?.email}
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                <User className="h-3 w-3" />
+                {profile?.email}
+              </Badge>
+              <RealtimeStatus />
+            </div>
           </div>
         </div>
 

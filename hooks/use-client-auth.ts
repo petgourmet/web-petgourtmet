@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
 export function useClientAuth() {
@@ -10,72 +10,83 @@ export function useClientAuth() {
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const router = useRouter()
+  
+  console.log('🚀 Hook useClientAuth inicializado')
 
   useEffect(() => {
-    const getUser = async () => {
+    let isMounted = true
+    console.log('🔄 useEffect ejecutándose...')
+    
+    const loadUser = async () => {
+      console.log('🔐 Iniciando carga de usuario...')
+      
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        setUser(session?.user || null)
-
+        const supabase = createClient()
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        console.log('📋 Sesión obtenida:', { 
+          hasSession: !!session, 
+          hasUser: !!session?.user,
+          error: error?.message 
+        })
+        
+        if (!isMounted) return
+        
         if (session?.user) {
-          // Obtener el rol del usuario desde la tabla profiles
-          const { data: profileData, error: profileError } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
+          setUser(session.user)
+          
+          // Obtener rol del usuario
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
             .single()
-
+            
+          if (!isMounted) return
+            
           if (profileError) {
-            console.error("Error al obtener el perfil:", profileError)
+            console.error('❌ Error obteniendo perfil:', profileError.message)
+            setUserRole('user')
           } else {
-            setUserRole(profileData?.role || "user")
+            console.log('✅ Perfil obtenido:', profile)
+            setUserRole(profile?.role || 'user')
           }
+        } else {
+          console.log('❌ No hay sesión activa')
+          setUser(null)
+          setUserRole(null)
         }
       } catch (error) {
-        console.error("Error al obtener la sesión:", error)
+        console.error('💥 Error en loadUser:', error)
+        if (isMounted) {
+          setUser(null)
+          setUserRole(null)
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          console.log('🏁 Finalizando carga - setting loading to false')
+          setLoading(false)
+        }
       }
     }
-
-    getUser()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-
-      if (session?.user) {
-        // Actualizar el rol cuando cambia la autenticación
-        supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (!error && data) {
-              setUserRole(data.role)
-            }
-          })
-      } else {
-        setUserRole(null)
-      }
-    })
-
+    
+    loadUser()
+    
     return () => {
-      subscription.unsubscribe()
+      isMounted = false
     }
-  }, [router])
+  }, [])
 
   const signOut = async () => {
+    const supabase = createClient()
     await supabase.auth.signOut()
-    router.push("/")
+    setUser(null)
+    setUserRole(null)
+    router.push('/')
   }
 
-  const isAdmin = userRole === "admin"
-  const isClient = userRole === "user"
+  const isAdmin = userRole === 'admin'
+  const isClient = userRole === 'user'
 
   return {
     user,

@@ -96,6 +96,33 @@ export default function AdminSubscriptionOrdersPage() {
         throw new Error("Problema de conectividad con la base de datos")
       }
       
+      // ✅ IMPLEMENTAR TIEMPO REAL: Configurar suscripción a cambios (solo una vez)
+      if (currentRetry === 0) {
+        const subscriptionChannel = supabase
+          .channel('admin_subscriptions_realtime')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'user_subscriptions'
+          }, (payload) => {
+            console.log('🔄 [ADMIN] Cambio en suscripción detectado:', payload)
+            
+            // Refrescar suscripciones automáticamente (sin retry)
+            fetchAllSubscriptions(0)
+            
+            // Mostrar notificación discreta
+            if (payload.eventType === 'UPDATE') {
+              console.log('📝 Suscripción actualizada')
+            } else if (payload.eventType === 'INSERT') {
+              console.log('🆕 Nueva suscripción creada')
+            }
+          })
+          .subscribe()
+
+        // Guardar referencia para cleanup posterior
+        window.subscriptionRealtimeChannel = subscriptionChannel
+      }
+      
       // Obtener suscripciones con manejo de errores granular
       let subscriptionsData = null
       let error = null

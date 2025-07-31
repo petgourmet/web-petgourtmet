@@ -66,6 +66,7 @@ const DashboardPage = () => {
       }
 
       // Obtener el número total de pedidos
+      // ✅ CORRECCIÓN: Usar tabla orders directamente
       const { count: totalOrders, error: ordersError } = await supabase
         .from("orders")
         .select("*", { count: "exact", head: true })
