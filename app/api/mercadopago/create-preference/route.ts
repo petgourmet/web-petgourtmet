@@ -69,10 +69,19 @@ export async function POST(request: Request) {
     const validation = validateCompleteCheckout(sanitizedCustomerData, cartItems)
     
     if (!validation.isValid) {
+      console.error('❌ VALIDATION FAILED:')
+      console.error('Original customerData:', JSON.stringify(customerData, null, 2))
+      console.error('Sanitized customerData:', JSON.stringify(sanitizedCustomerData, null, 2))
+      console.error('Cart items:', JSON.stringify(cartItems, null, 2))
+      console.error('Validation errors:', validation.errors)
       logValidationErrors('create-preference API', validation)
       return NextResponse.json({ 
         error: "Datos de validación incorrectos", 
-        details: validation.errors 
+        details: validation.errors,
+        receivedData: {
+          customerData: sanitizedCustomerData,
+          items: cartItems
+        }
       }, { status: 400 })
     }
     
