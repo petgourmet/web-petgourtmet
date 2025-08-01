@@ -802,7 +802,7 @@ export default function AdminSubscriptionOrdersPage() {
                       <div className="mt-2 space-y-1 text-sm text-gray-600">
                         <div className="flex justify-between">
                           <span>ID:</span>
-                          <span className="font-mono text-xs">{subscription.id.slice(-8)}</span>
+                          <span className="font-mono text-xs">{String(subscription.id).slice(-8)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Precio:</span>

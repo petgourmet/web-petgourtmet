@@ -238,8 +238,13 @@ export default function OrderDetailPage() {
                           if (order.items && Array.isArray(order.items)) {
                             items = order.items
                           } else if (order.shipping_address) {
-                            const metadata = JSON.parse(order.shipping_address)
-                            items = metadata.items || []
+                            let metadata = null
+                            if (typeof order.shipping_address === 'string') {
+                              metadata = JSON.parse(order.shipping_address)
+                            } else if (typeof order.shipping_address === 'object') {
+                              metadata = order.shipping_address
+                            }
+                            items = metadata?.items || []
                           } else if (order.items && typeof order.items === 'string') {
                             items = JSON.parse(order.items)
                           }
@@ -416,8 +421,12 @@ export default function OrderDetailPage() {
                   let customerData = null
                   
                   try {
-                    if (order.shipping_address && typeof order.shipping_address === 'string') {
-                      orderMetadata = JSON.parse(order.shipping_address)
+                    if (order.shipping_address) {
+                      if (typeof order.shipping_address === 'string') {
+                        orderMetadata = JSON.parse(order.shipping_address)
+                      } else if (typeof order.shipping_address === 'object') {
+                        orderMetadata = order.shipping_address
+                      }
                       customerData = orderMetadata?.customer_data || orderMetadata
                     }
                   } catch (e) {
@@ -501,7 +510,13 @@ export default function OrderDetailPage() {
 
                       let metadata = null
                       if (typeof order.shipping_address === 'string' && order.shipping_address.startsWith('{')) {
-                        metadata = JSON.parse(order.shipping_address)
+                        try {
+                          metadata = JSON.parse(order.shipping_address)
+                        } catch (e) {
+                          console.error('Error parsing shipping_address:', e)
+                        }
+                      } else if (typeof order.shipping_address === 'object') {
+                        metadata = order.shipping_address
                       }
 
                       const address = metadata?.customer_data?.address || metadata?.address
@@ -533,7 +548,20 @@ export default function OrderDetailPage() {
               {(() => {
                 let metadata = null
                 try {
-                  metadata = order.shipping_address ? JSON.parse(order.shipping_address) : null
+                  if (order.shipping_address) {
+                        if (typeof order.shipping_address === 'string') {
+                          try {
+                            metadata = JSON.parse(order.shipping_address)
+                          } catch (e) {
+                            console.error('Error parsing shipping_address:', e)
+                            metadata = null
+                          }
+                        } else if (typeof order.shipping_address === 'object') {
+                          metadata = order.shipping_address
+                        }
+                      } else {
+                        metadata = null
+                      }
                 } catch (e) {
                   console.error('Error parsing metadata:', e)
                 }
@@ -578,7 +606,20 @@ export default function OrderDetailPage() {
               {(() => {
                 let formData = null
                 try {
-                  formData = order.notes ? JSON.parse(order.notes) : null
+                  if (order.notes) {
+                    if (typeof order.notes === 'string') {
+                      try {
+                        formData = JSON.parse(order.notes)
+                      } catch (e) {
+                        console.error('Error parsing notes:', e)
+                        formData = null
+                      }
+                    } else if (typeof order.notes === 'object') {
+                      formData = order.notes
+                    }
+                  } else {
+                    formData = null
+                  }
                 } catch (e) {
                   console.error("Error parsing form data:", e)
                 }

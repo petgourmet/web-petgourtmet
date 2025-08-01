@@ -118,6 +118,7 @@ export default function PerfilPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [updatingSubscription, setUpdatingSubscription] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions' | 'billing'>('profile')
 
   useEffect(() => {
@@ -403,6 +404,60 @@ export default function PerfilPage() {
     setProfile(prev => prev ? { ...prev, [field]: value } : null)
   }
 
+  const handleSubscriptionAction = async (subscriptionId: string, action: 'pause' | 'cancel' | 'reactivate') => {
+    setUpdatingSubscription(subscriptionId)
+    try {
+      const supabase = createClient()
+      let updateData: any = {}
+      
+      switch (action) {
+        case 'pause':
+          updateData = { status: 'paused' }
+          break
+        case 'cancel':
+          updateData = { 
+            status: 'cancelled',
+            cancelled_at: new Date().toISOString()
+          }
+          break
+        case 'reactivate':
+          updateData = { 
+            status: 'active',
+            cancelled_at: null
+          }
+          break
+      }
+
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update(updateData)
+        .eq('id', subscriptionId)
+
+      if (error) {
+        console.error('Error updating subscription:', error)
+        toast.error('Error al actualizar la suscripción')
+        return
+      }
+
+      // Actualizar el estado local
+      setSubscriptions(prev => prev.map(sub => 
+        sub.id === subscriptionId 
+          ? { ...sub, ...updateData }
+          : sub
+      ))
+
+      const actionText = action === 'pause' ? 'pausada' : 
+                        action === 'cancel' ? 'cancelada' : 'reactivada'
+      toast.success(`Suscripción ${actionText} correctamente`)
+      
+    } catch (error) {
+      console.error('Error in handleSubscriptionAction:', error)
+      toast.error('Error al actualizar la suscripción')
+    } finally {
+      setUpdatingSubscription(null)
+    }
+  }
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -675,7 +730,7 @@ export default function PerfilPage() {
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-lg">Orden #{order.id.slice(-8)}</h3>
+                            <h3 className="font-semibold text-lg">Orden #{String(order.id).slice(-8)}</h3>
                             <Badge variant={order.payment_status === 'approved' ? 'default' : 'secondary'}>
                               {order.payment_status === 'approved' ? 'Pagado' : order.payment_status}
                             </Badge>
@@ -762,7 +817,7 @@ export default function PerfilPage() {
                                     {product?.name || 'Producto no encontrado'}
                                   </h3>
                                   <p className="text-sm text-gray-500">
-                                    ID: {subscription.id.slice(-8)}
+                                    ID: {String(subscription.id).slice(-8)}
                                   </p>
                                 </div>
                                 
@@ -872,11 +927,23 @@ export default function PerfilPage() {
                                 <div className="flex flex-col gap-2 mt-4">
                                   {subscription.status === 'active' ? (
                                     <>
-                                      <Button size="sm" variant="outline" className="text-xs">
-                                        ⏸️ Pausar
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="text-xs"
+                                        onClick={() => handleSubscriptionAction(subscription.id, 'pause')}
+                                        disabled={updatingSubscription === subscription.id}
+                                      >
+                                        {updatingSubscription === subscription.id ? '⏳' : '⏸️'} Pausar
                                       </Button>
-                                      <Button size="sm" variant="outline" className="text-xs text-red-600 hover:text-red-700">
-                                        ❌ Cancelar
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="text-xs text-red-600 hover:text-red-700"
+                                        onClick={() => handleSubscriptionAction(subscription.id, 'cancel')}
+                                        disabled={updatingSubscription === subscription.id}
+                                      >
+                                        {updatingSubscription === subscription.id ? '⏳' : '❌'} Cancelar
                                       </Button>
                                     </>
                                   ) : subscription.cancelled_at ? (
@@ -884,8 +951,14 @@ export default function PerfilPage() {
                                       Cancelada
                                     </Button>
                                   ) : (
-                                    <Button size="sm" variant="outline" className="text-xs">
-                                      ▶️ Reactivar
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="text-xs"
+                                      onClick={() => handleSubscriptionAction(subscription.id, 'reactivate')}
+                                      disabled={updatingSubscription === subscription.id}
+                                    >
+                                      {updatingSubscription === subscription.id ? '⏳' : '▶️'} Reactivar
                                     </Button>
                                   )}
                                 </div>

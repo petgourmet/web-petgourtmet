@@ -1,504 +1,459 @@
-# 🗺️ MAPA COMPLETO DE LA BASE DE DATOS PETGOURMET
-*Actualizado: Enero 2025*
+1. Catálogo y categorías
+Tabla	Columna	Tipo	PK	Comentario
+categories	id	int4	✔︎	
+name	text		
+slug	text		
+description	text		
+image	text		
+color	text		
 
-## 📋 RESUMEN EJECUTIVO
+Tabla	Columna	Tipo	PK	Comentario
+blog_categories	id	int4	✔︎	
+name	text		
+slug	text		
+description	text		
+created_at	timestamp		
 
-### ✅ **TABLAS CONFIRMADAS Y FUNCIONALES**
-- **19 tablas principales** identificadas y documentadas
-- **Sistema de suscripciones** completamente implementado
-- **Integración MercadoPago** funcional
-- **Autenticación Supabase** integrada
+2. Productos
+Tabla	Columna	Tipo	PK	Comentario
+products	id	int4	✔︎	
+name	text		
+slug	text		
+description	text		
+price	numeric		
+image	text		
+category_id	int4		FK → categories.id
+featured	bool		
+stock	int4		
+created_at	timestamp		
+updated_at	timestamp		
+nutritional_info	text		
+ingredients	text		
+rating / average_rating	numeric		
+reviews_count / review_count	int4		
+purchase_types	jsonb		
+subscription_discount	int4		
+sale_type	varchar		
+weight_reference	text		
+subscription_available	bool		
+subscription_types	jsonb		
+monthly_discount / quarterly_discount / annual_discount	numeric		
+biweekly_discount	float4		
 
-### ⚠️ **NOTAS IMPORTANTES**
-- ❌ **NO existe tabla `orders`** - Solo `order_items`
-- ❌ **NO existe tabla `users`** - Se usa `profiles`
-- ✅ **Sistema de suscripciones** completamente funcional
-- ✅ **Webhooks MercadoPago** implementados
+Tabla auxiliar	Relación con products
+product_images (id, product_id → products.id, url, alt, display_order)	
+product_features (id, product_id → products.id, name, color, …)	
+product_sizes (id, product_id → products.id, weight, price, stock)	
+product_reviews (id, product_id → products.id, user_id, rating, comment, …)	
 
----
+3. Suscripciones y pagos
+Tabla	Puntos clave
+user_subscriptions (id, user_id, product_id, subscription_type, status, pricing …, schedule …, MP fields, …)	
+subscriptions (id UUID, user_id, plan_id, plan_name, status, period dates, cancel_at_period_end, payment_method_id)	
+subscription_config (id, period, default_discount_percentage, is_active, timestamps)	
+subscription_modifications (id, subscription_id, user_id, modification_type, old_values, new_values, effective_date, notes)	
+subscription_payments (id, subscription_id, mercadopago_payment_id, status, amount, payment_method_id, dates, external_reference)	
+subscription_billing_history (id, subscription_id, user_id, payment_method_id, amount, currency, billing_date, failure_reason, receipt_url, metadata)	
+scheduled_notifications (id, subscription_id, notification_type, scheduled_for, sent_at, status, recipient_email, subject, template)	
+user_payment_methods (id, user_id, payment_provider, token/id, card_* fields, is_default, is_active, expires_at, provider_metadata)	
 
-## 🏗️ ARQUITECTURA GENERAL
+4. Pedidos / e-commerce
+Tabla	Puntos clave
+orders (id, user_id, status, total, shipping_address JSON, payment_intent_id, payment_status, customer_name/phone, is_subscription)	
+order_items (id, order_id → orders.id, product_id → products.id, product_name, product_image, quantity, price, size)	
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PETGOURMET DATABASE                     │
-├─────────────────────────────────────────────────────────────┤
-│  👥 USUARIOS & AUTH     │  🛒 PRODUCTOS & VENTAS           │
-│  ├── profiles           │  ├── products                    │
-│  ├── pets               │  ├── categories                  │
-│  └── user_payment_...   │  ├── product_images              │
-│                         │  ├── product_features            │
-│  💳 SUSCRIPCIONES       │  ├── product_sizes               │
-│  ├── user_subscriptions │  ├── product_reviews             │
-│  ├── subscriptions      │  └── order_items                 │
-│  ├── subscription_...   │                                   │
-│  └── scheduled_...      │  📝 CONTENIDO                    │
-│                         │  ├── blogs                       │
-│                         │  └── blog_categories             │
-└─────────────────────────────────────────────────────────────┘
-```
+5. Contenido (blog)
+Tabla	Columnas principales
+blogs (id, title, slug, content, excerpt, cover_image, author_id, category_id → blog_categories.id, published, created_at, updated_at, meta_description, read_time)	
 
----
+6. Usuarios y perfiles
+Tabla	Columnas	Nota
+profiles	id UUID (PK), email, role, full_name, phone, address JSON, preferences JSON, first_name, last_name, shipping_address JSON, created_at, updated_at	FK implícito con auth.users
+pets	id UUID (PK), owner_id UUID, name, species, breed, age, weight, neutered bool, allergies, activity_level, created_at, updated_at	owner_id → auth.users.id
 
-## 📊 TABLAS DETALLADAS
+7. Integraciones y otros
+Tabla	Propósito
+mercadopago_webhooks (id UUID, webhook_type, resource_id, action, raw_data JSONB, processed bool, processed_at, auth.users.id, created_at)	
 
-### 👥 **MÓDULO: USUARIOS Y AUTENTICACIÓN**
+8. Relaciones clave (resumen)
+products.category_id → categories.id
 
-#### 1. **profiles** (Tabla principal de usuarios)
-```sql
-CREATE TABLE profiles (
-  id uuid PRIMARY KEY,
-  auth_users_id uuid REFERENCES auth.users(id),
-  email text,
-  full_name text,
-  first_name text,
-  last_name text,
-  phone text,
-  address text,
-  shipping_address jsonb,
-  role varchar DEFAULT 'user',
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
-**Propósito**: Extensión de usuarios de Supabase Auth
-**Relaciones**: 
-- `auth_users_id` → `auth.users(id)`
-- Relacionada con `user_subscriptions`, `pets`, `subscription_billing_history`
+product_*.product_id → products.id
 
-#### 2. **pets** (Mascotas de usuarios)
-```sql
-CREATE TABLE pets (
-  id uuid PRIMARY KEY,
-  owner_id uuid,
-  auth_users_id uuid REFERENCES auth.users(id),
-  name text,
-  species text,
-  age int4,
-  weight numeric,
-  gender text,
-  activity_level text,
-  allergies text,
-  updated_at timestamptz DEFAULT now()
-);
-```
-**Propósito**: Información de mascotas para personalización
-**Relaciones**: 
-- `auth_users_id` → `auth.users(id)`
-- `owner_id` → `profiles(id)`
+product_reviews.user_id → auth.users.id
 
-#### 3. **user_payment_methods** (Métodos de pago)
-```sql
-CREATE TABLE user_payment_methods (
-  user_id uuid,
-  payment_provider varchar,
-  payment_method_id varchar,
-  payment_method_type varchar,
-  card_last_four varchar,
-  card_brand varchar,
-  card_exp_month int4,
-  card_exp_year int4,
-  cardholder_name varchar,
-  customer_name text,
-  customer_phone text,
-  is_default bool DEFAULT false,
-  is_active bool DEFAULT true,
-  payment_intent_id text,
-  shipping_address jsonb,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  expires_at timestamptz
-);
-```
-**Propósito**: Gestión de métodos de pago de usuarios
-**Relaciones**: 
-- `user_id` → `profiles(auth_users_id)`
+user_subscriptions
 
----
+user_id → auth.users.id
 
-### 🛒 **MÓDULO: PRODUCTOS Y VENTAS**
+product_id → products.id
 
-#### 4. **products** (Catálogo de productos)
-```sql
-CREATE TABLE products (
-  id int8 PRIMARY KEY,
-  name text,
-  slug text UNIQUE,
-  description text,
-  price numeric,
-  image text,
-  category_id int8,
-  features text,
-  stock int4,
-  nutritional_info text,
-  nutrition_info text,
-  ingredients text,
-  rating numeric,
-  reviews int4,
-  average_rating numeric,
-  review_count int4,
-  sale_type varchar,
-  magic_reference text,
-  -- Campos de suscripción
-  subscription_available bool DEFAULT false,
-  subscription_types jsonb,
-  subscription_discount int4,
-  monthly_discount numeric,
-  quarterly_discount numeric,
-  annual_discount numeric,
-  biweekly_discount real,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
-**Propósito**: Catálogo principal de productos
-**Características especiales**:
-- ✅ Soporte completo para suscripciones
-- ✅ Múltiples tipos de descuentos
-- ✅ Sistema de ratings y reviews
+subscriptions.user_id → auth.users.id
 
-#### 5. **categories** (Categorías de productos)
-```sql
-CREATE TABLE categories (
-  id int8 PRIMARY KEY,
-  name text,
-  slug text,
-  description text,
-  image text
-);
-```
-**Relaciones**: 
-- `products.category_id` → `categories.id`
+subscriptions.payment_method_id → user_payment_methods.id
 
-#### 6. **order_items** (⚠️ ÚNICA TABLA DE ÓRDENES)
-```sql
-CREATE TABLE order_items (
-  id uuid PRIMARY KEY,
-  order_id uuid,
-  product_name text,
-  product_image text,
-  quantity int4,
-  price numeric,
-  size varchar
-);
-```
-**⚠️ IMPORTANTE**: 
-- NO existe tabla `orders`
-- Esta es la única fuente de información de compras
-- `order_id` puede ser referencia externa (ej: MercadoPago)
+subscription_*.subscription_id → subscriptions.id
 
-#### 7. **product_images** (Galería de productos)
-```sql
-CREATE TABLE product_images (
-  id int8 PRIMARY KEY,
-  product_id int8 REFERENCES products(id),
-  url text,
-  display_order int4,
-  metadata jsonb
-);
-```
+orders.user_id → auth.users.id
 
-#### 8. **product_features** (Características)
-```sql
-CREATE TABLE product_features (
-  id int8 PRIMARY KEY,
-  product_id int8 REFERENCES products(id),
-  name varchar,
-  color varchar,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
+order_items.order_id → orders.id
 
-#### 9. **product_sizes** (Tamaños y precios)
-```sql
-CREATE TABLE product_sizes (
-  id int8 PRIMARY KEY,
-  product_id int8 REFERENCES products(id),
-  weight varchar,
-  price numeric,
-  stock int4
-);
-```
+order_items.product_id → products.id
 
-#### 10. **product_reviews** (Reseñas)
-```sql
-CREATE TABLE product_reviews (
-  id uuid PRIMARY KEY,
-  product_id int8 REFERENCES products(id),
-  user_name varchar,
-  rating int4,
-  comment text,
-  is_verified bool DEFAULT false,
-  is_featured bool DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
+scheduled_notifications.subscription_id → subscriptions.id
 
----
+blogs.author_id → auth.users.id
+blogs.category_id → blog_categories.id
 
-### 💳 **MÓDULO: SUSCRIPCIONES (COMPLETO Y FUNCIONAL)**
+pets.owner_id → auth.users.id
 
-#### 11. **user_subscriptions** (Suscripciones activas)
-```sql
-CREATE TABLE user_subscriptions (
-  id uuid PRIMARY KEY,
-  user_id uuid REFERENCES auth.users(id),
-  product_id int8 REFERENCES products(id),
-  subscription_type varchar,
-  quantity int4,
-  size varchar,
-  discount_percentage numeric,
-  base_price numeric,
-  discounted_price numeric,
-  next_billing_date timestamptz,
-  last_billing_date timestamptz,
-  cancelled_at timestamptz,
-  product_name text,
-  product_image text,
-  customer_phone text,
-  is_default bool DEFAULT false,
-  is_active bool DEFAULT true,
-  is_subscription bool DEFAULT true,
-  mercadopago_subscription_id text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  expires_at timestamptz
-);
-```
-**Propósito**: Gestión principal de suscripciones
-**Integración**: ✅ MercadoPago completa
+mercadopago_webhooks.auth.users.id → auth.users.id
 
-#### 12. **subscriptions** (Configuraciones generales)
-```sql
-CREATE TABLE subscriptions (
-  id uuid PRIMARY KEY,
-  plan_id uuid,
-  plan_name varchar,
-  status varchar,
-  current_period_start timestamptz,
-  current_period_end timestamptz,
-  cancel_at_period_end bool DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
+Cómo reutilizar esta información
+Documentación: conviértelo en tu README o confluence para el equipo.
 
-#### 13. **subscription_billing_history** (Historial de facturación)
-```sql
-CREATE TABLE subscription_billing_history (
-  id uuid PRIMARY KEY,
-  subscription_id uuid REFERENCES user_subscriptions(id),
-  user_id uuid,
-  auth_users_id uuid REFERENCES auth.users(id),
-  payment_method_id uuid,
-  amount numeric,
-  currency varchar DEFAULT 'MXN',
-  status varchar,
-  payment_provider varchar DEFAULT 'mercadopago',
-  payment_intent_id text,
-  invoice_url text,
-  receipt_url text,
-  billing_date timestamptz,
-  processed_at timestamptz,
-  metadata jsonb,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
-**Propósito**: Registro completo de todos los cobros
-**Integración**: ✅ Webhooks MercadoPago
+ERD visual: dime si quieres que te genere un diagrama mermaid o un PNG.
 
-#### 14. **subscription_payments** (Pagos MercadoPago)
-```sql
-CREATE TABLE subscription_payments (
-  id uuid PRIMARY KEY,
-  subscription_id uuid REFERENCES user_subscriptions(id),
-  mercadopago_payment_id text,
-  status varchar,
-  amount numeric,
-  currency_id varchar DEFAULT 'MXN',
-  payment_date timestamptz,
-  due_date timestamptz,
-  external_reference text,
-  payment_method_id text,
-  payment_status_id int4
-);
-```
-**Propósito**: Sincronización directa con MercadoPago
-**Funcionalidad**: ✅ Webhooks automáticos
+Excel/CSV: puedo exportar cada tabla, o todo un catálogo, en un solo clic.
 
-#### 15. **subscription_modifications** (Historial de cambios)
-```sql
-CREATE TABLE subscription_modifications (
-  id uuid PRIMARY KEY,
-  subscription_id uuid REFERENCES user_subscriptions(id),
-  user_id uuid,
-  auth_users_id uuid REFERENCES auth.users(id),
-  modification_type varchar,
-  old_value jsonb,
-  new_value jsonb,
-  effective_date timestamptz,
-  notes text,
-  created_at timestamptz DEFAULT now()
-);
-```
+Quedo atento si necesitas el modelo en otro formato, detalles adicionales de índices, o si vas a extender el esquema y quieres recomendaciones de buenas prácticas.
 
-#### 16. **subscription_config** (Configuración del sistema)
-```sql
-CREATE TABLE subscription_config (
-  id uuid PRIMARY KEY,
-  method varchar,
-  default_discount_percentage varchar,
-  config jsonb,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
 
-#### 17. **scheduled_notifications** (Notificaciones programadas)
-```sql
-CREATE TABLE scheduled_notifications (
-  id int8 PRIMARY KEY,
-  subscription_id uuid REFERENCES user_subscriptions(id),
-  notification_type varchar,
-  recipient_email text,
-  scheduled_for timestamptz,
-  sent_at timestamptz,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
-**Propósito**: Sistema de recordatorios automáticos
-**Funcionalidad**: ✅ Cron jobs implementados
 
----
 
-### 📝 **MÓDULO: CONTENIDO**
 
-#### 18. **blogs** (Artículos del blog)
-```sql
-CREATE TABLE blogs (
-  id int8 PRIMARY KEY,
-  title text,
-  slug text,
-  excerpt text,
-  cover_image text,
-  published bool DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-```
 
-#### 19. **blog_categories** (Categorías del blog)
-```sql
-CREATE TABLE blog_categories (
-  id int8 PRIMARY KEY,
-  name text,
-  slug text,
-  description text,
-  created_at timestamptz DEFAULT now()
-);
-```
 
----
 
-## 🔗 DIAGRAMA DE RELACIONES
+Tú dijiste:
+dame un MD con los detalles de cada tabla y que cada columna que esta tiene basandote en la imagen sin omitir nada
 
-```
-┌─────────────┐    ┌──────────────────┐    ┌─────────────┐
-│   auth.users│────│    profiles      │────│    pets     │
-│   (Supabase)│    │                  │    │             │
-└─────────────┘    └──────────────────┘    └─────────────┘
-       │                     │
-       │                     │
-       ▼                     ▼
-┌─────────────┐    ┌──────────────────┐
-│user_payment_│    │user_subscriptions│
-│   methods   │    │                  │
-└─────────────┘    └──────────────────┘
-                            │
-                            ▼
-                   ┌──────────────────┐
-                   │subscription_     │
-                   │billing_history   │
-                   └──────────────────┘
-                            │
-                            ▼
-                   ┌──────────────────┐
-                   │subscription_     │
-                   │   payments       │
-                   └──────────────────┘
 
-┌─────────────┐    ┌──────────────────┐    ┌─────────────┐
-│ categories  │────│    products      │────│order_items  │
-│             │    │                  │    │             │
-└─────────────┘    └──────────────────┘    └─────────────┘
-                            │
-                            ├── product_images
-                            ├── product_features
-                            ├── product_sizes
-                            └── product_reviews
-```
 
----
+2/2
 
-## 🚀 FUNCIONALIDADES IMPLEMENTADAS
+ChatGPT Plus
 
-### ✅ **SISTEMA DE SUSCRIPCIONES**
-- **Creación**: APIs para crear suscripciones con/sin plan
-- **Procesamiento**: Webhooks MercadoPago automáticos
-- **Facturación**: Historial completo de pagos
-- **Notificaciones**: Recordatorios automáticos
-- **Gestión**: Panel administrativo completo
+Pensó durante 2m 38s
+A continuación tienes el inventario completo de tablas y columnas tal como aparecen en la captura. Está en Markdown para que puedas copiarlo sin problemas a Notion, GitHub o tu wiki interna.
 
-### ✅ **INTEGRACIÓN MERCADOPAGO**
-- **Pagos únicos**: Preferencias y checkout
-- **Suscripciones**: Autorización y cobros automáticos
-- **Webhooks**: Procesamiento en tiempo real
-- **Validación**: Firmas y seguridad
+Convenciones
+• PK = Primary Key
+• FK → tabla.columna = clave foránea
+• Los tipos proceden del inspector; donde el texto estaba truncado lo completo con el valor más habitual (“token”, “id”, “jsonb”, etc.)
+• Si necesitas un ERD visual, export a CSV/Excel o aclarar FK exactas, avísame.
 
-### ✅ **PANEL ADMINISTRATIVO**
-- **Dashboard**: Métricas y estadísticas
-- **Suscripciones**: Gestión completa
-- **Próximos pagos**: Monitoreo y alertas
-- **Usuarios**: Perfiles y historial
+Tabla: products
+Columna	Tipo	Notas
+id	int4	PK
+name	text	
+slug	text	
+description	text	
+price	numeric	
+image	text	url
+category_id	int4	FK → categories.id
+featured	bool	
+stock	int4	
+created_at	timestamptz	
+updated_at	timestamptz	
+nutritional_info	text	
+ingredients	text	
+rating	numeric	promedio simple
+reviews_count	int4	
+purchase_types	jsonb	
+subscription_discount	int4	%
+average_rating	numeric	
+review_count	int4	duplicado histórico
+nutrition_info	jsonb	(versión JSON)
+sale_type	varchar	
+weight_reference	text	
+subscription_available	bool	
+subscription_types	jsonb	
+monthly_discount	numeric	
+quarterly_discount	numeric	
+annual_discount	numeric	
+biweekly_discount	float4	
 
----
+Tabla: user_subscriptions
+Columna	Tipo	Notas
+id	int4	PK
+user_id	uuid	FK → auth.users.id
+product_id	int4	FK → products.id
+subscription_type	varchar	
+status	varchar	
+quantity	int4	
+size	varchar	
+discount_percentage	numeric	
+base_price	numeric	
+discounted_price	numeric	
+created_at	timestamptz	
+updated_at	timestamptz	
+next_billing_date	timestamptz	
+last_billing_date	timestamptz	
+cancelled_at	timestamptz	
+product_name	varchar	caché
+product_image	text	
+metadata	jsonb	
+mercadopago_subscription_id	text	
+mercadopago_plan_id	text	
+external_reference	text	
+reason	text	cancel / cambio
+charges_made	int4	contador
+frequency	int4	num. periodos
+frequency_type	text	daily / monthly…
+version	int4	
+application_id	int8	MP
+collector_id	int8	MP
+preapproval_plan_id	text	MP
+back_url	text	
+init_point	text	
+start_date	timestamptz	
+end_date	timestamptz	
+currency_id	varchar	ISO
+transaction_amount	numeric	
+free_trial	jsonb	definición tramo gratis
 
-## ⚠️ CONSIDERACIONES IMPORTANTES
+Tabla: user_payment_methods
+Columna	Tipo	Notas
+id	int4	PK
+user_id	uuid	FK → auth.users.id
+payment_provider	varchar	stripe / mp / …
+payment_method_token	text	
+payment_method_id	text	id remoto
+card_last_four	varchar	
+card_brand	varchar	
+card_exp_month	int4	
+card_exp_year	int4	
+cardholder_name	varchar	
+is_default	bool	
+is_active	bool	
+created_at	timestamptz	
+updated_at	timestamptz	
+expires_at	timestamptz	
+provider_metadata	jsonb	
 
-### 🔴 **LIMITACIONES ACTUALES**
-1. **NO existe tabla `orders`** - Solo `order_items`
-2. **Inconsistencias en código** - Algunas APIs referencian tablas inexistentes
-3. **Validaciones defensivas** - Necesarias para columnas opcionales
+Tabla: orders
+Columna	Tipo	Notas
+id	int4	PK
+user_id	uuid	FK → auth.users.id
+status	text	pending / paid…
+total	numeric	
+created_at	timestamptz	
+updated_at	timestamptz	
+shipping_address	jsonb	
+payment_intent_id	text	stripe/mp
+payment_status	text	
+customer_name	text	
+customer_phone	text	
+is_subscription	bool	true si vincula sub
 
-### 🟡 **RECOMENDACIONES**
-1. **Unificar referencias** - Actualizar código para usar `order_items`
-2. **Mejorar logging** - Para debugging de suscripciones
-3. **Optimizar consultas** - Índices específicos
-4. **Documentar cambios** - Mantener este mapa actualizado
+Tabla: product_images
+Columna	Tipo	Notas
+id	int4	PK
+product_id	int4	FK → products.id
+url	text	
+alt	text	descripción
+display_order	int4	
 
-### 🟢 **FORTALEZAS**
-1. **Sistema robusto** - Suscripciones completamente funcionales
-2. **Integración sólida** - MercadoPago bien implementado
-3. **Escalabilidad** - Arquitectura preparada para crecimiento
-4. **Monitoreo** - Herramientas administrativas completas
+Tabla: subscriptions
+Columna	Tipo	Notas
+id	uuid	PK
+user_id	uuid	FK → auth.users.id
+plan_id	text	
+plan_name	text	
+status	text	active / paused…
+current_period_start	timestamptz	
+current_period_end	timestamptz	
+cancel_at_period_end	bool	
+payment_method_id	text	FK → user_payment_methods.id
+created_at	timestamptz	
+updated_at	timestamptz	
 
----
+Tabla: subscription_payments
+Columna	Tipo	Notas
+id	uuid	PK
+subscription_id	int4	FK → subscriptions.id
+mercadopago_payment_id	text	
+status	text	
+amount	numeric	
+currency_id	text	
+payment_date	timestamptz	
+due_date	timestamptz	
+processed_at	timestamptz	
+external_reference	text	
+payment_method_id	text	
+transaction_amount	numeric	
+created_at	timestamptz	
+updated_at	timestamptz	
 
-## 📈 MÉTRICAS DE LA BASE DE DATOS
+Tabla: subscription_config
+Columna	Tipo	Notas
+id	int4	PK
+period	varchar	day / week / month
+default_discount_percentage	numeric	
+is_active	bool	
+created_at	timestamptz	
+updated_at	timestamptz	
 
-- **Total de tablas**: 19
-- **Tablas de suscripciones**: 7
-- **Tablas de productos**: 6
-- **Tablas de usuarios**: 3
-- **Tablas de contenido**: 2
-- **Tablas de configuración**: 1
+Tabla: product_features
+Columna	Tipo	Notas
+id	int4	PK
+product_id	int4	FK → products.id
+name	text	
+color	text	
+created_at	timestamptz	
+updated_at	timestamptz	
 
----
+Tabla: subscription_modifications
+Columna	Tipo	Notas
+id	int4	PK
+subscription_id	int4	FK → subscriptions.id
+user_id	uuid	ejecutor
+modification_type	varchar	upgrade / cancel
+old_values	jsonb	
+new_values	jsonb	
+effective_date	timestamptz	
+created_at	timestamptz	
+reason	text	
+notes	text	
 
-*Este mapa se actualiza automáticamente con cada cambio en la estructura de la base de datos.*
-*Última verificación: Enero 2025*
-*Estado: ✅ FUNCIONAL Y ESTABLE*
+Tabla: order_items
+Columna	Tipo	Notas
+id	int4	PK
+order_id	int4	FK → orders.id
+product_id	int4	FK → products.id
+product_name	text	caché
+product_image	text	
+quantity	int4	
+price	numeric	
+size	text	
+
+Tabla: subscription_billing_history
+Columna	Tipo	Notas
+id	int4	PK
+subscription_id	int4	FK → subscriptions.id
+user_id	uuid	
+payment_method_id	int4	
+amount	numeric	
+currency	varchar	
+status	varchar	
+payment_provider	varchar	
+payment_intent_id	text	
+transaction_id	text	
+billing_date	timestamptz	
+processed_at	timestamptz	
+created_at	timestamptz	
+failure_reason	text	
+receipt_url	text	
+invoice_url	text	
+metadata	jsonb	
+
+Tabla: product_sizes
+Columna	Tipo	Notas
+id	int4	PK
+product_id	int4	FK → products.id
+weight	text	g, kg…
+price	numeric	
+stock	int4	
+
+Tabla: product_reviews
+Columna	Tipo	Notas
+id	int4	PK
+product_id	int4	FK → products.id
+user_id	uuid	FK → auth.users.id
+user_name	varchar	
+rating	int4	
+comment	text	
+is_verified	bool	
+is_featured	bool	
+created_at	timestamptz	
+updated_at	timestamptz	
+
+Tabla: pets
+Columna	Tipo	Notas
+id	uuid	PK
+owner_id	uuid	FK → auth.users.id
+name	text	
+species	text	dog / cat…
+breed	text	
+age	int4	
+weight	numeric	kg
+neutered	bool	
+allergies	text	
+activity_level	text	
+created_at	timestamptz	
+updated_at	timestamptz	
+
+Tabla: mercadopago_webhooks
+Columna	Tipo	Notas
+id	uuid	PK
+webhook_type	varchar	
+resource_id	text	
+action	varchar	
+raw_data	jsonb	body completo
+processed	bool	
+processed_at	timestamptz	
+auth.users.id	uuid	FK → auth.users.id
+created_at	timestamptz	
+
+Tabla: blog_categories
+Columna	Tipo	Notas
+id	int4	PK
+name	text	
+slug	text	
+description	text	
+created_at	timestamptz	
+
+Tabla: categories (productos)
+Columna	Tipo	Notas
+id	int4	PK
+name	text	
+slug	text	
+description	text	
+image	text	
+color	text	
+
+Tabla: profiles
+Columna	Tipo	Notas
+id	uuid	PK – igual a auth.users.id
+email	text	
+role	text	admin / user…
+created_at	timestamptz	
+updated_at	timestamptz	
+full_name	text	
+phone	text	
+address	jsonb	
+preferences	jsonb	
+first_name	text	
+last_name	text	
+shipping_address	jsonb	
+
+Tabla: scheduled_notifications
+Columna	Tipo	Notas
+id	uuid	PK
+subscription_id	int4	FK → subscriptions.id
+notification_type	text	renewal / retry…
+scheduled_for	timestamptz	
+sent_at	timestamptz	
+status	text	pending / sent
+recipient_email	text	
+subject	text	
+message_template	text	
+created_at	timestamptz	
+updated_at	timestamptz	
+
+Tabla: blogs
+Columna	Tipo	Notas
+id	int4	PK
+title	text	
+slug	text	
+content	text	markdown/HTML
+excerpt	text	
+cover_image	text	
+author_id	uuid	FK → auth.users.id
+published	bool	
+created_at	timestamptz	
+updated_at	timestamptz	
+category_id	int4	FK → blog_categories.id
+meta_description	text	SEO
+read_time	text	ej. “5-min”

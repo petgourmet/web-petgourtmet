@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
             currency_id: result.auto_recurring?.currency_id || auto_recurring.currency_id || 'MXN',
             start_date: result.auto_recurring?.start_date || auto_recurring.start_date,
             end_date: result.auto_recurring?.end_date || auto_recurring.end_date,
-            next_payment_date: result.next_payment_date,
+            next_billing_date: result.next_payment_date,
             init_point: result.init_point,
             product_id: product_id || null,
             quantity: quantity,
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
         payer_id: result.payer_id,
         card_id: result.card_id,
         payment_method_id: result.payment_method_id,
-        next_payment_date: result.next_payment_date,
+        next_billing_date: result.next_payment_date,
         date_created: result.date_created,
         last_modified: result.last_modified,
         status: result.status
