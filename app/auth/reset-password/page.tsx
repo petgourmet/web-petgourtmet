@@ -8,6 +8,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
+import { handleAuthError } from "@/lib/auth-error-handler"
 import { useToast } from "@/components/ui/use-toast"
 import { ThemedBackground } from "@/components/themed-background"
 
@@ -64,7 +65,8 @@ export default function ResetPasswordPage() {
       }, 2000)
     } catch (error: any) {
       console.error("Error al restablecer contraseña:", error)
-      setError("No se pudo restablecer la contraseña. Inténtalo de nuevo.")
+      const { message } = handleAuthError(error, "reset")
+      setError(message)
     } finally {
       setLoading(false)
     }

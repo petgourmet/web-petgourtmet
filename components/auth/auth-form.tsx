@@ -9,6 +9,7 @@ import Link from "next/link"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
+import { handleAuthError } from "@/lib/auth-error-handler"
 
 type AuthMode = "login" | "register"
 
@@ -18,9 +19,11 @@ export function AuthForm() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
+
 
   const toggleMode = () => {
     setMode(mode === "login" ? "register" : "login")
@@ -83,20 +86,10 @@ export function AuthForm() {
       }
     } catch (error: any) {
       console.error("Error de autenticación:", error)
-
-      let errorMessage = "Ha ocurrido un error. Por favor, inténtalo de nuevo."
-
-      if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "Credenciales inválidas. Verifica tu correo y contraseña."
-      } else if (error.message.includes("Email not confirmed")) {
-        errorMessage = "Por favor, confirma tu correo electrónico antes de iniciar sesión."
-      } else if (error.message.includes("already registered")) {
-        errorMessage = "Este correo ya está registrado. Intenta iniciar sesión."
-      }
-
+      const { title, message } = handleAuthError(error, mode === "login" ? "login" : "register")
       toast({
-        title: "Error",
-        description: errorMessage,
+        title,
+        description: message,
         variant: "destructive",
       })
     } finally {

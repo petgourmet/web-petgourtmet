@@ -305,10 +305,10 @@ export default function AdminSubscriptionOrdersPage() {
               created_at: sub.created_at || new Date().toISOString(),
               cancelled_at: sub.cancelled_at || undefined,
               is_active: Boolean(sub.is_active),
-              user_profile: sub.profiles ? {
-                full_name: sub.profiles.full_name || 'Usuario sin nombre',
-                email: sub.profiles.email || 'Sin email',
-                phone: sub.profiles.phone || undefined
+              user_profile: sub.user_profile ? {
+                full_name: sub.user_profile.full_name || 'Usuario sin nombre',
+                email: sub.user_profile.email || 'Sin email',
+                phone: sub.user_profile.phone || undefined
               } : undefined,
               product: sub.products ? {
                 id: sub.products.id || '',

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import { Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuthErrorHandler, handleAuthError } from "@/lib/auth-error-handler"
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
@@ -52,13 +53,10 @@ export default function AdminLoginPage() {
       // Redirigir al dashboard
       router.push("/admin/dashboard")
     } catch (error: any) {
-      console.error("Error de inicio de sesión:", error)
-      setError(error.message)
-      toast({
-        title: "Error de inicio de sesión",
-        description: error.message,
-        variant: "destructive",
-      })
+      const handleError = useAuthErrorHandler(toast, "admin")
+      const { message } = handleAuthError(error, "admin")
+      setError(message)
+      handleError(error)
     } finally {
       setLoading(false)
     }

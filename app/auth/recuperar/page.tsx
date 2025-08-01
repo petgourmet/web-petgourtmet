@@ -8,6 +8,7 @@ import Image from "next/image"
 import { Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuthErrorHandler } from "@/lib/auth-error-handler"
 import { ThemedBackground } from "@/components/themed-background"
 
 export default function RecuperarPage() {
@@ -33,12 +34,8 @@ export default function RecuperarPage() {
         description: "Revisa tu bandeja de entrada para restablecer tu contraseña.",
       })
     } catch (error: any) {
-      console.error("Error al enviar correo de recuperación:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo enviar el correo de recuperación. Inténtalo de nuevo.",
-        variant: "destructive",
-      })
+      const handleError = useAuthErrorHandler(toast, "recovery")
+      handleError(error)
     } finally {
       setLoading(false)
     }
