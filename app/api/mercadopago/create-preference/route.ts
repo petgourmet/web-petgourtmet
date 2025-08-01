@@ -261,6 +261,15 @@ export async function POST(request: Request) {
     const allItems = [...productItems, ...additionalItems]
     console.log("All items for MercadoPago:", JSON.stringify(allItems, null, 2))
     
+    // Validar que las URLs de retorno estén definidas
+    if (!finalBackUrls.success) {
+      console.error("back_urls.success is required when using auto_return")
+      return NextResponse.json({ 
+        error: "URL de éxito requerida",
+        step: 'back_urls_validation'
+      }, { status: 400 })
+    }
+
     const preference = {
       items: allItems,
       payer: {
@@ -277,11 +286,10 @@ export async function POST(request: Request) {
         },
       },
       back_urls: {
-        success: `${finalBackUrls.success}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}&status=approved`,
-        failure: `${finalBackUrls.failure || '/error-pago'}?order_id=${orderId}&order_number=${orderNumber}&error={{error}}&status=failure`,
-        pending: `${finalBackUrls.pending || '/pago-pendiente'}?order_id=${orderId}&order_number=${orderNumber}&payment_id={{payment_id}}&status=pending`
+        success: finalBackUrls.success,
+        failure: finalBackUrls.failure || finalBackUrls.success,
+        pending: finalBackUrls.pending || finalBackUrls.success
       },
-      auto_return: "approved", // Redirigir automáticamente cuando el pago sea aprobado
       binary_mode: false, // Usar el checkout estándar de MercadoPago
       external_reference: orderId.toString(), // Usar el ID real de la orden
       notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
