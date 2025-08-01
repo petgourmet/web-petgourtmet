@@ -363,6 +363,11 @@ export function CheckoutModal() {
         const mpData = await mpResponse.json()
 
         if (!mpResponse.ok) {
+          // Si hay errores de validación específicos, mostrarlos
+          if (mpData.details && Array.isArray(mpData.details)) {
+            const validationErrors = mpData.details.join('\n• ')
+            throw new Error(`Por favor corrige los siguientes errores:\n• ${validationErrors}`)
+          }
           throw new Error(mpData.error || "Error al crear la preferencia de pago")
         }
 
@@ -577,7 +582,27 @@ export function CheckoutModal() {
                   </p>
                 )}
 
-                {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+                    <div className="text-red-800 text-sm">
+                      {error.includes('•') ? (
+                        <div>
+                          <div className="font-medium mb-2">Por favor corrige los siguientes errores:</div>
+                          <ul className="space-y-1">
+                            {error.split('\n').filter(line => line.includes('•')).map((line, index) => (
+                              <li key={index} className="flex items-start">
+                                <span className="text-red-600 mr-2">•</span>
+                                <span>{line.replace('• ', '')}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="text-center">{error}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="text-center text-sm text-gray-500">
                   <div className="flex justify-center items-center gap-2">
