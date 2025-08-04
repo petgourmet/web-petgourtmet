@@ -32,6 +32,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   
   // Mapeo de tipos de suscripción a etiquetas legibles
   const subscriptionTypeLabels: Record<SubscriptionType, string> = {
+    weekly: 'Semanal',
     biweekly: 'Cada 2 semanas',
     monthly: 'Mensual',
     quarterly: 'Cada 3 meses',
@@ -41,6 +42,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   // Función para obtener el descuento según el tipo de suscripción
   const getSubscriptionDiscount = (type: SubscriptionType): number => {
     switch (type) {
+      case 'weekly':
+        return product.weekly_discount || product.subscription_discount || 15
       case 'biweekly':
         return product.biweekly_discount || product.subscription_discount || 10
       case 'monthly':
@@ -82,6 +85,12 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
       isSubscription: purchaseType === 'subscription',
       subscriptionType: selectedSubscriptionType,
       subscriptionDiscount: selectedSubscriptionType ? getSubscriptionDiscount(selectedSubscriptionType) : undefined,
+      // Incluir URLs de MercadoPago específicas del producto
+      weekly_mercadopago_url: product.weekly_mercadopago_url,
+      biweekly_mercadopago_url: product.biweekly_mercadopago_url,
+      monthly_mercadopago_url: product.monthly_mercadopago_url,
+      quarterly_mercadopago_url: product.quarterly_mercadopago_url,
+      annual_mercadopago_url: product.annual_mercadopago_url,
     })
 
     onClose()

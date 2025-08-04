@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
       auto_recurring,
       user_id,
       product_id,
+      product_name,
+      subscription_type,
+      discounted_price,
+      original_price,
+      discount_percentage,
       quantity = 1
     } = body
 
@@ -155,6 +160,11 @@ export async function POST(request: NextRequest) {
             next_payment_date: result.next_payment_date,
             init_point: result.init_point,
             product_id: product_id || null,
+            product_name: product_name || null,
+            subscription_type: subscription_type || null,
+            discounted_price: discounted_price || (result.auto_recurring?.transaction_amount || 0),
+            original_price: original_price || null,
+            discount_percentage: discount_percentage || null,
             quantity: quantity,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()

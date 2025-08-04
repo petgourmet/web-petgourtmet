@@ -191,6 +191,12 @@ export default function ProductDetailPage() {
       quantity,
       isSubscription,
       subscriptionType: isSubscription ? subscriptionType : undefined,
+      // Incluir URLs de MercadoPago específicas del producto
+      weekly_mercadopago_url: product.weekly_mercadopago_url,
+      biweekly_mercadopago_url: product.biweekly_mercadopago_url,
+      monthly_mercadopago_url: product.monthly_mercadopago_url,
+      quarterly_mercadopago_url: product.quarterly_mercadopago_url,
+      annual_mercadopago_url: product.annual_mercadopago_url,
     })
   }
 
@@ -224,6 +230,8 @@ export default function ProductDetailPage() {
     if (!isSubscription || !product) return 0
     
     switch (subscriptionType) {
+      case "weekly":
+        return (product.weekly_discount || 15) / 100
       case "biweekly":
         return (product.biweekly_discount || 20) / 100
       case "monthly":
@@ -250,6 +258,8 @@ export default function ProductDetailPage() {
   // Obtener texto de frecuencia de cobro
   const getSubscriptionFrequencyText = () => {
     switch (subscriptionType) {
+      case "weekly":
+        return "semanalmente"
       case "biweekly":
         return "cada 15 días"
       case "monthly":
@@ -524,24 +534,41 @@ export default function ProductDetailPage() {
                   >
                     Compra única
                   </Button>
-                  <Button
-                    variant={isSubscription ? "default" : "outline"}
-                    className={`rounded-full px-6 py-3 ${
-                      isSubscription
-                        ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                        : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                    }`}
-                    onClick={() => setIsSubscription(true)}
-                    disabled={!product.subscription_available}
-                  >
-                    Repetir compra
-                  </Button>
+                  {/* Botón temporalmente oculto */}
+                  {false && (
+                    <Button
+                      variant={isSubscription ? "default" : "outline"}
+                      className={`rounded-full px-6 py-3 ${
+                        isSubscription
+                          ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                          : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                      }`}
+                      onClick={() => setIsSubscription(true)}
+                      disabled={!product.subscription_available}
+                    >
+                      Repetir compra
+                    </Button>
+                  )}
                 </div>
                 {/* Opciones de suscripción */}
                 {isSubscription && product.subscription_available && (
                   <div className="mt-3">
                     <h4 className="text-sm font-medium mb-2">Frecuencia de entrega:</h4>
                     <div className="flex flex-wrap gap-2 mb-4">
+                      {product.subscription_types && product.subscription_types.includes("weekly") && (
+                        <Button
+                          size="sm"
+                          variant={subscriptionType === "weekly" ? "default" : "outline"}
+                          className={`rounded-full ${
+                            subscriptionType === "weekly"
+                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                          }`}
+                          onClick={() => setSubscriptionType("weekly")}
+                        >
+                          Cada semana (-{product.weekly_discount || 15}%)
+                        </Button>
+                      )}
                       {product.subscription_types && product.subscription_types.includes("biweekly") && (
                         <Button
                           size="sm"

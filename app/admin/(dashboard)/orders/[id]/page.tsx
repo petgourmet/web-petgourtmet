@@ -195,6 +195,72 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
+        {/* Resumen de Estado del Pago */}
+        <div className="mb-6">
+          <Card className={`border-2 ${
+            order.payment_status === 'paid' || order.payment_status === 'approved' 
+              ? 'border-green-200 bg-green-50' 
+              : order.payment_status === 'pending' || order.payment_status === 'in_process'
+                ? 'border-yellow-200 bg-yellow-50'
+                : order.payment_status === 'failed' || order.payment_status === 'rejected'
+                  ? 'border-red-200 bg-red-50'
+                  : 'border-gray-200 bg-gray-50'
+          }`}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-full ${
+                    order.payment_status === 'paid' || order.payment_status === 'approved' 
+                      ? 'bg-green-100' 
+                      : order.payment_status === 'pending' || order.payment_status === 'in_process'
+                        ? 'bg-yellow-100'
+                        : order.payment_status === 'failed' || order.payment_status === 'rejected'
+                          ? 'bg-red-100'
+                          : 'bg-gray-100'
+                  }`}>
+                    {order.payment_status === 'paid' || order.payment_status === 'approved' ? (
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    ) : order.payment_status === 'pending' || order.payment_status === 'in_process' ? (
+                      <Clock className="h-6 w-6 text-yellow-600" />
+                    ) : order.payment_status === 'failed' || order.payment_status === 'rejected' ? (
+                      <XCircle className="h-6 w-6 text-red-600" />
+                    ) : (
+                      <Clock className="h-6 w-6 text-gray-600" />
+                    )}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">
+                      {order.payment_status === 'paid' || order.payment_status === 'approved' 
+                        ? '✅ Pago Confirmado' 
+                        : order.payment_status === 'pending' || order.payment_status === 'in_process'
+                          ? '⏳ Pago Pendiente'
+                          : order.payment_status === 'failed' || order.payment_status === 'rejected'
+                            ? '❌ Pago Fallido'
+                            : '❓ Estado Desconocido'
+                      }
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      {order.payment_status === 'paid' || order.payment_status === 'approved' 
+                        ? 'El pago ha sido procesado exitosamente' 
+                        : order.payment_status === 'pending' || order.payment_status === 'in_process'
+                          ? 'El pago está siendo procesado o pendiente de confirmación'
+                          : order.payment_status === 'failed' || order.payment_status === 'rejected'
+                            ? 'El pago no pudo ser procesado'
+                            : 'Verificar estado del pago manualmente'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <PaymentStatusBadge status={order.payment_status || 'pending'} />
+                  <p className="text-2xl font-bold mt-2">${order.total}</p>
+                  <p className="text-sm text-muted-foreground">Total del pedido</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid gap-6 md:grid-cols-3">
           {/* Información del pedido */}
           <Card className="md:col-span-2">
@@ -202,20 +268,75 @@ export default function OrderDetailPage() {
               <CardTitle>Detalles del Pedido</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-6 flex justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Fecha del pedido</p>
-                  <p>{formatDate(order.created_at)}</p>
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-muted-foreground font-medium">Fecha del pedido</p>
+                  <p className="font-semibold">{formatDate(order.created_at)}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Método de pago</p>
-                  <p>{order.payment_method || "No especificado"}</p>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-muted-foreground font-medium">Método de pago</p>
+                  <p className="font-semibold">{order.payment_method || "No especificado"}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">ID de transacción</p>
-                  <p>{order.transaction_id || "N/A"}</p>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-muted-foreground font-medium">Estado del Pago</p>
+                  <PaymentStatusBadge status={order.payment_status || 'pending'} />
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-muted-foreground font-medium">ID de transacción</p>
+                  <p className="font-mono text-xs bg-white px-2 py-1 rounded border">{order.transaction_id || order.mercadopago_payment_id || "N/A"}</p>
                 </div>
               </div>
+              
+              {/* Información adicional de pago de MercadoPago */}
+              {(order.mercadopago_payment_id || order.collection_id || order.merchant_order_id) && (
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium mb-3 text-blue-900 flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Información de MercadoPago
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    {order.mercadopago_payment_id && (
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-blue-700 font-medium">Payment ID:</p>
+                        <p className="font-mono font-semibold text-blue-800">{order.mercadopago_payment_id}</p>
+                      </div>
+                    )}
+                    {order.collection_id && (
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-blue-700 font-medium">Collection ID:</p>
+                        <p className="font-mono font-semibold text-blue-800">{order.collection_id}</p>
+                      </div>
+                    )}
+                    {order.merchant_order_id && (
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-blue-700 font-medium">Merchant Order ID:</p>
+                        <p className="font-mono font-semibold text-blue-800">{order.merchant_order_id}</p>
+                      </div>
+                    )}
+                    {order.preference_id && (
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-blue-700 font-medium">Preference ID:</p>
+                        <p className="font-mono text-xs font-semibold text-blue-800">{order.preference_id}</p>
+                      </div>
+                    )}
+                    {order.external_reference && (
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-blue-700 font-medium">External Reference:</p>
+                        <p className="font-mono font-semibold text-blue-800">{order.external_reference}</p>
+                      </div>
+                    )}
+                    {order.payment_type && (
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-blue-700 font-medium">Tipo de Pago:</p>
+                        <p className="font-semibold text-green-700">{order.payment_type === 'credit_card' ? 'Tarjeta de Crédito' : 
+                           order.payment_type === 'debit_card' ? 'Tarjeta de Débito' : 
+                           order.payment_type === 'bank_transfer' ? 'Transferencia Bancaria' : 
+                           order.payment_type}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="mb-6">
                 <h3 className="mb-2 font-medium">Productos</h3>
@@ -701,24 +822,30 @@ export default function OrderDetailPage() {
 // Componente para mostrar el estado del pedido
 function OrderStatusBadge({ status }: { status: string }) {
   let bgColor = "bg-gray-100 text-gray-800"
+  let icon = null
 
   switch (status) {
     case "completed":
-      bgColor = "bg-green-100 text-green-800"
+      bgColor = "bg-green-100 text-green-800 border border-green-200"
+      icon = <CheckCircle className="h-3 w-3" />
       break
     case "processing":
-      bgColor = "bg-blue-100 text-blue-800"
+      bgColor = "bg-blue-100 text-blue-800 border border-blue-200"
+      icon = <Clock className="h-3 w-3" />
       break
     case "cancelled":
-      bgColor = "bg-red-100 text-red-800"
+      bgColor = "bg-red-100 text-red-800 border border-red-200"
+      icon = <XCircle className="h-3 w-3" />
       break
     case "pending":
-      bgColor = "bg-yellow-100 text-yellow-800"
+      bgColor = "bg-yellow-100 text-yellow-800 border border-yellow-200"
+      icon = <Clock className="h-3 w-3" />
       break
   }
 
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${bgColor}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${bgColor}`}>
+      {icon}
       {status === "completed"
         ? "Completado"
         : status === "processing"
@@ -734,23 +861,52 @@ function OrderStatusBadge({ status }: { status: string }) {
 
 // Componente para mostrar el estado del pago
 function PaymentStatusBadge({ status }: { status: string }) {
-  let bgColor = "bg-gray-100 text-gray-800"
+  let bgColor = "bg-gray-100 text-gray-800 border border-gray-200"
+  let icon = null
 
   switch (status) {
     case "paid":
-      bgColor = "bg-green-100 text-green-800"
+      bgColor = "bg-green-100 text-green-800 border border-green-200"
+      icon = <CheckCircle className="h-3 w-3" />
       break
     case "pending":
-      bgColor = "bg-yellow-100 text-yellow-800"
+      bgColor = "bg-yellow-100 text-yellow-800 border border-yellow-200"
+      icon = <Clock className="h-3 w-3" />
       break
     case "failed":
-      bgColor = "bg-red-100 text-red-800"
+      bgColor = "bg-red-100 text-red-800 border border-red-200"
+      icon = <XCircle className="h-3 w-3" />
+      break
+    case "approved":
+      bgColor = "bg-green-100 text-green-800 border border-green-200"
+      icon = <CheckCircle className="h-3 w-3" />
+      break
+    case "rejected":
+      bgColor = "bg-red-100 text-red-800 border border-red-200"
+      icon = <XCircle className="h-3 w-3" />
+      break
+    case "in_process":
+      bgColor = "bg-blue-100 text-blue-800 border border-blue-200"
+      icon = <Clock className="h-3 w-3" />
       break
   }
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "paid": return "Pagado"
+      case "pending": return "Pendiente"
+      case "failed": return "Fallido"
+      case "approved": return "Aprobado"
+      case "rejected": return "Rechazado"
+      case "in_process": return "En Proceso"
+      default: return status
+    }
+  }
+
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${bgColor}`}>
-      {status === "paid" ? "Pagado" : status === "pending" ? "Pendiente" : status === "failed" ? "Fallido" : status}
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${bgColor}`}>
+      {icon}
+      {getStatusText(status)}
     </span>
   )
 }

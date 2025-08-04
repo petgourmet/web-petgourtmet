@@ -313,7 +313,7 @@ export default function AdminSubscriptionOrdersPage() {
               product: sub.products ? {
                 id: sub.products.id || '',
                 name: sub.products.name || 'Producto sin nombre',
-                image: sub.products.image || '/placeholder.jpg',
+                image: sub.products.image || '/placeholder.svg',
                 price: typeof sub.products.price === 'number' ? sub.products.price : 0
               } : undefined,
               last_payment: lastPayment ? {

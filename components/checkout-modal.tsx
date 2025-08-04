@@ -24,6 +24,40 @@ export function CheckoutModal() {
   const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
   const [userProfile, setUserProfile] = useState<any>(null)
 
+  // Cargar URLs de suscripción desde la base de datos
+  useEffect(() => {
+    const loadSubscriptionUrls = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('subscription_config')
+          .select('period, mercadopago_url')
+          .not('mercadopago_url', 'is', null)
+
+        if (error) throw error
+
+        const urlMap: { [key: string]: string } = {}
+        data?.forEach(config => {
+          if (config.mercadopago_url) {
+            urlMap[config.period] = config.mercadopago_url
+          }
+        })
+        setSubscriptionLinks(urlMap)
+      } catch (error) {
+        console.error('Error al cargar URLs de suscripción:', error)
+        // URLs de respaldo en caso de error
+        setSubscriptionLinks({
+          weekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=weekly_plan_id",
+          biweekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=biweekly_plan_id",
+          monthly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=monthly_plan_id",
+          quarterly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=quarterly_plan_id",
+          annual: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=annual_plan_id"
+        })
+      }
+    }
+
+    loadSubscriptionUrls()
+  }, [])
+
   // Estados para el formulario
   const [customerInfo, setCustomerInfo] = useState({
     firstName: "",
@@ -38,6 +72,9 @@ export function CheckoutModal() {
     postalCode: "",
     country: "México",
   })
+
+  // Enlaces de suscripción de Mercado Pago (cargados dinámicamente)
+  const [subscriptionLinks, setSubscriptionLinks] = useState<{ [key: string]: string }>({})
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -93,6 +130,57 @@ export function CheckoutModal() {
 
     loadUserProfile()
   }, [user])
+
+  // Función para detectar si hay suscripciones en el carrito
+  const hasSubscriptions = () => {
+    return cart.some(item => item.isSubscription)
+  }
+
+  // Función para obtener el tipo de suscripción predominante
+  const getSubscriptionType = () => {
+    const subscriptionItems = cart.filter(item => item.isSubscription)
+    if (subscriptionItems.length === 0) return null
+    
+    // Retornar el tipo de suscripción del primer item (se puede mejorar para manejar múltiples tipos)
+    return subscriptionItems[0].subscriptionType || 'monthly'
+  }
+
+  // Función para obtener el enlace de suscripción según el tipo
+  const getSubscriptionLink = (type: string) => {
+    // Buscar si hay productos con URLs específicas de Mercado Pago
+    const subscriptionItems = cart.filter(item => item.isSubscription)
+    
+    if (subscriptionItems.length > 0) {
+      const firstItem = subscriptionItems[0]
+      
+      // Verificar si el producto tiene una URL específica para este tipo de suscripción
+      const productSpecificUrl = getProductSpecificUrl(firstItem, type)
+      if (productSpecificUrl) {
+        return productSpecificUrl
+      }
+    }
+    
+    // Fallback a URLs globales
+    return subscriptionLinks[type] || subscriptionLinks.monthly || "#"
+  }
+
+  // Función auxiliar para obtener URL específica del producto
+  const getProductSpecificUrl = (item: any, type: string) => {
+    switch (type) {
+      case 'weekly':
+        return item.weekly_mercadopago_url
+      case 'biweekly':
+        return item.biweekly_mercadopago_url
+      case 'monthly':
+        return item.monthly_mercadopago_url
+      case 'quarterly':
+        return item.quarterly_mercadopago_url
+      case 'annual':
+        return item.annual_mercadopago_url
+      default:
+        return null
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
@@ -228,6 +316,97 @@ export function CheckoutModal() {
 
       // Generar un external reference único para MercadoPago
       const externalReference = `${orderNumber}_${Date.now()}`
+
+      // Verificar si hay suscripciones en el carrito
+      const hasSubscriptionItems = hasSubscriptions()
+      const subscriptionType = getSubscriptionType()
+
+      // Si hay suscripciones, redirigir al enlace de suscripción de Mercado Pago
+      if (hasSubscriptionItems && subscriptionType && !isTestMode) {
+        console.log("Procesando suscripción con tipo:", subscriptionType)
+        
+        // Validar que el usuario esté autenticado para suscripciones
+        if (!user) {
+          setError("Debes iniciar sesión para crear una suscripción")
+          return
+        }
+
+        // Validar que solo haya una suscripción en el carrito
+        const subscriptionItems = cart.filter(item => item.isSubscription)
+        if (subscriptionItems.length > 1) {
+          setError("Solo puedes procesar una suscripción por vez. Por favor, mantén solo un producto de suscripción en tu carrito.")
+          return
+        }
+
+        // Crear registro de suscripción en la base de datos
+        try {
+          const subscriptionData = {
+            user_id: user.id,
+            subscription_type: subscriptionType,
+            status: 'pending',
+            external_reference: externalReference,
+            customer_data: {
+              firstName: customerInfo.firstName,
+              lastName: customerInfo.lastName,
+              email: user.email,
+              phone: customerInfo.phone,
+              address: shippingAddress
+            },
+            cart_items: cart.map(item => ({
+              product_id: item.id,
+              product_name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              size: item.size,
+              isSubscription: item.isSubscription,
+              subscriptionType: item.subscriptionType
+            }))
+          }
+
+          console.log('Guardando suscripción pendiente:', subscriptionData)
+
+          // Guardar información de suscripción pendiente y esperar confirmación
+          const { data: insertedData, error: subscriptionError } = await supabase
+            .from('pending_subscriptions')
+            .insert(subscriptionData)
+            .select()
+
+          if (subscriptionError) {
+            console.error('Error al guardar suscripción pendiente:', subscriptionError)
+            setError('Error al guardar la suscripción. Por favor, inténtalo de nuevo.')
+            return
+          }
+
+          console.log('Suscripción pendiente guardada exitosamente:', insertedData)
+
+          // Mostrar mensaje de confirmación
+          toast({
+            title: "Suscripción guardada",
+            description: "Tu suscripción ha sido registrada. Redirigiendo a Mercado Pago...",
+            duration: 2000,
+          })
+
+          // Esperar un momento para asegurar que la suscripción se guardó
+          await new Promise(resolve => setTimeout(resolve, 1500))
+
+          // Limpiar carrito después de confirmar que se guardó
+          clearCart()
+          setShowCheckout(false)
+
+          // Redirigir al enlace de suscripción de Mercado Pago
+          const subscriptionLink = getSubscriptionLink(subscriptionType)
+          const finalLink = `${subscriptionLink}&external_reference=${externalReference}&back_url=${encodeURIComponent(window.location.origin + '/suscripcion')}`
+          
+          console.log('Redirigiendo a:', finalLink)
+          window.location.href = finalLink
+
+          return
+        } catch (error) {
+          console.error('Error al procesar suscripción:', error)
+          setError('Error al procesar la suscripción. Por favor, inténtalo de nuevo.')
+          return
+        }
+      }
 
       if (isTestMode) {
         // En modo de pruebas, crear orden usando el endpoint de MercadoPago

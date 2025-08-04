@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import MercadoPagoService from '@/lib/mercadopago-service'
+import nodemailer from 'nodemailer'
 
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -12,6 +13,77 @@ if (!MP_ACCESS_TOKEN) {
 }
 
 const mercadoPagoService = new MercadoPagoService(MP_ACCESS_TOKEN)
+
+// Crear transporter para emails (usando la misma configuración que el resto de la web)
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '465'),
+    secure: process.env.SMTP_SECURE === 'true', // Consistente con email-service.ts
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    // Configuraciones adicionales para compatibilidad
+    tls: {
+      rejectUnauthorized: false
+    }
+  })
+}
+
+// Función helper para enviar emails
+const sendEmail = async (emailData: { to: string; subject: string; html: string }) => {
+  const transporter = createTransporter()
+  
+  return await transporter.sendMail({
+    from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+    to: emailData.to,
+    subject: emailData.subject,
+    html: emailData.html
+  })
+}
+
+// Función para enviar notificación de cancelación/pausa
+const sendSubscriptionActionEmail = async (subscription: any, userProfile: any, action: 'cancel' | 'pause') => {
+  const actionText = action === 'cancel' ? 'cancelada' : 'pausada'
+  const actionEmoji = action === 'cancel' ? '❌' : '⏸️'
+  
+  try {
+    // Email al admin
+    await sendEmail({
+      to: 'contacto@petgourmet.mx',
+      subject: `${actionEmoji} Suscripción ${actionText} - ${userProfile?.email || 'Usuario desconocido'}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: ${action === 'cancel' ? '#dc2626' : '#f59e0b'};">Suscripción ${actionText}</h2>
+          <div style="background: ${action === 'cancel' ? '#fef2f2' : '#fefbf2'}; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>Detalles del usuario:</h3>
+            <ul>
+              <li><strong>Nombre:</strong> ${userProfile?.full_name || 'No disponible'}</li>
+              <li><strong>Email:</strong> ${userProfile?.email || 'No disponible'}</li>
+              <li><strong>Teléfono:</strong> ${userProfile?.phone || 'No disponible'}</li>
+            </ul>
+            
+            <h3>Detalles de la suscripción:</h3>
+            <ul>
+              <li><strong>Producto:</strong> ${subscription.product_name || 'No disponible'}</li>
+              <li><strong>Tipo:</strong> ${subscription.subscription_type || 'No disponible'}</li>
+              <li><strong>Precio:</strong> $${subscription.discounted_price || subscription.transaction_amount || 0} MXN</li>
+              <li><strong>Frecuencia:</strong> ${subscription.frequency || 1} ${subscription.frequency_type || 'meses'}</li>
+              <li><strong>ID Suscripción:</strong> ${subscription.id}</li>
+              <li><strong>Fecha de ${action === 'cancel' ? 'cancelación' : 'pausa'}:</strong> ${new Date().toLocaleDateString('es-MX')}</li>
+            </ul>
+          </div>
+          <p><strong>Acción requerida:</strong> Revisar y dar seguimiento según sea necesario.</p>
+        </div>
+      `
+    })
+    
+    console.log(`✅ Email de ${actionText} enviado al admin`)
+  } catch (emailError) {
+    console.error(`⚠️ Error enviando email de ${actionText}:`, emailError)
+  }
+}
 
 // GET - Obtener suscripciones de un usuario
 export async function GET(
@@ -174,6 +246,13 @@ export async function PUT(
         )
     }
 
+    // Obtener datos del usuario para el email
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email, phone')
+      .eq('id', userId)
+      .single()
+
     // Actualizar estado en base de datos
     const { data: updatedSubscription, error: updateError } = await supabase
       .from('user_subscriptions')
@@ -192,6 +271,11 @@ export async function PUT(
         { error: 'Error actualizando suscripción' },
         { status: 500 }
       )
+    }
+
+    // Enviar email de notificación para cancelación o pausa
+    if (action === 'cancel' || action === 'pause') {
+      await sendSubscriptionActionEmail(subscription, userProfile, action)
     }
 
     console.log('✅ Suscripción actualizada:', {

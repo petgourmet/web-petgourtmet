@@ -14,7 +14,7 @@ export type ProductGalleryItem = {
   alt: string
 }
 
-export type SubscriptionType = 'biweekly' | 'monthly' | 'quarterly' | 'annual'
+export type SubscriptionType = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'
 
 export type ProductCardProps = {
   id: number
@@ -35,11 +35,18 @@ export type ProductCardProps = {
   subscription_available?: boolean
   subscription_types?: SubscriptionType[]
   subscription_discount?: number
+  weekly_discount?: number
   biweekly_discount?: number
   monthly_discount?: number
   quarterly_discount?: number
   annual_discount?: number
   purchase_types?: string[]
+  // URLs de MercadoPago específicas del producto
+  weekly_mercadopago_url?: string
+  biweekly_mercadopago_url?: string
+  monthly_mercadopago_url?: string
+  quarterly_mercadopago_url?: string
+  annual_mercadopago_url?: string
   onShowDetail?: (product: any) => void
 }
 

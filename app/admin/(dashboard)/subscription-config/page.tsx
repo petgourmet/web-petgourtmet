@@ -15,10 +15,12 @@ interface SubscriptionConfig {
   period: string
   default_discount_percentage: number
   is_active: boolean
+  mercadopago_url?: string
 }
 
 const PERIOD_LABELS = {
   weekly: "Semanal",
+  biweekly: "Quincenal",
   monthly: "Mensual",
   quarterly: "Trimestral",
   annual: "Anual",
@@ -51,7 +53,7 @@ export default function SubscriptionConfigPage() {
     }
   }
 
-  const handleConfigChange = (id: number, field: string, value: number | boolean) => {
+  const handleConfigChange = (id: number, field: string, value: number | boolean | string) => {
     setConfigs(configs.map((config) => (config.id === id ? { ...config, [field]: value } : config)))
   }
 
@@ -64,6 +66,7 @@ export default function SubscriptionConfigPage() {
           .update({
             default_discount_percentage: config.default_discount_percentage,
             is_active: config.is_active,
+            mercadopago_url: config.mercadopago_url,
           })
           .eq("id", config.id)
 
@@ -159,16 +162,36 @@ export default function SubscriptionConfigPage() {
                 <p className="text-xs text-gray-500">Este descuento se aplicará por defecto a nuevos productos</p>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor={`mercadopago-url-${config.id}`}>URL de Mercado Pago</Label>
+                <Input
+                  id={`mercadopago-url-${config.id}`}
+                  type="url"
+                  placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                  value={config.mercadopago_url || ""}
+                  onChange={(e) =>
+                    handleConfigChange(
+                      config.id,
+                      "mercadopago_url",
+                      e.target.value,
+                    )
+                  }
+                />
+                <p className="text-xs text-gray-500">URL de redirección para checkout de suscripción en Mercado Pago</p>
+              </div>
+
               <div className="pt-2 border-t">
                 <p className="text-sm text-gray-600">
                   <strong>Frecuencia:</strong>{" "}
                   {config.period === "weekly"
                     ? "Cada 7 días"
-                    : config.period === "monthly"
-                      ? "Cada 30 días"
-                      : config.period === "quarterly"
-                        ? "Cada 90 días"
-                        : "Cada 365 días"}
+                    : config.period === "biweekly"
+                      ? "Cada 14 días"
+                      : config.period === "monthly"
+                        ? "Cada 30 días"
+                        : config.period === "quarterly"
+                          ? "Cada 90 días"
+                          : "Cada 365 días"}
                 </p>
               </div>
             </CardContent>

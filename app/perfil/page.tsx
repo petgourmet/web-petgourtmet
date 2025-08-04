@@ -91,10 +91,11 @@ interface Subscription {
     image: string
     price: number
     subscription_types?: string[]
+    weekly_discount?: number
+    biweekly_discount?: number
     monthly_discount?: number
     quarterly_discount?: number
     annual_discount?: number
-    biweekly_discount?: number
   }
   products?: {
     id: string
@@ -102,10 +103,11 @@ interface Subscription {
     image: string
     price: number
     subscription_types?: string[]
+    weekly_discount?: number
+    biweekly_discount?: number
     monthly_discount?: number
     quarterly_discount?: number
     annual_discount?: number
-    biweekly_discount?: number
   }
 }
 
@@ -282,6 +284,7 @@ export default function PerfilPage() {
       console.log('Buscando suscripciones para usuario:', user.id)
       console.log('Email del usuario:', user.email)
       
+      // 1. Obtener suscripciones activas
       const { data: userSubscriptionsData, error: subscriptionsError } = await supabase
         .from('user_subscriptions')
         .select(`
@@ -307,13 +310,39 @@ export default function PerfilPage() {
         data: userSubscriptionsData
       })
 
-      if (subscriptionsError) {
-        console.error('Error al obtener user_subscriptions:', subscriptionsError)
-        // No hacer return, continuar con array vacío
-        setSubscriptions([])
-        return
+      // 2. Obtener suscripciones pendientes
+      const { data: pendingSubscriptionsData, error: pendingError } = await supabase
+        .from('pending_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('status', ['pending'])
+        .order('created_at', { ascending: false })
+
+      console.log('Resultado de pending_subscriptions:', {
+        error: pendingError,
+        count: pendingSubscriptionsData?.length || 0,
+        data: pendingSubscriptionsData
+      })
+
+      // 3. Cancelar suscripciones pendientes que tengan más de 30 minutos
+      if (pendingSubscriptionsData && pendingSubscriptionsData.length > 0) {
+        const now = new Date()
+        const expiredSubscriptions = pendingSubscriptionsData.filter(sub => {
+          const createdAt = new Date(sub.created_at)
+          const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60)
+          return diffMinutes > 30
+        })
+
+        if (expiredSubscriptions.length > 0) {
+          console.log(`Cancelando ${expiredSubscriptions.length} suscripciones expiradas`)
+          await supabase
+            .from('pending_subscriptions')
+            .update({ status: 'cancelled' })
+            .in('id', expiredSubscriptions.map(sub => sub.id))
+        }
       }
 
+      // 4. Procesar suscripciones activas
       const subscriptionsWithBilling = userSubscriptionsData?.map(sub => {
         const product = sub.products
         const frequency = sub.frequency || 'monthly'
@@ -343,16 +372,85 @@ export default function PerfilPage() {
         }
       }) || []
 
-      const uniqueSubscriptions = subscriptionsWithBilling.filter((sub, index, self) => 
+      // 5. Procesar suscripciones pendientes (solo las que no han expirado)
+      const validPendingSubscriptions = pendingSubscriptionsData?.filter(sub => {
+        const now = new Date()
+        const createdAt = new Date(sub.created_at)
+        const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60)
+        return diffMinutes <= 30 && sub.status === 'pending'
+      }) || []
+
+      // 5.1. Obtener información completa de productos para suscripciones pendientes
+      const pendingProductIds = validPendingSubscriptions
+        .map(sub => sub.cart_items?.[0]?.product_id)
+        .filter(Boolean)
+      
+      let pendingProductsData = []
+      if (pendingProductIds.length > 0) {
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('id, name, image, price')
+          .in('id', pendingProductIds)
+        
+        if (!productsError && productsData) {
+          pendingProductsData = productsData
+        }
+      }
+
+      const pendingSubscriptionsFormatted = validPendingSubscriptions.map(sub => {
+        const cartItem = sub.cart_items?.[0] || {}
+        const productData = pendingProductsData.find(p => p.id === cartItem.product_id)
+        
+        return {
+          id: `pending_${sub.id}`,
+          user_id: sub.user_id,
+          product_id: cartItem.product_id || null,
+          status: 'pending',
+          frequency: getFrequencyFromType(sub.subscription_type),
+          price: cartItem.price || 0,
+          discount_amount: 0,
+          next_billing_date: null,
+          created_at: sub.created_at,
+          source: 'pending_subscriptions',
+          quantity: cartItem.quantity || 1,
+          size: cartItem.size || 'Estándar',
+          subscription_type: sub.subscription_type,
+          external_reference: sub.external_reference,
+          product_name: productData?.name || cartItem.product_name || cartItem.name || 'Producto',
+          products: {
+            id: cartItem.product_id || '',
+            name: productData?.name || cartItem.product_name || cartItem.name || 'Producto',
+            image: productData?.image || cartItem.image || '/placeholder.svg',
+            price: productData?.price || cartItem.price || 0
+          }
+        }
+      })
+
+      // 6. Combinar todas las suscripciones
+      const allSubscriptions = [...subscriptionsWithBilling, ...pendingSubscriptionsFormatted]
+      
+      const uniqueSubscriptions = allSubscriptions.filter((sub, index, self) => 
         index === self.findIndex(s => s.id === sub.id)
       )
 
-      console.log(`Total de suscripciones encontradas: ${uniqueSubscriptions.length}`)
+      console.log(`Total de suscripciones encontradas: ${uniqueSubscriptions.length} (${subscriptionsWithBilling.length} activas, ${pendingSubscriptionsFormatted.length} pendientes)`)
       setSubscriptions(uniqueSubscriptions)
       
     } catch (error) {
       console.error('Error cargando suscripciones:', error)
       toast.error('No se pudieron cargar las suscripciones')
+    }
+  }
+
+  // Función auxiliar para convertir subscription_type a frequency
+  const getFrequencyFromType = (subscriptionType: string): string => {
+    switch (subscriptionType) {
+      case 'weekly': return 'weekly'
+      case 'biweekly': return 'biweekly'
+      case 'monthly': return 'monthly'
+      case 'quarterly': return 'quarterly'
+      case 'annual': return 'annual'
+      default: return 'monthly'
     }
   }
 
@@ -582,9 +680,12 @@ export default function PerfilPage() {
                       <Calendar className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Suscripciones Activas</p>
+                      <p className="text-sm text-gray-600">Suscripciones</p>
                       <p className="text-lg font-semibold">
-                        {subscriptions.filter(s => s.status === 'active').length}
+                        {subscriptions.filter(s => s.status === 'active').length} activas
+                        {subscriptions.filter(s => s.status === 'pending').length > 0 && 
+                          ` • ${subscriptions.filter(s => s.status === 'pending').length} pendientes`
+                        }
                       </p>
                     </div>
                   </div>
@@ -824,10 +925,12 @@ export default function PerfilPage() {
                                 <div className="flex flex-wrap gap-2">
                                   <Badge 
                                     variant={subscription.status === 'active' ? 'default' : 
+                                            subscription.status === 'pending' ? 'secondary' :
                                             subscription.cancelled_at ? 'destructive' : 'secondary'}
                                   >
                                     {subscription.cancelled_at ? '❌ Cancelada' :
                                      subscription.status === 'active' ? '✅ Activa' : 
+                                     subscription.status === 'pending' ? '⏳ Pendiente' :
                                      subscription.status === 'paused' ? '⏸️ Pausada' :
                                      '⏳ Inactiva'}
                                   </Badge>
@@ -950,17 +1053,7 @@ export default function PerfilPage() {
                                     <Button size="sm" variant="outline" disabled className="text-xs">
                                       Cancelada
                                     </Button>
-                                  ) : (
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline" 
-                                      className="text-xs"
-                                      onClick={() => handleSubscriptionAction(subscription.id, 'reactivate')}
-                                      disabled={updatingSubscription === subscription.id}
-                                    >
-                                      {updatingSubscription === subscription.id ? '⏳' : '▶️'} Reactivar
-                                    </Button>
-                                  )}
+                                  ) : null}
                                 </div>
                               </div>
                             </div>

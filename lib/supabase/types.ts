@@ -21,9 +21,16 @@ export type Product = {
   subscription_types?: string[]
   // Descuentos por período configurables
   weekly_discount?: number
+  biweekly_discount?: number
   monthly_discount?: number
   quarterly_discount?: number
   annual_discount?: number
+  // URLs de Mercado Pago por tipo de suscripción
+  weekly_mercadopago_url?: string
+  biweekly_mercadopago_url?: string
+  monthly_mercadopago_url?: string
+  quarterly_mercadopago_url?: string
+  annual_mercadopago_url?: string
 }
 
 export type Category = {
@@ -109,9 +116,10 @@ export type BlogCategory = {
 // Nuevos tipos para configuración de suscripciones
 export type SubscriptionConfig = {
   id: number
-  period: "weekly" | "monthly" | "quarterly" | "annual"
+  period: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual"
   discount_percentage: number
   is_active: boolean
+  mercadopago_url?: string
   created_at: string
   updated_at: string
 }

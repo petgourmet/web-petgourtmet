@@ -305,13 +305,16 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
 
                   {purchase.payment_status?.toLowerCase() === 'completed' && (
                     <>
-                      <button
-                        onClick={() => handleReorder(purchase.id)}
-                        className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        <Package className="h-4 w-4" />
-                        Reordenar
-                      </button>
+                      {/* Botón temporalmente oculto */}
+                      {false && (
+                        <button
+                          onClick={() => handleReorder(purchase.id)}
+                          className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                        >
+                          <Package className="h-4 w-4" />
+                          Reordenar
+                        </button>
+                      )}
 
                       {purchase.tracking_number && (
                         <button
@@ -450,7 +453,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
               >
                 Cerrar
               </button>
-              {selectedPurchase.payment_status?.toLowerCase() === 'completed' && (
+              {selectedPurchase.payment_status?.toLowerCase() === 'paid' && (
                 <button
                   onClick={() => {
                     handleReorder(selectedPurchase.id)

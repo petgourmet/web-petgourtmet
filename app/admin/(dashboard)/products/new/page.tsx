@@ -795,7 +795,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                     <div className="space-y-2">
                       <Label>Tipos de Suscripción Disponibles</Label>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                        {["biweekly", "monthly", "quarterly", "annual"].map((type) => (
+                        {["weekly", "biweekly", "monthly", "quarterly", "annual"].map((type) => (
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
                               id={`subscription-${type}`}
@@ -815,7 +815,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               }}
                             />
                             <Label htmlFor={`subscription-${type}`} className="cursor-pointer">
-                              {type === "biweekly" 
+                              {type === "weekly" 
+                                ? "Semanal" 
+                                : type === "biweekly" 
                                 ? "Quincenal" 
                                 : type === "monthly" 
                                   ? "Mensual" 
@@ -831,6 +833,24 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                     <div className="space-y-4">
                       <Label>Descuentos por Período de Suscripción</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="weekly_discount">Descuento Semanal (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="weekly_discount"
+                              name="weekly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.weekly_discount || 15}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
                         <div className="space-y-2">
                           <Label htmlFor="biweekly_discount">Descuento Quincenal (%)</Label>
                           <div className="relative">

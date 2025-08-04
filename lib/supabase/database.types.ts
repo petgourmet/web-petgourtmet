@@ -145,6 +145,14 @@ export interface Database {
           notes: string | null
           mercadopago_preference_id: string | null
           mercadopago_payment_id: string | null
+          collection_id: string | null
+          merchant_order_id: string | null
+          external_reference: string | null
+          payment_type: string | null
+          payment_method: string | null
+          site_id: string | null
+          processing_mode: string | null
+          merchant_account_id: string | null
         }
         Insert: {
           id?: number
@@ -165,6 +173,14 @@ export interface Database {
           notes?: string | null
           mercadopago_preference_id?: string | null
           mercadopago_payment_id?: string | null
+          collection_id?: string | null
+          merchant_order_id?: string | null
+          external_reference?: string | null
+          payment_type?: string | null
+          payment_method?: string | null
+          site_id?: string | null
+          processing_mode?: string | null
+          merchant_account_id?: string | null
         }
         Update: {
           id?: number
@@ -185,6 +201,14 @@ export interface Database {
           notes?: string | null
           mercadopago_preference_id?: string | null
           mercadopago_payment_id?: string | null
+          collection_id?: string | null
+          merchant_order_id?: string | null
+          external_reference?: string | null
+          payment_type?: string | null
+          payment_method?: string | null
+          site_id?: string | null
+          processing_mode?: string | null
+          merchant_account_id?: string | null
         }
       }
       order_items: {

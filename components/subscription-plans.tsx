@@ -83,6 +83,9 @@ export default function SubscriptionPlans({
     setCreatingSubscription(plan.id)
 
     try {
+      // Generar external_reference único
+      const externalReference = `PG-${Date.now()}-${userId}-${plan.id}`
+      
       // Crear suscripción sin plan usando la nueva API
       const subscriptionResponse = await fetch('/api/subscriptions/create-without-plan', {
         method: 'POST',
@@ -91,7 +94,7 @@ export default function SubscriptionPlans({
         },
         body: JSON.stringify({
           reason: `${plan.name} - ${productName}`,
-          external_reference: `PG-${Date.now()}-${userId}`,
+          external_reference: externalReference,
           payer_email: userEmail,
           auto_recurring: {
             frequency: plan.frequency_type === 'weeks' ? plan.frequency * 7 : plan.frequency,
@@ -101,10 +104,15 @@ export default function SubscriptionPlans({
             transaction_amount: calculateDiscountedPrice(plan),
             currency_id: 'MXN'
           },
-          back_url: 'https://petgourmet.mx/perfil/suscripciones',
+          back_url: `${window.location.origin}/suscripcion?external_reference=${externalReference}`,
           status: 'pending', // Sin método de pago, el usuario lo agregará en MercadoPago
           user_id: userId,
           product_id: productId,
+          product_name: productName,
+          subscription_type: `${plan.frequency_type === 'weeks' ? plan.frequency + '_week' : plan.frequency + '_month'}`,
+          discounted_price: calculateDiscountedPrice(plan),
+          original_price: basePrice,
+          discount_percentage: plan.discount_percentage,
           quantity: 1
         })
       })
@@ -113,13 +121,20 @@ export default function SubscriptionPlans({
 
       if (subscriptionResult.success) {
         toast.success('¡Suscripción creada!', {
-          description: 'Serás redirigido al pago',
+          description: 'Serás redirigido al pago en MercadoPago',
           duration: 3000
         })
 
-        // Redirigir a MercadoPago
+        // Redirigir a MercadoPago en la misma ventana
         if (subscriptionResult.redirect_url) {
-          window.open(subscriptionResult.redirect_url, '_blank')
+          // Agregar parámetros adicionales a la URL de redirección
+          const redirectUrl = new URL(subscriptionResult.redirect_url)
+          redirectUrl.searchParams.set('external_reference', externalReference)
+          
+          // Redirigir después de un breve delay para que el usuario vea el mensaje
+          setTimeout(() => {
+            window.location.href = redirectUrl.toString()
+          }, 1500)
         }
 
         // Callback opcional

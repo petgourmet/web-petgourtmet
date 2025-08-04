@@ -927,7 +927,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                     <div className="space-y-2">
                       <Label>Tipos de Suscripción Disponibles</Label>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                        {["biweekly", "monthly", "quarterly", "annual"].map((type) => (
+                        {["weekly", "biweekly", "monthly", "quarterly", "annual"].map((type) => (
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
                               id={`subscription-${type}`}
@@ -945,7 +945,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               }}
                             />
                             <Label htmlFor={`subscription-${type}`} className="cursor-pointer">
-                              {type === "biweekly"
+                              {type === "weekly"
+                                ? "Semanal"
+                                : type === "biweekly"
                                 ? "Quincenal"
                                 : type === "monthly"
                                   ? "Mensual"
@@ -961,6 +963,24 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                     <div className="space-y-4">
                       <Label>Descuentos por Período de Suscripción</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="weekly_discount">Descuento Semanal (%)</Label>
+                          <div className="relative">
+                            <Input
+                              id="weekly_discount"
+                              name="weekly_discount"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={product.weekly_discount || 15}
+                              onChange={handleProductChange}
+                              className="pr-8"
+                            />
+                            <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+
                         <div className="space-y-2">
                           <Label htmlFor="biweekly_discount">Descuento Quincenal (%)</Label>
                           <div className="relative">
@@ -1036,6 +1056,74 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                       <p className="text-xs text-gray-500">
                         Estos descuentos se aplicarán automáticamente según el período de suscripción seleccionado por
                         el cliente.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <Label>URLs de Mercado Pago por Tipo de Suscripción</Label>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="weekly_mercadopago_url">URL Mercado Pago - Semanal</Label>
+                          <Input
+                            id="weekly_mercadopago_url"
+                            name="weekly_mercadopago_url"
+                            type="url"
+                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            value={product.weekly_mercadopago_url || ""}
+                            onChange={handleProductChange}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="biweekly_mercadopago_url">URL Mercado Pago - Quincenal</Label>
+                          <Input
+                            id="biweekly_mercadopago_url"
+                            name="biweekly_mercadopago_url"
+                            type="url"
+                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            value={product.biweekly_mercadopago_url || ""}
+                            onChange={handleProductChange}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="monthly_mercadopago_url">URL Mercado Pago - Mensual</Label>
+                          <Input
+                            id="monthly_mercadopago_url"
+                            name="monthly_mercadopago_url"
+                            type="url"
+                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            value={product.monthly_mercadopago_url || ""}
+                            onChange={handleProductChange}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="quarterly_mercadopago_url">URL Mercado Pago - Trimestral</Label>
+                          <Input
+                            id="quarterly_mercadopago_url"
+                            name="quarterly_mercadopago_url"
+                            type="url"
+                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            value={product.quarterly_mercadopago_url || ""}
+                            onChange={handleProductChange}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="annual_mercadopago_url">URL Mercado Pago - Anual</Label>
+                          <Input
+                            id="annual_mercadopago_url"
+                            name="annual_mercadopago_url"
+                            type="url"
+                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            value={product.annual_mercadopago_url || ""}
+                            onChange={handleProductChange}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        URLs específicas de Mercado Pago para cada tipo de suscripción. Si se dejan vacías, se usarán las URLs configuradas globalmente.
                       </p>
                     </div>
                   </div>
@@ -1399,6 +1487,12 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                         </button>
                         {product.subscription_available && (
                           <div className="space-y-1">
+                            {product.subscription_types?.includes("weekly") && (
+                              <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
+                                Suscripción Semanal (-{product.weekly_discount || 15}%) - €
+                                {((product.price || 0) * (1 - (product.weekly_discount || 15) / 100)).toFixed(2)}
+                              </button>
+                            )}
                             {product.subscription_types?.includes("biweekly") && (
                               <button className="w-full rounded-lg px-4 py-2 border border-primary text-primary text-left">
                                 Suscripción Quincenal (-{product.biweekly_discount || 20}%) - €
