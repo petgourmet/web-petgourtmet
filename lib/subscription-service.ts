@@ -153,30 +153,27 @@ export class SubscriptionService {
     try {
       const { data: product, error } = await this.supabase
         .from("products")
-        .select("weekly_discount, monthly_discount, quarterly_discount, annual_discount")
+        .select("weekly_discount, biweekly_discount, monthly_discount, quarterly_discount, annual_discount")
         .eq("id", productId)
         .single()
 
       if (error || !product) {
-        // Usar descuentos por defecto si no se encuentra el producto
-        const defaultDiscounts = {
-          weekly: 5,
-          monthly: 10,
-          quarterly: 15,
-          annual: 20,
-        }
-        return defaultDiscounts[frequency as keyof typeof defaultDiscounts] || 0
+        // Si no se encuentra el producto, retornar 0
+        console.error("Error al obtener producto para descuento:", error)
+        return 0
       }
 
       switch (frequency) {
         case "weekly":
-          return product.weekly_discount || 5
+          return product.weekly_discount || 0
+        case "biweekly":
+          return product.biweekly_discount || 0
         case "monthly":
-          return product.monthly_discount || 10
+          return product.monthly_discount || 0
         case "quarterly":
-          return product.quarterly_discount || 15
+          return product.quarterly_discount || 0
         case "annual":
-          return product.annual_discount || 20
+          return product.annual_discount || 0
         default:
           return 0
       }

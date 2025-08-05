@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { use } from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -32,9 +33,10 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: { id: string } }) {
+export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const isNew = params.id === "new"
+  const resolvedParams = use(params)
+  const isNew = resolvedParams.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -57,11 +59,12 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     weight_reference: "", // ej: "por kilogramo"
     subscription_available: false,
     subscription_types: [], // ["weekly", "monthly", "quarterly", "annual"]
-    // Descuentos por período
-    weekly_discount: 5,
-    monthly_discount: 10,
-    quarterly_discount: 15,
-    annual_discount: 20,
+    // Descuentos por período - sin valores por defecto
+    weekly_discount: undefined,
+    monthly_discount: undefined,
+    quarterly_discount: undefined,
+    annual_discount: undefined,
+    biweekly_discount: undefined,
   })
   const [productSizes, setProductSizes] = useState<Partial<ProductSize>[]>([{ weight: "", price: 0, stock: 0 }])
   const [productImages, setProductImages] = useState<Partial<ProductImage>[]>([{ url: "", alt: "" }])
@@ -82,6 +85,39 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
   const [subscriptionTypes, setSubscriptionTypes] = useState<string[]>([])
   const [saleType, setSaleType] = useState<"unit" | "weight">("unit")
+
+  // Efecto para limpiar descuentos cuando se deseleccionan tipos de suscripción
+  useEffect(() => {
+    const selectedTypes = product.subscription_types || []
+    const updatedProduct = { ...product }
+    let hasChanges = false
+
+    // Limpiar descuentos para tipos no seleccionados
+    if (!selectedTypes.includes('weekly') && product.weekly_discount !== undefined) {
+      updatedProduct.weekly_discount = undefined
+      hasChanges = true
+    }
+    if (!selectedTypes.includes('biweekly') && product.biweekly_discount !== undefined) {
+      updatedProduct.biweekly_discount = undefined
+      hasChanges = true
+    }
+    if (!selectedTypes.includes('monthly') && product.monthly_discount !== undefined) {
+      updatedProduct.monthly_discount = undefined
+      hasChanges = true
+    }
+    if (!selectedTypes.includes('quarterly') && product.quarterly_discount !== undefined) {
+      updatedProduct.quarterly_discount = undefined
+      hasChanges = true
+    }
+    if (!selectedTypes.includes('annual') && product.annual_discount !== undefined) {
+      updatedProduct.annual_discount = undefined
+      hasChanges = true
+    }
+
+    if (hasChanges) {
+      setProduct(updatedProduct)
+    }
+  }, [product.subscription_types])
 
   // Verificar si existe la tabla product_categories
   useEffect(() => {
@@ -153,7 +189,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
         // Si no es un nuevo producto, cargar datos del producto
         if (!isNew) {
-          const productId = Number.parseInt(params.id)
+          const productId = Number.parseInt(resolvedParams.id)
 
           // Cargar producto
           const { data: productData, error: productError } = await supabase
@@ -166,8 +202,23 @@ export default function ProductForm({ params }: { params: { id: string } }) {
           setProduct(productData || {})
 
           // Inicializar subscriptionTypes si existen
-          if (productData?.subscription_types && Array.isArray(productData.subscription_types)) {
-            setSubscriptionTypes(productData.subscription_types)
+          if (productData?.subscription_types) {
+            try {
+              // Si es un string JSON, parsearlo
+              if (typeof productData.subscription_types === 'string') {
+                const parsedTypes = JSON.parse(productData.subscription_types)
+                setSubscriptionTypes(Array.isArray(parsedTypes) ? parsedTypes : [])
+              } else if (Array.isArray(productData.subscription_types)) {
+                setSubscriptionTypes(productData.subscription_types)
+              } else {
+                setSubscriptionTypes([])
+              }
+            } catch (error) {
+              console.error('Error parsing subscription_types:', error)
+              setSubscriptionTypes([])
+            }
+          } else {
+            setSubscriptionTypes([])
           }
 
           // Si hay soporte para múltiples categorías, cargarlas
@@ -268,13 +319,13 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     }
 
     fetchData()
-  }, [isNew, params.id, multiCategorySupport])
+  }, [isNew, resolvedParams.id, multiCategorySupport])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
     setProduct({
       ...product,
-      [name]: type === "number" ? Number.parseFloat(value) : value,
+      [name]: type === "number" ? (value === "" ? undefined : Number.parseFloat(value) || 0) : value,
     })
   }
 
@@ -307,7 +358,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     const newSizes = [...productSizes]
     newSizes[index] = {
       ...newSizes[index],
-      [field]: field === "weight" ? value : Number.parseFloat(value as string),
+      [field]: field === "weight" ? value : (value === "" ? 0 : Number.parseFloat(value as string) || 0),
     }
     setProductSizes(newSizes)
   }
@@ -345,7 +396,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     const newReviews = [...productReviews]
     newReviews[index] = {
       ...newReviews[index],
-      [field]: field === "rating" ? Number.parseFloat(value as string) : value,
+      [field]: field === "rating" ? (value === "" ? 0 : Number.parseFloat(value as string) || 0) : value,
     }
     setProductReviews(newReviews)
   }
@@ -455,7 +506,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         }
 
         // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && data.id === Number.parseInt(params.id))) {
+        if (!data || (data && !isNew && data.id === Number.parseInt(resolvedParams.id))) {
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -474,33 +525,213 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         product.category_id = selectedCategories[0]
       }
 
+      // Validar y limpiar descuentos según tipos de suscripción seleccionados
+      const cleanedProduct = { ...product }
+      const selectedSubscriptionTypes = product.subscription_types || []
+      
+      // Solo mantener descuentos para tipos de suscripción seleccionados
+      if (!selectedSubscriptionTypes.includes('weekly')) {
+        delete cleanedProduct.weekly_discount
+      }
+      if (!selectedSubscriptionTypes.includes('biweekly')) {
+        delete cleanedProduct.biweekly_discount
+      }
+      if (!selectedSubscriptionTypes.includes('monthly')) {
+        delete cleanedProduct.monthly_discount
+      }
+      if (!selectedSubscriptionTypes.includes('quarterly')) {
+        delete cleanedProduct.quarterly_discount
+      }
+      if (!selectedSubscriptionTypes.includes('annual')) {
+        delete cleanedProduct.annual_discount
+      }
+
+      // Crear productData con solo los campos necesarios y válidos
       const productData = {
-        ...product,
-        image: imageUrl,
-        slug: finalSlug,
+        name: cleanedProduct.name || '',
+        description: cleanedProduct.description || '',
+        price: Number(cleanedProduct.price) || 0,
+        image: imageUrl || '',
+        slug: finalSlug || '',
+        category_id: cleanedProduct.category_id || null,
+        featured: Boolean(cleanedProduct.featured),
+        stock: Number(cleanedProduct.stock) || 0,
+        nutritional_info: cleanedProduct.nutritional_info || null,
+        ingredients: cleanedProduct.ingredients || null,
+        rating: Number(cleanedProduct.rating) || null,
+        reviews_count: Number(cleanedProduct.reviews_count) || null,
+        sale_type: cleanedProduct.sale_type || 'unit',
+        weight_reference: cleanedProduct.weight_reference || null,
+        subscription_available: Boolean(cleanedProduct.subscription_available),
+        subscription_types: JSON.stringify(Array.isArray(cleanedProduct.subscription_types) ? cleanedProduct.subscription_types : []),
+        // Solo incluir descuentos si están definidos y son válidos
+        ...(selectedSubscriptionTypes.includes('weekly') && cleanedProduct.weekly_discount !== undefined && cleanedProduct.weekly_discount !== null ? { weekly_discount: Number(cleanedProduct.weekly_discount) } : {}),
+        ...(selectedSubscriptionTypes.includes('biweekly') && cleanedProduct.biweekly_discount !== undefined && cleanedProduct.biweekly_discount !== null ? { biweekly_discount: Number(cleanedProduct.biweekly_discount) } : {}),
+        ...(selectedSubscriptionTypes.includes('monthly') && cleanedProduct.monthly_discount !== undefined && cleanedProduct.monthly_discount !== null ? { monthly_discount: Number(cleanedProduct.monthly_discount) } : {}),
+        ...(selectedSubscriptionTypes.includes('quarterly') && cleanedProduct.quarterly_discount !== undefined && cleanedProduct.quarterly_discount !== null ? { quarterly_discount: Number(cleanedProduct.quarterly_discount) } : {}),
+        ...(selectedSubscriptionTypes.includes('annual') && cleanedProduct.annual_discount !== undefined && cleanedProduct.annual_discount !== null ? { annual_discount: Number(cleanedProduct.annual_discount) } : {}),
       }
 
       let productId: number
 
+      console.log("Iniciando guardado de producto:", { isNew, productData })
+
       if (isNew) {
         // Crear nuevo producto
-        const { data, error } = await supabase.from("products").insert([productData]).select()
+        console.log("Creando nuevo producto...")
+        
+        // Validar que tenemos datos mínimos requeridos
+        if (!productData.name || !productData.name.trim()) {
+          throw new Error("El nombre del producto es requerido")
+        }
+        
+        if (!productData.slug || !productData.slug.trim()) {
+          throw new Error("El slug del producto es requerido")
+        }
+        
+        // Validar que el precio sea válido
+        if (productData.price < 0) {
+          throw new Error("El precio del producto debe ser mayor o igual a 0")
+        }
+        
+        // Limpiar datos undefined y null, pero mantener strings vacíos para campos requeridos
+        const cleanProductData = Object.fromEntries(
+          Object.entries(productData).filter(([key, value]) => {
+            // Mantener campos requeridos aunque sean strings vacíos
+            const requiredFields = ['name', 'description', 'price', 'image', 'slug', 'category_id', 'featured', 'stock', 'sale_type', 'subscription_available', 'subscription_types']
+            if (requiredFields.includes(key)) {
+              return value !== undefined && value !== null
+            }
+            // Para otros campos, filtrar undefined, null y strings vacíos
+            return value !== undefined && value !== null && value !== ''
+          })
+        )
+        
+        // Verificar que tenemos datos para insertar
+        if (Object.keys(cleanProductData).length === 0) {
+          throw new Error("No hay datos válidos para crear el producto")
+        }
+        
+        console.log("Datos del nuevo producto:", {
+          originalData: productData,
+          cleanedData: cleanProductData,
+          dataKeys: Object.keys(cleanProductData),
+          dataCount: Object.keys(cleanProductData).length,
+          productState: {
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            slug: product.slug
+          }
+        })
+        
+        const { data, error } = await supabase.from("products").insert([cleanProductData]).select()
 
-        if (error) throw error
+        if (error) {
+          console.error("Error al insertar producto:", {
+            error,
+            productData: cleanProductData,
+            errorMessage: error?.message,
+            errorDetails: error?.details,
+            errorHint: error?.hint,
+            errorCode: error?.code,
+            dataKeys: Object.keys(cleanProductData),
+            dataValues: Object.values(cleanProductData)
+          })
+          throw { 
+            message: `Error al insertar producto: ${error.message || 'Error desconocido'}`,
+            originalError: error,
+            type: 'INSERT_ERROR'
+          }
+        }
+        
+        if (!data || data.length === 0) {
+          throw new Error("No se recibieron datos del producto creado")
+        }
+        
         productId = data[0].id
+        console.log("Producto creado con ID:", productId)
       } else {
         // Actualizar producto existente
-        productId = Number.parseInt(params.id)
-        const { error } = await supabase.from("products").update(productData).eq("id", productId)
+        productId = Number.parseInt(resolvedParams.id)
+        console.log("Actualizando producto existente con ID:", productId)
+        
+        // Validar que el productId sea válido
+        if (!productId || isNaN(productId)) {
+          throw new Error(`ID de producto inválido: ${resolvedParams.id}`)
+        }
+        
+        // Validar que tenemos datos mínimos requeridos
+        if (!productData.name || !productData.name.trim()) {
+          throw new Error("El nombre del producto es requerido")
+        }
+        
+        if (!productData.slug || !productData.slug.trim()) {
+          throw new Error("El slug del producto es requerido")
+        }
+        
+        // Limpiar datos undefined y null, pero mantener strings vacíos para campos requeridos
+        const cleanProductData = Object.fromEntries(
+          Object.entries(productData).filter(([key, value]) => {
+            // Mantener campos requeridos aunque sean strings vacíos
+            const requiredFields = ['name', 'description', 'price', 'image', 'slug', 'category_id', 'featured', 'stock', 'sale_type', 'subscription_available', 'subscription_types']
+            if (requiredFields.includes(key)) {
+              return value !== undefined && value !== null
+            }
+            // Para otros campos, filtrar undefined, null y strings vacíos
+            return value !== undefined && value !== null && value !== ''
+          })
+        )
+        
+        // Verificar que tenemos datos para actualizar
+        if (Object.keys(cleanProductData).length === 0) {
+          throw new Error("No hay datos válidos para actualizar el producto")
+        }
+        
+        console.log("Datos del producto a actualizar:", {
+          productId,
+          originalData: productData,
+          cleanedData: cleanProductData,
+          dataKeys: Object.keys(cleanProductData),
+          dataCount: Object.keys(cleanProductData).length,
+          productState: {
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            slug: product.slug
+          }
+        })
+        
+        const { error } = await supabase.from("products").update(cleanProductData).eq("id", productId)
 
-        if (error) throw error
+        if (error) {
+          console.error("Error al actualizar producto:", {
+            error,
+            productId,
+            productData: cleanProductData,
+            errorMessage: error?.message,
+            errorDetails: error?.details,
+            errorHint: error?.hint,
+            errorCode: error?.code,
+            dataKeys: Object.keys(cleanProductData),
+            dataValues: Object.values(cleanProductData)
+          })
+          throw { 
+            message: `Error al actualizar producto: ${error.message || 'Error desconocido'}`,
+            originalError: error,
+            type: 'UPDATE_ERROR'
+          }
+        }
+        console.log("Producto actualizado exitosamente")
       }
 
       // Gestionar categorías del producto si hay soporte para múltiples categorías
       if (multiCategorySupport && selectedCategories.length > 0) {
         try {
+          console.log("Gestionando categorías múltiples:", selectedCategories)
           // Eliminar categorías existentes
           if (!isNew) {
+            console.log("Eliminando categorías existentes...")
             await supabase.from("product_categories").delete().eq("product_id", productId)
           }
 
@@ -510,9 +741,14 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             category_id: categoryId,
           }))
 
+          console.log("Insertando nuevas categorías:", productCategories)
           const { error: categoriesError } = await supabase.from("product_categories").insert(productCategories)
 
-          if (categoriesError) throw categoriesError
+          if (categoriesError) {
+            console.error("Error al insertar categorías:", categoriesError)
+            throw categoriesError
+          }
+          console.log("Categorías gestionadas exitosamente")
         } catch (error) {
           console.error("Error al gestionar categorías múltiples:", error)
           // Si falla, al menos tenemos la categoría principal guardada en el producto
@@ -521,13 +757,16 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
       // Gestionar características del producto
       try {
+        console.log("Gestionando características del producto:", productFeatures)
         // Eliminar características existentes
         if (!isNew) {
+          console.log("Eliminando características existentes...")
           await supabase.from("product_features").delete().eq("product_id", productId)
         }
 
         // Filtrar características vacías
         const validFeatures = productFeatures.filter((feature) => feature.name && feature.name.trim() !== "")
+        console.log("Características válidas:", validFeatures)
 
         if (validFeatures.length > 0) {
           // Insertar nuevas características
@@ -537,6 +776,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             color: feature.color || "pastel-green",
           }))
 
+          console.log("Insertando características:", featuresWithProductId)
           const { error: featuresError } = await supabase.from("product_features").insert(featuresWithProductId)
 
           if (featuresError) {
@@ -546,6 +786,8 @@ export default function ProductForm({ params }: { params: { id: string } }) {
               description: "Algunas características del producto no se pudieron guardar.",
               variant: "warning",
             })
+          } else {
+            console.log("Características guardadas exitosamente")
           }
         }
       } catch (error) {
@@ -559,13 +801,16 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
       // Gestionar tamaños del producto
       try {
+        console.log("Gestionando tamaños del producto:", productSizes)
         // Eliminar tamaños existentes
         if (!isNew) {
+          console.log("Eliminando tamaños existentes...")
           await supabase.from("product_sizes").delete().eq("product_id", productId)
         }
 
         // Filtrar tamaños vacíos
         const validSizes = productSizes.filter((size) => size.weight && size.weight.trim() !== "")
+        console.log("Tamaños válidos:", validSizes)
 
         if (validSizes.length > 0) {
           // Insertar nuevos tamaños
@@ -576,6 +821,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
             stock: size.stock || 0,
           }))
 
+          console.log("Insertando tamaños:", sizesWithProductId)
           const { error: sizesError } = await supabase.from("product_sizes").insert(sizesWithProductId)
 
           if (sizesError) {
@@ -585,6 +831,8 @@ export default function ProductForm({ params }: { params: { id: string } }) {
               description: "Algunos tamaños del producto no se pudieron guardar.",
               variant: "warning",
             })
+          } else {
+            console.log("Tamaños guardados exitosamente")
           }
         }
       } catch (error) {
@@ -699,10 +947,51 @@ export default function ProductForm({ params }: { params: { id: string } }) {
       // Redirigir a la lista de productos
       router.push("/admin/products")
     } catch (error: any) {
-      console.error("Error al guardar producto:", error)
+      // Log detallado del error para debugging
+      console.error("Error al guardar producto:", {
+        error,
+        errorType: typeof error,
+        errorKeys: error ? Object.keys(error) : [],
+        errorMessage: error?.message,
+        errorDetails: error?.details,
+        errorCode: error?.code,
+        errorStack: error?.stack,
+        formState: {
+          isNew,
+          productName: product.name,
+          productSlug: product.slug,
+          productPrice: product.price,
+          hasImage: !!imageUrl,
+          categoryId: product.category_id
+        },
+        customErrorType: error?.type,
+        originalError: error?.originalError
+      })
+      
+      // Mensaje de error más específico
+      let errorMessage = "Error desconocido"
+      if (error?.message) {
+        errorMessage = error.message
+      } else if (error?.details) {
+        errorMessage = error.details
+      } else if (error?.code) {
+        errorMessage = `Código de error: ${error.code}`
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      } else if (error && typeof error === 'object') {
+        // Manejar errores personalizados
+        if (error.type && error.originalError) {
+          errorMessage = `${error.message} - Detalles: ${error.originalError?.message || 'Sin detalles adicionales'}`
+        } else {
+          // Intentar extraer información útil del objeto error
+          const errorInfo = JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+          errorMessage = errorInfo !== '{}' ? errorInfo : "Error sin información específica"
+        }
+      }
+      
       toast({
-        title: "Error",
-        description: `No se pudo guardar el producto: ${error.message || "Error desconocido"}`,
+        title: "Error al guardar producto",
+        description: `No se pudo guardar el producto: ${errorMessage}`,
         variant: "destructive",
       })
     } finally {
@@ -713,8 +1002,8 @@ export default function ProductForm({ params }: { params: { id: string } }) {
   // Cargar imágenes adicionales
   useEffect(() => {
     const loadAdditionalImages = async () => {
-      if (!isNew && params.id) {
-        const productId = Number.parseInt(params.id)
+      if (!isNew && resolvedParams.id) {
+        const productId = Number.parseInt(resolvedParams.id)
         const { data: imagesData, error: imagesError } = await supabase
           .from("product_images")
           .select("*")
@@ -735,7 +1024,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     }
 
     loadAdditionalImages()
-  }, [isNew, params.id])
+  }, [isNew, resolvedParams.id])
 
   if (loading) {
     return (
@@ -933,9 +1222,10 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               id={`subscription-${type}`}
                               checked={product.subscription_types?.includes(type) || false}
                               onCheckedChange={(checked) => {
+                                const currentTypes = product.subscription_types || []
                                 const updatedTypes = checked
-                                  ? [...(product.subscription_types || []), type]
-                                  : (product.subscription_types || []).filter((t) => t !== type)
+                                  ? [...currentTypes.filter(t => t !== type), type]
+                                  : currentTypes.filter((t) => t !== type)
 
                                 setProduct({
                                   ...product,
@@ -964,99 +1254,120 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                       <Label>Descuentos por Período de Suscripción</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="weekly_discount">Descuento Semanal (%)</Label>
+                          <Label htmlFor="weekly_discount" className={!product.subscription_types?.includes('weekly') ? 'text-gray-400' : ''}>
+                            Descuento Semanal (%)
+                          </Label>
                           <div className="relative">
                             <Input
                               id="weekly_discount"
                               name="weekly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.weekly_discount || 15}
+                              value={product.weekly_discount || ''}
                               onChange={handleProductChange}
-                              className="pr-8"
+                              disabled={!product.subscription_types?.includes('weekly')}
+                              className={`pr-8 ${!product.subscription_types?.includes('weekly') ? 'bg-gray-100 text-gray-400' : ''}`}
                             />
                             <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="biweekly_discount">Descuento Quincenal (%)</Label>
+                          <Label htmlFor="biweekly_discount" className={!product.subscription_types?.includes('biweekly') ? 'text-gray-400' : ''}>
+                            Descuento Quincenal (%)
+                          </Label>
                           <div className="relative">
                             <Input
                               id="biweekly_discount"
                               name="biweekly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.biweekly_discount || 20}
+                              value={product.biweekly_discount || ''}
                               onChange={handleProductChange}
-                              className="pr-8"
+                              disabled={!product.subscription_types?.includes('biweekly')}
+                              className={`pr-8 ${!product.subscription_types?.includes('biweekly') ? 'bg-gray-100 text-gray-400' : ''}`}
                             />
                             <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="monthly_discount">Descuento Mensual (%)</Label>
+                          <Label htmlFor="monthly_discount" className={!product.subscription_types?.includes('monthly') ? 'text-gray-400' : ''}>
+                            Descuento Mensual (%)
+                          </Label>
                           <div className="relative">
                             <Input
                               id="monthly_discount"
                               name="monthly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.monthly_discount || 15}
+                              value={product.monthly_discount || ''}
                               onChange={handleProductChange}
-                              className="pr-8"
+                              disabled={!product.subscription_types?.includes('monthly')}
+                              className={`pr-8 ${!product.subscription_types?.includes('monthly') ? 'bg-gray-100 text-gray-400' : ''}`}
                             />
                             <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="quarterly_discount">Descuento Trimestral (%)</Label>
+                          <Label htmlFor="quarterly_discount" className={!product.subscription_types?.includes('quarterly') ? 'text-gray-400' : ''}>
+                            Descuento Trimestral (%)
+                          </Label>
                           <div className="relative">
                             <Input
                               id="quarterly_discount"
                               name="quarterly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.quarterly_discount || 10}
+                              value={product.quarterly_discount || ''}
                               onChange={handleProductChange}
-                              className="pr-8"
+                              disabled={!product.subscription_types?.includes('quarterly')}
+                              className={`pr-8 ${!product.subscription_types?.includes('quarterly') ? 'bg-gray-100 text-gray-400' : ''}`}
                             />
                             <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="annual_discount">Descuento Anual (%)</Label>
+                          <Label htmlFor="annual_discount" className={!product.subscription_types?.includes('annual') ? 'text-gray-400' : ''}>
+                            Descuento Anual (%)
+                          </Label>
                           <div className="relative">
                             <Input
                               id="annual_discount"
                               name="annual_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.annual_discount || 5}
+                              value={product.annual_discount || ''}
                               onChange={handleProductChange}
-                              className="pr-8"
+                              disabled={!product.subscription_types?.includes('annual')}
+                              className={`pr-8 ${!product.subscription_types?.includes('annual') ? 'bg-gray-100 text-gray-400' : ''}`}
                             />
                             <Percent className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                           </div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500">
-                        Estos descuentos se aplicarán automáticamente según el período de suscripción seleccionado por
-                        el cliente.
-                      </p>
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500">
+                          Estos descuentos se aplicarán automáticamente según el período de suscripción seleccionado por
+                          el cliente.
+                        </p>
+                        <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                          💡 Los campos de descuento solo están disponibles para los tipos de suscripción que hayas seleccionado arriba.
+                          Si deseleccionas un tipo de suscripción, su descuento se eliminará automáticamente.
+                        </p>
+                      </div>
                     </div>
 
                     <div className="space-y-4">

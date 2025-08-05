@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { use } from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -21,9 +22,10 @@ import { SecureFileUpload } from "@/components/admin/secure-file-upload"
 import type { Blog, BlogCategory } from "@/lib/supabase/types"
 import ReactMarkdown from "react-markdown"
 
-export default function BlogForm({ params }: { params: { id: string } }) {
+export default function BlogForm({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const isNew = params.id === "new"
+  const resolvedParams = use(params)
+  const isNew = resolvedParams.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<BlogCategory[]>([])
@@ -114,7 +116,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
 
         // Si no es un nuevo blog, cargar datos del blog
         if (!isNew) {
-          const blogId = Number.parseInt(params.id)
+          const blogId = Number.parseInt(resolvedParams.id)
 
           // Cargar blog
           const { data: blogData, error: blogError } = await supabase
@@ -140,7 +142,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
     }
 
     fetchData()
-  }, [isNew, params.id])
+  }, [isNew, resolvedParams.id])
 
   const handleBlogChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -246,7 +248,7 @@ export default function BlogForm({ params }: { params: { id: string } }) {
         if (error) throw error
       } else {
         // Actualizar blog existente
-        const blogId = Number.parseInt(params.id)
+        const blogId = Number.parseInt(resolvedParams.id)
         const { error } = await supabase.from("blogs").update(blogData).eq("id", blogId)
 
         if (error) throw error

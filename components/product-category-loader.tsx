@@ -399,7 +399,21 @@ export function ProductCategoryLoader({
         }
 
         // Ejecutar la consulta de productos
-        let productsQuery = supabase.from("products").select("*, categories(name)")
+        let productsQuery = supabase.from("products").select(`
+          *,
+          categories(name),
+          subscription_available,
+          subscription_types,
+          biweekly_discount,
+          monthly_discount,
+          quarterly_discount,
+          annual_discount,
+          weekly_mercadopago_url,
+          biweekly_mercadopago_url,
+          monthly_mercadopago_url,
+          quarterly_mercadopago_url,
+          annual_mercadopago_url
+        `)
 
         // Si tenemos un ID de categoría, filtrar por él
         if (categoryId !== null) {
@@ -453,6 +467,17 @@ export function ProductCategoryLoader({
           // Obtener la categoría del producto
           const categoryName = product.categories?.name || categoryInfo.displayName
 
+          // Parsear subscription_types si es un string JSON
+          let parsedSubscriptionTypes = product.subscription_types || []
+          if (typeof product.subscription_types === 'string') {
+            try {
+              parsedSubscriptionTypes = JSON.parse(product.subscription_types)
+            } catch (error) {
+              console.error('Error parsing subscription_types for product', product.id, ':', error)
+              parsedSubscriptionTypes = []
+            }
+          }
+
           // Filtrar características para este producto
           const features = allFeatures?.filter(f => f.product_id === product.id) || []
 
@@ -498,6 +523,7 @@ export function ProductCategoryLoader({
             sizes,
             gallery,
             spotlightColor,
+            subscription_types: parsedSubscriptionTypes,
           }
         })
 
@@ -531,6 +557,17 @@ export function ProductCategoryLoader({
     ...product,
     ingredients: product.ingredients,
     nutritionalInfo: product.nutritional_info || product.nutritionalInfo,
+    subscription_types: product.subscription_types || [],
+    subscription_available: product.subscription_available || false,
+    biweekly_discount: product.biweekly_discount,
+    monthly_discount: product.monthly_discount,
+    quarterly_discount: product.quarterly_discount,
+    annual_discount: product.annual_discount,
+    weekly_mercadopago_url: product.weekly_mercadopago_url,
+    biweekly_mercadopago_url: product.biweekly_mercadopago_url,
+    monthly_mercadopago_url: product.monthly_mercadopago_url,
+    quarterly_mercadopago_url: product.quarterly_mercadopago_url,
+    annual_mercadopago_url: product.annual_mercadopago_url,
     sizes: product.sizes?.map((size, index) => ({
       id: index + 1,
       product_id: product.id,

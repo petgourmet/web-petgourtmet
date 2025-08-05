@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { use } from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -31,9 +32,10 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: { id: string } }) {
+export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const isNew = params.id === "new"
+  const resolvedParams = use(params)
+  const isNew = resolvedParams.id === "new"
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -55,8 +57,13 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     sale_type: "unit", // "unit" o "weight"
     weight_reference: "", // ej: "por kilogramo"
     subscription_available: false,
-    subscription_types: [], // ["monthly", "quarterly", "annual"]
-    subscription_discount: 10, // porcentaje de descuento
+    subscription_types: [], // ["weekly", "biweekly", "monthly", "quarterly", "annual"]
+    // Descuentos por período - sin valores por defecto
+    weekly_discount: undefined,
+    biweekly_discount: undefined,
+    monthly_discount: undefined,
+    quarterly_discount: undefined,
+    annual_discount: undefined,
   })
   const [productSizes, setProductSizes] = useState<Partial<ProductSize>[]>([{ weight: "", price: 0, stock: 0 }])
   const [productImages, setProductImages] = useState<Partial<ProductImage>[]>([{ url: "", alt: "" }])
@@ -148,7 +155,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
 
         // Si no es un nuevo producto, cargar datos del producto
         if (!isNew) {
-          const productId = Number.parseInt(params.id)
+          const productId = Number.parseInt(resolvedParams.id)
 
           // Cargar producto
           const { data: productData, error: productError } = await supabase
@@ -258,13 +265,13 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     }
 
     fetchData()
-  }, [isNew, params.id, multiCategorySupport])
+  }, [isNew, resolvedParams.id, multiCategorySupport])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
     setProduct({
       ...product,
-      [name]: type === "number" ? Number.parseFloat(value) : value,
+      [name]: type === "number" ? (value === "" ? 0 : Number.parseFloat(value) || 0) : value,
     })
   }
 
@@ -297,7 +304,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     const newSizes = [...productSizes]
     newSizes[index] = {
       ...newSizes[index],
-      [field]: field === "weight" ? value : Number.parseFloat(value as string),
+      [field]: field === "weight" ? value : (value === "" ? 0 : Number.parseFloat(value as string) || 0),
     }
     setProductSizes(newSizes)
   }
@@ -335,7 +342,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
     const newReviews = [...productReviews]
     newReviews[index] = {
       ...newReviews[index],
-      [field]: field === "rating" ? Number.parseFloat(value as string) : value,
+      [field]: field === "rating" ? (value === "" ? 0 : Number.parseFloat(value as string) || 0) : value,
     }
     setProductReviews(newReviews)
   }
@@ -445,7 +452,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         }
 
         // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && data.id === Number.parseInt(params.id))) {
+        if (!data || (data && !isNew && data.id === Number.parseInt(resolvedParams.id))) {
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -480,7 +487,7 @@ export default function ProductForm({ params }: { params: { id: string } }) {
         productId = data[0].id
       } else {
         // Actualizar producto existente
-        productId = Number.parseInt(params.id)
+        productId = Number.parseInt(resolvedParams.id)
         const { error } = await supabase.from("products").update(productData).eq("id", productId)
 
         if (error) throw error
@@ -841,9 +848,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               name="weekly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.weekly_discount || 15}
+                              value={product.weekly_discount || ''}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -859,9 +866,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               name="biweekly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.biweekly_discount || 20}
+                              value={product.biweekly_discount || ''}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -877,9 +884,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               name="monthly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.monthly_discount || 15}
+                              value={product.monthly_discount || ''}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -895,9 +902,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               name="quarterly_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.quarterly_discount || 10}
+                              value={product.quarterly_discount || ''}
                               onChange={handleProductChange}
                               className="pr-8"
                             />
@@ -913,9 +920,9 @@ export default function ProductForm({ params }: { params: { id: string } }) {
                               name="annual_discount"
                               type="number"
                               min="0"
-                              max="50"
+                              max="100"
                               step="0.01"
-                              value={product.annual_discount || 5}
+                              value={product.annual_discount || ''}
                               onChange={handleProductChange}
                               className="pr-8"
                             />

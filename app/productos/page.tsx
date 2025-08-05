@@ -27,6 +27,16 @@ type Product = {
   sizes?: { weight: string; price: number }[]
   category?: string
   gallery?: { src: string; alt: string }[]
+  // Campos de suscripción
+  subscription_available?: boolean
+  subscription_types?: string[]
+  weekly_discount?: number
+  biweekly_discount?: number
+  monthly_discount?: number
+  quarterly_discount?: number
+  annual_discount?: number
+  sale_type?: string
+  weight_reference?: string
 }
 
 // Datos de fallback para cuando no se pueda conectar a Supabase
@@ -150,7 +160,10 @@ export default function ProductosPage() {
         // Cargar productos
         const { data: productsData, error: productsError } = await supabase
           .from("products")
-          .select("*, categories(name)")
+          .select(`
+            *,
+            categories(name)
+          `)
           .order("created_at", { ascending: false })
 
         // Ignoramos el error de API key si podemos continuar
@@ -213,11 +226,25 @@ export default function ProductosPage() {
               imageUrl = "/placeholder.svg"
             }
 
+            // Parsear subscription_types si es un string JSON
+            let subscriptionTypes = []
+            if (product.subscription_types) {
+              try {
+                subscriptionTypes = typeof product.subscription_types === 'string' 
+                  ? JSON.parse(product.subscription_types)
+                  : product.subscription_types
+              } catch (error) {
+                console.error('Error parsing subscription_types:', error)
+                subscriptionTypes = []
+              }
+            }
+
             return {
               ...product,
               image: imageUrl,
               category: categoryName,
               features,
+              subscription_types: subscriptionTypes,
               rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
               reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
               sizes: [

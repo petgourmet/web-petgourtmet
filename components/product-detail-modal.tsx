@@ -43,17 +43,17 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const getSubscriptionDiscount = (type: SubscriptionType): number => {
     switch (type) {
       case 'weekly':
-        return product.weekly_discount || product.subscription_discount || 15
+        return product.weekly_discount || product.subscription_discount || 0
       case 'biweekly':
-        return product.biweekly_discount || product.subscription_discount || 10
+        return product.biweekly_discount || product.subscription_discount || 0
       case 'monthly':
-        return product.monthly_discount || product.subscription_discount || 10
+        return product.monthly_discount || product.subscription_discount || 0
       case 'quarterly':
-        return product.quarterly_discount || product.subscription_discount || 15
+        return product.quarterly_discount || product.subscription_discount || 0
       case 'annual':
-        return product.annual_discount || product.subscription_discount || 20
+        return product.annual_discount || product.subscription_discount || 0
       default:
-        return product.subscription_discount || 10
+        return product.subscription_discount || 0
     }
   }
 

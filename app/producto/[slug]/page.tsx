@@ -231,15 +231,15 @@ export default function ProductDetailPage() {
     
     switch (subscriptionType) {
       case "weekly":
-        return (product.weekly_discount || 15) / 100
+        return (product.weekly_discount || 0) / 100
       case "biweekly":
-        return (product.biweekly_discount || 20) / 100
+        return (product.biweekly_discount || 0) / 100
       case "monthly":
-        return (product.monthly_discount || 15) / 100
+        return (product.monthly_discount || 0) / 100
       case "quarterly":
-        return (product.quarterly_discount || 10) / 100
+        return (product.quarterly_discount || 0) / 100
       case "annual":
-        return (product.annual_discount || 5) / 100
+        return (product.annual_discount || 0) / 100
       default:
         return 0
     }
