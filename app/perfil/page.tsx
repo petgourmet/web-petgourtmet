@@ -124,27 +124,21 @@ export default function PerfilPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions' | 'billing'>('profile')
 
   useEffect(() => {
-    console.log('🔍 useEffect del perfil - Estado:', { loading, hasUser: !!user, userId: user?.id })
     if (!loading && user) {
-      console.log('✅ Iniciando carga de datos para usuario:', user.id)
       initializeData()
-    } else {
-      console.log('⏳ Esperando autenticación...', { loading, hasUser: !!user })
     }
   }, [user?.id, loading])
 
   const initializeData = async () => {
     setIsLoading(true)
-    console.log('🔄 Iniciando carga de datos del perfil...')
     try {
       await Promise.all([
         fetchUserProfile(),
         fetchOrders(),
         fetchSubscriptions()
       ])
-      console.log('✅ Carga de datos completada')
     } catch (error) {
-      console.error('❌ Error en initializeData:', error)
+      console.error('Error en initializeData:', error)
     } finally {
       setIsLoading(false)
     }
@@ -186,29 +180,105 @@ export default function PerfilPage() {
     
     try {
       const supabase = createClient()
-      // Cargar órdenes del usuario desde las tablas 'orders' y 'order_items'
-      // Primero obtener las órdenes del usuario desde la tabla 'orders'
-      const { data: userOrders, error: ordersError } = await supabase
+      
+      // Método 1: Buscar órdenes directamente por user_id
+      const { data: directOrders, error: directError } = await supabase
         .from('orders')
-        .select('id')
+        .select(`
+          *,
+          order_items (
+            *,
+            products (
+              id,
+              name,
+              image,
+              price
+            )
+          )
+        `)
         .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (!directError && directOrders && directOrders.length > 0) {
+        const processedOrders = directOrders.map(order => ({
+          ...order,
+          items: order.order_items || [],
+          total_items: order.order_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0,
+          source_table: 'orders'
+        }))
+
+        setOrders(processedOrders)
+        return
+      }
+
+      if (directError) {
+        console.error('Error en consulta directa:', directError)
+      }
+
+      await fetchOrdersFromItems()
+      
+    } catch (error) {
+      console.error('Error loading orders:', error)
+      toast.error('No se pudieron cargar las compras')
+    }
+  }
+
+  // Método alternativo para buscar órdenes desde order_items
+  const fetchOrdersFromItems = async () => {
+    if (!user) return
+    
+    try {
+      const supabase = createClient()
+      
+      // Obtener todas las órdenes y filtrar por email en shipping_address
+      const { data: allOrders, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
 
       if (ordersError) {
-        console.error('Error fetching user orders:', ordersError)
+        console.error('Error fetching all orders:', ordersError)
         setOrders([])
         return
       }
 
-      if (!userOrders || userOrders.length === 0) {
-        console.log('No se encontraron órdenes para el usuario')
+      if (!allOrders || allOrders.length === 0) {
+        setOrders([])
+        return
+      }
+      
+      // Filtrar órdenes que pertenezcan al usuario actual
+      const userOrders = allOrders.filter(order => {
+        // Verificar user_id directo
+        if (order.user_id === user.id) {
+          return true
+        }
+        
+        // Verificar email en shipping_address
+        if (order.shipping_address) {
+          try {
+            const parsedShipping = typeof order.shipping_address === 'string' 
+              ? JSON.parse(order.shipping_address) 
+              : order.shipping_address
+            
+            const customerEmail = parsedShipping?.customer_data?.email
+            return customerEmail === user.email
+          } catch (e) {
+            console.warn('Error parsing shipping_address:', e)
+          }
+        }
+        
+        return false
+      })
+
+      if (userOrders.length === 0) {
         setOrders([])
         return
       }
 
       const orderIds = userOrders.map(order => order.id)
-      console.log(`Órdenes del usuario encontradas: ${orderIds.length}`, orderIds)
-
-      // Ahora cargar order_items para esas órdenes específicas
+      
+      // Ahora buscar order_items para esas órdenes
       const { data: orderItemsData, error: itemsError } = await supabase
         .from('order_items')
         .select(`
@@ -224,39 +294,36 @@ export default function PerfilPage() {
 
       if (itemsError) {
         console.error('Error fetching order items:', itemsError)
-        // No hacer return, continuar con array vacío
         setOrders([])
         return
       }
 
-      console.log(`✅ Order items cargados: ${orderItemsData?.length || 0}`)
+      if (!orderItemsData || orderItemsData.length === 0) {
+        setOrders([])
+        return
+      }
 
-      // Agrupar order_items por order_id para reconstruir órdenes
-      const orderGroups = orderItemsData?.reduce((groups, item) => {
+      // Agrupar order_items por order_id
+      const orderGroups = orderItemsData.reduce((groups, item) => {
         const orderId = item.order_id
         if (!groups[orderId]) {
           groups[orderId] = []
         }
         groups[orderId].push(item)
         return groups
-      }, {} as Record<string, any[]>) || {}
+      }, {} as Record<string, any[]>)
 
       // Reconstruir órdenes desde los grupos de items
       const processedOrders = Object.entries(orderGroups).map(([orderId, items]) => {
-        // Calcular total de la orden
         const total = items.reduce((sum, item) => sum + (item.quantity * item.price), 0)
-        
-        // Calcular total de items
         const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-
-        // Usar información del primer item para datos de la orden
         const firstItem = items[0]
         
         return {
           id: orderId,
           user_id: user.id,
           total: total,
-          payment_status: 'completed', // Asumir completado si existe en order_items
+          payment_status: 'completed',
           status: 'completed',
           created_at: firstItem.created_at || new Date().toISOString(),
           customer_email: user.email,
@@ -272,8 +339,8 @@ export default function PerfilPage() {
       setOrders(processedOrders)
       
     } catch (error) {
-      console.error('Error loading orders:', error)
-      toast.error('No se pudieron cargar las compras')
+      console.error('Error in fetchOrdersFromItems:', error)
+      setOrders([])
     }
   }
 
@@ -281,8 +348,6 @@ export default function PerfilPage() {
     if (!user) return
     try {
       const supabase = createClient()
-      console.log('Buscando suscripciones para usuario:', user.id)
-      console.log('Email del usuario:', user.email)
       
       // 1. Obtener suscripciones activas
       const { data: userSubscriptionsData, error: subscriptionsError } = await supabase
@@ -304,12 +369,6 @@ export default function PerfilPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      console.log('Resultado de user_subscriptions:', {
-        error: subscriptionsError,
-        count: userSubscriptionsData?.length || 0,
-        data: userSubscriptionsData
-      })
-
       // 2. Obtener suscripciones pendientes
       const { data: pendingSubscriptionsData, error: pendingError } = await supabase
         .from('pending_subscriptions')
@@ -317,12 +376,6 @@ export default function PerfilPage() {
         .eq('user_id', user.id)
         .in('status', ['pending'])
         .order('created_at', { ascending: false })
-
-      console.log('Resultado de pending_subscriptions:', {
-        error: pendingError,
-        count: pendingSubscriptionsData?.length || 0,
-        data: pendingSubscriptionsData
-      })
 
       // 3. Cancelar suscripciones pendientes que tengan más de 30 minutos
       if (pendingSubscriptionsData && pendingSubscriptionsData.length > 0) {
@@ -334,7 +387,6 @@ export default function PerfilPage() {
         })
 
         if (expiredSubscriptions.length > 0) {
-          console.log(`Cancelando ${expiredSubscriptions.length} suscripciones expiradas`)
           await supabase
             .from('pending_subscriptions')
             .update({ status: 'cancelled' })
@@ -433,7 +485,6 @@ export default function PerfilPage() {
         index === self.findIndex(s => s.id === sub.id)
       )
 
-      console.log(`Total de suscripciones encontradas: ${uniqueSubscriptions.length} (${subscriptionsWithBilling.length} activas, ${pendingSubscriptionsFormatted.length} pendientes)`)
       setSubscriptions(uniqueSubscriptions)
       
     } catch (error) {
