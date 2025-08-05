@@ -884,7 +884,12 @@ export default function PerfilPage() {
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-lg">Orden #{String(order.id).slice(-8)}</h3>
                             <Badge variant={order.payment_status === 'approved' ? 'default' : 'secondary'}>
-                              {order.payment_status === 'approved' ? 'Pagado' : order.payment_status}
+                              {order.payment_status === 'approved' ? 'Pagado' : 
+                               order.payment_status === 'pending' ? 'Pendiente' :
+                               order.payment_status === 'rejected' ? 'Rechazado' :
+                               order.payment_status === 'in_process' ? 'En Proceso' :
+                               order.payment_status === 'cancelled' ? 'Cancelado' :
+                               order.payment_status}
                             </Badge>
                           </div>
                           <p className="text-sm text-gray-600">
