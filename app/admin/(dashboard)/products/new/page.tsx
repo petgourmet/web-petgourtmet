@@ -126,13 +126,23 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
         setIsAuthenticated(true)
 
-        // Verificar si el usuario es administrador basado en su email
-        // Esto evita la recursión al no consultar la tabla profiles
-        const adminEmails = ["admin@petgourmet.com", "cristoferscalante@gmail.com"]
-        setIsAdmin(adminEmails.includes(session.user.email || ""))
+        // Verificar si el usuario es administrador consultando la base de datos
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+        
+        if (profileError) {
+          console.error('Error verificando rol de usuario:', profileError)
+          setIsAdmin(false)
+        } else {
+          setIsAdmin(profile?.role === 'admin')
+        }
+        
         console.log("Estado de autenticación:", {
           isAuthenticated: true,
-          isAdmin: adminEmails.includes(session.user.email || ""),
+          isAdmin: profile?.role === 'admin',
         })
       } catch (error) {
         console.error("Error inesperado al verificar autenticación:", error)
