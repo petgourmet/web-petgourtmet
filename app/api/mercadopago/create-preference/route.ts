@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     // Calcular el total de la orden incluyendo envío
     console.log("Calculating order total...")
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
-    const shipping = subtotal > 500 ? 0 : 99.0  // Envío gratis por compras mayores a $500
+    const shipping = subtotal > 500 ? 0 : 90.0  // Envío gratis por compras mayores a $500
     const taxes = 0  // Los impuestos ya están incluidos en el precio del producto
     const total = subtotal + shipping
     console.log(`Calculated subtotal: ${subtotal}, shipping: ${shipping}, taxes: ${taxes}, total: ${total}`)
@@ -174,6 +174,32 @@ export async function POST(request: Request) {
     const orderId = createdOrder[0].id
     console.log("Order created successfully with ID:", orderId)
     console.log("Created order data:", JSON.stringify(createdOrder[0], null, 2))
+
+    // Auto-asignar user_id basado en el email del cliente
+    console.log("🔄 Attempting to auto-assign user_id based on customer email...")
+    try {
+      const autoAssignResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/auto-assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId: orderId })
+      })
+      
+      if (autoAssignResponse.ok) {
+        const autoAssignResult = await autoAssignResponse.json()
+        if (autoAssignResult.success) {
+          console.log(`✅ Order ${orderId} auto-assigned to user ${autoAssignResult.userId} (${autoAssignResult.email})`)
+        } else {
+          console.log(`ℹ️ Order ${orderId} not auto-assigned: ${autoAssignResult.message}`)
+        }
+      } else {
+        console.log(`⚠️ Auto-assign API call failed with status ${autoAssignResponse.status}`)
+      }
+    } catch (autoAssignError) {
+      console.log(`⚠️ Auto-assign failed (non-critical):`, autoAssignError)
+      // No fallar la creación de la orden por esto
+    }
 
     // Verificar si estamos en modo de prueba
     const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -345,28 +371,9 @@ export async function POST(request: Request) {
     } else {
       console.log("Order updated with preference ID successfully")
 
-    // Enviar email de confirmación de orden creada
-    try {
-      const { sendOrderStatusEmail } = await import('@/lib/email-service')
-      
-      const customerName = customerData.firstName && customerData.lastName 
-        ? `${customerData.firstName} ${customerData.lastName}`
-        : customerData.firstName || customerData.email
-      
-      console.log('Sending order confirmation email')
-      
-      await sendOrderStatusEmail(
-        'pending',
-        customerData.email,
-        orderNumber,
-        customerName
-      )
-      
-      console.log('Order confirmation email sent successfully')
-    } catch (emailError) {
-      console.error('Error sending order confirmation email:', emailError)
-      // No fallar por errores de email
-    }
+    // NO enviar email de confirmación aquí - solo cuando el pago sea confirmado
+    // El email se enviará desde el webhook cuando el pago sea aprobado
+    console.log('Order created successfully, email will be sent when payment is confirmed via webhook')
     }
 
     console.log("=== CREATE PREFERENCE COMPLETED SUCCESSFULLY ===")

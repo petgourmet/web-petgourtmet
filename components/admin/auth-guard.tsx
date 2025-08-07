@@ -29,7 +29,7 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
         if (error || !session) {
           console.log("No hay sesión activa, redirigiendo a login")
           setIsAuthenticated(false)
-          router.push("/admin/login")
+          router.push("/auth/login")
           return
         }
 
@@ -55,7 +55,7 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
       } catch (error) {
         console.error("Error al verificar autenticación:", error)
         setIsAuthenticated(false)
-        router.push("/admin/login")
+        router.push("/auth/login")
       }
     }
 

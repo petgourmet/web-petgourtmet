@@ -15,6 +15,7 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [checkingPayment, setCheckingPayment] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -91,6 +92,66 @@ export default function OrderDetailPage() {
       })
     } finally {
       setUpdating(false)
+    }
+  }
+
+  async function checkPaymentStatus() {
+    if (!order || !order.mercadopago_payment_id) {
+      toast.error("No hay ID de pago de MercadoPago para verificar")
+      return
+    }
+
+    try {
+      setCheckingPayment(true)
+      
+      const response = await fetch(`/api/mercadopago/payment/${order.mercadopago_payment_id}`)
+      const paymentData = await response.json()
+
+      if (!response.ok) {
+        throw new Error(paymentData.error || 'Error al verificar el pago')
+      }
+
+      // Actualizar el estado del pago si ha cambiado
+      if (paymentData.status !== order.payment_status) {
+        // Actualizar en la base de datos
+        const updateResponse = await fetch('/api/mercadopago/payment-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            payment_id: order.mercadopago_payment_id,
+            external_reference: order.external_reference,
+            payment_type: paymentData.payment_type_id,
+            status: paymentData.status
+          })
+        })
+
+        if (updateResponse.ok) {
+          // Recargar los datos de la orden
+          await fetchOrderDetails(order.id)
+          toast.success("Estado del pago actualizado", {
+            description: `Nuevo estado: ${paymentData.status}`,
+            duration: 5000,
+          })
+        } else {
+          throw new Error('Error al actualizar el estado en la base de datos')
+        }
+      } else {
+        toast.info("El estado del pago está actualizado", {
+          description: `Estado actual: ${paymentData.status}`,
+          duration: 3000,
+        })
+      }
+
+    } catch (error: any) {
+      console.error("Error al verificar estado del pago:", error)
+      toast.error("Error al verificar el pago", {
+        description: error.message,
+        duration: 5000,
+      })
+    } finally {
+      setCheckingPayment(false)
     }
   }
 
@@ -192,6 +253,18 @@ export default function OrderDetailPage() {
           <div className="flex items-center gap-2">
             <OrderStatusBadge status={order.status} />
             <PaymentStatusBadge status={order.payment_status} />
+            <button
+              onClick={() => fetchOrderDetails(order.id)}
+              disabled={loading}
+              className="inline-flex items-center rounded-md bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            >
+              {loading ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <Clock className="mr-1 h-4 w-4" />
+              )}
+              Actualizar
+            </button>
           </div>
         </div>
 
@@ -255,6 +328,22 @@ export default function OrderDetailPage() {
                   <PaymentStatusBadge status={order.payment_status || 'pending'} />
                   <p className="text-2xl font-bold mt-2">${order.total}</p>
                   <p className="text-sm text-muted-foreground">Total del pedido</p>
+                  
+                  {/* Botón para verificar estado del pago */}
+                  {order.mercadopago_payment_id && (
+                    <button
+                      onClick={checkPaymentStatus}
+                      disabled={checkingPayment}
+                      className="mt-3 inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                    >
+                      {checkingPayment ? (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Clock className="mr-1 h-4 w-4" />
+                      )}
+                      {checkingPayment ? 'Verificando...' : 'Verificar Estado'}
+                    </button>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -268,7 +357,7 @@ export default function OrderDetailPage() {
               <CardTitle>Detalles del Pedido</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-sm text-muted-foreground font-medium">Fecha del pedido</p>
                   <p className="font-semibold">{formatDate(order.created_at)}</p>
@@ -280,10 +369,6 @@ export default function OrderDetailPage() {
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-sm text-muted-foreground font-medium">Estado del Pago</p>
                   <PaymentStatusBadge status={order.payment_status || 'pending'} />
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-muted-foreground font-medium">ID de transacción</p>
-                  <p className="font-mono text-xs bg-white px-2 py-1 rounded border">{order.transaction_id || order.mercadopago_payment_id || "N/A"}</p>
                 </div>
               </div>
               
@@ -889,6 +974,10 @@ function PaymentStatusBadge({ status }: { status: string }) {
       bgColor = "bg-blue-100 text-blue-800 border border-blue-200"
       icon = <Clock className="h-3 w-3" />
       break
+    case "refunded":
+      bgColor = "bg-gray-100 text-gray-800 border border-gray-200"
+      icon = <XCircle className="h-3 w-3" />
+      break
   }
 
   const getStatusText = (status: string) => {
@@ -899,6 +988,7 @@ function PaymentStatusBadge({ status }: { status: string }) {
       case "approved": return "Aprobado"
       case "rejected": return "Rechazado"
       case "in_process": return "En Proceso"
+      case "refunded": return "Reembolsado"
       default: return status
     }
   }

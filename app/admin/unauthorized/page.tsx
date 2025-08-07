@@ -41,7 +41,7 @@ export default function UnauthorizedPage() {
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
             No tienes permisos para acceder a esta sección del panel de administración.
           </p>
-          <Link href="/admin/login" passHref>
+          <Link href="/auth/login" passHref>
             <Button className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
               Volver al inicio de sesión

@@ -61,28 +61,34 @@ export async function POST(request: Request) {
       }
 
       if (orderNotes && orderNotes.frequency && orderNotes.frequency !== "none") {
-        // Crear o activar suscripción
-        const subscriptionData = {
-          user_id: order.user_id,
-          order_id: orderId,
-          product_id: orderNotes.productId || null,
-          product_name: orderNotes.productName || "Producto de suscripción",
-          subscription_type: orderNotes.frequency,
-          quantity: orderNotes.quantity || 1,
-          base_price: order.subtotal,
-          discounted_price: order.total,
-          status: "active",
-          next_billing_date: calculateNextBillingDate(orderNotes.frequency),
-          created_at: new Date().toISOString()
-        }
+        // Solo crear suscripción si tiene un mercadopago_subscription_id válido
+        // Las suscripciones deben estar conectadas a los webhooks de Mercado Pago
+        if (orderNotes.mercadopago_subscription_id) {
+          const subscriptionData = {
+            user_id: order.user_id,
+            order_id: orderId,
+            product_id: orderNotes.productId || null,
+            product_name: orderNotes.productName || "Producto de suscripción",
+            subscription_type: orderNotes.frequency,
+            quantity: orderNotes.quantity || 1,
+            base_price: order.subtotal,
+            discounted_price: order.total,
+            status: "active",
+            mercadopago_subscription_id: orderNotes.mercadopago_subscription_id,
+            next_billing_date: calculateNextBillingDate(orderNotes.frequency),
+            created_at: new Date().toISOString()
+          }
 
-        const { error: subscriptionError } = await supabaseAdmin
-          .from("user_subscriptions")
-          .insert(subscriptionData)
+          const { error: subscriptionError } = await supabaseAdmin
+            .from("user_subscriptions")
+            .insert(subscriptionData)
 
-        if (subscriptionError) {
-          console.error("Error creating subscription:", subscriptionError)
-          // No fallar la confirmación del pago por esto, solo loggear
+          if (subscriptionError) {
+            console.error("Error creating subscription:", subscriptionError)
+            // No fallar la confirmación del pago por esto, solo loggear
+          }
+        } else {
+          console.log("Skipping subscription creation - no mercadopago_subscription_id provided")
         }
       }
     } catch (subscriptionError) {

@@ -100,6 +100,7 @@ export default function SuscripcionPage() {
         .eq("external_reference", externalReference)
         .eq("user_id", user.id)
         .eq("status", "pending")
+        .not('mercadopago_subscription_id', 'is', null)
 
       if (pendingError || !pendingSubscriptions || pendingSubscriptions.length === 0) {
         console.log("No se encontraron suscripciones pendientes")

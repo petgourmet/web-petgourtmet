@@ -349,7 +349,7 @@ export default function PerfilPage() {
     try {
       const supabase = createClient()
       
-      // 1. Obtener suscripciones activas
+      // 1. Obtener solo suscripciones conectadas a Mercado Pago
       const { data: userSubscriptionsData, error: subscriptionsError } = await supabase
         .from('user_subscriptions')
         .select(`
@@ -367,6 +367,7 @@ export default function PerfilPage() {
           )
         `)
         .eq('user_id', user.id)
+        .not('mercadopago_subscription_id', 'is', null)
         .order('created_at', { ascending: false })
 
       // 2. Obtener suscripciones pendientes
@@ -375,6 +376,7 @@ export default function PerfilPage() {
         .select('*')
         .eq('user_id', user.id)
         .in('status', ['pending'])
+        .not('mercadopago_subscription_id', 'is', null)
         .order('created_at', { ascending: false })
 
       // 3. Cancelar suscripciones pendientes que tengan más de 30 minutos
@@ -889,6 +891,7 @@ export default function PerfilPage() {
                                order.payment_status === 'rejected' ? 'Rechazado' :
                                order.payment_status === 'in_process' ? 'En Proceso' :
                                order.payment_status === 'cancelled' ? 'Cancelado' :
+                               order.payment_status === 'refunded' ? 'Reembolsado' :
                                order.payment_status}
                             </Badge>
                           </div>

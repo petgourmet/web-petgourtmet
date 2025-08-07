@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { createPortal } from "react-dom"
 import Image from "next/image"
 import { X, Star, ShoppingCart, Check, Minus, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,12 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const [purchaseType, setPurchaseType] = useState<'single' | 'subscription'>('single')
   const [selectedSubscriptionType, setSelectedSubscriptionType] = useState<SubscriptionType | null>(null)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   // Obtener tipos de suscripción disponibles
   const availableSubscriptionTypes = product.subscription_types || []
@@ -67,7 +74,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
     return basePrice
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
   const handleAddToCart = () => {
     if (!product) return
@@ -107,13 +114,28 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
 
 
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+      style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0,
+        zIndex: 9999
+      }}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto relative mx-auto my-auto" style={{ position: 'relative', transform: 'translate(0, 0)' }}>
+      <div 
+        className="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto relative mx-auto my-auto" 
+        style={{ 
+          position: 'relative', 
+          transform: 'translate(0, 0)',
+          maxHeight: '90vh',
+          maxWidth: '90vw'
+        }}
+      >
         <div className="sticky top-0 z-10 flex justify-end p-4 bg-white dark:bg-gray-800 border-b">
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
             <X className="h-5 w-5" />
@@ -357,4 +379,6 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

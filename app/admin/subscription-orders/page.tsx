@@ -18,7 +18,11 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
-  Shield
+  Shield,
+  Download,
+  Upload,
+  TrendingUp,
+  Activity
 } from "lucide-react"
 
 interface AdminSubscription {
@@ -69,6 +73,9 @@ export default function AdminSubscriptionOrdersPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [refreshing, setRefreshing] = useState(false)
   const [validatingPayment, setValidatingPayment] = useState<string | null>(null)
+  const [validatingAll, setValidatingAll] = useState(false)
+  const [validationStats, setValidationStats] = useState<any>(null)
+  const [showValidationModal, setShowValidationModal] = useState(false)
   
   const supabase = createClient()
 
@@ -97,7 +104,8 @@ export default function AdminSubscriptionOrdersPage() {
       }
       
       // ✅ IMPLEMENTAR TIEMPO REAL: Configurar suscripción a cambios (solo una vez)
-      if (currentRetry === 0) {
+      if (currentRetry === 0 && !window.subscriptionRealtimeChannel) {
+        console.log('🔄 Configurando suscripción en tiempo real...')
         const subscriptionChannel = supabase
           .channel('admin_subscriptions_realtime')
           .on('postgres_changes', {
@@ -105,7 +113,7 @@ export default function AdminSubscriptionOrdersPage() {
             schema: 'public',
             table: 'user_subscriptions'
           }, (payload) => {
-            console.log('🔄 [ADMIN] Cambio en suscripción detectado:', payload)
+            console.log('📡 Cambio detectado en suscripciones:', payload.eventType)
             
             // Refrescar suscripciones automáticamente (sin retry)
             fetchAllSubscriptions(0)
@@ -117,10 +125,19 @@ export default function AdminSubscriptionOrdersPage() {
               console.log('🆕 Nueva suscripción creada')
             }
           })
-          .subscribe()
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Canal de tiempo real conectado exitosamente')
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('❌ Error en canal de tiempo real')
+              window.subscriptionRealtimeChannel = null
+            }
+          })
 
         // Guardar referencia para cleanup posterior
         window.subscriptionRealtimeChannel = subscriptionChannel
+      } else if (window.subscriptionRealtimeChannel) {
+        console.log('⚠️ Canal de tiempo real ya existe, evitando duplicación')
       }
       
       // Obtener suscripciones con manejo de errores granular
@@ -128,7 +145,7 @@ export default function AdminSubscriptionOrdersPage() {
       let error = null
       
       try {
-        // Obtener suscripciones sin relación con profiles por ahora
+        // Obtener solo suscripciones conectadas a Mercado Pago (con webhook)
         const result = await supabase
           .from("user_subscriptions")
           .select(`
@@ -140,6 +157,7 @@ export default function AdminSubscriptionOrdersPage() {
               price
             )
           `)
+          .not('mercadopago_subscription_id', 'is', null)
           .order("created_at", { ascending: false })
         
         subscriptionsData = result.data
@@ -456,8 +474,73 @@ export default function AdminSubscriptionOrdersPage() {
     }
   }
 
+  const validateAllPayments = async (paymentType: string = 'pending', limit: number = 50) => {
+    setValidatingAll(true)
+    
+    try {
+      console.log(`🔍 Iniciando validación masiva de pagos (${paymentType})...`)
+      
+      const response = await fetch('/api/admin/validate-all-payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ payment_type: paymentType, limit })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        console.log('✅ Validación masiva exitosa:', result.summary)
+        
+        setValidationStats(result.summary)
+        setShowValidationModal(true)
+        
+        toast.success(`Validación completada: ${result.summary.successful_validations}/${result.summary.total_processed} exitosos`, {
+          description: `${result.summary.updated_payments} pagos actualizados`
+        })
+        
+        // Refrescar datos
+        await fetchAllSubscriptions()
+      } else {
+        console.error('❌ Error en validación masiva:', result)
+        toast.error("Error en validación masiva", {
+          description: result.error || "Error desconocido"
+        })
+      }
+    } catch (error) {
+      console.error('💥 Error en validación masiva:', error)
+      toast.error("Error de conexión en validación masiva")
+    } finally {
+      setValidatingAll(false)
+    }
+  }
+
+  const fetchValidationStats = async () => {
+    try {
+      const response = await fetch('/api/admin/validate-all-payments?status=pending')
+      const result = await response.json()
+      
+      if (response.ok && result.success) {
+        return result.stats
+      }
+    } catch (error) {
+      console.error('Error al obtener estadísticas:', error)
+    }
+    return null
+  }
+
   useEffect(() => {
     fetchAllSubscriptions()
+    
+    // Cleanup function para evitar suscripciones múltiples
+    return () => {
+      if (window.subscriptionRealtimeChannel) {
+        console.log('🧹 Limpiando canal de tiempo real...')
+        window.subscriptionRealtimeChannel.unsubscribe()
+        window.subscriptionRealtimeChannel = null
+      }
+    }
   }, [])
 
   // Filtrar suscripciones
@@ -532,6 +615,8 @@ export default function AdminSubscriptionOrdersPage() {
       case 'cancelled':
       case 'failed':
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Fallido ❌</Badge>
+      case 'refunded':
+        return <Badge variant="outline" className="bg-gray-100 text-gray-800"><XCircle className="h-3 w-3 mr-1" />Reembolsado 💰</Badge>
       default:
         return <Badge variant="outline"><AlertTriangle className="h-3 w-3 mr-1" />Estado: {payment.status}</Badge>
     }
@@ -714,6 +799,17 @@ export default function AdminSubscriptionOrdersPage() {
                 <option value="inactive">Inactivas</option>
                 <option value="cancelled">Canceladas</option>
               </select>
+              
+              <Button
+                onClick={() => validateAllPayments('pending', 50)}
+                disabled={validatingAll}
+                variant="outline"
+                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+              >
+                <Shield className={`h-4 w-4 ${validatingAll ? 'animate-pulse' : ''}`} />
+                {validatingAll ? 'Validando...' : 'Validar Pagos'}
+              </Button>
+              
               <Button
                 onClick={handleRefresh}
                 disabled={refreshing}
@@ -937,6 +1033,120 @@ export default function AdminSubscriptionOrdersPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Modal de Resultados de Validación */}
+      {showValidationModal && validationStats && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Resultados de Validación Masiva</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowValidationModal(false)}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              {/* Resumen */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-600">{validationStats.total_processed}</div>
+                    <div className="text-sm text-gray-600">Total Procesados</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-green-600">{validationStats.successful_validations}</div>
+                    <div className="text-sm text-gray-600">Exitosos</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-red-600">{validationStats.failed_validations}</div>
+                    <div className="text-sm text-gray-600">Fallidos</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-orange-600">{validationStats.updated_payments}</div>
+                    <div className="text-sm text-gray-600">Actualizados</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {formatPrice(validationStats.total_amount_validated)}
+                    </div>
+                    <div className="text-sm text-gray-600">Monto Total</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Detalles */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Detalles por Pago</h3>
+                <div className="max-h-96 overflow-y-auto">
+                  {validationStats.results.map((result: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2">
+                      <div className="flex-1">
+                        <div className="font-mono text-sm text-gray-600">
+                          MP: {result.payment_id}
+                        </div>
+                        <div className="text-sm">
+                          {result.original_status} → {result.mercadopago_status}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">{formatPrice(result.amount)}</div>
+                        <div className="flex items-center gap-2">
+                          {result.updated ? (
+                            <Badge variant="default" className="bg-green-600">
+                              <CheckCircle className="h-3 w-3 mr-1" />Actualizado
+                            </Badge>
+                          ) : result.error ? (
+                            <Badge variant="destructive">
+                              <XCircle className="h-3 w-3 mr-1" />Error
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <Clock className="h-3 w-3 mr-1" />Sin cambios
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t bg-gray-50">
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowValidationModal(false)}
+                >
+                  Cerrar
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowValidationModal(false)
+                    handleRefresh()
+                  }}
+                >
+                  Actualizar Lista
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

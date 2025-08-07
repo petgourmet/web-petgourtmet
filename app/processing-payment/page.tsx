@@ -32,67 +32,52 @@ function ProcessingPaymentContent() {
 
   useEffect(() => {
     const processPayment = async () => {
-      if (!orderId || !paymentId || !status) {
-        setError('Faltan parámetros requeridos en la URL')
+      // Con webhooks, solo necesitamos order_id o external_reference para consultar el estado
+      if (!orderId && !externalReference) {
+        setError('Se requiere order_id o external_reference para consultar el estado del pago')
         setIsLoading(false)
         return
       }
 
       // Detectar si son parámetros de prueba
-      const isTestData = orderId === '123' || paymentId === '12345' || orderId.toString().startsWith('test') || paymentId.includes('{{') || paymentId.includes('}}')
+      const isTestData = orderId === '123' || (paymentId && paymentId === '12345') || (orderId && orderId.toString().startsWith('test')) || (paymentId && (paymentId.includes('{{') || paymentId.includes('}}')))
       
       try {
-        // Solo intentar actualizar en la base de datos si no son datos de prueba
         if (!isTestData) {
-          // 1. Actualizar el estado del pago en la base de datos
-          const paymentStatusUrl = new URL('/api/mercadopago/payment-status', window.location.origin)
-          paymentStatusUrl.searchParams.set('payment_id', paymentId)
-          paymentStatusUrl.searchParams.set('status', status)
-          if (orderId) paymentStatusUrl.searchParams.set('order_id', orderId)
-          if (externalReference) paymentStatusUrl.searchParams.set('external_reference', externalReference)
-          if (collectionId) paymentStatusUrl.searchParams.set('collection_id', collectionId)
-          if (collectionStatus) paymentStatusUrl.searchParams.set('collection_status', collectionStatus)
-          if (paymentType) paymentStatusUrl.searchParams.set('payment_type', paymentType)
-          if (merchantOrderId) paymentStatusUrl.searchParams.set('merchant_order_id', merchantOrderId)
-
-          const updateResponse = await fetch(paymentStatusUrl.toString())
-
-          if (!updateResponse.ok) {
-            const errorData = await updateResponse.json()
-            throw new Error(errorData.error || 'Error al actualizar el estado del pago')
-          }
-
-          const updateResult = await updateResponse.json()
-          console.log('Payment status updated:', updateResult)
-
-          // 2. Obtener información detallada del pago desde MercadoPago
-          const paymentResponse = await fetch(`/api/mercadopago/payment/${paymentId}`)
-          if (paymentResponse.ok) {
-            const paymentInfo = await paymentResponse.json()
-            setPaymentData(paymentInfo)
-          }
-
-          // 3. Obtener información de la orden
+          // Con webhooks, solo consultamos el estado actual de la orden
           if (orderId) {
             const orderResponse = await fetch(`/api/orders/${orderId}`)
             if (orderResponse.ok) {
               const orderInfo = await orderResponse.json()
               setOrderData(orderInfo.order)
+              
+              // Si tenemos payment_id, obtener información del pago
+              if (paymentId) {
+                const paymentResponse = await fetch(`/api/mercadopago/payment/${paymentId}`)
+                if (paymentResponse.ok) {
+                  const paymentInfo = await paymentResponse.json()
+                  setPaymentData(paymentInfo)
+                }
+              }
+            } else {
+              throw new Error('No se pudo obtener la información de la orden')
             }
-          }
-
-          // 4. Validar y actualizar el estado final del pago
-          const validateResponse = await fetch(`/api/mercadopago/validate-payment?payment_ids=${paymentId}`)
-          if (validateResponse.ok) {
-            const validationResult = await validateResponse.json()
-            console.log('Validación del pago:', validationResult)
+          } else if (externalReference) {
+            // Buscar orden por external_reference si no tenemos order_id
+            const searchResponse = await fetch(`/api/orders/search?external_reference=${externalReference}`)
+            if (searchResponse.ok) {
+              const searchResult = await searchResponse.json()
+              if (searchResult.order) {
+                setOrderData(searchResult.order)
+              }
+            }
           }
         } else {
           // Para datos de prueba, simular datos básicos
           console.log('Modo de prueba detectado - usando datos simulados')
           setPaymentData({
-            id: paymentId,
-            status: status,
+            id: paymentId || '12345',
+            status: status || 'approved',
             payment_method_id: paymentType || 'cash',
             transaction_amount: 1500,
             currency_id: 'ARS'

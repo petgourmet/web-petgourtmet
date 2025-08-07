@@ -263,7 +263,7 @@ export function CheckoutModal() {
 
       // Calcular el total
       const subtotal = calculateCartTotal()
-      const shipping = subtotal > 500 ? 0 : 99 // Envío gratis por compras mayores a $500 MXN
+      const shipping = subtotal > 500 ? 0 : 90 // Envío gratis por compras mayores a $500 MXN
       const total = subtotal + shipping
 
       // Generar un número de orden único
@@ -314,12 +314,14 @@ export function CheckoutModal() {
       const { orderId } = await response.json()
       */
 
-      // Generar un external reference único para MercadoPago
-      const externalReference = `${orderNumber}_${Date.now()}`
-
       // Verificar si hay suscripciones en el carrito
       const hasSubscriptionItems = hasSubscriptions()
       const subscriptionType = getSubscriptionType()
+
+      // Generar un external reference único para MercadoPago
+      // Para suscripciones, agregar prefijo 'subscription_' para que el webhook las detecte
+      const baseReference = `${orderNumber}_${Date.now()}`
+      const externalReference = hasSubscriptionItems ? `subscription_${baseReference}` : baseReference
 
       // Si hay suscripciones, redirigir al enlace de suscripción de Mercado Pago
       if (hasSubscriptionItems && subscriptionType && !isTestMode) {
@@ -712,7 +714,7 @@ export function CheckoutModal() {
                   </div>
                   <div className="flex justify-between mb-2">
                     <span>Envío</span>
-                    <span>{calculateCartTotal() > 500 ? "Gratis" : "$99.00 MXN"}</span>
+                    <span>{calculateCartTotal() > 500 ? "Gratis" : "$90.00 MXN"}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg mt-4">
                     <span>Total</span>
@@ -720,7 +722,7 @@ export function CheckoutModal() {
                       $
                       {(
                         calculateCartTotal() +
-                        (calculateCartTotal() > 500 ? 0 : 99)
+                        (calculateCartTotal() > 500 ? 0 : 90)
                       ).toFixed(2)}{" "}
                       MXN
                     </span>

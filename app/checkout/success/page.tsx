@@ -16,33 +16,38 @@ function CheckoutSuccessContent() {
   const paymentId = searchParams.get('payment_id')
   const status = searchParams.get('status')
   const externalReference = searchParams.get('external_reference')
+  const orderId = searchParams.get('order_id')
 
   useEffect(() => {
     const fetchPaymentInfo = async () => {
-      if (paymentId) {
-        try {
-          // Obtener información del pago desde nuestro backend
+      try {
+        // Con webhooks, solo consultamos el estado actual
+        if (orderId) {
+          const response = await fetch(`/api/orders/${orderId}`)
+          if (response.ok) {
+            const data = await response.json()
+            setOrderData(data.order)
+          }
+        } else if (externalReference) {
+          const response = await fetch(`/api/orders/search?external_reference=${externalReference}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.order) {
+              setOrderData(data.order)
+            }
+          }
+        }
+        
+        // Obtener información del pago si está disponible
+        if (paymentId) {
           const response = await fetch(`/api/mercadopago/payment/${paymentId}`)
           if (response.ok) {
             const data = await response.json()
             setPaymentData(data)
           }
-        } catch (error) {
-          console.error('Error fetching payment info:', error)
         }
-      }
-      
-      if (externalReference) {
-        try {
-          // Obtener información del pedido
-          const response = await fetch(`/api/orders/${externalReference}`)
-          if (response.ok) {
-            const data = await response.json()
-            setOrderData(data)
-          }
-        } catch (error) {
-          console.error('Error fetching order info:', error)
-        }
+      } catch (error) {
+        console.error('Error fetching info:', error)
       }
       
       setIsLoading(false)

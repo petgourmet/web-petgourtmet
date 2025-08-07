@@ -316,7 +316,7 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
           <AlertDescription>
             Debes iniciar sesión para poder crear o editar blogs.
             <div className="mt-2">
-              <Link href="/admin/login">
+              <Link href="/auth/login">
                 <Button variant="outline" size="sm">
                   Ir a iniciar sesión
                 </Button>

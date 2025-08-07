@@ -382,7 +382,8 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         // Crear nuevo producto
         const { data, error } = await supabase.from("products").insert([productData]).select()
         if (error) throw error
-        productId = data[0].id      } else {
+        productId = data[0].id
+      } else {
         // Actualizar producto existente
         productId = Number.parseInt(resolvedParams.id)
         
@@ -442,7 +443,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           <AlertDescription>
             Debes iniciar sesión para poder crear o editar productos.
             <div className="mt-2">
-              <Link href="/admin/login">
+              <Link href="/auth/login">
                 <Button variant="outline" size="sm">
                   Ir a iniciar sesión
                 </Button>

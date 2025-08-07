@@ -7,7 +7,9 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "verify-mercadopago": "node scripts/verify-mercadopago.js"
+    "verify-mercadopago": "node scripts/verify-mercadopago.js",
+    "test-webhook": "node scripts/test-webhook.js",
+    "test-webhook-local": "node scripts/local-webhook-test.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",

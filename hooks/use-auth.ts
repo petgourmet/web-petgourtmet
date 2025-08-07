@@ -80,7 +80,7 @@ export function useAuth() {
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut()
-      router.push("/admin/login")
+      router.push("/auth/login")
       return { error }
     } catch (err: any) {
       console.error("Error en signOut:", err)

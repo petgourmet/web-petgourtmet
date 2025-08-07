@@ -6,7 +6,7 @@ import type { Product } from "@/lib/supabase/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Edit, Trash2, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Copy, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -53,14 +53,67 @@ export default function ProductsPage() {
       return
     }
 
+    // Mostrar mensaje de eliminando
+    const deletingAlert = setTimeout(() => {
+      alert("Eliminando producto...")
+    }, 100)
+
     try {
       const { error } = await supabase.from("products").delete().eq("id", id)
       if (error) throw error
 
+      // Limpiar el mensaje de eliminando
+      clearTimeout(deletingAlert)
+
       // Actualizar la lista de productos
       setProducts(products.filter((product) => product.id !== id))
+      
+      alert("¡Producto eliminado exitosamente!")
     } catch (error) {
+      // Limpiar el mensaje de eliminando en caso de error
+      clearTimeout(deletingAlert)
       console.error("Error al eliminar el producto:", error)
+      alert("Error al eliminar el producto. Por favor, inténtalo de nuevo.")
+    }
+  }
+
+  async function handleDuplicateProduct(id: number) {
+    if (!window.confirm("¿Deseas duplicar este producto?")) {
+      return
+    }
+
+    // Mostrar mensaje de duplicando
+    const duplicatingAlert = setTimeout(() => {
+      alert("Duplicando producto...")
+    }, 100)
+
+    try {
+      const response = await fetch("/api/admin/duplicate-product", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ productId: id }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al duplicar el producto")
+      }
+
+      // Limpiar el mensaje de duplicando
+      clearTimeout(duplicatingAlert)
+
+      // Recargar la lista de productos para mostrar el duplicado
+      await fetchProducts()
+      
+      alert("¡Producto duplicado exitosamente!")
+    } catch (error: any) {
+      // Limpiar el mensaje de duplicando en caso de error
+      clearTimeout(duplicatingAlert)
+      console.error("Error al duplicar el producto:", error)
+      alert("Error al duplicar el producto: " + error.message)
     }
   }
 
@@ -137,6 +190,15 @@ export default function ProductsPage() {
                           <span>Editar</span>
                         </Button>
                       </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+                        onClick={() => handleDuplicateProduct(product.id)}
+                        title="Duplicar producto"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

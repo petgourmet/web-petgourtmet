@@ -12,22 +12,62 @@ function CheckoutPendingContent() {
 
   const paymentId = searchParams.get('payment_id')
   const externalReference = searchParams.get('external_reference')
+  const orderId = searchParams.get('order_id')
 
   const checkPaymentStatus = async () => {
-    if (!paymentId) return
+    if (!paymentId && !orderId && !externalReference) return
 
     setCheckingStatus(true)
     try {
-      const response = await fetch(`/api/mercadopago/payment/${paymentId}`)
-      if (response.ok) {
-        const data = await response.json()
-        
-        if (data.status === 'approved') {
-          window.location.href = `/checkout/success?payment_id=${paymentId}&status=approved&external_reference=${externalReference}`
-        } else if (data.status === 'rejected') {
-          window.location.href = `/checkout/failure?payment_id=${paymentId}&status=rejected&external_reference=${externalReference}`
+      let orderData = null
+      
+      // Con webhooks, consultamos el estado de la orden
+      if (orderId) {
+        const response = await fetch(`/api/orders/${orderId}`)
+        if (response.ok) {
+          const data = await response.json()
+          orderData = data.order
         }
-        // Si sigue pending, no hacemos nada y el usuario puede volver a verificar
+      } else if (externalReference) {
+        const response = await fetch(`/api/orders/search?external_reference=${externalReference}`)
+        if (response.ok) {
+          const data = await response.json()
+          orderData = data.order
+        }
+      }
+      
+      // Verificar estado del pago si tenemos payment_id
+      if (paymentId) {
+        const response = await fetch(`/api/mercadopago/payment/${paymentId}`)
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.status === 'approved') {
+            const params = new URLSearchParams()
+            if (paymentId) params.set('payment_id', paymentId)
+            if (orderId) params.set('order_id', orderId)
+            if (externalReference) params.set('external_reference', externalReference)
+            params.set('status', 'approved')
+            window.location.href = `/checkout/success?${params.toString()}`
+          } else if (data.status === 'rejected') {
+            const params = new URLSearchParams()
+            if (paymentId) params.set('payment_id', paymentId)
+            if (orderId) params.set('order_id', orderId)
+            if (externalReference) params.set('external_reference', externalReference)
+            params.set('status', 'rejected')
+            window.location.href = `/checkout/failure?${params.toString()}`
+          }
+        }
+      }
+      
+      // Si tenemos datos de la orden, verificar su estado
+      if (orderData && orderData.payment_status === 'paid') {
+        const params = new URLSearchParams()
+        if (paymentId) params.set('payment_id', paymentId)
+        if (orderId) params.set('order_id', orderId)
+        if (externalReference) params.set('external_reference', externalReference)
+        params.set('status', 'approved')
+        window.location.href = `/checkout/success?${params.toString()}`
       }
     } catch (error) {
       console.error('Error checking payment status:', error)
