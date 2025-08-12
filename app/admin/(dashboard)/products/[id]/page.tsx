@@ -33,6 +33,21 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
+// Helper function para normalizar subscription_types
+const normalizeSubscriptionTypes = (subscriptionTypes: any): string[] => {
+  if (!subscriptionTypes) return []
+  if (Array.isArray(subscriptionTypes)) return subscriptionTypes
+  if (typeof subscriptionTypes === 'string') {
+    try {
+      const parsed = JSON.parse(subscriptionTypes)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
@@ -1230,9 +1245,9 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
                               id={`subscription-${type}`}
-                              checked={product.subscription_types?.includes(type) || false}
+                              checked={normalizeSubscriptionTypes(product.subscription_types).includes(type)}
                               onCheckedChange={(checked) => {
-                                const currentTypes = product.subscription_types || []
+                                const currentTypes = normalizeSubscriptionTypes(product.subscription_types)
                                 const updatedTypes = checked
                                   ? [...currentTypes.filter(t => t !== type), type]
                                   : currentTypes.filter((t) => t !== type)
