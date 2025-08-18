@@ -1,126 +1,116 @@
-"use client"
+// PROTOTIPO NO UTILIZADO - TODO EL CÓDIGO COMENTADO
+// "use client"
 
-import { useEffect, useState } from "react"
-import { usePlanForm } from "@/contexts/plan-form-context"
-import FormStep from "../form-step"
-import SelectionCard from "../selection-card"
+// import { useEffect, useState } from "react"
+// import { usePlanForm } from "@/contexts/plan-form-context"
+// import FormStep from "../form-step"
+// import SelectionCard from "../selection-card"
 
-// Lista de razas comunes de perros
-const DOG_BREEDS = [
-  "Beagle",
-  "Bergamasco",
-  "Bichón Frisé",
-  "Border Collie",
-  "Boston Terrier",
-  "Boxer",
-  "Bulldog Francés",
-  "Bulldog Inglés",
-  "Caniche",
-  "Chihuahua",
-  "Cocker Spaniel",
-  "Dálmata",
-  "Dandie Dinmont Terrier",
-  "Doberman",
-  "Dogo Argentino",
-  "Golden Retriever",
-  "Husky Siberiano",
-  "Jack Russell Terrier",
-  "Labrador Retriever",
-  "Maltés",
-  "Pastor Alemán",
-  "Pekingese",
-  "Pinscher Miniatura",
-  "Pitbull",
-  "Pomerania",
-  "Pug",
-  "Rottweiler",
-  "Salchicha",
-  "Schnauzer",
-  "Shih Tzu",
-  "Yorkshire Terrier",
-]
+// export default function BreedNeuteredStep() {
+//   const { formData, updateFormData } = usePlanForm()
+//   const [breed, setBreed] = useState(formData.breed || "")
+//   const [isNeutered, setIsNeutered] = useState(formData.isNeutered)
+//   const [petName, setPetName] = useState(formData.name)
 
-export default function BreedNeuteredStep() {
-  const { formData, updateFormData } = usePlanForm()
-  const [breed, setBreed] = useState(formData.breed)
-  const [isNeutered, setIsNeutered] = useState(formData.isNeutered)
-  const [petName, setPetName] = useState(formData.name)
+//   // Actualizar el estado global cuando cambian los datos
+//   useEffect(() => {
+//     updateFormData({ breed, isNeutered })
+//   }, [breed, isNeutered, updateFormData])
 
-  // Actualizar el estado global cuando cambia la raza o estado de esterilización
-  useEffect(() => {
-    updateFormData({ breed, isNeutered })
-  }, [breed, isNeutered, updateFormData])
+//   // Actualizar el nombre local cuando cambia en el contexto
+//   useEffect(() => {
+//     setPetName(formData.name)
+//   }, [formData.name])
 
-  // Actualizar el nombre local cuando cambia en el contexto
-  useEffect(() => {
-    setPetName(formData.name)
-  }, [formData.name])
+//   const breedOptions = [
+//     { id: "small", label: "Raza pequeña", description: "Hasta 10kg", icon: "🐕" },
+//     { id: "medium", label: "Raza mediana", description: "10-25kg", icon: "🐶" },
+//     { id: "large", label: "Raza grande", description: "25kg o más", icon: "🐕‍🦺" },
+//     { id: "mixed", label: "Raza mixta", description: "Mestizo", icon: "🐾" }
+//   ]
 
-  return (
-    <FormStep stepNumber={4} title={`¿${petName} está esterilizad@?`} highlightedWord="esterilizad@">
-      <div className="w-full max-w-md mx-auto">
-        {/* Selector de raza */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 dark:text-black mb-1">Raza:</label>
-          <div className="relative">
-            <select
-              value={breed}
-              onChange={(e) => setBreed(e.target.value)}
-              className="w-full p-4 bg-teal-50 dark:bg-white dark:text-black border border-teal-100 dark:border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 dark:focus:ring-red-500 transition-all appearance-none cursor-pointer"
-            >
-              <option value="">Selecciona una raza</option>
-              {DOG_BREEDS.map((dogBreed) => (
-                <option key={dogBreed} value={dogBreed}>
-                  {dogBreed}
-                </option>
-              ))}
-            </select>
+//   return (
+//     <FormStep 
+//       stepNumber={3} 
+//       title={`Cuéntanos sobre ${petName}`} 
+//       highlightedWord={petName}
+//       infoText="Esta información nos ayuda a personalizar mejor el plan nutricional."
+//     >
+//       <div className="w-full max-w-2xl mx-auto space-y-8">
+//         {/* Selección de raza */}
+//         <div>
+//           <h3 className="text-lg font-medium text-gray-800 mb-4">¿Qué tipo de raza es {petName}?</h3>
+//           <div className="grid grid-cols-2 gap-4">
+//             {breedOptions.map((option) => (
+//               <SelectionCard
+//                 key={option.id}
+//                 selected={breed === option.id}
+//                 onClick={() => setBreed(option.id)}
+//                 icon={
+//                   <div className="text-3xl mb-2">
+//                     {option.icon}
+//                   </div>
+//                 }
+//                 label={
+//                   <div className="text-center">
+//                     <div className="font-medium">{option.label}</div>
+//                     <div className="text-xs text-gray-500 mt-1">{option.description}</div>
+//                   </div>
+//                 }
+//               />
+//             ))}
+//           </div>
+//         </div>
 
-            {/* Flecha desplegable */}
-            <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
-              <svg className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
+//         {/* Selección de esterilización */}
+//         <div>
+//           <h3 className="text-lg font-medium text-gray-800 mb-4">¿{petName} está esterilizado/castrado?</h3>
+//           <div className="grid grid-cols-2 gap-4">
+//             <SelectionCard
+//               selected={isNeutered === true}
+//               onClick={() => setIsNeutered(true)}
+//               icon={
+//                 <div className="text-3xl mb-2">✅</div>
+//               }
+//               label="Sí, está esterilizado"
+//             />
+//             <SelectionCard
+//               selected={isNeutered === false}
+//               onClick={() => setIsNeutered(false)}
+//               icon={
+//                 <div className="text-3xl mb-2">❌</div>
+//               }
+//               label="No está esterilizado"
+//             />
+//           </div>
+//         </div>
 
-        {/* Opciones de esterilización */}
-        <div className="mt-8">
-          <p className="text-center text-gray-600 dark:text-black mb-4">¿Está esterilizad@?</p>
-          <div className="grid grid-cols-2 gap-4">
-            <SelectionCard
-              selected={isNeutered === true}
-              onClick={() => setIsNeutered(true)}
-              label="Sí está esterilizad@"
-            />
-            <SelectionCard
-              selected={isNeutered === false}
-              onClick={() => setIsNeutered(false)}
-              label="No está esterilizad@"
-            />
-          </div>
-        </div>
+//         {/* Información adicional */}
+//         {breed && (
+//           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+//             <h4 className="font-medium text-blue-800 mb-2">Información sobre la raza seleccionada:</h4>
+//             <p className="text-sm text-blue-700">
+//               {breed === "small" && "Las razas pequeñas tienen un metabolismo más rápido y necesitan más calorías por kilogramo de peso."}
+//               {breed === "medium" && "Las razas medianas tienen necesidades nutricionales equilibradas y son ideales para dietas estándar."}
+//               {breed === "large" && "Las razas grandes necesitan nutrición específica para el cuidado de articulaciones y control de peso."}
+//               {breed === "mixed" && "Los perros mestizos pueden tener características de diferentes razas, por lo que adaptaremos el plan según su tamaño y actividad."}
+//             </p>
+//           </div>
+//         )}
 
-        {/* Información adicional */}
-        {breed && (
-          <div className="mt-8 p-4 bg-teal-50 border border-teal-100 rounded-lg">
-            <div className="flex items-center">
-              <img src="/simple-dog-paw.png" alt="Paw" className="w-12 h-12 mr-4" />
-              <div>
-                <p className="text-teal-800 dark:text-black">
-                  Cada raza tiene necesidades nutricionales específicas. Hemos tomado en cuenta que {petName} es un{" "}
-                  {breed}.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </FormStep>
-  )
-}
+//         {isNeutered !== undefined && (
+//           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+//             <h4 className="font-medium text-green-800 mb-2">
+//               {isNeutered ? "Mascota esterilizada" : "Mascota no esterilizada"}
+//             </h4>
+//             <p className="text-sm text-green-700">
+//               {isNeutered 
+//                 ? "Las mascotas esterilizadas tienden a tener un metabolismo más lento, por lo que ajustaremos las porciones para mantener un peso saludable."
+//                 : "Las mascotas no esterilizadas suelen tener un metabolismo más activo y pueden necesitar más calorías."}
+//             </p>
+//           </div>
+//         )}
+//       </div>
+//     </FormStep>
+//   )
+// }

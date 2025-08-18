@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client"
 import { Loader2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 import { AuthGuard } from "@/components/admin/auth-guard"
 import Link from "next/link"
+import { fetchOptimizedOrdersAdmin, invalidateOrdersCache } from '@/lib/query-optimizations'
 
 export default function OrdersAdminPage() {
   const [orders, setOrders] = useState<any[]>([])
@@ -68,89 +69,13 @@ export default function OrdersAdminPage() {
       setLoading(true)
       setError(null)
 
-      // Cargar órdenes desde la base de datos
-        const { data: ordersData, error: ordersError } = await supabase
-          .from("orders")
-          .select("*")
-          .order("created_at", { ascending: false })
-
-      if (ordersError) {
-        console.error('❌ Error en consulta orders:', ordersError)
-        throw new Error(`Consulta fallida: ${ordersError.message}`)
-      }
-
-      console.log(`✅ Consulta exitosa. Órdenes: ${ordersData?.length || 0}`)
-
-      // Cargar order_items por separado para evitar errores de JOIN
-      const { data: orderItemsData, error: itemsError } = await supabase
-        .from("order_items")
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            image_url
-          )
-        `)
-
-      if (itemsError) {
-        console.warn('⚠️ Error cargando order_items:', itemsError)
-        // No lanzar error, continuar sin items
-      }
-
-      console.log(`✅ Order items cargados: ${orderItemsData?.length || 0}`)
-
-      // Procesar órdenes combinando con order_items
-       const processedOrders = ordersData?.map(order => {
-         // Encontrar items para esta orden
-         const orderItems = orderItemsData?.filter(item => item.order_id === order.id) || []
-         
-         // Calcular total si no está disponible
-         const calculatedTotal = order.total || 
-           orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-
-         // Parsear shipping_address si es string JSON
-         let parsedShippingAddress = null
-         let customerInfo = null
-         if (order.shipping_address) {
-           try {
-             parsedShippingAddress = typeof order.shipping_address === 'string' 
-               ? JSON.parse(order.shipping_address) 
-               : order.shipping_address
-             
-             // Extraer información del cliente desde customer_data
-             if (parsedShippingAddress?.customer_data) {
-               const customerData = parsedShippingAddress.customer_data
-               customerInfo = {
-                 name: customerData.firstName && customerData.lastName 
-                   ? `${customerData.firstName} ${customerData.lastName}`
-                   : customerData.firstName || customerData.name || 'Cliente anónimo',
-                 email: customerData.email || order.user_email || 'No especificado',
-                 phone: customerData.phone || 'No especificado'
-               }
-             }
-           } catch (e) {
-             console.warn('Error parsing shipping_address:', e)
-           }
-         }
-
-         return {
-           ...order,
-           total: calculatedTotal,
-           items: orderItems,
-           customer_name: customerInfo?.name || 'Cliente anónimo',
-           customer_email: customerInfo?.email || order.user_email || 'No especificado',
-           customer_phone: customerInfo?.phone || 'No especificado',
-           payment_status: order.payment_status || 'pending',
-           user_id: order.user_id,
-           shipping_address: parsedShippingAddress || {}
-         }
-       }) || []
+      // Usar función optimizada para admin (todas las órdenes)
+      const optimizedOrders = await fetchOptimizedOrdersAdmin(supabase)
       
       // Aplicar filtro de estado si no es "all"
-      let filteredOrders = processedOrders
+      let filteredOrders = optimizedOrders
       if (statusFilter !== "all") {
-        filteredOrders = processedOrders.filter(order => order.status === statusFilter)
+        filteredOrders = optimizedOrders.filter(order => order.status === statusFilter)
       }
 
       // Aplicar búsqueda si hay término de búsqueda

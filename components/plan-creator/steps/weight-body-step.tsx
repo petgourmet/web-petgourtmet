@@ -1,86 +1,163 @@
-"use client"
+// PROTOTIPO NO UTILIZADO - TODO EL CÓDIGO COMENTADO
+// "use client"
 
-import { useEffect, useState } from "react"
-import { usePlanForm } from "@/contexts/plan-form-context"
-import FormStep from "../form-step"
-import CustomSlider from "../custom-slider"
-import SelectionCard from "../selection-card"
+// import { useEffect, useState } from "react"
+// import { usePlanForm } from "@/contexts/plan-form-context"
+// import FormStep from "../form-step"
+// import CustomSlider from "../custom-slider"
+// import SelectionCard from "../selection-card"
 
-export default function WeightBodyStep() {
-  const { formData, updateFormData } = usePlanForm()
-  const [weight, setWeight] = useState(formData.weight || 7)
-  const [bodyType, setBodyType] = useState(formData.bodyType)
-  const [petName, setPetName] = useState(formData.name)
+// export default function WeightBodyStep() {
+//   const { formData, updateFormData } = usePlanForm()
+//   const [weight, setWeight] = useState(formData.weight || 5)
+//   const [bodyCondition, setBodyCondition] = useState(formData.bodyCondition)
+//   const [petName, setPetName] = useState(formData.name)
 
-  // Actualizar el estado global cuando cambia el peso o tipo de cuerpo
-  useEffect(() => {
-    updateFormData({ weight, bodyType })
-  }, [weight, bodyType, updateFormData])
+//   // Actualizar el estado global cuando cambian el peso o condición corporal
+//   useEffect(() => {
+//     updateFormData({ weight, bodyCondition })
+//   }, [weight, bodyCondition, updateFormData])
 
-  // Actualizar el nombre local cuando cambia en el contexto
-  useEffect(() => {
-    setPetName(formData.name)
-  }, [formData.name])
+//   // Actualizar el nombre local cuando cambia en el contexto
+//   useEffect(() => {
+//     setPetName(formData.name)
+//   }, [formData.name])
 
-  return (
-    <FormStep stepNumber={5} title={`¿Cómo es la contextura de ${petName}?`} highlightedWord="contextura">
-      <div className="w-full max-w-md mx-auto">
-        {/* Slider de peso */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-lg font-medium text-gray-700">{weight} kg</label>
-          </div>
-          <CustomSlider min={0.5} max={50} step={0.5} value={weight} onChange={setWeight} showMarks markCount={5} />
-          <div className="flex justify-between mt-1 text-xs text-gray-500">
-            <span>0kg</span>
-            <span>50kg</span>
-          </div>
-        </div>
+//   const bodyConditions = [
+//     {
+//       id: "underweight",
+//       label: "Bajo peso",
+//       description: "Se pueden ver las costillas fácilmente",
+//       icon: "😟"
+//     },
+//     {
+//       id: "ideal",
+//       label: "Peso ideal",
+//       description: "Se pueden sentir las costillas con presión ligera",
+//       icon: "😊"
+//     },
+//     {
+//       id: "overweight",
+//       label: "Sobrepeso",
+//       description: "Es difícil sentir las costillas",
+//       icon: "😕"
+//     }
+//   ]
 
-        {/* Opciones de contextura */}
-        <div className="mt-8">
-          <p className="text-center text-gray-600 mb-4">Selecciona la contextura de {petName}</p>
-          <div className="grid grid-cols-3 gap-3">
-            <SelectionCard
-              selected={bodyType === "thin"}
-              onClick={() => setBodyType("thin")}
-              icon={<img src="/slender-hound-profile.png" alt="Delgado" className="w-16 h-16 object-contain" />}
-              label="Delgad@"
-            />
-            <SelectionCard
-              selected={bodyType === "normal"}
-              onClick={() => setBodyType("normal")}
-              icon={<img src="/standing-dog-silhouette.png" alt="En Forma" className="w-16 h-16 object-contain" />}
-              label="En Forma"
-            />
-            <SelectionCard
-              selected={bodyType === "overweight"}
-              onClick={() => setBodyType("overweight")}
-              icon={<img src="/chunky-canine-profile.png" alt="Gordit@" className="w-16 h-16 object-contain" />}
-              label="Gordit@"
-            />
-          </div>
-        </div>
+//   const getWeightCategory = (weight: number) => {
+//     if (weight < 5) return "Muy pequeño"
+//     if (weight < 15) return "Pequeño"
+//     if (weight < 30) return "Mediano"
+//     return "Grande"
+//   }
 
-        {/* Información contextual */}
-        {bodyType === "thin" && (
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-lg text-blue-800">
-            <p>
-              Si {petName} es delgado, podrás notar que tiene una cintura bastante marcada y verás con facilidad sus
-              costillas.
-            </p>
-          </div>
-        )}
+//   const getCalorieEstimate = (weight: number, bodyCondition: string) => {
+//     let baseCalories = weight * 30 + 70
+//     
+//     if (bodyCondition === "underweight") {
+//       baseCalories *= 1.2
+//     } else if (bodyCondition === "overweight") {
+//       baseCalories *= 0.8
+//     }
+    
+//     return Math.round(baseCalories)
+//   }
 
-        {bodyType === "overweight" && (
-          <div className="mt-8 p-4 bg-yellow-50 border border-yellow-100 rounded-lg text-yellow-800">
-            <p>
-              Un perro con sobrepeso puede tener problemas de salud. Nuestro plan ayudará a {petName} a alcanzar un peso
-              saludable.
-            </p>
-          </div>
-        )}
-      </div>
-    </FormStep>
-  )
-}
+//   return (
+//     <FormStep 
+//       stepNumber={5} 
+//       title={`¿Cuánto pesa ${petName}?`} 
+//       highlightedWord={petName}
+//       infoText="El peso y la condición corporal son fundamentales para calcular las porciones adecuadas."
+//     >
+//       <div className="w-full max-w-2xl mx-auto space-y-8">
+//         {/* Slider para peso */}
+//         <div>
+//           <CustomSlider
+//             min={0.5}
+//             max={50}
+//             step={0.5}
+//             value={weight}
+//             onChange={setWeight}
+//             label="Peso actual"
+//             unit="kg"
+//           />
+//         </div>
+
+//         {/* Información sobre el peso */}
+//         <div className="text-center p-4 bg-teal-50 border border-teal-200 rounded-lg">
+//           <h3 className="text-lg font-bold text-teal-800 mb-2">
+//             {petName} pesa {weight} kg
+//           </h3>
+//           <p className="text-teal-600">
+//             Categoría: <span className="font-medium">{getWeightCategory(weight)}</span>
+//           </p>
+//         </div>
+
+//         {/* Selección de condición corporal */}
+//         <div>
+//           <h3 className="text-lg font-medium text-gray-800 mb-4 text-center">
+//             ¿Cómo describirías la condición corporal de {petName}?
+//           </h3>
+//           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+//             {bodyConditions.map((condition) => (
+//               <SelectionCard
+//                 key={condition.id}
+//                 selected={bodyCondition === condition.id}
+//                 onClick={() => setBodyCondition(condition.id)}
+//                 icon={
+//                   <div className="text-3xl mb-2">{condition.icon}</div>
+//                 }
+//                 label={
+//                   <div className="text-center">
+//                     <div className="font-medium">{condition.label}</div>
+//                     <div className="text-xs text-gray-500 mt-1">{condition.description}</div>
+//                   </div>
+//                 }
+//               />
+//             ))}
+//           </div>
+//         </div>
+
+//         {/* Estimación de calorías */}
+//         {bodyCondition && (
+//           <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
+//             <h3 className="text-lg font-bold text-blue-800 mb-3 text-center">
+//               Estimación nutricional para {petName}
+//             </h3>
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//               <div className="text-center p-4 bg-white rounded-lg">
+//                 <div className="text-2xl font-bold text-blue-600">
+//                   {getCalorieEstimate(weight, bodyCondition)}
+//                 </div>
+//                 <div className="text-sm text-blue-700">Calorías diarias estimadas</div>
+//               </div>
+//               <div className="text-center p-4 bg-white rounded-lg">
+//                 <div className="text-2xl font-bold text-green-600">
+//                   {getWeightCategory(weight)}
+//                 </div>
+//                 <div className="text-sm text-green-700">Tamaño de raza</div>
+//               </div>
+//             </div>
+//             <p className="text-sm text-blue-700 mt-4 text-center">
+//               {bodyCondition === "ideal" && "¡Perfecto! Mantendremos este peso saludable."}
+//               {bodyCondition === "underweight" && "Ajustaremos las porciones para ayudar a ganar peso de forma saludable."}
+//               {bodyCondition === "overweight" && "Crearemos un plan para alcanzar un peso más saludable gradualmente."}
+//             </p>
+//           </div>
+//         )}
+
+//         {/* Consejos */}
+//         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+//           <h4 className="font-medium text-yellow-800 mb-2">💡 Consejos para evaluar la condición corporal:</h4>
+//           <ul className="text-sm text-yellow-700 space-y-1">
+//             <li>• Pasa tus manos por los costados de tu mascota</li>
+//             <li>• En peso ideal, deberías poder sentir las costillas con presión ligera</li>
+//             <li>• Observa desde arriba: debería tener una cintura visible</li>
+//             <li>• Si tienes dudas, consulta con tu veterinario</li>
+//           </ul>
+//         </div>
+//       </div>
+//     </FormStep>
+//   )
+// }

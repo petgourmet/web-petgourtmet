@@ -11,6 +11,9 @@ import { useClientAuth } from "@/hooks/use-client-auth"
 import { createClient } from "@/lib/supabase/client"
 import UserBillingHistory from "@/components/user-billing-history"
 import RealtimeStatus from "@/components/realtime-status"
+import AuthDebugger from "@/components/debug/AuthDebugger"
+import QueryTester from "@/components/debug/QueryTester"
+import { fetchOptimizedOrders, fetchOptimizedSubscriptions, invalidateUserCache } from "@/lib/query-optimizations"
 import { 
   User, 
   Package,
@@ -19,7 +22,10 @@ import {
   Calendar,
   DollarSign,
   MapPin,
-  Receipt
+  Receipt,
+  Activity,
+  Wifi,
+  WifiOff
 } from "lucide-react"
 
 interface UserProfile {
@@ -122,12 +128,239 @@ export default function PerfilPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [updatingSubscription, setUpdatingSubscription] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions' | 'billing'>('profile')
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting')
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [maxReconnectAttempts] = useState(5)
 
   useEffect(() => {
+    console.log('🔍 PerfilPage useEffect - loading:', loading, 'user:', !!user, 'user.id:', user?.id)
+    
     if (!loading && user) {
+      console.log('✅ Condiciones cumplidas, inicializando datos...')
       initializeData()
+      setupRealtimeSubscriptions()
+    } else if (!loading && !user) {
+      console.log('❌ No hay usuario después de cargar, estableciendo isLoading a false')
+      setIsLoading(false)
+    }
+    
+    // Timeout de seguridad para evitar carga infinita
+    const safetyTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.log('⚠️ Timeout de seguridad activado en PerfilPage, estableciendo isLoading a false')
+        setIsLoading(false)
+      }
+    }, 15000) // 15 segundos
+    
+    // Detectar cambios en la conexión de red
+    const handleOnline = () => {
+      console.log('🌐 Conexión de red restaurada')
+      if (realtimeStatus === 'disconnected') {
+        setReconnectAttempts(0) // Reset contador
+        setRealtimeStatus('connecting')
+        setupRealtimeSubscriptions()
+        toast.success('Conexión restaurada. Sincronizando datos...')
+      }
+    }
+
+    const handleOffline = () => {
+      console.log('🚫 Conexión de red perdida')
+      setRealtimeStatus('disconnected')
+      cleanupRealtimeSubscriptions()
+      toast.error('Sin conexión a internet. Los datos pueden no estar actualizados.')
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    // Cleanup function
+    return () => {
+      clearTimeout(safetyTimeout)
+      cleanupRealtimeSubscriptions()
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     }
   }, [user?.id, loading])
+
+  const setupRealtimeSubscriptions = () => {
+    if (!user) return
+    
+    const supabase = createClient()
+    setRealtimeStatus('connecting')
+    
+    // Canal para órdenes
+    const ordersChannel = supabase
+      .channel('user_orders_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('🔄 Cambio en órdenes:', payload)
+          setLastSyncTime(new Date())
+          fetchOrders() // Recargar órdenes cuando hay cambios
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_items'
+        },
+        (payload) => {
+          console.log('🔄 Cambio en items de órdenes:', payload)
+          setLastSyncTime(new Date())
+          fetchOrders() // Recargar órdenes cuando hay cambios en items
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Canal de órdenes en tiempo real conectado')
+          setRealtimeStatus('connected')
+          setReconnectAttempts(0) // Reset contador de reconexión
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error en canal de órdenes en tiempo real')
+          setRealtimeStatus('disconnected')
+          handleRealtimeError('orders')
+        } else if (status === 'CLOSED') {
+          console.warn('⚠️ Canal de órdenes cerrado')
+          setRealtimeStatus('disconnected')
+          handleRealtimeError('orders')
+        }
+      })
+    
+    // Canal para suscripciones de usuario
+    const subscriptionsChannel = supabase
+      .channel('user_subscriptions_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_subscriptions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('🔄 Cambio en suscripciones:', payload)
+          setLastSyncTime(new Date())
+          fetchSubscriptions() // Recargar suscripciones cuando hay cambios
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_subscriptions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('🔄 Cambio en suscripciones pendientes:', payload)
+          setLastSyncTime(new Date())
+          fetchSubscriptions() // Recargar suscripciones cuando hay cambios
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Canal de suscripciones en tiempo real conectado')
+          setRealtimeStatus('connected')
+          setReconnectAttempts(0) // Reset contador de reconexión
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error en canal de suscripciones en tiempo real')
+          setRealtimeStatus('disconnected')
+          handleRealtimeError('subscriptions')
+        } else if (status === 'CLOSED') {
+          console.warn('⚠️ Canal de suscripciones cerrado')
+          setRealtimeStatus('disconnected')
+          handleRealtimeError('subscriptions')
+        }
+      })
+    
+    // Canal para perfiles de usuario
+    const profileChannel = supabase
+      .channel('user_profile_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('🔄 Cambio en perfil:', payload)
+          setLastSyncTime(new Date())
+          fetchUserProfile() // Recargar perfil cuando hay cambios
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Canal de perfil en tiempo real conectado')
+          setRealtimeStatus('connected')
+          setReconnectAttempts(0) // Reset contador de reconexión
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error en canal de perfil en tiempo real')
+          setRealtimeStatus('disconnected')
+          handleRealtimeError('profile')
+        } else if (status === 'CLOSED') {
+          console.warn('⚠️ Canal de perfil cerrado')
+          setRealtimeStatus('disconnected')
+          handleRealtimeError('profile')
+        }
+      })
+    
+    // Guardar referencias para cleanup
+    window.userOrdersRealtimeChannel = ordersChannel
+    window.userSubscriptionsRealtimeChannel = subscriptionsChannel
+    window.userProfileRealtimeChannel = profileChannel
+  }
+
+  const handleRealtimeError = (channelType: 'orders' | 'subscriptions' | 'profile') => {
+    if (reconnectAttempts >= maxReconnectAttempts) {
+      console.error(`❌ Máximo número de intentos de reconexión alcanzado para ${channelType}`)
+      toast.error('Error de conexión en tiempo real. Recarga la página para reconectar.')
+      return
+    }
+
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000) // Backoff exponencial con máximo de 30s
+    setReconnectAttempts(prev => prev + 1)
+    
+    console.log(`🔄 Reintentando conexión en tiempo real para ${channelType} en ${delay}ms (intento ${reconnectAttempts + 1}/${maxReconnectAttempts})`)
+    
+    setTimeout(() => {
+      if (user) {
+        setRealtimeStatus('connecting')
+        cleanupRealtimeSubscriptions()
+        setupRealtimeSubscriptions()
+      }
+    }, delay)
+  }
+  
+  const cleanupRealtimeSubscriptions = () => {
+    if (window.userOrdersRealtimeChannel) {
+      console.log('🧹 Limpiando canal de órdenes en tiempo real...')
+      window.userOrdersRealtimeChannel.unsubscribe()
+      window.userOrdersRealtimeChannel = null
+    }
+    
+    if (window.userSubscriptionsRealtimeChannel) {
+      console.log('🧹 Limpiando canal de suscripciones en tiempo real...')
+      window.userSubscriptionsRealtimeChannel.unsubscribe()
+      window.userSubscriptionsRealtimeChannel = null
+    }
+    
+    if (window.userProfileRealtimeChannel) {
+      console.log('🧹 Limpiando canal de perfil en tiempo real...')
+      window.userProfileRealtimeChannel.unsubscribe()
+      window.userProfileRealtimeChannel = null
+    }
+  }
 
   const initializeData = async () => {
     setIsLoading(true)
@@ -172,53 +405,48 @@ export default function PerfilPage() {
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error)
+      
+      // Verificar si es un error de red
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setRealtimeStatus('disconnected')
+      }
     }
   }
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (retryCount = 0) => {
     if (!user) return
     
     try {
       const supabase = createClient()
       
-      // Método 1: Buscar órdenes directamente por user_id
-      const { data: directOrders, error: directError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items (
-            *,
-            products (
-              id,
-              name,
-              image,
-              price
-            )
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (!directError && directOrders && directOrders.length > 0) {
-        const processedOrders = directOrders.map(order => ({
-          ...order,
-          items: order.order_items || [],
-          total_items: order.order_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0,
-          source_table: 'orders'
-        }))
-
-        setOrders(processedOrders)
+      // Usar función optimizada
+      const optimizedOrders = await fetchOptimizedOrders(user.id, supabase, true)
+      
+      if (optimizedOrders.length > 0) {
+        setOrders(optimizedOrders)
         return
       }
-
-      if (directError) {
-        console.error('Error en consulta directa:', directError)
-      }
-
+      
+      // Fallback al método alternativo si no hay órdenes directas
       await fetchOrdersFromItems()
       
     } catch (error) {
       console.error('Error loading orders:', error)
+      
+      // Verificar si es un error de red
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setRealtimeStatus('disconnected')
+      }
+      
+      // Retry logic (consistente con admin)
+      if (retryCount < 3) {
+        console.log(`Reintentando obtener órdenes... Intento ${retryCount + 1}/3`)
+        setTimeout(() => {
+          fetchOrders(retryCount + 1)
+        }, 1000 * (retryCount + 1)) // Backoff exponencial
+        return
+      }
+      
       toast.error('No se pudieron cargar las compras')
     }
   }
@@ -344,154 +572,34 @@ export default function PerfilPage() {
     }
   }
 
-  const fetchSubscriptions = async () => {
+  const fetchSubscriptions = async (retryCount = 0) => {
     if (!user) return
     try {
       const supabase = createClient()
       
-      // 1. Obtener solo suscripciones conectadas a Mercado Pago
-      const { data: userSubscriptionsData, error: subscriptionsError } = await supabase
-        .from('user_subscriptions')
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            image,
-            price,
-            subscription_types,
-            monthly_discount,
-            quarterly_discount,
-            annual_discount,
-            biweekly_discount
-          )
-        `)
-        .eq('user_id', user.id)
-        .not('mercadopago_subscription_id', 'is', null)
-        .order('created_at', { ascending: false })
-
-      // 2. Obtener suscripciones pendientes
-      const { data: pendingSubscriptionsData, error: pendingError } = await supabase
-        .from('pending_subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('status', ['pending'])
-        .not('mercadopago_subscription_id', 'is', null)
-        .order('created_at', { ascending: false })
-
-      // 3. Cancelar suscripciones pendientes que tengan más de 30 minutos
-      if (pendingSubscriptionsData && pendingSubscriptionsData.length > 0) {
-        const now = new Date()
-        const expiredSubscriptions = pendingSubscriptionsData.filter(sub => {
-          const createdAt = new Date(sub.created_at)
-          const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60)
-          return diffMinutes > 30
-        })
-
-        if (expiredSubscriptions.length > 0) {
-          await supabase
-            .from('pending_subscriptions')
-            .update({ status: 'cancelled' })
-            .in('id', expiredSubscriptions.map(sub => sub.id))
-        }
-      }
-
-      // 4. Procesar suscripciones activas
-      const subscriptionsWithBilling = userSubscriptionsData?.map(sub => {
-        const product = sub.products
-        const frequency = sub.frequency || 'monthly'
-        let discountAmount = 0
-
-        if (product && frequency) {
-          switch (frequency) {
-            case 'monthly':
-              discountAmount = product.monthly_discount || 0
-              break
-            case 'quarterly':
-              discountAmount = product.quarterly_discount || 0
-              break
-            case 'annual':
-              discountAmount = product.annual_discount || 0
-              break
-            case 'biweekly':
-              discountAmount = product.biweekly_discount || 0
-              break
-          }
-        }
-
-        return {
-          ...sub,
-          discount_amount: discountAmount,
-          source: 'user_subscriptions'
-        }
-      }) || []
-
-      // 5. Procesar suscripciones pendientes (solo las que no han expirado)
-      const validPendingSubscriptions = pendingSubscriptionsData?.filter(sub => {
-        const now = new Date()
-        const createdAt = new Date(sub.created_at)
-        const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60)
-        return diffMinutes <= 30 && sub.status === 'pending'
-      }) || []
-
-      // 5.1. Obtener información completa de productos para suscripciones pendientes
-      const pendingProductIds = validPendingSubscriptions
-        .map(sub => sub.cart_items?.[0]?.product_id)
-        .filter(Boolean)
-      
-      let pendingProductsData = []
-      if (pendingProductIds.length > 0) {
-        const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('id, name, image, price')
-          .in('id', pendingProductIds)
-        
-        if (!productsError && productsData) {
-          pendingProductsData = productsData
-        }
-      }
-
-      const pendingSubscriptionsFormatted = validPendingSubscriptions.map(sub => {
-        const cartItem = sub.cart_items?.[0] || {}
-        const productData = pendingProductsData.find(p => p.id === cartItem.product_id)
-        
-        return {
-          id: `pending_${sub.id}`,
-          user_id: sub.user_id,
-          product_id: cartItem.product_id || null,
-          status: 'pending',
-          frequency: getFrequencyFromType(sub.subscription_type),
-          price: cartItem.price || 0,
-          discount_amount: 0,
-          next_billing_date: null,
-          created_at: sub.created_at,
-          source: 'pending_subscriptions',
-          quantity: cartItem.quantity || 1,
-          size: cartItem.size || 'Estándar',
-          subscription_type: sub.subscription_type,
-          external_reference: sub.external_reference,
-          product_name: productData?.name || cartItem.product_name || cartItem.name || 'Producto',
-          products: {
-            id: cartItem.product_id || '',
-            name: productData?.name || cartItem.product_name || cartItem.name || 'Producto',
-            image: productData?.image || cartItem.image || '/placeholder.svg',
-            price: productData?.price || cartItem.price || 0
-          }
-        }
-      })
-
-      // 6. Combinar todas las suscripciones
-      const allSubscriptions = [...subscriptionsWithBilling, ...pendingSubscriptionsFormatted]
-      
-      const uniqueSubscriptions = allSubscriptions.filter((sub, index, self) => 
-        index === self.findIndex(s => s.id === sub.id)
-      )
-
-      setSubscriptions(uniqueSubscriptions)
+      // Usar función optimizada
+      const optimizedSubscriptions = await fetchOptimizedSubscriptions(user.id, supabase, true)
+      setSubscriptions(optimizedSubscriptions)
       
     } catch (error) {
       console.error('Error cargando suscripciones:', error)
+      
+      // Verificar si es un error de red
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setRealtimeStatus('disconnected')
+      }
+      
+      // Retry logic (consistente con admin)
+      if (retryCount < 3) {
+        console.log(`Reintentando obtener suscripciones... Intento ${retryCount + 1}/3`)
+        setTimeout(() => {
+          fetchSubscriptions(retryCount + 1)
+        }, 1000 * (retryCount + 1)) // Backoff exponencial
+        return
+      }
+      
       toast.error('No se pudieron cargar las suscripciones')
+      setSubscriptions([])
     }
   }
 
@@ -669,7 +777,35 @@ export default function PerfilPage() {
                 <User className="h-3 w-3" />
                 {profile?.email}
               </Badge>
-              <RealtimeStatus />
+              <div className="flex items-center gap-2">
+                <RealtimeStatus />
+                <div className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-gray-100">
+                  {realtimeStatus === 'connected' ? (
+                    <Wifi className="h-3 w-3 text-green-500" />
+                  ) : realtimeStatus === 'connecting' ? (
+                    <Activity className="h-3 w-3 text-yellow-500 animate-pulse" />
+                  ) : (
+                    <WifiOff className="h-3 w-3 text-red-500" />
+                  )}
+                  <span className={`${
+                    realtimeStatus === 'connected' ? 'text-green-700' :
+                    realtimeStatus === 'connecting' ? 'text-yellow-700' :
+                    'text-red-700'
+                  }`}>
+                    {realtimeStatus === 'connected' ? 'Sincronizado' :
+                     realtimeStatus === 'connecting' ? 'Conectando...' :
+                     'Desconectado'}
+                  </span>
+                  {lastSyncTime && realtimeStatus === 'connected' && (
+                    <span className="text-gray-500 ml-1">
+                      {new Date(lastSyncTime).toLocaleTimeString('es-MX', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1133,6 +1269,12 @@ export default function PerfilPage() {
             userEmail={user.email || undefined}
           />
         )}
+      </div>
+      
+      {/* Componentes de debugging para diagnosticar problemas */}
+      <div className="mt-8 space-y-6">
+        <AuthDebugger />
+        <QueryTester />
       </div>
     </div>
   )

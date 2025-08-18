@@ -75,8 +75,8 @@ function checkPoint2_EnvVariable() {
   console.log('\n📊 ESTADO: [ ] PENDIENTE / [ ] COMPLETADO');
 }
 
-function checkPoint3_ProductionTesting() {
-  console.log('\n🔴 PUNTO CRÍTICO 3: PRUEBAS EN PRODUCCIÓN');
+function checkPoint3_ProductionVerification() {
+  console.log('\n🔴 PUNTO CRÍTICO 3: VERIFICACIÓN EN PRODUCCIÓN');
   console.log('─'.repeat(50));
   
   console.log('\n❓ PREGUNTAS DE VERIFICACIÓN:');
@@ -169,7 +169,7 @@ function showUrgentActions() {
 function main() {
   checkPoint1_PanelConfig();
   checkPoint2_EnvVariable();
-  checkPoint3_ProductionTesting();
+  checkPoint3_ProductionVerification();
   showNextSteps();
   showTroubleshootingTips();
   showUrgentActions();
@@ -192,7 +192,7 @@ if (require.main === module) {
 module.exports = {
   checkPoint1_PanelConfig,
   checkPoint2_EnvVariable,
-  checkPoint3_ProductionTesting,
+  checkPoint3_ProductionVerification,
   showNextSteps,
   showTroubleshootingTips
 };

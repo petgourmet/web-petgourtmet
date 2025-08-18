@@ -1245,7 +1245,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
                               id={`subscription-${type}`}
-                              checked={normalizeSubscriptionTypes(product.subscription_types).includes(type)}
+                              checked={product.subscription_types?.includes(type) || false}
                               onCheckedChange={(checked) => {
                                 const currentTypes = normalizeSubscriptionTypes(product.subscription_types)
                                 const updatedTypes = checked

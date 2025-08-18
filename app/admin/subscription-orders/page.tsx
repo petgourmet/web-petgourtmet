@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { fetchOptimizedSubscriptions, invalidateSubscriptionsCache } from '@/lib/query-optimizations'
 import { 
   Calendar, 
   DollarSign, 
@@ -89,20 +90,6 @@ export default function AdminSubscriptionOrdersPage() {
       setRetryCount(currentRetry)
       console.log(`🔍 Cargando suscripciones... (intento ${currentRetry + 1}/${MAX_RETRIES + 1})`)
 
-      // Verificar conexión a Supabase
-      try {
-        const { data: healthCheck } = await supabase
-          .from("user_subscriptions")
-          .select("count")
-          .limit(1)
-          .single()
-        
-        console.log("✅ Conexión a Supabase verificada")
-      } catch (healthError) {
-        console.warn("⚠️ Problema de conexión detectado:", healthError)
-        throw new Error("Problema de conectividad con la base de datos")
-      }
-      
       // ✅ IMPLEMENTAR TIEMPO REAL: Configurar suscripción a cambios (solo una vez)
       if (currentRetry === 0 && !window.subscriptionRealtimeChannel) {
         console.log('🔄 Configurando suscripción en tiempo real...')
@@ -115,7 +102,8 @@ export default function AdminSubscriptionOrdersPage() {
           }, (payload) => {
             console.log('📡 Cambio detectado en suscripciones:', payload.eventType)
             
-            // Refrescar suscripciones automáticamente (sin retry)
+            // Invalidar caché y refrescar suscripciones automáticamente
+            invalidateSubscriptionsCache()
             fetchAllSubscriptions(0)
             
             // Mostrar notificación discreta
@@ -140,237 +128,22 @@ export default function AdminSubscriptionOrdersPage() {
         console.log('⚠️ Canal de tiempo real ya existe, evitando duplicación')
       }
       
-      // Obtener suscripciones con manejo de errores granular
-      let subscriptionsData = null
-      let error = null
+      // Usar función optimizada
+      const optimizedSubscriptions = await fetchOptimizedSubscriptions(null, supabase, false)
       
-      try {
-        // Obtener solo suscripciones conectadas a Mercado Pago (con webhook)
-        const result = await supabase
-          .from("user_subscriptions")
-          .select(`
-            *,
-            products (
-              id,
-              name,
-              image,
-              price
-            )
-          `)
-          .not('mercadopago_subscription_id', 'is', null)
-          .order("created_at", { ascending: false })
-        
-        subscriptionsData = result.data
-        error = result.error
-        
-        // Si tenemos suscripciones, obtener los perfiles de usuario por separado
-        if (subscriptionsData && subscriptionsData.length > 0 && !error) {
-          const userIds = [...new Set(subscriptionsData.map(sub => sub.user_id).filter(Boolean))]
-          
-          if (userIds.length > 0) {
-            const { data: profilesData } = await supabase
-              .from('profiles')
-              .select('id, auth_users_id, full_name, email, phone')
-              .in('auth_users_id', userIds)
-            
-            // Combinar datos de perfiles con suscripciones
-            subscriptionsData = subscriptionsData.map(subscription => {
-              const userProfile = profilesData?.find(profile => profile.auth_users_id === subscription.user_id)
-              return {
-                ...subscription,
-                user_profile: userProfile ? {
-                  full_name: userProfile.full_name,
-                  email: userProfile.email,
-                  phone: userProfile.phone
-                } : null
-              }
-            })
-          }
-        }
-      } catch (queryError) {
-        console.error("💥 Error en consulta SQL:", queryError)
-        error = queryError
-      }
-
-      if (error) {
-        const errorInfo = {
-          message: error.message || 'Error desconocido',
-          details: error.details || 'Sin detalles disponibles',
-          hint: error.hint || 'Sin sugerencias disponibles',
-          code: error.code || 'Sin código de error',
-          timestamp: new Date().toISOString()
-        }
-        
-        console.error("❌ Error detallado al obtener suscripciones:", errorInfo)
-        
-        // Estrategia de reintento para errores temporales
-        if (currentRetry < MAX_RETRIES && (
-          error.code === 'PGRST301' || // Timeout
-          error.code === 'PGRST116' || // Connection error
-          error.message?.includes('timeout') ||
-          error.message?.includes('connection')
-        )) {
-           console.log(`🔄 Reintentando en ${RETRY_DELAY}ms...`)
-           setTimeout(() => {
-             fetchAllSubscriptions(currentRetry + 1)
-           }, RETRY_DELAY * (currentRetry + 1)) // Backoff exponencial
-           return
-         }
-         
-         // Error persistente - mostrar mensaje amigable
-         const userMessage = error.code === 'PGRST116' 
-           ? 'Problema de conexión. Verifica tu internet e intenta nuevamente.'
-           : error.code === 'PGRST204'
-           ? 'No se encontraron suscripciones en el sistema.'
-           : error.message?.includes('permission')
-           ? 'Sin permisos para acceder a esta información. Contacta al administrador.'
-           : `Error al cargar suscripciones: ${errorInfo.message}`
-         
-         setError(userMessage)
-         
-         toast.error(userMessage, {
-           description: `Código: ${errorInfo.code} | Intento: ${currentRetry + 1}`,
-           action: {
-             label: "Reintentar",
-             onClick: () => fetchAllSubscriptions(0)
-           }
-         })
-         
-         // Establecer estado de error para mostrar UI alternativa
-         setSubscriptions([])
-         return
-      }
+      // Convertir a formato AdminSubscription
+      const adminSubscriptions = optimizedSubscriptions.map(sub => ({
+        ...sub,
+        user_profile: sub.user_profile || undefined,
+        product: sub.products || undefined,
+        last_payment: undefined, // Se puede agregar si es necesario
+        payment_history_count: 0, // Se puede calcular si es necesario
+        total_paid: 0 // Se puede calcular si es necesario
+      }))
       
-      // Validar datos recibidos
-      if (!Array.isArray(subscriptionsData)) {
-        console.warn("⚠️ Datos recibidos no son un array:", subscriptionsData)
-        subscriptionsData = []
-      }
-
-      console.log(`📊 Suscripciones encontradas: ${subscriptionsData?.length || 0}`)
+      setSubscriptions(adminSubscriptions)
       
-      // Manejar caso de no hay suscripciones
-      if (!subscriptionsData || subscriptionsData.length === 0) {
-        console.log('ℹ️ No se encontraron suscripciones en el sistema')
-        setSubscriptions([])
-        setLoading(false)
-        return
-      }
-
-      // Procesar suscripciones con validación y manejo de errores
-      const subscriptionsWithPayments: AdminSubscription[] = []
-      let processedCount = 0
-      let errorCount = 0
-      
-      if (subscriptionsData && subscriptionsData.length > 0) {
-        console.log(`📋 Procesando ${subscriptionsData.length} suscripciones...`)
-        
-        for (const [index, sub] of subscriptionsData.entries()) {
-          try {
-            // Validar datos básicos de la suscripción
-            if (!sub || !sub.id) {
-              console.warn(`⚠️ Suscripción ${index} inválida:`, sub)
-              errorCount++
-              continue
-            }
-            
-            // Obtener historial de pagos con manejo de errores
-            let billingHistory = null
-            try {
-              const { data, error: billingError } = await supabase
-                .from("subscription_billing_history")
-                .select("*")
-                .eq("subscription_id", sub.id)
-                .order("billing_date", { ascending: false })
-              
-              if (billingError) {
-                console.warn(`⚠️ Error al obtener historial de pagos para ${sub.id}:`, billingError)
-                billingHistory = []
-              } else {
-                billingHistory = data || []
-              }
-            } catch (billingQueryError) {
-              console.warn(`⚠️ Error en consulta de historial para ${sub.id}:`, billingQueryError)
-              billingHistory = []
-            }
-
-            // Calcular estadísticas de pagos con validación
-            const paymentHistoryCount = Array.isArray(billingHistory) ? billingHistory.length : 0
-            const totalPaid = Array.isArray(billingHistory) 
-              ? billingHistory.reduce((sum, payment) => {
-                  const amount = typeof payment?.amount === 'number' ? payment.amount : 0
-                  return sum + amount
-                }, 0)
-              : 0
-
-            // Obtener último pago con validación
-            const lastPayment = Array.isArray(billingHistory) && billingHistory.length > 0 
-              ? billingHistory[0] 
-              : null
-
-            // Crear objeto de suscripción con valores por defecto seguros
-            const adminSubscription: AdminSubscription = {
-              id: sub.id || `unknown-${index}`,
-              user_id: sub.user_id || '',
-              product_id: sub.product_id || '',
-              status: sub.status || (sub.is_active ? 'active' : 'inactive'),
-              subscription_type: sub.subscription_type || 'monthly',
-              price: typeof sub.price === 'number' ? sub.price : (sub.products?.price || 0),
-              quantity: typeof sub.quantity === 'number' ? sub.quantity : 1,
-              size: sub.size || undefined,
-              next_billing_date: sub.next_billing_date || '',
-              last_billing_date: sub.last_billing_date || lastPayment?.billing_date || '',
-              created_at: sub.created_at || new Date().toISOString(),
-              cancelled_at: sub.cancelled_at || undefined,
-              is_active: Boolean(sub.is_active),
-              user_profile: sub.user_profile ? {
-                full_name: sub.user_profile.full_name || 'Usuario sin nombre',
-                email: sub.user_profile.email || 'Sin email',
-                phone: sub.user_profile.phone || undefined
-              } : undefined,
-              product: sub.products ? {
-                id: sub.products.id || '',
-                name: sub.products.name || 'Producto sin nombre',
-                image: sub.products.image || '/placeholder.svg',
-                price: typeof sub.products.price === 'number' ? sub.products.price : 0
-              } : undefined,
-              last_payment: lastPayment ? {
-                id: lastPayment.id || '',
-                billing_date: lastPayment.billing_date || '',
-                amount: typeof lastPayment.amount === 'number' ? lastPayment.amount : 0,
-                status: lastPayment.status || 'unknown',
-                payment_method: lastPayment.payment_method || undefined,
-                mercadopago_payment_id: lastPayment.mercadopago_payment_id || undefined
-              } : undefined,
-              payment_history_count: paymentHistoryCount,
-              total_paid: totalPaid
-            }
-
-            subscriptionsWithPayments.push(adminSubscription)
-            processedCount++
-            
-          } catch (subscriptionError) {
-            console.error(`💥 Error procesando suscripción ${index}:`, subscriptionError)
-            errorCount++
-          }
-        }
-      }
-
-      // Establecer datos con información de procesamiento
-      setSubscriptions(subscriptionsWithPayments)
-      
-      const successMessage = `✅ Procesamiento completado: ${processedCount} suscripciones cargadas`
-      const warningMessage = errorCount > 0 ? ` (${errorCount} errores)` : ''
-      
-      console.log(successMessage + warningMessage)
-      
-      if (errorCount > 0) {
-        toast.warning(`Algunas suscripciones tuvieron problemas`, {
-          description: `${processedCount} cargadas correctamente, ${errorCount} con errores`
-        })
-      } else if (processedCount > 0) {
-        console.log(`🎉 Todas las suscripciones se cargaron correctamente`)
-      }
+      console.log(`✅ Procesamiento completado: ${adminSubscriptions.length} suscripciones cargadas`)
       
     } catch (error) {
       const errorInfo = {

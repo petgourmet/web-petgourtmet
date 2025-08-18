@@ -155,6 +155,49 @@ export default function OrderDetailPage() {
     }
   }
 
+  async function verifyPaymentManually() {
+    if (!order) return
+
+    try {
+      setCheckingPayment(true)
+      
+      const response = await fetch('/api/admin/verify-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+          paymentId: order.mercadopago_payment_id,
+          externalReference: order.external_reference
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al verificar el pago')
+      }
+
+      // Recargar los datos de la orden
+      await fetchOrderDetails(order.id)
+      
+      toast.success("Verificación completada", {
+        description: result.message || "El pago ha sido verificado exitosamente",
+        duration: 5000,
+      })
+
+    } catch (error: any) {
+      console.error("Error al verificar pago manualmente:", error)
+      toast.error("Error en la verificación", {
+        description: error.message,
+        duration: 5000,
+      })
+    } finally {
+      setCheckingPayment(false)
+    }
+  }
+
   // Función auxiliar para obtener el label del estado
   function getStatusLabel(status: string) {
     const labels: Record<string, string> = {
@@ -329,21 +372,37 @@ export default function OrderDetailPage() {
                   <p className="text-2xl font-bold mt-2">${order.total}</p>
                   <p className="text-sm text-muted-foreground">Total del pedido</p>
                   
-                  {/* Botón para verificar estado del pago */}
-                  {order.mercadopago_payment_id && (
+                  {/* Botones para verificar estado del pago */}
+                  <div className="mt-3 flex flex-col gap-2">
+                    {order.mercadopago_payment_id && (
+                      <button
+                        onClick={checkPaymentStatus}
+                        disabled={checkingPayment}
+                        className="inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                      >
+                        {checkingPayment ? (
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Clock className="mr-1 h-4 w-4" />
+                        )}
+                        {checkingPayment ? 'Verificando...' : 'Verificar Estado'}
+                      </button>
+                    )}
+                    
+                    {/* Botón de verificación manual mejorada */}
                     <button
-                      onClick={checkPaymentStatus}
+                      onClick={verifyPaymentManually}
                       disabled={checkingPayment}
-                      className="mt-3 inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                      className="inline-flex items-center rounded-md bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50 transition-colors"
                     >
                       {checkingPayment ? (
                         <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                       ) : (
-                        <Clock className="mr-1 h-4 w-4" />
+                        <CheckCircle className="mr-1 h-4 w-4" />
                       )}
-                      {checkingPayment ? 'Verificando...' : 'Verificar Estado'}
+                      {checkingPayment ? 'Verificando...' : 'Verificación Manual'}
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             </CardContent>

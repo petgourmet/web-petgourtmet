@@ -10,31 +10,49 @@ export function useClientAuth() {
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<string | null>(null)
   const router = useRouter()
-  
-  console.log('🚀 Hook useClientAuth inicializado')
 
   useEffect(() => {
     let isMounted = true
-    console.log('🔄 useEffect ejecutándose...')
+    let timeoutId: NodeJS.Timeout
+    
+    console.log('🔄 [useClientAuth] Iniciando carga de usuario...')
     
     const loadUser = async () => {
-      console.log('🔐 Iniciando carga de usuario...')
-      
       try {
+        console.log('🔧 [useClientAuth] Creando cliente Supabase...')
         const supabase = createClient()
+        
+        // Timeout de seguridad para evitar carga infinita
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            console.warn('⏰ [useClientAuth] Timeout: Forzando fin de carga después de 10 segundos')
+            setLoading(false)
+          }
+        }, 10000)
+        
+        console.log('📡 [useClientAuth] Obteniendo sesión...')
         const { data: { session }, error } = await supabase.auth.getSession()
         
-        console.log('📋 Sesión obtenida:', { 
-          hasSession: !!session, 
-          hasUser: !!session?.user,
-          error: error?.message 
-        })
+        if (!isMounted) {
+          console.log('🚫 [useClientAuth] Componente desmontado, cancelando...')
+          return
+        }
         
-        if (!isMounted) return
+        if (error) {
+          console.error('❌ [useClientAuth] Error obteniendo sesión:', error.message)
+          setUser(null)
+          setUserRole(null)
+          setLoading(false)
+          return
+        }
+        
+        console.log('📋 [useClientAuth] Sesión obtenida:', session ? 'Sesión activa' : 'Sin sesión')
         
         if (session?.user) {
+          console.log('👤 [useClientAuth] Usuario encontrado:', session.user.email)
           setUser(session.user)
           
+          console.log('🔍 [useClientAuth] Obteniendo rol del usuario...')
           // Obtener rol del usuario
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
@@ -42,30 +60,37 @@ export function useClientAuth() {
             .eq('id', session.user.id)
             .single()
             
-          if (!isMounted) return
+          if (!isMounted) {
+            console.log('🚫 [useClientAuth] Componente desmontado durante obtención de perfil...')
+            return
+          }
             
           if (profileError) {
-            console.error('❌ Error obteniendo perfil:', profileError.message)
+            console.warn('⚠️ [useClientAuth] Error obteniendo perfil, usando rol por defecto:', profileError.message)
             setUserRole('user')
           } else {
-            console.log('✅ Perfil obtenido:', profile)
+            console.log('✅ [useClientAuth] Perfil obtenido, rol:', profile?.role || 'user')
             setUserRole(profile?.role || 'user')
           }
         } else {
-          console.log('❌ No hay sesión activa')
+          console.log('🚪 [useClientAuth] No hay sesión activa')
+          // No hay sesión activa
           setUser(null)
           setUserRole(null)
         }
       } catch (error) {
-        console.error('💥 Error en loadUser:', error)
+        console.error('💥 [useClientAuth] Error en loadUser:', error)
         if (isMounted) {
           setUser(null)
           setUserRole(null)
         }
       } finally {
         if (isMounted) {
-          console.log('🏁 Finalizando carga - setting loading to false')
+          console.log('🏁 [useClientAuth] Finalizando carga, estableciendo loading = false')
+          clearTimeout(timeoutId)
           setLoading(false)
+        } else {
+          console.log('🚫 [useClientAuth] Componente desmontado, no actualizando estado')
         }
       }
     }
@@ -74,6 +99,7 @@ export function useClientAuth() {
     
     return () => {
       isMounted = false
+      clearTimeout(timeoutId)
     }
   }, [])
 

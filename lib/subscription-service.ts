@@ -6,7 +6,6 @@ import {
 } from './checkout-validators'
 
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
-const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
 
 export interface SubscriptionPayment {
   subscriptionId: string
@@ -49,15 +48,6 @@ export class SubscriptionService {
     }
     
     try {
-      if (IS_TEST_MODE) {
-        // Simular pago en modo prueba
-        console.log("🧪 MODO PRUEBA: Simulando cobro recurrente")
-        return {
-          success: true,
-          paymentId: `test_payment_${Date.now()}`,
-          status: "approved",
-          amount: payment.amount,
-        }
       }
 
       // Realizar cobro real con MercadoPago
@@ -232,11 +222,6 @@ export class SubscriptionService {
   }
 
   async implement3DSecure(paymentData: any) {
-    if (IS_TEST_MODE) {
-      console.log("🧪 MODO PRUEBA: Simulando 3D Secure")
-      return { success: true, secure: true }
-    }
-
     // Implementar 3D Secure real con MercadoPago
     // Esta funcionalidad depende de la configuración específica de MercadoPago
     // y puede requerir integración adicional con el frontend

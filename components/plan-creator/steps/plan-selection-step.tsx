@@ -405,3 +405,122 @@ export default function PlanSelectionStep() {
     </FormStep>
   )
 }
+
+// PROTOTIPO NO UTILIZADO - TODO EL CÓDIGO COMENTADO
+// "use client"
+
+// import { useEffect, useState } from "react"
+// import { usePlanForm } from "@/contexts/plan-form-context"
+// import FormStep from "../form-step"
+// import SelectionCard from "../selection-card"
+
+// export default function PlanSelectionStep() {
+//   const { formData, updateFormData } = usePlanForm()
+//   const [selectedPlan, setSelectedPlan] = useState(formData.selectedPlan)
+//   const [petName, setPetName] = useState(formData.name)
+
+//   // Actualizar el estado global cuando cambia el plan seleccionado
+//   useEffect(() => {
+//     updateFormData({ selectedPlan })
+//   }, [selectedPlan, updateFormData])
+
+//   // Actualizar el nombre local cuando cambia en el contexto
+//   useEffect(() => {
+//     setPetName(formData.name)
+//   }, [formData.name])
+
+//   const plans = [
+//     {
+//       id: "basic",
+//       name: "Plan Básico",
+//       price: "$29.99",
+//       description: "Alimentación balanceada para el día a día",
+//       features: ["Comida premium", "Entrega mensual", "Soporte básico"],
+//       icon: "🥘"
+//     },
+//     {
+//       id: "premium",
+//       name: "Plan Premium",
+//       price: "$49.99",
+//       description: "Nutrición personalizada con ingredientes gourmet",
+//       features: ["Comida gourmet", "Entrega quincenal", "Soporte prioritario", "Snacks incluidos"],
+//       icon: "⭐",
+//       popular: true
+//     },
+//     {
+//       id: "deluxe",
+//       name: "Plan Deluxe",
+//       price: "$79.99",
+//       description: "La experiencia completa para mascotas exigentes",
+//       features: ["Comida ultra-premium", "Entrega semanal", "Soporte 24/7", "Snacks y juguetes", "Consulta veterinaria"],
+//       icon: "💎"
+//     }
+//   ]
+
+//   return (
+//     <FormStep 
+//       stepNumber={9} 
+//       title={`Elige el plan perfecto para ${petName}`} 
+//       highlightedWord={petName}
+//       infoText="Selecciona el plan que mejor se adapte a las necesidades de tu mascota. Puedes cambiar o cancelar en cualquier momento."
+//       showNextButton={false}
+//     >
+//       <div className="w-full max-w-4xl mx-auto">
+//         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+//           {plans.map((plan) => (
+//             <div key={plan.id} className="relative">
+//               {plan.popular && (
+//                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+//                   <span className="bg-teal-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+//                     Más Popular
+//                   </span>
+//                 </div>
+//               )}
+//               <SelectionCard
+//                 selected={selectedPlan === plan.id}
+//                 onClick={() => setSelectedPlan(plan.id)}
+//                 icon={
+//                   <div className="text-4xl mb-4">{plan.icon}</div>
+//                 }
+//                 label={
+//                   <div className="text-center space-y-3">
+//                     <div>
+//                       <h3 className="text-lg font-bold">{plan.name}</h3>
+//                       <p className="text-2xl font-bold text-teal-600 mt-1">{plan.price}</p>
+//                       <p className="text-sm text-gray-600 mt-1">por mes</p>
+//                     </div>
+//                     <p className="text-sm text-gray-700">{plan.description}</p>
+//                     <ul className="text-xs text-left space-y-1">
+//                       {plan.features.map((feature, index) => (
+//                         <li key={index} className="flex items-center">
+//                           <span className="text-green-500 mr-2">✓</span>
+//                           {feature}
+//                         </li>
+//                       ))}
+//                     </ul>
+//                   </div>
+//                 }
+//               />
+//             </div>
+//           ))}
+//         </div>
+
+//         {selectedPlan && (
+//           <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg text-center">
+//             <div className="text-3xl mb-3">🎉</div>
+//             <h3 className="text-lg font-bold text-green-800 mb-2">
+//               ¡Excelente elección para {petName}!
+//             </h3>
+//             <p className="text-green-700 mb-4">
+//               Has seleccionado el {plans.find(p => p.id === selectedPlan)?.name}. 
+//               Tu mascota recibirá la mejor nutrición personalizada.
+//             </p>
+//             <button className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-lg transition-colors">
+//               Crear Plan para {petName}
+//             </button>
+//           </div>
+//         )}
+//       </div>
+//     </FormStep>
+//   )
+// }

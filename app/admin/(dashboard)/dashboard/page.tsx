@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Users, Package, ShoppingBag, FileText } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
+import SystemStatus from "@/components/admin/SystemStatus"
 
 interface StatsType {
   totalUsers: number | null
@@ -85,6 +86,11 @@ const DashboardPage = () => {
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-8">Panel de Administración</h1>
+      
+      {/* Estado del Sistema */}
+      <div className="mb-8">
+        <SystemStatus />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Tarjeta de Usuarios */}

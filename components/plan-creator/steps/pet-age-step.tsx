@@ -1,73 +1,89 @@
-"use client"
+// PROTOTIPO NO UTILIZADO - TODO EL CÓDIGO COMENTADO
+// "use client"
 
-import { useEffect, useState } from "react"
-import { usePlanForm } from "@/contexts/plan-form-context"
-import FormStep from "../form-step"
-import CustomSlider from "../custom-slider"
+// import { useEffect, useState } from "react"
+// import { usePlanForm } from "@/contexts/plan-form-context"
+// import FormStep from "../form-step"
+// import CustomSlider from "../custom-slider"
 
-export default function PetAgeStep() {
-  const { formData, updateFormData } = usePlanForm()
-  const [years, setYears] = useState(formData.age.years)
-  const [months, setMonths] = useState(formData.age.months)
-  const [petName, setPetName] = useState(formData.name)
+// export default function PetAgeStep() {
+//   const { formData, updateFormData } = usePlanForm()
+//   const [years, setYears] = useState(formData.age?.years || 1)
+//   const [months, setMonths] = useState(formData.age?.months || 1)
+//   const [petName, setPetName] = useState(formData.name)
 
-  // Actualizar el estado global cuando cambian los años o meses
-  useEffect(() => {
-    // Usar un temporizador para reducir la frecuencia de actualizaciones
-    const timer = setTimeout(() => {
-      updateFormData({ age: { years, months } })
-    }, 300) // Esperar 300ms después del último cambio
+//   // Actualizar el estado global cuando cambia la edad
+//   useEffect(() => {
+//     updateFormData({ age: { years, months } })
+//   }, [years, months, updateFormData])
 
-    return () => clearTimeout(timer) // Limpiar el temporizador en la limpieza
-  }, [years, months, updateFormData])
+//   // Actualizar el nombre local cuando cambia en el contexto
+//   useEffect(() => {
+//     setPetName(formData.name)
+//   }, [formData.name])
 
-  // Actualizar el nombre local cuando cambia en el contexto
-  useEffect(() => {
-    setPetName(formData.name)
-  }, [formData.name])
+//   return (
+//     <FormStep 
+//       stepNumber={4} 
+//       title={`¿Cuántos años tiene ${petName}?`} 
+//       highlightedWord={petName}
+//       infoText="La edad es fundamental para determinar las necesidades nutricionales específicas de tu mascota."
+//     >
+//       <div className="w-full max-w-md mx-auto space-y-8">
+//         {/* Slider para años */}
+//         <div>
+//           <CustomSlider
+//             min={0}
+//             max={20}
+//             step={1}
+//             value={years}
+//             onChange={setYears}
+//             label="Años"
+//             unit="años"
+//           />
+//         </div>
 
-  // Determinar si es un perro adulto (más de 1 año)
-  const isAdult = years >= 1
+//         {/* Slider para meses */}
+//         <div>
+//           <CustomSlider
+//             min={0}
+//             max={11}
+//             step={1}
+//             value={months}
+//             onChange={setMonths}
+//             label="Meses adicionales"
+//             unit="meses"
+//           />
+//         </div>
 
-  return (
-    <FormStep stepNumber={3} title={`¿Cuál es la edad de ${petName}?`} highlightedWord="edad">
-      <div className="w-full max-w-md mx-auto">
-        <p className="text-center text-gray-600 mb-6">
-          Desliza para seleccionar la edad aproximada de tu peludo (en años y meses)
-        </p>
+//         {/* Resumen de edad */}
+//         <div className="text-center p-6 bg-gradient-to-r from-teal-50 to-blue-50 rounded-lg border border-teal-200">
+//           <h3 className="text-lg font-bold text-gray-800 mb-2">Edad de {petName}:</h3>
+//           <div className="flex justify-center items-center space-x-4">
+//             <div className="text-center">
+//               <div className="text-3xl font-bold text-teal-600">{years}</div>
+//               <div className="text-sm text-gray-600">años</div>
+//             </div>
+//             <div className="text-2xl text-gray-400">+</div>
+//             <div className="text-center">
+//               <div className="text-3xl font-bold text-blue-600">{months}</div>
+//               <div className="text-sm text-gray-600">meses</div>
+//             </div>
+//           </div>
+//         </div>
 
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-lg font-medium text-gray-700">
-              {years} {years === 1 ? "año" : "años"}
-            </label>
-          </div>
-          <CustomSlider min={0} max={20} step={1} value={years} onChange={setYears} showMarks markCount={5} />
-        </div>
-
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-lg font-medium text-gray-700">
-              {months} {months === 1 ? "mes" : "meses"}
-            </label>
-          </div>
-          <CustomSlider min={0} max={11} step={1} value={months} onChange={setMonths} showMarks markCount={4} />
-        </div>
-
-        {isAdult && (
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-lg text-blue-800">
-            <p>¡{petName} es un adulto! Necesita una dieta equilibrada para mantener su salud y nivel de actividad.</p>
-          </div>
-        )}
-
-        {!isAdult && years === 0 && months < 3 && (
-          <div className="mt-8 p-4 bg-yellow-50 border border-yellow-100 rounded-lg text-yellow-800">
-            <p>
-              ¡{petName} es muy pequeño! Los cachorros menores de 3 meses tienen necesidades nutricionales especiales.
-            </p>
-          </div>
-        )}
-      </div>
-    </FormStep>
-  )
-}
+//         {/* Información sobre la etapa de vida */}
+//         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+//           <h4 className="font-medium text-blue-800 mb-2">
+//             {years < 1 ? "Cachorro" : years < 7 ? "Adulto" : "Senior"}
+//           </h4>
+//           <p className="text-sm text-blue-700">
+//             {years < 1 && "Los cachorros necesitan más proteínas y calorías para su crecimiento y desarrollo."}
+//             {years >= 1 && years < 7 && "Los perros adultos necesitan una dieta balanceada para mantener su salud y energía."}
+//             {years >= 7 && "Los perros senior necesitan nutrición especializada para apoyar la salud articular y cognitiva."}
+//           </p>
+//         </div>
+//       </div>
+//     </FormStep>
+//   )
+// }

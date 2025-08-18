@@ -12,7 +12,7 @@ console.log('='.repeat(60));
 console.log('\n📋 ESTADO ACTUAL: 3 PUNTOS CRÍTICOS PENDIENTES');
 console.log('\n🔴 CRÍTICO 1: Configuración manual en Panel MercadoPago');
 console.log('🔴 CRÍTICO 2: Variable de entorno WEBHOOK SECRET');
-console.log('🔴 CRÍTICO 3: Pruebas en producción');
+console.log('🔴 CRÍTICO 3: Verificación en producción');
 
 function showCriticalPoint1() {
   console.log('\n' + '='.repeat(50));
@@ -162,8 +162,8 @@ function showUrgentCommands() {
   console.log('\n📌 Verificar estado actual:');
   console.log('   node scripts/webhook-final-summary.js');
   
-  console.log('\n📌 Probar webhook localmente:');
-  console.log('   node scripts/test-webhook.js');
+  console.log('\n📌 Verificar configuración del webhook:');
+  console.log('   node scripts/webhook-final-summary.js');
   
   console.log('\n📌 Ver guía detallada:');
   console.log('   node scripts/webhook-setup-guide.js');

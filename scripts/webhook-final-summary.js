@@ -33,7 +33,7 @@ const SYSTEM_STATUS = {
   pending_configuration: {
     mercadopago_panel: '⚠️  PENDIENTE - Configuración manual requerida',
     webhook_secret: '⚠️  PENDIENTE - Variable de entorno',
-    production_testing: '⚠️  PENDIENTE - Pruebas en producción'
+    production_verification: '⚠️  PENDIENTE - Verificación en producción'
   },
   
   // Funcionalidades del sistema

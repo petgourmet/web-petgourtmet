@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
+import logger, { LogCategory } from '@/lib/logger'
 
 // Tipos para webhooks de MercadoPago
 interface WebhookPayload {
@@ -70,14 +71,19 @@ export class WebhookService {
     this.webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
     
     if (!this.mercadoPagoToken) {
+      logger.error(LogCategory.WEBHOOK, 'MERCADOPAGO_ACCESS_TOKEN es requerido', undefined, { component: 'WebhookService' })
       throw new Error('MERCADOPAGO_ACCESS_TOKEN es requerido')
     }
 
+    logger.info(LogCategory.WEBHOOK, 'WebhookService inicializado correctamente', { 
+      hasToken: !!this.mercadoPagoToken,
+      hasSecret: !!this.webhookSecret 
+    })
     this.initializeEmailTransporter()
   }
 
   private initializeEmailTransporter() {
-    this.emailTransporter = nodemailer.createTransport({
+    this.emailTransporter = nodemailer.createTransporter({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '465'),
       secure: process.env.SMTP_SECURE === 'true',
@@ -101,7 +107,10 @@ export class WebhookService {
   // Validar firma del webhook
   validateWebhookSignature(payload: string, signature: string): boolean {
     if (!this.webhookSecret || !signature) {
-      console.warn('⚠️ Webhook secret o signature no configurados')
+      logger.warn(LogCategory.WEBHOOK, 'Webhook secret o signature no configurados - permitiendo en desarrollo', {
+        hasSecret: !!this.webhookSecret,
+        hasSignature: !!signature
+      })
       return true // En desarrollo, permitir sin validación
     }
 
@@ -111,19 +120,31 @@ export class WebhookService {
         .update(payload)
         .digest('hex')
       
-      return crypto.timingSafeEqual(
+      const isValid = crypto.timingSafeEqual(
         Buffer.from(signature, 'hex'),
         Buffer.from(expectedSignature, 'hex')
       )
-    } catch (error) {
-      console.error('❌ Error validando firma del webhook:', error)
+      
+      logger.info(LogCategory.WEBHOOK, 'Validación de firma de webhook', {
+        isValid,
+        signatureLength: signature.length,
+        payloadLength: payload.length
+      })
+      
+      return isValid
+    } catch (error: any) {
+      logger.error(LogCategory.WEBHOOK, 'Error validando firma del webhook', error.message, { error: error.message })
       return false
     }
   }
 
   // Obtener datos de pago desde MercadoPago
   async getPaymentData(paymentId: string): Promise<PaymentData | null> {
+    const startTime = Date.now()
+    
     try {
+      logger.info('Obteniendo datos de pago desde MercadoPago', 'PAYMENT', { paymentId })
+      
       const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: {
           'Authorization': `Bearer ${this.mercadoPagoToken}`,
@@ -131,21 +152,47 @@ export class WebhookService {
         }
       })
 
+      const duration = Date.now() - startTime
+
       if (!response.ok) {
-        console.error(`❌ Error obteniendo pago ${paymentId}:`, response.status, response.statusText)
+        logger.error('Error obteniendo pago desde MercadoPago API', 'PAYMENT', {
+          paymentId,
+          status: response.status,
+          statusText: response.statusText,
+          duration
+        })
         return null
       }
 
-      return await response.json()
+      const paymentData = await response.json()
+      
+      logger.info('Datos de pago obtenidos exitosamente', 'PAYMENT', {
+        paymentId,
+        status: paymentData.status,
+        amount: paymentData.transaction_amount,
+        currency: paymentData.currency_id,
+        duration
+      })
+      
+      return paymentData
     } catch (error) {
-      console.error(`❌ Error en API de MercadoPago para pago ${paymentId}:`, error)
+      const duration = Date.now() - startTime
+      logger.error('Error en API de MercadoPago para pago', 'PAYMENT', {
+        paymentId,
+        error: error.message,
+        duration
+      })
       return null
     }
   }
 
   // Obtener datos de suscripción desde MercadoPago
   async getSubscriptionData(subscriptionId: string): Promise<SubscriptionData | null> {
+    const startTime = Date.now()
+    
     try {
+      logger.info('Obteniendo datos de suscripción desde MercadoPago', 'SUBSCRIPTION', { subscriptionId })
+      
       const response = await fetch(`https://api.mercadopago.com/preapproval/${subscriptionId}`, {
         headers: {
           'Authorization': `Bearer ${this.mercadoPagoToken}`,
@@ -153,68 +200,143 @@ export class WebhookService {
         }
       })
 
+      const duration = Date.now() - startTime
+
       if (!response.ok) {
-        console.error(`❌ Error obteniendo suscripción ${subscriptionId}:`, response.status, response.statusText)
+        logger.error('Error obteniendo suscripción desde MercadoPago API', 'SUBSCRIPTION', {
+          subscriptionId,
+          status: response.status,
+          statusText: response.statusText,
+          duration
+        })
         return null
       }
 
-      return await response.json()
+      const subscriptionData = await response.json()
+      
+      logger.info('Datos de suscripción obtenidos exitosamente', 'SUBSCRIPTION', {
+        subscriptionId,
+        status: subscriptionData.status,
+        payerEmail: subscriptionData.payer_email,
+        duration
+      })
+      
+      return subscriptionData
     } catch (error) {
-      console.error(`❌ Error en API de MercadoPago para suscripción ${subscriptionId}:`, error)
+      const duration = Date.now() - startTime
+      logger.error('Error en API de MercadoPago para suscripción', 'SUBSCRIPTION', {
+        subscriptionId,
+        error: error.message,
+        duration
+      })
       return null
     }
   }
 
   // Procesar webhook de pago
   async processPaymentWebhook(webhookData: WebhookPayload): Promise<boolean> {
+    const startTime = Date.now()
+    const paymentId = webhookData.data.id
+    
     try {
-      const supabase = await this.initializeSupabase()
-      const paymentId = webhookData.data.id
+      logger.info('Iniciando procesamiento de webhook de pago', 'WEBHOOK', {
+        paymentId,
+        type: webhookData.type,
+        action: webhookData.action,
+        liveMode: webhookData.live_mode
+      })
       
-      console.log(`💳 Procesando webhook de pago: ${paymentId}`)
+      const supabase = await this.initializeSupabase()
       
       // Obtener datos del pago
       const paymentData = await this.getPaymentData(paymentId)
       if (!paymentData) {
-        console.error(`❌ No se pudieron obtener datos del pago ${paymentId}`)
+        logger.error('No se pudieron obtener datos del pago desde MercadoPago', 'WEBHOOK', {
+          paymentId,
+          duration: Date.now() - startTime
+        })
         return false
       }
 
-      console.log(`📋 Datos del pago:`, {
-        id: paymentData.id,
+      logger.info('Datos del pago obtenidos para webhook', 'WEBHOOK', {
+        paymentId: paymentData.id,
         status: paymentData.status,
         amount: paymentData.transaction_amount,
-        external_reference: paymentData.external_reference
+        currency: paymentData.currency_id,
+        externalReference: paymentData.external_reference,
+        payerEmail: paymentData.payer?.email
       })
 
       // Determinar si es pago de orden o suscripción
       const isSubscriptionPayment = paymentData.metadata?.subscription_id || 
                                    paymentData.external_reference?.startsWith('subscription_')
 
+      logger.info('Tipo de pago determinado', 'WEBHOOK', {
+        paymentId,
+        isSubscriptionPayment,
+        hasMetadataSubscriptionId: !!paymentData.metadata?.subscription_id,
+        externalReferenceStartsWithSubscription: paymentData.external_reference?.startsWith('subscription_')
+      })
+
+      let result: boolean
       if (isSubscriptionPayment) {
-        return await this.handleSubscriptionPayment(paymentData, supabase)
+        result = await this.handleSubscriptionPayment(paymentData, supabase)
       } else {
-        return await this.handleOrderPayment(paymentData, supabase)
+        result = await this.handleOrderPayment(paymentData, supabase)
       }
 
+      const duration = Date.now() - startTime
+      
+      if (result) {
+        logger.info('Webhook de pago procesado exitosamente', 'WEBHOOK', {
+          paymentId,
+          isSubscriptionPayment,
+          duration
+        })
+      } else {
+        logger.error('Fallo en el procesamiento del webhook de pago', 'WEBHOOK', {
+          paymentId,
+          isSubscriptionPayment,
+          duration
+        })
+      }
+      
+      return result
+
     } catch (error) {
-      console.error('❌ Error procesando webhook de pago:', error)
+      const duration = Date.now() - startTime
+      logger.error('Error procesando webhook de pago', 'WEBHOOK', {
+        paymentId,
+        error: error.message,
+        stack: error.stack,
+        duration
+      })
       return false
     }
   }
 
   // Procesar webhook de suscripción
   async processSubscriptionWebhook(webhookData: WebhookPayload): Promise<boolean> {
+    const startTime = Date.now()
+    const subscriptionId = webhookData.data.id
+    
     try {
-      const supabase = await this.initializeSupabase()
-      const subscriptionId = webhookData.data.id
+      logger.info('Iniciando procesamiento de webhook de suscripción', 'WEBHOOK', {
+        subscriptionId,
+        type: webhookData.type,
+        action: webhookData.action,
+        liveMode: webhookData.live_mode
+      })
       
-      console.log(`📋 Procesando webhook de suscripción: ${subscriptionId}, acción: ${webhookData.action}`)
+      const supabase = await this.initializeSupabase()
       
       // Obtener datos de la suscripción
       const subscriptionData = await this.getSubscriptionData(subscriptionId)
       if (!subscriptionData) {
-        console.error(`❌ No se pudieron obtener datos de la suscripción ${subscriptionId}`)
+        logger.error('No se pudieron obtener datos de la suscripción desde MercadoPago', 'WEBHOOK', {
+          subscriptionId,
+          duration: Date.now() - startTime
+        })
         return false
       }
 
@@ -222,6 +344,12 @@ export class WebhookService {
       await this.updateLocalSubscription(subscriptionData, supabase)
 
       // Manejar acciones específicas
+      logger.info('Procesando acción específica de suscripción', 'WEBHOOK', {
+        subscriptionId,
+        action: webhookData.action,
+        subscriptionStatus: subscriptionData.status
+      })
+      
       switch (webhookData.action) {
         case 'created':
           await this.handleSubscriptionCreated(subscriptionData, supabase)
@@ -235,27 +363,60 @@ export class WebhookService {
         case 'payment_created':
         case 'payment_updated':
           // Estos se manejan en el webhook de pagos
-          console.log(`ℹ️ Acción de pago ${webhookData.action} - se maneja en webhook de pagos`)
+          logger.info('Acción de pago delegada al webhook de pagos', 'WEBHOOK', {
+            subscriptionId,
+            action: webhookData.action
+          })
           break
         default:
-          console.log(`ℹ️ Acción no manejada: ${webhookData.action}`)
+          logger.warn('Acción de suscripción no manejada', 'WEBHOOK', {
+            subscriptionId,
+            action: webhookData.action
+          })
       }
 
+      const duration = Date.now() - startTime
+      logger.info('Webhook de suscripción procesado exitosamente', 'WEBHOOK', {
+        subscriptionId,
+        action: webhookData.action,
+        duration
+      })
+      
       return true
 
     } catch (error) {
-      console.error('❌ Error procesando webhook de suscripción:', error)
+      const duration = Date.now() - startTime
+      logger.error('Error procesando webhook de suscripción', 'WEBHOOK', {
+        subscriptionId,
+        action: webhookData.action,
+        error: error.message,
+        stack: error.stack,
+        duration
+      })
       return false
     }
   }
 
   // Manejar pago de orden
   private async handleOrderPayment(paymentData: PaymentData, supabase: any): Promise<boolean> {
+    const startTime = Date.now()
+    
     try {
       const orderId = paymentData.external_reference
+      const paymentId = paymentData.id
+      
+      logger.info('Iniciando manejo de pago de orden', 'ORDER', {
+        paymentId,
+        orderId,
+        paymentStatus: paymentData.status,
+        amount: paymentData.transaction_amount
+      })
+      
       if (!orderId) {
-        console.warn('⚠️ No se encontró external_reference para el pago de orden')
-        console.log('ℹ️ Webhook procesado sin acción - pago sin referencia de orden')
+        logger.warn('Pago sin referencia de orden - procesado sin acción', 'ORDER', {
+          paymentId,
+          payerEmail: paymentData.payer?.email
+        })
         return true // No fallar por pagos sin referencia
       }
 
@@ -267,9 +428,12 @@ export class WebhookService {
         .single()
 
       if (orderError || !order) {
-        console.warn(`⚠️ Orden ${orderId} no encontrada:`, orderError?.message || 'Orden no existe')
-        console.log(`ℹ️ Webhook procesado sin acción - orden ${orderId} no existe en la base de datos`)
-        console.log(`ℹ️ Esto puede ocurrir si la orden fue eliminada o es de un entorno diferente`)
+        logger.warn('Orden no encontrada en base de datos - procesado sin acción', 'ORDER', {
+          paymentId,
+          orderId,
+          error: orderError?.message,
+          reason: 'Puede ser orden eliminada o de entorno diferente'
+        })
         return true // No fallar por órdenes que no existen
       }
 
@@ -286,40 +450,91 @@ export class WebhookService {
         updateData.confirmed_at = new Date().toISOString()
       }
 
+      logger.info('Actualizando estado de orden', 'ORDER', {
+        paymentId,
+        orderId,
+        previousStatus: order.status,
+        newStatus: orderStatus,
+        paymentStatus: paymentData.status
+      })
+
       const { error: updateError } = await supabase
         .from('orders')
         .update(updateData)
         .eq('id', orderId)
 
       if (updateError) {
-        console.error(`❌ Error actualizando orden ${orderId}:`, updateError)
+        logger.error('Error actualizando orden en base de datos', 'ORDER', {
+          paymentId,
+          orderId,
+          error: updateError.message,
+          duration: Date.now() - startTime
+        })
         return false
       }
 
-      console.log(`✅ Orden ${orderId} actualizada - Estado: ${orderStatus}`)
+      logger.info('Orden actualizada exitosamente', 'ORDER', {
+        paymentId,
+        orderId,
+        newStatus: orderStatus,
+        isApproved: paymentData.status === 'approved' || paymentData.status === 'paid'
+      })
 
       // Enviar email de confirmación si el pago fue aprobado
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
+        logger.info('Enviando email de confirmación de orden', 'ORDER', {
+          paymentId,
+          orderId,
+          payerEmail: paymentData.payer?.email
+        })
         await this.sendOrderConfirmationEmail(order, paymentData)
       }
 
+      const duration = Date.now() - startTime
+      logger.info('Pago de orden procesado exitosamente', 'ORDER', {
+        paymentId,
+        orderId,
+        finalStatus: orderStatus,
+        duration
+      })
+      
       return true
 
     } catch (error) {
-      console.error('❌ Error manejando pago de orden:', error)
+      const duration = Date.now() - startTime
+      logger.error('Error manejando pago de orden', 'ORDER', {
+        paymentId: paymentData.id,
+        orderId: paymentData.external_reference,
+        error: error.message,
+        stack: error.stack,
+        duration
+      })
       return false
     }
   }
 
   // Manejar pago de suscripción
   private async handleSubscriptionPayment(paymentData: PaymentData, supabase: any): Promise<boolean> {
+    const startTime = Date.now()
+    
     try {
       const subscriptionId = paymentData.metadata?.subscription_id || 
                            paymentData.external_reference?.replace('subscription_', '')
+      const paymentId = paymentData.id
+      
+      logger.info('Iniciando manejo de pago de suscripción', 'SUBSCRIPTION', {
+        paymentId,
+        subscriptionId,
+        paymentStatus: paymentData.status,
+        amount: paymentData.transaction_amount
+      })
       
       if (!subscriptionId) {
-        console.error('❌ No se encontró ID de suscripción en el pago')
-        return false
+        logger.warn('Pago sin referencia de suscripción - procesado sin acción', 'SUBSCRIPTION', {
+          paymentId,
+          payerEmail: paymentData.payer?.email
+        })
+        return true
       }
 
       // Verificar si ya existe el registro de pago
@@ -346,6 +561,15 @@ export class WebhookService {
         updated_at: new Date().toISOString()
       }
 
+      logger.info('Registrando pago en historial de facturación', 'SUBSCRIPTION', {
+        paymentId,
+        subscriptionId,
+        amount: paymentData.transaction_amount,
+        currency: paymentData.currency_id,
+        paymentMethod: paymentData.payment_method_id,
+        isUpdate: !!existingPayment
+      })
+
       if (existingPayment) {
         // Actualizar registro existente
         const { error } = await supabase
@@ -354,7 +578,12 @@ export class WebhookService {
           .eq('id', existingPayment.id)
 
         if (error) {
-          console.error('❌ Error actualizando historial de facturación:', error)
+          logger.error('Error actualizando historial de facturación', 'SUBSCRIPTION', {
+            paymentId,
+            subscriptionId,
+            error: error.message,
+            duration: Date.now() - startTime
+          })
           return false
         }
       } else {
@@ -364,7 +593,12 @@ export class WebhookService {
           .insert(billingData)
 
         if (error) {
-          console.error('❌ Error creando historial de facturación:', error)
+          logger.error('Error creando historial de facturación', 'SUBSCRIPTION', {
+            paymentId,
+            subscriptionId,
+            error: error.message,
+            duration: Date.now() - startTime
+          })
           return false
         }
       }
@@ -380,18 +614,42 @@ export class WebhookService {
           .eq('id', subscriptionId)
 
         if (subscriptionError) {
-          console.error('❌ Error actualizando suscripción:', subscriptionError)
+          logger.error('Error actualizando suscripción', 'SUBSCRIPTION', {
+            paymentId,
+            subscriptionId,
+            error: subscriptionError.message
+          })
         }
 
         // Enviar email de confirmación de pago
+        logger.info('Enviando email de confirmación de pago de suscripción', 'SUBSCRIPTION', {
+          paymentId,
+          subscriptionId,
+          payerEmail: paymentData.payer?.email
+        })
         await this.sendSubscriptionPaymentEmail(subscriptionId, paymentData, supabase)
       }
 
-      console.log(`✅ Pago de suscripción ${subscriptionId} procesado - Estado: ${paymentData.status}`)
+      const duration = Date.now() - startTime
+      logger.info('Pago de suscripción procesado exitosamente', 'SUBSCRIPTION', {
+        paymentId,
+        subscriptionId,
+        finalStatus: paymentData.status,
+        isApproved: paymentData.status === 'approved' || paymentData.status === 'paid',
+        duration
+      })
+      
       return true
 
     } catch (error) {
-      console.error('❌ Error manejando pago de suscripción:', error)
+      const duration = Date.now() - startTime
+      logger.error('Error manejando pago de suscripción', 'SUBSCRIPTION', {
+        paymentId: paymentData.id,
+        subscriptionId,
+        error: error.message,
+        stack: error.stack,
+        duration
+      })
       return false
     }
   }
@@ -558,7 +816,18 @@ export class WebhookService {
 
   // Enviar email de confirmación de orden
   private async sendOrderConfirmationEmail(order: any, paymentData: PaymentData): Promise<void> {
+    const startTime = Date.now()
+    
     try {
+      const recipientEmail = paymentData.payer?.email || order.customer_email
+      
+      logger.info('Enviando email de confirmación de orden', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        recipientEmail,
+        amount: paymentData.transaction_amount
+      })
+
       const emailTemplate = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
@@ -588,17 +857,33 @@ export class WebhookService {
       `
 
       await this.sendEmail({
-        to: paymentData.payer.email,
+        to: recipientEmail,
         subject: '✅ Pago confirmado - Pet Gourmet',
         html: emailTemplate
       })
+
+      const duration = Date.now() - startTime
+      logger.info('Email de confirmación de orden enviado exitosamente', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        recipientEmail,
+        duration
+      })
     } catch (error) {
-      console.error('❌ Error enviando email de confirmación de orden:', error)
+      const duration = Date.now() - startTime
+      logger.error('Error enviando email de confirmación de orden', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        error: error.message,
+        duration
+      })
     }
   }
 
   // Enviar email de pago de suscripción
   private async sendSubscriptionPaymentEmail(subscriptionId: string, paymentData: PaymentData, supabase: any): Promise<void> {
+    const startTime = Date.now()
+    
     try {
       // Obtener detalles de la suscripción
       const { data: subscription } = await supabase
@@ -608,9 +893,22 @@ export class WebhookService {
         .single()
 
       if (!subscription) {
-        console.error('❌ Suscripción no encontrada para email de pago')
+        logger.error('Suscripción no encontrada para email de pago', 'SUBSCRIPTION', {
+          subscriptionId,
+          paymentId: paymentData.id
+        })
         return
       }
+
+      const recipientEmail = paymentData.payer?.email || subscription.customer_email
+      
+      logger.info('Enviando email de pago de suscripción', 'SUBSCRIPTION', {
+        subscriptionId,
+        paymentId: paymentData.id,
+        recipientEmail,
+        productName: subscription.product?.name,
+        amount: paymentData.transaction_amount
+      })
 
       const emailTemplate = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -642,12 +940,26 @@ export class WebhookService {
       `
 
       await this.sendEmail({
-        to: paymentData.payer.email,
+        to: recipientEmail,
         subject: '💳 Pago procesado - Suscripción Pet Gourmet',
         html: emailTemplate
       })
+
+      const duration = Date.now() - startTime
+      logger.info('Email de pago de suscripción enviado exitosamente', 'SUBSCRIPTION', {
+        subscriptionId,
+        paymentId: paymentData.id,
+        recipientEmail,
+        duration
+      })
     } catch (error) {
-      console.error('❌ Error enviando email de pago de suscripción:', error)
+      const duration = Date.now() - startTime
+      logger.error('Error enviando email de pago de suscripción', 'SUBSCRIPTION', {
+        subscriptionId,
+        paymentId: paymentData.id,
+        error: error.message,
+        duration
+      })
     }
   }
 }
