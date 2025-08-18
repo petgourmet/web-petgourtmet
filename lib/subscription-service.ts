@@ -48,8 +48,6 @@ export class SubscriptionService {
     }
     
     try {
-      }
-
       // Realizar cobro real con MercadoPago
       const paymentResponse = await fetch("https://api.mercadopago.com/v1/payments", {
         method: "POST",
