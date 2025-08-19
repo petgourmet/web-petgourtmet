@@ -299,7 +299,7 @@ export const validateEnvironmentVariables = (): ValidationResult => {
 
   const requiredVars = [
     'MERCADOPAGO_ACCESS_TOKEN',
-    'MERCADOPAGO_PUBLIC_KEY',
+    'NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY',
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY'
   ]

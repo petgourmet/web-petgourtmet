@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const publicKey = process.env.MERCADOPAGO_PUBLIC_KEY
+    const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
 
     if (!publicKey) {
       return NextResponse.json({ error: "MercadoPago no configurado" }, { status: 500 })
