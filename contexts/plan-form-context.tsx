@@ -3,7 +3,6 @@
 
 // import { createContext, useContext, useState, type ReactNode } from "react"
 
-// // Definir los tipos para nuestro estado
 // export type PetGender = "male" | "female"
 // export type PetSize = "small" | "medium" | "large"
 // export type PetActivity = "low" | "medium" | "high"
