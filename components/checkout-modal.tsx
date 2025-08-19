@@ -24,33 +24,45 @@ export function CheckoutModal() {
   const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
   const [userProfile, setUserProfile] = useState<any>(null)
 
-  // Cargar URLs de suscripción desde la base de datos
+  // Cargar URLs de suscripción dinámicamente
   useEffect(() => {
     const loadSubscriptionUrls = async () => {
       try {
-        const { data, error } = await supabase
-          .from('subscription_config')
-          .select('period, mercadopago_url')
-          .not('mercadopago_url', 'is', null)
-
-        if (error) throw error
-
-        const urlMap: { [key: string]: string } = {}
-        data?.forEach(config => {
-          if (config.mercadopago_url) {
-            urlMap[config.period] = config.mercadopago_url
-          }
-        })
-        setSubscriptionLinks(urlMap)
+        const response = await fetch('/api/subscription-urls')
+        const data = await response.json()
+        
+        if (data.success && data.subscription_urls) {
+          const urlMap: { [key: string]: string } = {}
+          Object.entries(data.subscription_urls).forEach(([key, config]: [string, any]) => {
+            if (config.mercadopago_url) {
+              urlMap[key] = config.mercadopago_url
+            }
+          })
+          setSubscriptionLinks(urlMap)
+          console.log('✅ URLs de suscripción cargadas exitosamente')
+        } else {
+          throw new Error(data.message || 'Error en respuesta del servidor')
+        }
       } catch (error) {
         console.error('Error al cargar URLs de suscripción:', error)
+        
         // URLs de respaldo en caso de error
-        setSubscriptionLinks({
+        const fallbackUrls = {
           weekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=weekly_plan_id",
           biweekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=biweekly_plan_id",
           monthly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=monthly_plan_id",
           quarterly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=quarterly_plan_id",
           annual: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=annual_plan_id"
+        }
+        
+        setSubscriptionLinks(fallbackUrls)
+        console.warn('⚠️ Usando URLs de respaldo para suscripciones')
+        
+        // Mostrar toast de advertencia al usuario
+        toast({
+          title: "Advertencia",
+          description: "Algunas funciones de suscripción pueden estar limitadas. Contacta soporte si persiste el problema.",
+          variant: "destructive"
         })
       }
     }
@@ -375,11 +387,30 @@ export function CheckoutModal() {
 
           if (subscriptionError) {
             console.error('Error al guardar suscripción pendiente:', subscriptionError)
-            setError('Error al guardar la suscripción. Por favor, inténtalo de nuevo.')
+            
+            // Manejo específico de errores
+            let errorMessage = 'Error al guardar la suscripción. Por favor, inténtalo de nuevo.'
+            
+            if (subscriptionError.code === '23505') {
+              errorMessage = 'Ya existe una suscripción pendiente con esta referencia. Verifica tu perfil.'
+            } else if (subscriptionError.code === '23503') {
+              errorMessage = 'Error de datos. Por favor, verifica tu información e inténtalo de nuevo.'
+            } else if (subscriptionError.message?.includes('permission')) {
+              errorMessage = 'Error de permisos. Por favor, inicia sesión nuevamente.'
+            }
+            
+            setError(errorMessage)
+            
+            toast({
+              title: "Error al guardar suscripción",
+              description: errorMessage,
+              variant: "destructive"
+            })
+            
             return
           }
 
-          console.log('Suscripción pendiente guardada exitosamente:', insertedData)
+          console.log('✅ Suscripción pendiente guardada exitosamente:', insertedData)
 
           // Mostrar mensaje de confirmación
           toast({

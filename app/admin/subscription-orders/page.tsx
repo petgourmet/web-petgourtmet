@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { fetchOptimizedSubscriptions, invalidateSubscriptionsCache } from '@/lib/query-optimizations'
+import SubscriptionValidator from "@/components/subscription-validator"
 import { 
   Calendar, 
   DollarSign, 
@@ -487,6 +488,11 @@ export default function AdminSubscriptionOrdersPage() {
         <p className="text-gray-600">
           Gestiona todas las suscripciones activas y su estado de pagos
         </p>
+      </div>
+
+      {/* Validador de Suscripciones */}
+      <div className="mb-6">
+        <SubscriptionValidator isAdmin={true} />
       </div>
 
       {/* Filters and Stats */}

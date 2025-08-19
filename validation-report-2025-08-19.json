@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-08-19T18:46:10.457Z",
+  "summary": {
+    "totalLocalSubscriptions": 0,
+    "totalValidated": 0,
+    "discrepancies": 0,
+    "synchronized": 0,
+    "errors": 0
+  },
+  "details": {
+    "localSubscriptions": [],
+    "mercadoPagoSubscriptions": [],
+    "discrepancies": [],
+    "synchronized": [],
+    "errors": []
+  }
+}

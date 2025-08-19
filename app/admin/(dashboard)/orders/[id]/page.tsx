@@ -432,28 +432,67 @@ export default function OrderDetailPage() {
               </div>
               
               {/* Información adicional de pago de MercadoPago */}
-              {(order.mercadopago_payment_id || order.collection_id || order.merchant_order_id) && (
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="font-medium mb-3 text-blue-900 flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Información de MercadoPago
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                    {order.mercadopago_payment_id && (
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">Payment ID:</p>
-                        <p className="font-mono font-semibold text-blue-800">{order.mercadopago_payment_id}</p>
-                      </div>
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium mb-3 text-blue-900 flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Información de Pago - MercadoPago
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                  {/* Payment ID - CRÍTICO */}
+                  <div className="p-3 bg-white rounded border border-red-200">
+                    <p className="text-red-700 font-medium">🔴 Payment ID (CRÍTICO):</p>
+                    <p className="font-mono font-semibold text-red-800">
+                      {order.mercadopago_payment_id || '❌ NO ASIGNADO'}
+                    </p>
+                    {!order.mercadopago_payment_id && (
+                      <p className="text-xs text-red-600 mt-1">⚠️ Sin ID de pago - Webhook no procesado</p>
                     )}
-                    {order.collection_id && (
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">Collection ID:</p>
-                        <p className="font-mono font-semibold text-blue-800">{order.collection_id}</p>
-                      </div>
-                    )}
-                    {order.merchant_order_id && (
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">Merchant Order ID:</p>
+                  </div>
+                  
+                  {/* Preference ID */}
+                  <div className="p-3 bg-white rounded border">
+                    <p className="text-blue-700 font-medium">Preference ID:</p>
+                    <p className="font-mono font-semibold text-blue-800">
+                      {order.payment_intent_id || 'No disponible'}
+                    </p>
+                  </div>
+                  
+                  {/* External Reference */}
+                  <div className="p-3 bg-white rounded border">
+                    <p className="text-blue-700 font-medium">External Reference:</p>
+                    <p className="font-mono font-semibold text-blue-800">
+                      {order.external_reference || order.id}
+                    </p>
+                  </div>
+                  
+                  {/* Payment Type */}
+                  <div className="p-3 bg-white rounded border">
+                    <p className="text-blue-700 font-medium">Tipo de Pago:</p>
+                    <p className="font-semibold text-blue-800">
+                      {order.payment_type || 'No especificado'}
+                    </p>
+                  </div>
+                  
+                  {/* Payment Method */}
+                  <div className="p-3 bg-white rounded border">
+                    <p className="text-blue-700 font-medium">Método de Pago:</p>
+                    <p className="font-semibold text-blue-800">
+                      {order.payment_method || 'No especificado'}
+                    </p>
+                  </div>
+                  
+                  {/* Collection ID */}
+                  {order.collection_id && (
+                    <div className="p-3 bg-white rounded border">
+                      <p className="text-blue-700 font-medium">Collection ID:</p>
+                      <p className="font-mono font-semibold text-blue-800">{order.collection_id}</p>
+                    </div>
+                  )}
+                  
+                  {/* Merchant Order ID */}
+                  {order.merchant_order_id && (
+                    <div className="p-3 bg-white rounded border">
+                      <p className="text-blue-700 font-medium">Merchant Order ID:</p>
                         <p className="font-mono font-semibold text-blue-800">{order.merchant_order_id}</p>
                       </div>
                     )}

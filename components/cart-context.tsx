@@ -66,6 +66,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cart])
 
   const addToCart = (item: CartItem) => {
+    let wasUpdated = false
+    let wasAdded = false
+    
     setCart((prevCart) => {
       // Verificar si el producto ya está en el carrito con el mismo tamaño y tipo de compra
       const existingItemIndex = prevCart.findIndex(
@@ -77,38 +80,44 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         // Si existe, actualizar la cantidad
         const updatedCart = [...prevCart]
         updatedCart[existingItemIndex].quantity += item.quantity
-        toast({
-          title: "Producto actualizado",
-          description: `Se ha actualizado la cantidad de ${item.name} en tu carrito.`,
-        })
+        wasUpdated = true
         return updatedCart
       } else {
         // Si no existe, añadir nuevo item
-        toast({
-          title: "Producto añadido",
-          description: `${item.name} ha sido añadido a tu carrito.`,
-        })
-        
-        // Track add to cart event
-        trackAddToCart(
-          item.id.toString(),
-          item.name,
-          item.isSubscription ? "subscription" : "one-time",
-          item.price,
-          item.quantity
-        )
-        
-        // Track Facebook Pixel add to cart
-        fbTrackAddToCart(
-          item.id.toString(),
-          item.name,
-          item.price,
-          item.quantity
-        )
-        
+        wasAdded = true
         return [...prevCart, item]
       }
     })
+    
+    // ✅ Toasts DESPUÉS del setState para evitar errores de React
+    if (wasUpdated) {
+      toast({
+        title: "Producto actualizado",
+        description: `Se ha actualizado la cantidad de ${item.name} en tu carrito.`,
+      })
+    } else if (wasAdded) {
+      toast({
+        title: "Producto añadido",
+        description: `${item.name} ha sido añadido a tu carrito.`,
+      })
+      
+      // Track add to cart event
+      trackAddToCart(
+        item.id.toString(),
+        item.name,
+        item.isSubscription ? "subscription" : "one-time",
+        item.price,
+        item.quantity
+      )
+      
+      // Track Facebook Pixel add to cart
+      fbTrackAddToCart(
+        item.id.toString(),
+        item.name,
+        item.price,
+        item.quantity
+      )
+    }
   }
 
   const removeFromCart = (index: number) => {

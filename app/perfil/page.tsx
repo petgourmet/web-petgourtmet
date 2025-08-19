@@ -13,6 +13,7 @@ import UserBillingHistory from "@/components/user-billing-history"
 import RealtimeStatus from "@/components/realtime-status"
 import AuthDebugger from "@/components/debug/AuthDebugger"
 import QueryTester from "@/components/debug/QueryTester"
+import SubscriptionValidator from "@/components/subscription-validator"
 import { fetchOptimizedOrders, fetchOptimizedSubscriptions, invalidateUserCache } from "@/lib/query-optimizations"
 import { 
   User, 
@@ -1058,7 +1059,10 @@ export default function PerfilPage() {
         )}
 
         {activeTab === 'subscriptions' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Validador de Suscripciones */}
+            <SubscriptionValidator userId={user?.id} />
+            
             {subscriptions.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">

@@ -90,8 +90,8 @@ export const validateCustomerData = (customerData: CustomerData): ValidationResu
     
     if (!customerData.address.zip_code?.trim()) {
       errors.push('El código postal es requerido')
-    } else if (!/^[0-9]{5}$/.test(customerData.address.zip_code.trim())) {
-      errors.push('El código postal debe tener 5 dígitos')
+    } else if (!/^[0-9]{5,6}$/.test(customerData.address.zip_code.trim())) {
+      errors.push('El código postal debe tener 5 o 6 dígitos')
     }
     
     if (!customerData.address.city?.trim()) {

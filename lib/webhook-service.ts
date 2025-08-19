@@ -443,7 +443,15 @@ export class WebhookService {
         payment_status: paymentData.status,
         status: orderStatus,
         updated_at: new Date().toISOString(),
-        mercadopago_payment_id: paymentData.id.toString()
+        mercadopago_payment_id: paymentData.id.toString(),
+        // Información adicional de MercadoPago
+        payment_type: paymentData.payment_type_id,
+        payment_method: paymentData.payment_method_id,
+        external_reference: paymentData.external_reference || orderId,
+        // Campos adicionales si están disponibles
+        collection_id: paymentData.id.toString(), // El payment ID es también el collection ID
+        site_id: paymentData.currency_id === 'MXN' ? 'MLM' : 'MLA',
+        processing_mode: 'aggregator' // Modo por defecto de MercadoPago
       }
 
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
@@ -657,28 +665,68 @@ export class WebhookService {
   // Actualizar suscripción local
   private async updateLocalSubscription(subscriptionData: SubscriptionData, supabase: any): Promise<void> {
     try {
+      const updateData = {
+        status: subscriptionData.status,
+        next_payment_date: subscriptionData.next_payment_date,
+        updated_at: new Date().toISOString()
+      }
+
+      // Buscar por external_reference si no se encuentra por mercadopago_subscription_id
+      let { data: subscription, error: findError } = await supabase
+        .from('user_subscriptions')
+        .select('id')
+        .eq('mercadopago_subscription_id', subscriptionData.id)
+        .single()
+
+      if (findError && subscriptionData.external_reference) {
+        const { data: subscriptionByRef } = await supabase
+          .from('user_subscriptions')
+          .select('id')
+          .eq('external_reference', subscriptionData.external_reference)
+          .single()
+        
+        subscription = subscriptionByRef
+      }
+
+      if (!subscription) {
+        logger.warn('Suscripción no encontrada para actualizar', 'SUBSCRIPTION', {
+          subscriptionId: subscriptionData.id,
+          externalReference: subscriptionData.external_reference
+        })
+        return
+      }
+
       const { error } = await supabase
         .from('user_subscriptions')
-        .update({
-          status: subscriptionData.status,
-          next_payment_date: subscriptionData.next_payment_date,
-          updated_at: new Date().toISOString()
-        })
-        .eq('mercadopago_subscription_id', subscriptionData.id)
+        .update(updateData)
+        .eq('id', subscription.id)
 
       if (error) {
-        console.error('❌ Error actualizando suscripción local:', error)
+        logger.error('Error actualizando suscripción local', 'SUBSCRIPTION', {
+          subscriptionId: subscriptionData.id,
+          error: error.message
+        })
       } else {
-        console.log(`✅ Suscripción ${subscriptionData.id} actualizada localmente`)
+        logger.info('Suscripción actualizada localmente', 'SUBSCRIPTION', {
+          subscriptionId: subscriptionData.id,
+          status: subscriptionData.status
+        })
       }
     } catch (error) {
-      console.error('❌ Error en updateLocalSubscription:', error)
+      logger.error('Error en updateLocalSubscription', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        error: error.message
+      })
     }
   }
 
   // Manejar suscripción creada
   private async handleSubscriptionCreated(subscriptionData: SubscriptionData, supabase: any): Promise<void> {
-    console.log(`🎉 Suscripción creada: ${subscriptionData.id}`)
+    logger.info('Suscripción creada', 'SUBSCRIPTION', {
+      subscriptionId: subscriptionData.id,
+      payerEmail: subscriptionData.payer_email,
+      status: subscriptionData.status
+    })
     
     try {
       await this.sendEmail({
@@ -686,30 +734,71 @@ export class WebhookService {
         subject: '🎉 ¡Tu suscripción a Pet Gourmet está activa!',
         html: this.getSubscriptionCreatedEmailTemplate(subscriptionData)
       })
+      
+      logger.info('Email de suscripción creada enviado', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        payerEmail: subscriptionData.payer_email
+      })
     } catch (error) {
-      console.error('❌ Error enviando email de suscripción creada:', error)
+      logger.error('Error enviando email de suscripción creada', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        error: error.message
+      })
     }
   }
 
   // Manejar suscripción actualizada
   private async handleSubscriptionUpdated(subscriptionData: SubscriptionData, supabase: any): Promise<void> {
-    console.log(`📝 Suscripción actualizada: ${subscriptionData.id} - Estado: ${subscriptionData.status}`)
+    logger.info('Suscripción actualizada', 'SUBSCRIPTION', {
+      subscriptionId: subscriptionData.id,
+      status: subscriptionData.status,
+      externalReference: subscriptionData.external_reference
+    })
   }
 
   // Manejar suscripción cancelada
   private async handleSubscriptionCancelled(subscriptionData: SubscriptionData, supabase: any): Promise<void> {
-    console.log(`❌ Suscripción cancelada: ${subscriptionData.id}`)
+    logger.info('Suscripción cancelada', 'SUBSCRIPTION', {
+      subscriptionId: subscriptionData.id,
+      payerEmail: subscriptionData.payer_email,
+      reason: subscriptionData.reason
+    })
     
     try {
-      // Marcar como cancelada en base de datos
-      await supabase
+      // Buscar suscripción por ID o external_reference
+      let { data: subscription } = await supabase
         .from('user_subscriptions')
-        .update({
-          is_active: false,
-          cancelled_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .select('id')
         .eq('mercadopago_subscription_id', subscriptionData.id)
+        .single()
+
+      if (!subscription && subscriptionData.external_reference) {
+        const { data: subscriptionByRef } = await supabase
+          .from('user_subscriptions')
+          .select('id')
+          .eq('external_reference', subscriptionData.external_reference)
+          .single()
+        
+        subscription = subscriptionByRef
+      }
+
+      if (subscription) {
+        // Marcar como cancelada en base de datos
+        await supabase
+          .from('user_subscriptions')
+          .update({
+            is_active: false,
+            status: 'cancelled',
+            cancelled_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', subscription.id)
+
+        logger.info('Suscripción marcada como cancelada en BD', 'SUBSCRIPTION', {
+          subscriptionId: subscriptionData.id,
+          localId: subscription.id
+        })
+      }
 
       // Enviar email de cancelación
       await this.sendEmail({
@@ -717,8 +806,16 @@ export class WebhookService {
         subject: '📋 Suscripción cancelada - Pet Gourmet',
         html: this.getSubscriptionCancelledEmailTemplate(subscriptionData)
       })
+      
+      logger.info('Email de cancelación enviado', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        payerEmail: subscriptionData.payer_email
+      })
     } catch (error) {
-      console.error('❌ Error manejando cancelación de suscripción:', error)
+      logger.error('Error manejando cancelación de suscripción', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        error: error.message
+      })
     }
   }
 
@@ -961,6 +1058,176 @@ export class WebhookService {
         duration
       })
     }
+  }
+}
+
+// Funciones auxiliares para manejar tipos específicos de webhooks de suscripción
+export async function handleSubscriptionWebhook(webhookData: any): Promise<void> {
+  try {
+    const { type, data } = webhookData
+    
+    logger.info(LogCategory.WEBHOOK, 'Procesando webhook de suscripción', {
+      type,
+      subscriptionId: data?.id,
+      status: data?.status,
+      externalReference: data?.external_reference
+    })
+    
+    const supabase = await createClient()
+    
+    // Procesar según el tipo de evento
+    switch (type) {
+      case 'subscription_preapproval':
+        await handleSubscriptionPreapproval(data, supabase)
+        break
+      case 'subscription_authorized_payment':
+        await handleSubscriptionPayment(data, supabase)
+        break
+      case 'subscription_preapproval_plan':
+        await handleSubscriptionPlan(data, supabase)
+        break
+      default:
+        logger.warn(LogCategory.WEBHOOK, 'Tipo de webhook de suscripción no manejado', { type })
+    }
+    
+  } catch (error: any) {
+    logger.error(LogCategory.WEBHOOK, 'Error procesando webhook de suscripción', error.message, {
+      error: error.message,
+      webhookData
+    })
+    throw error
+  }
+}
+
+async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<void> {
+  try {
+    logger.info(LogCategory.WEBHOOK, 'Procesando preapproval de suscripción', {
+      subscriptionId: data.id,
+      status: data.status,
+      payerEmail: data.payer_email
+    })
+    
+    // Buscar suscripción pendiente y activarla
+    if (data.external_reference) {
+      const { data: pendingSub, error: findError } = await supabase
+        .from('pending_subscriptions')
+        .select('*')
+        .eq('external_reference', data.external_reference)
+        .eq('status', 'pending')
+        .single()
+      
+      if (!findError && pendingSub) {
+        // Crear suscripción activa
+        const subscriptionData = {
+          user_id: pendingSub.user_id,
+          product_id: pendingSub.cart_items?.[0]?.id || null,
+          subscription_type: pendingSub.subscription_type,
+          status: data.status === 'authorized' ? 'active' : data.status,
+          mercadopago_subscription_id: data.id,
+          external_reference: data.external_reference,
+          payer_email: data.payer_email,
+          next_billing_date: data.next_payment_date,
+          is_active: data.status === 'authorized',
+          created_at: new Date().toISOString()
+        }
+        
+        const { error: insertError } = await supabase
+          .from('user_subscriptions')
+          .insert(subscriptionData)
+        
+        if (!insertError) {
+          // Marcar suscripción pendiente como procesada
+          await supabase
+            .from('pending_subscriptions')
+            .update({
+              status: 'completed',
+              processed_at: new Date().toISOString(),
+              mercadopago_subscription_id: data.id
+            })
+            .eq('id', pendingSub.id)
+          
+          logger.info(LogCategory.WEBHOOK, 'Suscripción activada exitosamente', {
+            subscriptionId: data.id,
+            userId: pendingSub.user_id
+          })
+        } else {
+          logger.error(LogCategory.WEBHOOK, 'Error creando suscripción activa', insertError.message, {
+            error: insertError.message
+          })
+        }
+      }
+    }
+  } catch (error: any) {
+    logger.error(LogCategory.WEBHOOK, 'Error en handleSubscriptionPreapproval', error.message, {
+      error: error.message
+    })
+  }
+}
+
+async function handleSubscriptionPayment(data: any, supabase: any): Promise<void> {
+  try {
+    logger.info(LogCategory.WEBHOOK, 'Procesando pago de suscripción', {
+      paymentId: data.id,
+      subscriptionId: data.preapproval_id,
+      amount: data.transaction_amount,
+      status: data.status
+    })
+    
+    // Registrar pago en historial de facturación
+    const billingData = {
+      subscription_id: data.preapproval_id,
+      mercadopago_payment_id: data.id,
+      amount: data.transaction_amount,
+      status: data.status,
+      payment_method: data.payment_method_id,
+      billing_date: data.date_created || new Date().toISOString(),
+      created_at: new Date().toISOString()
+    }
+    
+    await supabase
+      .from('subscription_billing_history')
+      .insert(billingData)
+    
+    // Actualizar próxima fecha de facturación si el pago fue exitoso
+    if (data.status === 'approved') {
+      const nextBillingDate = new Date()
+      nextBillingDate.setMonth(nextBillingDate.getMonth() + 1) // Asumir mensual por defecto
+      
+      await supabase
+        .from('user_subscriptions')
+        .update({
+          last_billing_date: data.date_created || new Date().toISOString(),
+          next_billing_date: nextBillingDate.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('mercadopago_subscription_id', data.preapproval_id)
+    }
+    
+    logger.info(LogCategory.WEBHOOK, 'Pago de suscripción procesado', {
+      paymentId: data.id,
+      status: data.status
+    })
+  } catch (error: any) {
+    logger.error(LogCategory.WEBHOOK, 'Error en handleSubscriptionPayment', error.message, {
+      error: error.message
+    })
+  }
+}
+
+async function handleSubscriptionPlan(data: any, supabase: any): Promise<void> {
+  try {
+    logger.info(LogCategory.WEBHOOK, 'Procesando plan de suscripción', {
+      planId: data.id,
+      status: data.status
+    })
+    
+    // Aquí se puede manejar la lógica de planes de suscripción
+    // Por ejemplo, actualizar configuraciones de planes
+    
+  } catch (error: any) {
+    logger.error(LogCategory.WEBHOOK, 'Error en handleSubscriptionPlan', error.message, {
+      error: error.message
+    })
   }
 }
 
