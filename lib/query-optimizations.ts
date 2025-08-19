@@ -370,11 +370,13 @@ function getFrequencyFromType(subscriptionType: string): string {
 // Función para limpiar cache
 export function clearQueryCache(pattern?: string) {
   if (pattern) {
-    for (const key of queryCache.keys()) {
+    const keysToDelete: string[] = []
+    queryCache.forEach((_, key) => {
       if (key.includes(pattern)) {
-        queryCache.delete(key)
+        keysToDelete.push(key)
       }
-    }
+    })
+    keysToDelete.forEach(key => queryCache.delete(key))
   } else {
     queryCache.clear()
   }
