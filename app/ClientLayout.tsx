@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster"
 import { ScrollToTop } from "@/components/scroll-to-top"
 import WhatsappButton from "@/components/whatsapp-button"
-import FloatingCreatePlanButton from "@/components/floating-create-plan-button"
+import { FloatingCreatePlanButton } from "@/components/floating-create-plan-button"
 import { CartProvider } from "@/components/cart-context"
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
