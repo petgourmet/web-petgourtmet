@@ -133,46 +133,72 @@ export async function fetchOptimizedOrders(
 
 // Función optimizada para obtener suscripciones
 export async function fetchOptimizedSubscriptions(
-  userId: string,
+  userId: string | null,
   supabase: SupabaseClient,
   useCache: boolean = true
 ): Promise<OptimizedSubscription[]> {
-  const cacheKey = `subscriptions_${userId}`
+  const cacheKey = `subscriptions_${userId || 'all'}`
   
   const queryFn = async () => {
     // Consulta batch optimizada
     const [userSubscriptionsResult, pendingSubscriptionsResult] = await Promise.all([
       // Suscripciones activas
-      supabase
-        .from('user_subscriptions')
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            image,
-            price,
-            subscription_types,
-            monthly_discount,
-            quarterly_discount,
-            annual_discount,
-            biweekly_discount
-          )
-        `)
-        .eq('user_id', userId)
-        .not('mercadopago_subscription_id', 'is', null)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false }),
+      userId ? 
+        supabase
+          .from('user_subscriptions')
+          .select(`
+            *,
+            products (
+              id,
+              name,
+              image,
+              price,
+              subscription_types,
+              monthly_discount,
+              quarterly_discount,
+              annual_discount,
+              biweekly_discount
+            )
+          `)
+          .eq('user_id', userId)
+          .not('mercadopago_subscription_id', 'is', null)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+        :
+        supabase
+          .from('user_subscriptions')
+          .select(`
+            *,
+            products (
+              id,
+              name,
+              image,
+              price,
+              subscription_types,
+              monthly_discount,
+              quarterly_discount,
+              annual_discount,
+              biweekly_discount
+            )
+          `)
+          .not('mercadopago_subscription_id', 'is', null)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false }),
       
-      // Suscripciones pendientes válidas
-      supabase
-        .from('pending_subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'pending')
-        .not('mercadopago_subscription_id', 'is', null)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
+      // Suscripciones pendientes válidas (incluir todas las pendientes, con o sin mercadopago_subscription_id)
+      userId ?
+        supabase
+          .from('pending_subscriptions')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+        :
+        supabase
+          .from('pending_subscriptions')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
     ])
     
     const userSubscriptions = userSubscriptionsResult.data || []
@@ -230,7 +256,22 @@ export async function fetchOptimizedSubscriptions(
     
     // Obtener productos para suscripciones pendientes en una sola consulta
     const pendingProductIds = validPendingSubscriptions
-      .map(sub => sub.cart_items?.[0]?.product_id)
+      .map(sub => {
+        try {
+          let cartItems = []
+          if (typeof sub.cart_items === 'string') {
+            cartItems = JSON.parse(sub.cart_items)
+          } else if (Array.isArray(sub.cart_items)) {
+            cartItems = sub.cart_items
+          } else if (sub.cart_items && typeof sub.cart_items === 'object') {
+            cartItems = [sub.cart_items]
+          }
+          return cartItems[0]?.product_id
+        } catch (error) {
+          console.error('Error parsing cart_items for product_id:', error)
+          return null
+        }
+      })
       .filter(Boolean)
     
     let pendingProductsData = []
@@ -244,7 +285,27 @@ export async function fetchOptimizedSubscriptions(
     }
     
     const processedPendingSubscriptions = validPendingSubscriptions.map(sub => {
-      const cartItem = sub.cart_items?.[0] || {}
+      // Parsear cart_items - puede ser string JSON, objeto, o array
+      let cartItems = []
+      try {
+        if (typeof sub.cart_items === 'string') {
+          // Si es string, intentar parsear como JSON
+          cartItems = JSON.parse(sub.cart_items)
+        } else if (Array.isArray(sub.cart_items)) {
+          // Si ya es array, usarlo directamente
+          cartItems = sub.cart_items
+        } else if (sub.cart_items && typeof sub.cart_items === 'object') {
+          // Si es objeto, convertir a array
+          cartItems = [sub.cart_items]
+        } else {
+          cartItems = []
+        }
+      } catch (error) {
+        console.error('Error parsing cart_items:', error, 'Raw data:', sub.cart_items)
+        cartItems = []
+      }
+      
+      const cartItem = cartItems[0] || {}
       const productData = pendingProductsData.find(p => p.id === cartItem.product_id)
       
       return {
