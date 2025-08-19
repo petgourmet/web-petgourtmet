@@ -133,6 +133,7 @@ export default function PerfilPage() {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [maxReconnectAttempts] = useState(5)
+  const [isReconnecting, setIsReconnecting] = useState(false)
 
   useEffect(() => {
     console.log('🔍 PerfilPage useEffect - loading:', loading, 'user:', !!user, 'user.id:', user?.id)
@@ -323,22 +324,35 @@ export default function PerfilPage() {
   }
 
   const handleRealtimeError = (channelType: 'orders' | 'subscriptions' | 'profile') => {
+    // Evitar múltiples intentos de reconexión simultáneos
+    if (isReconnecting) {
+      console.log(`⚠️ Ya hay un intento de reconexión en curso para ${channelType}, omitiendo...`)
+      return
+    }
+
     if (reconnectAttempts >= maxReconnectAttempts) {
       console.error(`❌ Máximo número de intentos de reconexión alcanzado para ${channelType}`)
       toast.error('Error de conexión en tiempo real. Recarga la página para reconectar.')
       return
     }
 
+    setIsReconnecting(true)
     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000) // Backoff exponencial con máximo de 30s
     setReconnectAttempts(prev => prev + 1)
     
     console.log(`🔄 Reintentando conexión en tiempo real para ${channelType} en ${delay}ms (intento ${reconnectAttempts + 1}/${maxReconnectAttempts})`)
     
     setTimeout(() => {
-      if (user) {
+      if (user && !loading) {
         setRealtimeStatus('connecting')
         cleanupRealtimeSubscriptions()
-        setupRealtimeSubscriptions()
+        // Esperar un poco antes de reconectar para evitar conflictos
+        setTimeout(() => {
+          setupRealtimeSubscriptions()
+          setIsReconnecting(false)
+        }, 500)
+      } else {
+        setIsReconnecting(false)
       }
     }, delay)
   }
