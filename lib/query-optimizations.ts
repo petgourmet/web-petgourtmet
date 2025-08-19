@@ -1,5 +1,4 @@
 // Optimizaciones de consultas para evitar duplicación y mejorar rendimiento
-import { createClient } from '@/utils/supabase/client'
 import { SupabaseClient } from '@supabase/supabase-js'
 
 // Tipos compartidos
