@@ -246,13 +246,9 @@ export async function fetchOptimizedSubscriptions(
       }
     })
     
-    // Procesar suscripciones pendientes (filtrar las expiradas)
-    const now = new Date()
-    const validPendingSubscriptions = pendingSubscriptions.filter(sub => {
-      const createdAt = new Date(sub.created_at)
-      const diffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60)
-      return diffMinutes <= 30
-    })
+    // Procesar todas las suscripciones pendientes (sin filtro de expiración)
+    // Las suscripciones solo cambian de estado cuando se procesa el pago vía webhook
+    const validPendingSubscriptions = pendingSubscriptions
     
     // Obtener productos para suscripciones pendientes en una sola consulta
     const pendingProductIds = validPendingSubscriptions
