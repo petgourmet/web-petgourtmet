@@ -2,11 +2,25 @@
   "crons": [
     {
       "path": "/api/cron/validate-payments",
-      "schedule": "0 */30 * * * *"
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/process-subscriptions",
+      "schedule": "0 */12 * * *"
+    },
+    {
+      "path": "/api/cron/subscription-payments",
+      "schedule": "0 2 * * *"
     }
   ],
   "functions": {
     "app/api/cron/validate-payments/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/process-subscriptions/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/subscription-payments/route.ts": {
       "maxDuration": 300
     },
     "app/api/mercadopago/webhook/route.ts": {
