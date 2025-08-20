@@ -6,6 +6,7 @@ import ClientLayout from "./ClientLayout"
 import { ThemeProvider } from "@/components/theme-provider"
 import { GoogleAnalytics } from "@/components/google-analytics"
 import { FacebookPixel } from "@/components/facebook-pixel"
+import { StructuredData } from "@/components/structured-data"
 
 // Fuente principal para el contenido general
 const montserrat = Montserrat({
@@ -32,17 +33,36 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Pet Gourmet - Alimento Premium para Perros Felices",
+  title: {
+    default: "Pet Gourmet - Alimento Premium para Perros Felices",
+    template: "%s | Pet Gourmet"
+  },
   description:
     "Descubre nuestra gama de alimentos naturales y nutritivos para perros, elaborados con ingredientes de alta calidad para la salud y felicidad de tu mascota.",
+  keywords: [
+    "pet gourmet",
+    "alimento para perros",
+    "comida premium mascotas",
+    "alimentación natural",
+    "snacks para perros",
+    "premios para mascotas",
+    "comida casera para perros",
+    "nutrición canina",
+    "alimento natural perros",
+    "comida saludable mascotas"
+  ],
+  authors: [{ name: "Pet Gourmet" }],
+  creator: "Pet Gourmet",
+  publisher: "Pet Gourmet",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   icons: {
     icon: [
-      { url: "/favicon.ico" },
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/favicon.ico",
   },
   openGraph: {
     title: "Pet Gourmet - Alimento Premium para Perros Felices",
@@ -67,6 +87,7 @@ export const metadata: Metadata = {
     description:
       "Descubre nuestra gama de alimentos naturales y nutritivos para perros, elaborados con ingredientes de alta calidad para la salud y felicidad de tu mascota.",
     images: ["/petgourmet-logo.png"],
+    creator: "@petgourmet",
   },
   robots: {
     index: true,
@@ -79,7 +100,13 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-    generator: 'v0.dev'
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
+  alternates: {
+    canonical: "/",
+  },
+  category: "pets",
 }
 
 export default function RootLayout({
@@ -99,6 +126,9 @@ export default function RootLayout({
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>
         <GoogleAnalytics />
         <FacebookPixel />
+        <StructuredData type="organization" />
+        <StructuredData type="website" />
+        <StructuredData type="breadcrumb" />
         <ThemeProvider defaultTheme="light" storageKey="pet-gourmet-theme">
           <ClientLayout>{children}</ClientLayout>
         </ThemeProvider>

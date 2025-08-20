@@ -27,6 +27,7 @@ import Link from "next/link"
 import type { Product } from "@/components/product-category-loader"
 import { Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
+import { ProductStructuredData } from "@/components/product-structured-data"
 
 export default function ProductDetailPage() {
   const { slug } = useParams()
@@ -309,6 +310,7 @@ export default function ProductDetailPage() {
 
   return (
     <div className="flex flex-col min-h-screen pt-20">
+      {product && <ProductStructuredData product={product} />}
       <div className="responsive-container py-8">
         {/* Breadcrumb y navegación */}
         <div className="mb-6">
