@@ -275,7 +275,7 @@ export function CheckoutModal() {
 
       // Calcular el total
       const subtotal = calculateCartTotal()
-      const shipping = subtotal > 500 ? 0 : 90 // Envío gratis por compras mayores a $500 MXN
+      const shipping = subtotal >= 1000 ? 0 : 90 // Envío gratis por compras mayores a $1000 MXN
       const total = subtotal + shipping
 
       // Generar un número de orden único
