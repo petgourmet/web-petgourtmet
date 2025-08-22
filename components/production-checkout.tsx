@@ -258,18 +258,18 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
               </div>
               
               {/* Mensaje de envío gratis */}
-              {subtotal < 1000 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="text-center">
-                    <p className="text-sm text-blue-700 font-medium">
-                      🚚 ¡Envío GRATIS en compras mayores a $1,000 MXN!
-                    </p>
-                    <p className="text-xs text-blue-600">
-                      Te faltan ${(1000 - subtotal).toFixed(2)} MXN
-                    </p>
-                  </div>
-                </div>
-              )}
+               {subtotal < 1000 && (
+                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+                   <div className="text-center">
+                     <p className="text-sm text-primary font-medium">
+                       🚚 ¡Envío GRATIS en compras mayores a $1,000 MXN!
+                     </p>
+                     <p className="text-xs text-primary/80">
+                       Te faltan ${(1000 - subtotal).toFixed(2)} MXN
+                     </p>
+                   </div>
+                 </div>
+               )}
               
               {subtotal >= 1000 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
