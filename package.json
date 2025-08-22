@@ -14,7 +14,9 @@
     "update-customer-emails": "node scripts/update-customer-emails.mjs",
     "fix-emails": "node scripts/update-emails-from-mercadopago.mjs",
     "analyze-emails": "node scripts/fix-customer-emails-display.mjs",
-    "update-all-emails": "node scripts/update-emails-from-mercadopago.mjs && node scripts/fix-customer-emails-display.mjs"
+    "update-all-emails": "node scripts/update-emails-from-mercadopago.mjs && node scripts/fix-customer-emails-display.mjs",
+    "add-customer-email-column": "node scripts/add-customer-email-column-direct.mjs",
+    "run-email-migration": "node scripts/run-customer-email-migration.mjs"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
