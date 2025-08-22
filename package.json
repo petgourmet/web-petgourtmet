@@ -7,7 +7,10 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "verify-mercadopago": "node scripts/verify-mercadopago.js"
+    "verify-mercadopago": "node scripts/verify-mercadopago.js",
+    "update-payments": "node scripts/update-pending-payments.mjs",
+    "start-payment-monitor": "node scripts/startup-payment-monitor.mjs",
+    "dev:full": "npm run start-payment-monitor & npm run dev"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",

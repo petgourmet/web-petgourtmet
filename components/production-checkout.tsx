@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { ShoppingCart, CreditCard, User, MapPin, Mail, Phone, AlertTriangle } from 'lucide-react'
 import { MercadoPagoButton } from '@/components/mercadopago-button'
 import { useCart } from '@/components/cart-context'
+import { useClientAuth } from '@/hooks/use-client-auth'
 import { 
   validateCompleteCheckout, 
   sanitizeCustomerData, 
@@ -41,6 +42,7 @@ interface ProductionCheckoutProps {
 
 export default function ProductionCheckout({ onSuccess, onError, onPending }: ProductionCheckoutProps) {
   const { cart, calculateCartTotal, clearCart } = useCart()
+  const { user } = useClientAuth()
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: '',
     lastName: '',
@@ -63,6 +65,19 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
   const [currentStep, setCurrentStep] = useState<'cart' | 'form' | 'payment'>('cart')
 
   const totalPrice = calculateCartTotal()
+
+  // Pre-llenar formulario con datos del usuario autenticado
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        email: user.email || '',
+        firstName: user.user_metadata?.full_name?.split(' ')[0] || '',
+        lastName: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+        phone: user.user_metadata?.phone || ''
+      }))
+    }
+  }, [user])
 
   const handleInputChange = (field: string, value: string) => {
     if (field.startsWith('address.')) {

@@ -31,6 +31,13 @@ export interface OptimizedSubscription {
   source: string
   products?: any
   user_profile?: any
+  last_billing_date?: string
+  billing_info?: {
+    payment_id?: string
+    payment_method?: string
+    status?: string
+    amount?: number
+  }
 }
 
 // Cache para evitar consultas repetidas
@@ -139,8 +146,8 @@ export async function fetchOptimizedSubscriptions(
   const cacheKey = `subscriptions_${userId || 'all'}`
   
   const queryFn = async () => {
-    // Consulta batch optimizada
-    const [userSubscriptionsResult, pendingSubscriptionsResult] = await Promise.all([
+    // Consulta batch optimizada incluyendo historial de facturación
+    const [userSubscriptionsResult, pendingSubscriptionsResult, billingHistoryResult] = await Promise.all([
       // Suscripciones activas
       userId ? 
         supabase
@@ -197,11 +204,69 @@ export async function fetchOptimizedSubscriptions(
           .from('pending_subscriptions')
           .select('*')
           .eq('status', 'pending')
+          .order('created_at', { ascending: false }),
+      
+      // Historial de facturación para validar pagos de webhooks
+      userId ?
+        supabase
+          .from('subscription_billing_history')
+          .select(`
+            *,
+            user_subscriptions!inner (
+              id,
+              user_id,
+              product_id,
+              status,
+              frequency,
+              mercadopago_subscription_id,
+              products (
+                id,
+                name,
+                image,
+                price,
+                subscription_types,
+                monthly_discount,
+                quarterly_discount,
+                annual_discount,
+                biweekly_discount
+              )
+            )
+          `)
+          .eq('user_subscriptions.user_id', userId)
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false })
+        :
+        supabase
+          .from('subscription_billing_history')
+          .select(`
+            *,
+            user_subscriptions!inner (
+              id,
+              user_id,
+              product_id,
+              status,
+              frequency,
+              mercadopago_subscription_id,
+              products (
+                id,
+                name,
+                image,
+                price,
+                subscription_types,
+                monthly_discount,
+                quarterly_discount,
+                annual_discount,
+                biweekly_discount
+              )
+            )
+          `)
+          .eq('status', 'approved')
           .order('created_at', { ascending: false })
     ])
     
     const userSubscriptions = userSubscriptionsResult.data || []
     const pendingSubscriptions = pendingSubscriptionsResult.data || []
+    const billingHistory = billingHistoryResult.data || []
     
     // Procesar suscripciones activas
     const processedActiveSubscriptions = userSubscriptions.map(sub => {
@@ -323,8 +388,68 @@ export async function fetchOptimizedSubscriptions(
       }
     })
     
+    // Procesar suscripciones del historial de facturación (pagos validados por webhooks)
+    const processedBillingSubscriptions = billingHistory
+      .filter(billing => {
+        // Solo incluir si no existe ya en user_subscriptions
+        const existsInActive = userSubscriptions.some(sub => 
+          sub.id === billing.user_subscriptions?.id ||
+          sub.mercadopago_subscription_id === billing.user_subscriptions?.mercadopago_subscription_id
+        )
+        return !existsInActive && billing.user_subscriptions
+      })
+      .map(billing => {
+        const subscription = billing.user_subscriptions
+        const product = subscription.products
+        const frequency = subscription.frequency || 'monthly'
+        let discountAmount = 0
+        
+        if (product && frequency) {
+          switch (frequency) {
+            case 'monthly':
+              discountAmount = product.monthly_discount || 0
+              break
+            case 'quarterly':
+              discountAmount = product.quarterly_discount || 0
+              break
+            case 'annual':
+              discountAmount = product.annual_discount || 0
+              break
+            case 'biweekly':
+              discountAmount = product.biweekly_discount || 0
+              break
+          }
+        }
+        
+        return {
+          id: `billing_${subscription.id}`,
+          user_id: subscription.user_id,
+          product_id: subscription.product_id,
+          status: 'active', // Si tiene pagos aprobados, considerarla activa
+          frequency,
+          price: billing.amount,
+          discount_amount: discountAmount,
+          next_billing_date: null, // Se puede calcular basado en la frecuencia
+          created_at: billing.billing_date,
+          last_billing_date: billing.billing_date,
+          source: 'billing_history',
+          products: product,
+          billing_info: {
+            payment_id: billing.mercadopago_payment_id,
+            payment_method: billing.payment_method,
+            status: billing.status,
+            amount: billing.amount
+          }
+        }
+      })
+    
     // Combinar y deduplicar
-    const allSubscriptions = [...processedActiveSubscriptions, ...processedPendingSubscriptions]
+    const allSubscriptions = [
+      ...processedActiveSubscriptions, 
+      ...processedPendingSubscriptions,
+      ...processedBillingSubscriptions
+    ]
+    
     return allSubscriptions.filter((sub, index, self) =>
       index === self.findIndex(s => s.id === sub.id)
     )
