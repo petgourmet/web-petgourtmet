@@ -64,7 +64,9 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
   const [validationWarnings, setValidationWarnings] = useState<string[]>([])
   const [currentStep, setCurrentStep] = useState<'cart' | 'form' | 'payment'>('cart')
 
-  const totalPrice = calculateCartTotal()
+  const subtotal = calculateCartTotal()
+  const shippingCost = subtotal >= 1000 ? 0 : 90
+  const totalPrice = subtotal + shippingCost
 
   // Pre-llenar formulario con datos del usuario autenticado
   useEffect(() => {
@@ -249,9 +251,47 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
             
             <Separator />
             
-            <div className="flex justify-between items-center font-bold text-lg">
-              <span>Total:</span>
-              <span>${totalPrice} MXN</span>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>${subtotal.toFixed(2)} MXN</span>
+              </div>
+              
+              {/* Mensaje de envío gratis */}
+              {subtotal < 1000 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="text-center">
+                    <p className="text-sm text-blue-700 font-medium">
+                      🚚 ¡Envío GRATIS en compras mayores a $1,000 MXN!
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      Te faltan ${(1000 - subtotal).toFixed(2)} MXN
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {subtotal >= 1000 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="text-center">
+                    <p className="text-sm text-green-700 font-medium">
+                      ✅ ¡Felicidades! Tu envío es GRATIS
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-between">
+                <span>Envío:</span>
+                <span>{shippingCost === 0 ? "Gratis" : `$${shippingCost.toFixed(2)} MXN`}</span>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex justify-between items-center font-bold text-lg">
+                <span>Total:</span>
+                <span>${totalPrice.toFixed(2)} MXN</span>
+              </div>
             </div>
           </div>
         </CardContent>

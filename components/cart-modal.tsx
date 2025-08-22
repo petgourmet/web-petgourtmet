@@ -102,14 +102,41 @@ export function CartModal() {
                   <span>Subtotal</span>
                   <span>${calculateCartTotal().toFixed(2)} MXN</span>
                 </div>
+                
+                {/* Mensaje de envío gratis */}
+                {calculateCartTotal() < 1000 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center justify-center">
+                      <div className="text-center">
+                        <p className="text-sm text-blue-700 font-medium">
+                          🚚 ¡Envío GRATIS en compras mayores a $1,000 MXN!
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          Te faltan ${(1000 - calculateCartTotal()).toFixed(2)} MXN
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {calculateCartTotal() >= 1000 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center justify-center">
+                      <p className="text-sm text-green-700 font-medium">
+                        ✅ ¡Felicidades! Tu envío es GRATIS
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex justify-between mb-4">
                   <span>Envío</span>
-                  <span>{calculateCartTotal() > 500 ? "Gratis" : "$90.00 MXN"}</span>
+                  <span>{calculateCartTotal() >= 1000 ? "Gratis" : "$90.00 MXN"}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg mb-6">
                   <span>Total</span>
                   <span>
-                    ${(calculateCartTotal() > 500 ? calculateCartTotal() : calculateCartTotal() + 90).toFixed(2)} MXN
+                    ${(calculateCartTotal() >= 1000 ? calculateCartTotal() : calculateCartTotal() + 90).toFixed(2)} MXN
                   </span>
                 </div>
 
