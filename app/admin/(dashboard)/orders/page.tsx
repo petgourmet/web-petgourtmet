@@ -8,6 +8,7 @@ import { Loader2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react
 import { AuthGuard } from "@/components/admin/auth-guard"
 import Link from "next/link"
 import { fetchOptimizedOrdersAdmin, invalidateOrdersCache } from '@/lib/query-optimizations'
+import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 
 export default function OrdersAdminPage() {
   const [orders, setOrders] = useState<any[]>([])
@@ -220,41 +221,29 @@ export default function OrdersAdminPage() {
                     </tr>
                   ) : (
                     orders.map((order) => {
-                      // Extraer información del cliente desde shipping_address donde realmente está
-                      let customerInfo = null
+                      // Usar funciones utilitarias para extraer información del cliente
+                      const customerEmail = extractCustomerEmail(order)
+                      const customerName = extractCustomerName(order)
+                      
+                      // Extraer información adicional del shipping_address si está disponible
+                      let customerInfo = {
+                        name: customerName,
+                        email: customerEmail,
+                        phone: 'No especificado',
+                        orderNumber: `#${order.id}`
+                      }
+                      
                       try {
                         if (order.shipping_address) {
                           const parsedShipping = JSON.parse(order.shipping_address)
-                          // Los datos están en customer_data dentro del shipping_address
                           if (parsedShipping.customer_data) {
-                            customerInfo = {
-                              name: order.customer_name || 
-                                   (parsedShipping.customer_data.firstName + ' ' + parsedShipping.customer_data.lastName) ||
-                                   parsedShipping.customer_data.firstName ||
-                                   'Cliente anónimo',
-                              email: parsedShipping.customer_data.email || 'No especificado',
-                              phone: order.customer_phone || parsedShipping.customer_data.phone || 'No especificado',
-                              address: parsedShipping.customer_data.address || null,
-                              items: parsedShipping.items || [],
-                              orderNumber: parsedShipping.order_number || `#${order.id}`
-                            }
-                          }
-                        }
-                        
-                        // Fallback para órdenes sin shipping_address (órdenes antiguas)
-                        if (!customerInfo && order.notes) {
-                          const parsedNotes = JSON.parse(order.notes)
-                          customerInfo = {
-                            name: parsedNotes.customer_name || 'Cliente anónimo',
-                            email: parsedNotes.customer_email || 'No especificado'
+                            customerInfo.phone = order.customer_phone || parsedShipping.customer_data.phone || 'No especificado'
+                            customerInfo.orderNumber = parsedShipping.order_number || `#${order.id}`
                           }
                         }
                       } catch (e) {
-                        // Si no se puede parsear, usar valores de fallback
-                        customerInfo = {
-                          name: order.customer_name || 'Cliente anónimo',
-                          email: order.customer_email || order.user_email || 'No especificado'
-                        }
+                        // Si no se puede parsear, usar valores por defecto
+                        console.warn('Error parsing shipping_address:', e)
                       }
 
                       return (

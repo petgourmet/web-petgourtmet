@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
 import logger, { LogCategory } from '@/lib/logger'
+import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 
 // Tipos para webhooks de MercadoPago
 interface WebhookPayload {
@@ -936,7 +937,9 @@ export class WebhookService {
     const startTime = Date.now()
     
     try {
-      const recipientEmail = paymentData.payer?.email || order.customer_email
+      // Obtener el email del cliente usando la función utilitaria
+      const recipientEmail = extractCustomerEmail(order, paymentData)
+      const customerName = extractCustomerName(order, paymentData)
       
       logger.info('Enviando email de confirmación de orden', 'ORDER', {
         orderId: order.id,

@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail, Clock, 
 import { AuthGuard } from "@/components/admin/auth-guard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
+import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 
 export default function OrderDetailPage() {
   const params = useParams()
@@ -740,9 +741,7 @@ export default function OrderDetailPage() {
 
                   if (customerData && (customerData.firstName || customerData.customer_name || customerData.email)) {
                     // Mostrar datos del formulario de checkout
-                    const fullName = customerData.firstName && customerData.lastName 
-                      ? `${customerData.firstName} ${customerData.lastName}`
-                      : customerData.customer_name || order.customer_name || "No especificado"
+                    const fullName = extractCustomerName(order)
 
                     return (
                       <>
@@ -752,7 +751,7 @@ export default function OrderDetailPage() {
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{customerData.email || customerData.customer_email || order.user_email || "No especificado"}</p>
+                          <p className="font-medium">{extractCustomerEmail(order)}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Teléfono</p>

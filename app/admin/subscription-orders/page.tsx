@@ -114,6 +114,39 @@ export default function AdminSubscriptionOrdersPage() {
               console.log('🆕 Nueva suscripción creada')
             }
           })
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'subscription_billing_history'
+          }, (payload) => {
+            console.log('📡 Cambio detectado en historial de facturación:', payload.eventType)
+            
+            // Invalidar caché y refrescar suscripciones cuando se validen pagos
+            invalidateSubscriptionsCache()
+            fetchAllSubscriptions(0)
+            
+            // Mostrar notificación de pago validado
+            if (payload.eventType === 'INSERT') {
+              console.log('💰 Nuevo pago de suscripción validado')
+              toast.success('Pago de suscripción validado automáticamente')
+            }
+          })
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'pending_subscriptions'
+          }, (payload) => {
+            console.log('📡 Cambio detectado en suscripciones pendientes:', payload.eventType)
+            
+            // Refrescar cuando cambie el estado de suscripciones pendientes
+            invalidateSubscriptionsCache()
+            fetchAllSubscriptions(0)
+            
+            if (payload.eventType === 'UPDATE' && payload.new?.status === 'processed') {
+              console.log('✅ Suscripción pendiente procesada')
+              toast.success('Suscripción activada automáticamente')
+            }
+          })
           .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
               console.log('✅ Canal de tiempo real conectado exitosamente')

@@ -10,7 +10,11 @@
     "verify-mercadopago": "node scripts/verify-mercadopago.js",
     "update-payments": "node scripts/update-pending-payments.mjs",
     "start-payment-monitor": "node scripts/startup-payment-monitor.mjs",
-    "dev:full": "npm run start-payment-monitor & npm run dev"
+    "dev:full": "npm run start-payment-monitor & npm run dev",
+    "update-customer-emails": "node scripts/update-customer-emails.mjs",
+    "fix-emails": "node scripts/update-emails-from-mercadopago.mjs",
+    "analyze-emails": "node scripts/fix-customer-emails-display.mjs",
+    "update-all-emails": "node scripts/update-emails-from-mercadopago.mjs && node scripts/fix-customer-emails-display.mjs"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",

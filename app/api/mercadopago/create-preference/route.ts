@@ -138,6 +138,7 @@ export async function POST(request: Request) {
       total: total,
       user_id: null, // Se puede actualizar si hay usuario autenticado
       customer_name: `${customerData.firstName} ${customerData.lastName}`,
+      customer_email: customerData.email, // Guardar el email del cliente
       customer_phone: customerData.phone,
       shipping_address: JSON.stringify(formDataForStorage), // Usar para almacenar todos los datos
       payment_intent_id: null // Se actualizará después de crear la preferencia
