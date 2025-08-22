@@ -134,10 +134,7 @@ export default function ProductDetailPage() {
           image: imageUrl,
           category: productData.categories?.name || "Sin categoría",
           features: featuresData || [],
-          sizes: sizesData || [
-            { weight: "200g", price: productData.price },
-            { weight: "500g", price: productData.price * 2.2 },
-          ],
+          sizes: sizesData || [],
           gallery: gallery,
           subscription: {
             available: productData.subscription_available || false,

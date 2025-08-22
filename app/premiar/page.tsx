@@ -117,6 +117,23 @@ export default function PremiarPage() {
               // features = []; // o alguna característica de fallback
             }
 
+            // Obtener tamaños del producto desde la base de datos
+            let sizes: { weight: string; price: number }[] = []
+            try {
+              const { data: sizesData, error: sizesError } = await supabase
+                .from("product_sizes")
+                .select("weight, price")
+                .eq("product_id", product.id)
+
+              if (sizesError) {
+                console.error(`Error al cargar tamaños para el producto ${product.id}:`, sizesError.message)
+              } else if (sizesData && sizesData.length > 0) {
+                sizes = sizesData
+              }
+            } catch (error) {
+              console.error(`Excepción al procesar tamaños para el producto ${product.id}:`, error)
+            }
+
             // Construir la URL completa de la imagen
             let imageUrl = product.image
             if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
@@ -135,10 +152,7 @@ export default function PremiarPage() {
               features,
               rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
               reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
-              sizes: [
-                { weight: "200g", price: product.price },
-                { weight: "500g", price: product.price * 1.8 },
-              ],
+              sizes, // Usar tamaños reales de la base de datos
               spotlightColor: "rgba(122, 184, 191, 0.2)",
             }
           }),

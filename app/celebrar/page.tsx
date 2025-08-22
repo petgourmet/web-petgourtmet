@@ -58,55 +58,10 @@ export default function CelebrarPage() {
         if (categoryError) {
           console.error("Error al obtener la categoría:", categoryError)
 
-          // Si el error es de API key, usamos datos de fallback
+          // Si hay error de API key, mostrar productos vacíos en lugar de datos hardcodeados
           if (categoryError.message.includes("Invalid API key")) {
-            // Datos de fallback para la categoría "Celebrar"
-            const fallbackProducts = [
-              {
-                id: 1,
-                name: "Pastel de Carne",
-                description: "Delicioso pastel de carne para tu mascota",
-                price: 250,
-                image: "/pastel-carne.png",
-                stock: 10,
-                created_at: new Date().toISOString(),
-                features: [
-                  { name: "Sin Conservantes", color: "secondary" },
-                  { name: "Sabor Irresistible", color: "primary" },
-                  { name: "Forma Divertida", color: "pastel-yellow" },
-                ],
-                rating: 4.8,
-                reviews: 120,
-                sizes: [
-                  { weight: "200g", price: 250 },
-                  { weight: "500g", price: 550 },
-                ],
-                category: "Para Celebrar",
-              },
-              {
-                id: 2,
-                name: "Torta de Cumpleaños",
-                description: "Torta especial para celebrar el cumpleaños de tu mascota",
-                price: 350,
-                image: "/treat-heart-cake.png",
-                stock: 5,
-                created_at: new Date().toISOString(),
-                features: [
-                  { name: "Festivo", color: "secondary" },
-                  { name: "Especial", color: "primary" },
-                ],
-                rating: 4.9,
-                reviews: 75,
-                sizes: [
-                  { weight: "300g", price: 350 },
-                  { weight: "700g", price: 750 },
-                ],
-                category: "Para Celebrar",
-              },
-            ]
-
-            setProducts(fallbackProducts)
-            setFilteredProducts(fallbackProducts)
+            setProducts([])
+            setFilteredProducts([])
             setLoading(false)
             return
           }
@@ -179,53 +134,9 @@ export default function CelebrarPage() {
         }
 
         if (!productsData || productsData.length === 0) {
-          // Si no hay productos, usar datos de fallback
-          const fallbackProducts = [
-            {
-              id: 1,
-              name: "Pastel de Carne",
-              description: "Delicioso pastel de carne para tu mascota",
-              price: 250,
-              image: "/pastel-carne.png",
-              stock: 10,
-              created_at: new Date().toISOString(),
-              features: [
-                { name: "Sin Conservantes", color: "secondary" },
-                { name: "Sabor Irresistible", color: "primary" },
-                { name: "Forma Divertida", color: "pastel-yellow" },
-              ],
-              rating: 4.8,
-              reviews: 120,
-              sizes: [
-                { weight: "200g", price: 250 },
-                { weight: "500g", price: 550 },
-              ],
-              category: "Para Celebrar",
-            },
-            {
-              id: 2,
-              name: "Torta de Cumpleaños",
-              description: "Torta especial para celebrar el cumpleaños de tu mascota",
-              price: 350,
-              image: "/treat-heart-cake.png",
-              stock: 5,
-              created_at: new Date().toISOString(),
-              features: [
-                { name: "Festivo", color: "secondary" },
-                { name: "Especial", color: "primary" },
-              ],
-              rating: 4.9,
-              reviews: 75,
-              sizes: [
-                { weight: "300g", price: 350 },
-                { weight: "700g", price: 750 },
-              ],
-              category: "Para Celebrar",
-            },
-          ]
-
-          setProducts(fallbackProducts)
-          setFilteredProducts(fallbackProducts)
+          // Si no hay productos, mostrar lista vacía en lugar de datos hardcodeados
+          setProducts([])
+          setFilteredProducts([])
           setLoading(false)
           return
         }
@@ -271,6 +182,23 @@ export default function CelebrarPage() {
               ]
             }
 
+            // Obtener tamaños del producto desde la base de datos
+            let sizes: { weight: string; price: number }[] = []
+            try {
+              const { data: sizesData, error: sizesError } = await supabase
+                .from("product_sizes")
+                .select("weight, price")
+                .eq("product_id", product.id)
+
+              if (sizesError) {
+                console.error(`Error al cargar tamaños para el producto ${product.id}:`, sizesError.message)
+              } else if (sizesData && sizesData.length > 0) {
+                sizes = sizesData
+              }
+            } catch (error) {
+              console.error(`Excepción al procesar tamaños para el producto ${product.id}:`, error)
+            }
+
             // Construir la URL completa de la imagen
             let imageUrl = product.image
             if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
@@ -298,10 +226,7 @@ export default function CelebrarPage() {
               features,
               rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
               reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
-              sizes: [
-                { weight: "200g", price: product.price },
-                { weight: "500g", price: product.price * 2.2 },
-              ],
+              sizes, // Usar tamaños reales de la base de datos
               spotlightColor: "rgba(255, 236, 179, 0.08)",
             }
           }),

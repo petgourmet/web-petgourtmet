@@ -39,72 +39,8 @@ type Product = {
   weight_reference?: string
 }
 
-// Datos de fallback para cuando no se pueda conectar a Supabase
-const fallbackProducts: Product[] = [
-  {
-    id: 1,
-    name: "Pastel de Carne",
-    description: "Delicioso pastel de carne para tu mascota",
-    price: 250,
-    image: "/pastel-carne.png",
-    category_id: 1,
-    stock: 10,
-    created_at: new Date().toISOString(),
-    features: [
-      { name: "Natural", color: "secondary" },
-      { name: "Alta Calidad", color: "primary" },
-    ],
-    rating: 4.8,
-    reviews: 120,
-    sizes: [
-      { weight: "200g", price: 250 },
-      { weight: "500g", price: 550 },
-    ],
-    category: "Celebrar",
-  },
-  {
-    id: 2,
-    name: "Bola Guau",
-    description: "Snack en forma de bola para premiar a tu mascota",
-    price: 150,
-    image: "/bola-guau.png",
-    category_id: 2,
-    stock: 15,
-    created_at: new Date().toISOString(),
-    features: [
-      { name: "Natural", color: "secondary" },
-      { name: "Sin Conservantes", color: "primary" },
-    ],
-    rating: 4.5,
-    reviews: 85,
-    sizes: [
-      { weight: "100g", price: 150 },
-      { weight: "300g", price: 400 },
-    ],
-    category: "Premiar",
-  },
-  {
-    id: 3,
-    name: "Donut de Zanahoria",
-    description: "Donut saludable con zanahoria para tu mascota",
-    price: 180,
-    image: "/donut-zanahoria.png",
-    category_id: 3,
-    stock: 8,
-    created_at: new Date().toISOString(),
-    features: [
-      { name: "Vegetariano", color: "secondary" },
-      { name: "Saludable", color: "primary" },
-    ],
-    rating: 4.7,
-    reviews: 95,
-    sizes: [
-      { weight: "150g", price: 180 },
-      { weight: "350g", price: 420 },
-    ],
-    category: "Complementar",
-  },
-]
+// Datos de fallback deshabilitados - solo mostrar productos reales de la base de datos
+const fallbackProducts: Product[] = []
 
 export default function ProductosPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -247,10 +183,7 @@ export default function ProductosPage() {
               subscription_types: subscriptionTypes,
               rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
               reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
-              sizes: [
-                { weight: "200g", price: product.price },
-                { weight: "500g", price: product.price * 2.2 },
-              ],
+              sizes: [], // Solo usar tamaños reales de la base de datos
             }
           }),
         )
