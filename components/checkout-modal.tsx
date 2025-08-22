@@ -74,6 +74,7 @@ export function CheckoutModal() {
   const [customerInfo, setCustomerInfo] = useState({
     firstName: "",
     lastName: "",
+    email: "",
     phone: "",
   })
 
@@ -110,8 +111,15 @@ export function CheckoutModal() {
               setCustomerInfo({
                 firstName: nameParts[0] || "",
                 lastName: nameParts.slice(1).join(" ") || "",
+                email: user?.email || "",
                 phone: profile.phone || "",
               })
+            } else if (user?.email) {
+              // Si no hay perfil completo pero sí email del usuario
+              setCustomerInfo(prev => ({
+                ...prev,
+                email: user.email
+              }))
             }
 
             // Autocompletar información de envío si existe
@@ -197,7 +205,7 @@ export function CheckoutModal() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
 
-    if (id === "firstName" || id === "lastName" || id === "phone") {
+    if (id === "firstName" || id === "lastName" || id === "email" || id === "phone") {
       setCustomerInfo((prev) => ({ ...prev, [id]: value }))
     } else {
       setShippingInfo((prev) => ({ ...prev, [id]: value }))
@@ -240,6 +248,18 @@ export function CheckoutModal() {
 
     if (!customerInfo.lastName.trim()) {
       setError("Por favor ingresa tus apellidos")
+      return
+    }
+
+    if (!customerInfo.email.trim()) {
+      setError("Por favor ingresa tu email")
+      return
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(customerInfo.email)) {
+      setError("Por favor ingresa un email válido")
       return
     }
 
@@ -459,11 +479,10 @@ export function CheckoutModal() {
           unit_price: item.isSubscription ? item.price * 0.9 : item.price,
         }))
 
-        const userEmail = user?.email || "cliente@petgourmet.mx"
         const customerData = {
           firstName: customerInfo.firstName,
           lastName: customerInfo.lastName,
-          email: userEmail,
+          email: customerInfo.email,
           phone: customerInfo.phone,
           address: {
             street_name: shippingInfo.address.split(" ").slice(0, -1).join(" ") || shippingInfo.address,
@@ -536,13 +555,10 @@ export function CheckoutModal() {
           unit_price: item.isSubscription ? item.price * 0.9 : item.price,
         }))
 
-        // Obtener el email del usuario autenticado o usar un valor por defecto
-        const userEmail = user?.email || "cliente@petgourmet.mx"
-
         const customerData = {
           firstName: customerInfo.firstName,
           lastName: customerInfo.lastName,
-          email: userEmail,
+          email: customerInfo.email,
           phone: customerInfo.phone,
           address: {
             street_name: shippingInfo.address.split(" ").slice(0, -1).join(" ") || shippingInfo.address,
@@ -662,6 +678,17 @@ export function CheckoutModal() {
                       required
                     />
                   </div>
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="tu@email.com"
+                    value={customerInfo.email}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
                 <div>
                   <Label htmlFor="phone">Teléfono</Label>
