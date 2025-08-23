@@ -433,8 +433,10 @@ class AutoSyncService {
         processing_mode: 'aggregator'
       }
 
+      // Solo agregar confirmed_at si el pago fue aprobado y la columna existe
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
-        updateData.confirmed_at = new Date().toISOString()
+        // No usar confirmed_at por ahora hasta que se agregue la columna
+        // updateData.confirmed_at = new Date().toISOString()
       }
 
       const { error } = await supabase
@@ -453,10 +455,10 @@ class AutoSyncService {
         orderStatus
       })
 
-      // Enviar email de agradecimiento si el pago fue aprobado
+      // Enviar emails inmediatamente si el pago fue aprobado
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
         try {
-          // Obtener la orden actualizada para el email
+          // Obtener la orden actualizada para los emails
           const { data: updatedOrder } = await supabase
             .from('orders')
             .select('*')
@@ -464,10 +466,23 @@ class AutoSyncService {
             .single()
           
           if (updatedOrder) {
-            await this.sendThankYouEmailForAutoSync(updatedOrder, paymentData)
+            // Enviar ambos emails en paralelo para mayor velocidad
+            await Promise.all([
+              // Email de agradecimiento al cliente
+              this.sendThankYouEmailForAutoSync(updatedOrder, paymentData),
+              // Email de notificación de nueva compra a administradores
+              this.sendNewOrderNotificationEmail(updatedOrder, paymentData)
+            ])
+            
+            logger.info('Emails enviados exitosamente (cliente + admin)', 'AUTO_SYNC', {
+              orderId,
+              paymentId: paymentData.id,
+              customerEmail: updatedOrder.customer_email,
+              adminNotified: true
+            })
           }
         } catch (emailError) {
-          logger.warn('Error enviando email de agradecimiento en auto-sync', 'AUTO_SYNC', {
+          logger.error('Error enviando emails en auto-sync', 'AUTO_SYNC', {
             orderId,
             paymentId: paymentData.id,
             error: emailError.message
@@ -539,6 +554,132 @@ class AutoSyncService {
         return 'refunded'
       default:
         return 'pending'
+    }
+  }
+
+  // Enviar email de notificación de nueva compra a administradores
+  private async sendNewOrderNotificationEmail(order: any, paymentData: any): Promise<void> {
+    try {
+      const nodemailer = require('nodemailer')
+      
+      // Configurar transportador SMTP
+      const transporter = nodemailer.createTransporter({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      })
+
+      // Parsear datos del pedido si existen
+      let orderItems = []
+      if (order.shipping_address) {
+        try {
+          const orderData = typeof order.shipping_address === 'string'
+            ? JSON.parse(order.shipping_address)
+            : order.shipping_address
+          orderItems = orderData.items || []
+        } catch (e) {
+          // Si no se puede parsear, continuar sin items
+        }
+      }
+
+      const emailTemplate = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px; background: #1e40af; color: white; padding: 20px; border-radius: 8px;">
+            <h1 style="margin: 0; font-size: 24px;">🛒 Nueva Compra Realizada</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Se ha procesado un nuevo pedido en Pet Gourmet</p>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e293b; margin-top: 0;">📋 Información del Pedido</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Número de Pedido:</td>
+                <td style="padding: 8px 0; color: #1e293b;">#${order.id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Monto Total:</td>
+                <td style="padding: 8px 0; color: #16a34a; font-weight: bold;">$${paymentData.transaction_amount} ${paymentData.currency_id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Payment ID:</td>
+                <td style="padding: 8px 0; color: #1e293b; font-family: monospace;">${paymentData.id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Método de Pago:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${paymentData.payment_method_id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Fecha de Pago:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${new Date(paymentData.date_created).toLocaleString('es-MX')}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e293b; margin-top: 0;">👤 Información del Cliente</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Nombre:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${order.customer_name || 'No especificado'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Email:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${order.customer_email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Teléfono:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${order.customer_phone || 'No especificado'}</td>
+              </tr>
+            </table>
+          </div>
+          
+          ${orderItems.length > 0 ? `
+          <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e293b; margin-top: 0;">📦 Productos Pedidos</h3>
+            ${orderItems.map(item => `
+              <div style="border-bottom: 1px solid #e5e7eb; padding: 10px 0;">
+                <strong>${item.title || item.product_name}</strong><br>
+                <span style="color: #6b7280;">Cantidad: ${item.quantity} | Precio: $${item.unit_price || item.price}</span>
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://petgourmet.mx/admin" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver en Panel de Admin</a>
+          </div>
+          
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
+            <p style="color: #94a3b8; font-size: 14px; margin: 0;">Pet Gourmet - Sistema de Notificaciones</p>
+            <p style="color: #94a3b8; font-size: 12px; margin: 5px 0 0 0;">Este email se envía automáticamente cuando se procesa un nuevo pedido</p>
+          </div>
+        </div>
+      `
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || 'sistema@petgourmet.mx',
+        to: 'contacto@petgourmet.mx',
+        subject: `🛒 Nueva Compra #${order.id} - $${paymentData.transaction_amount} ${paymentData.currency_id}`,
+        html: emailTemplate
+      })
+
+      logger.info('Email de notificación de nueva compra enviado', 'AUTO_SYNC', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        amount: paymentData.transaction_amount,
+        customerEmail: order.customer_email
+      })
+
+    } catch (error) {
+      logger.error('Error enviando email de notificación de nueva compra', 'AUTO_SYNC', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        error: error.message
+      })
     }
   }
 

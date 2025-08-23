@@ -567,36 +567,43 @@ export class WebhookService {
       })
 
       // SEGUNDA VALIDACIÓN: Validación automática cuando el cliente efectivamente paga
-        if (paymentData.status === 'approved' || paymentData.status === 'paid') {
-          logger.info('🎉 PAGO COMPLETADO - Ejecutando validación automática inmediata', 'PAYMENT_COMPLETED', {
-            paymentId,
-            orderId,
-            payerEmail: paymentData.payer?.email,
-            customerEmail: order.customer_email,
-            amount: paymentData.transaction_amount,
-            paymentMethod: paymentData.payment_method_id
-          })
-          
-          // Enviar email de agradecimiento inmediato
-          await this.sendThankYouEmail(order, paymentData)
-          
-          // Notificar al sistema de monitoreo
-          webhookMonitor.logWebhookProcessed(eventId, Date.now() - startTime)
-          
-          logger.info('✅ Validación automática de pago completada exitosamente', 'PAYMENT_COMPLETED', {
-            paymentId,
-            orderId,
-            emailSent: true,
-            processingTime: Date.now() - startTime
-          })
-        } else {
-          logger.info('💰 Pago pendiente - Monitoreando estado', 'PAYMENT_PENDING', {
-            paymentId,
-            orderId,
-            status: paymentData.status,
-            paymentMethod: paymentData.payment_method_id
-          })
-        }
+         if (paymentData.status === 'approved' || paymentData.status === 'paid') {
+           logger.info('🎉 PAGO COMPLETADO - Ejecutando validación automática inmediata', 'PAYMENT_COMPLETED', {
+             paymentId,
+             orderId,
+             payerEmail: paymentData.payer?.email,
+             customerEmail: order.customer_email,
+             amount: paymentData.transaction_amount,
+             paymentMethod: paymentData.payment_method_id
+           })
+           
+           // Enviar ambos emails inmediatamente en paralelo
+           await Promise.all([
+             // Email de agradecimiento al cliente
+             this.sendThankYouEmail(order, paymentData),
+             // Email de notificación de nueva compra a administradores
+             this.sendNewOrderNotificationEmail(order, paymentData)
+           ])
+           
+           // Notificar al sistema de monitoreo
+           webhookMonitor.logWebhookProcessed(eventId, Date.now() - startTime)
+           
+           logger.info('✅ Validación automática de pago completada exitosamente', 'PAYMENT_COMPLETED', {
+             paymentId,
+             orderId,
+             emailsSent: true,
+             customerEmailSent: true,
+             adminEmailSent: true,
+             processingTime: Date.now() - startTime
+           })
+         } else {
+           logger.info('💰 Pago pendiente - Monitoreando estado', 'PAYMENT_PENDING', {
+             paymentId,
+             orderId,
+             status: paymentData.status,
+             paymentMethod: paymentData.payment_method_id
+           })
+         }
 
       const duration = Date.now() - startTime
       logger.info('Pago de orden procesado exitosamente', 'ORDER', {
@@ -1009,6 +1016,123 @@ export class WebhookService {
         </div>
       </div>
     `
+  }
+
+  // Enviar email de notificación de nueva compra a administradores
+  private async sendNewOrderNotificationEmail(order: any, paymentData: PaymentData): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      // Parsear datos del pedido si existen
+      let orderItems = []
+      if (order.shipping_address) {
+        try {
+          const orderData = typeof order.shipping_address === 'string'
+            ? JSON.parse(order.shipping_address)
+            : order.shipping_address
+          orderItems = orderData.items || []
+        } catch (e) {
+          // Si no se puede parsear, continuar sin items
+        }
+      }
+
+      const emailTemplate = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px; background: #1e40af; color: white; padding: 20px; border-radius: 8px;">
+            <h1 style="margin: 0; font-size: 24px;">🛒 Nueva Compra Realizada</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Se ha procesado un nuevo pedido en Pet Gourmet</p>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e293b; margin-top: 0;">📋 Información del Pedido</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Número de Pedido:</td>
+                <td style="padding: 8px 0; color: #1e293b;">#${order.id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Monto Total:</td>
+                <td style="padding: 8px 0; color: #16a34a; font-weight: bold;">$${paymentData.transaction_amount} ${paymentData.currency_id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Payment ID:</td>
+                <td style="padding: 8px 0; color: #1e293b; font-family: monospace;">${paymentData.id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Método de Pago:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${paymentData.payment_method_id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Fecha de Pago:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${new Date(paymentData.date_created).toLocaleString('es-MX')}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e293b; margin-top: 0;">👤 Información del Cliente</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Nombre:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${order.customer_name || 'No especificado'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Email:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${order.customer_email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #475569;">Teléfono:</td>
+                <td style="padding: 8px 0; color: #1e293b;">${order.customer_phone || 'No especificado'}</td>
+              </tr>
+            </table>
+          </div>
+          
+          ${orderItems.length > 0 ? `
+          <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e293b; margin-top: 0;">📦 Productos Pedidos</h3>
+            ${orderItems.map(item => `
+              <div style="border-bottom: 1px solid #e5e7eb; padding: 10px 0;">
+                <strong>${item.title || item.product_name}</strong><br>
+                <span style="color: #6b7280;">Cantidad: ${item.quantity} | Precio: $${item.unit_price || item.price}</span>
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://petgourmet.mx/admin" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver en Panel de Admin</a>
+          </div>
+          
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
+            <p style="color: #94a3b8; font-size: 14px; margin: 0;">Pet Gourmet - Sistema de Notificaciones</p>
+            <p style="color: #94a3b8; font-size: 12px; margin: 5px 0 0 0;">Este email se envía automáticamente cuando se procesa un nuevo pedido</p>
+          </div>
+        </div>
+      `
+
+      await this.sendEmail({
+        to: 'contacto@petgourmet.mx',
+        subject: `🛒 Nueva Compra #${order.id} - $${paymentData.transaction_amount} ${paymentData.currency_id}`,
+        html: emailTemplate
+      })
+
+      const duration = Date.now() - startTime
+      logger.info('Email de notificación de nueva compra enviado exitosamente', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        amount: paymentData.transaction_amount,
+        customerEmail: order.customer_email,
+        duration
+      })
+    } catch (error) {
+      const duration = Date.now() - startTime
+      logger.error('Error enviando email de notificación de nueva compra', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        error: error.message,
+        duration
+      })
+    }
   }
 
   // Enviar email de agradecimiento inmediato al completar pago
