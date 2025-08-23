@@ -16,7 +16,9 @@
     "analyze-emails": "node scripts/fix-customer-emails-display.mjs",
     "update-all-emails": "node scripts/update-emails-from-mercadopago.mjs && node scripts/fix-customer-emails-display.mjs",
     "add-customer-email-column": "node scripts/add-customer-email-column-direct.mjs",
-    "run-email-migration": "node scripts/run-customer-email-migration.mjs"
+    "run-email-migration": "node scripts/run-customer-email-migration.mjs",
+    "auto-validate": "node scripts/auto-validate-payments.js",
+    "dev:auto": "npm run auto-validate & npm run dev"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",

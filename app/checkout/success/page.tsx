@@ -12,6 +12,12 @@ function CheckoutSuccessContent() {
   const [paymentData, setPaymentData] = useState<any>(null)
   const [orderData, setOrderData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [validationStatus, setValidationStatus] = useState<{
+    isValidating: boolean
+    completed: boolean
+    success: boolean
+    message: string
+  }>({ isValidating: false, completed: false, success: false, message: '' })
 
   const paymentId = searchParams.get('payment_id')
   const status = searchParams.get('status')
@@ -21,7 +27,68 @@ function CheckoutSuccessContent() {
   useEffect(() => {
     const fetchPaymentInfo = async () => {
       try {
-        // Obtener información completa de la orden
+        let currentOrderId = orderId || externalReference
+        
+        // PRIMERA VALIDACIÓN: Validación automática inmediata al llegar a la página
+         if (currentOrderId) {
+           setValidationStatus({
+             isValidating: true,
+             completed: false,
+             success: false,
+             message: 'Validando estado del pago...'
+           })
+           
+           console.log('🔄 Ejecutando validación automática al llegar a página de éxito...')
+           
+           try {
+             // Ejecutar validación proactiva automática
+             const validationResponse = await fetch(`/api/orders/${currentOrderId}/validate`, {
+               method: 'POST',
+               headers: {
+                 'Content-Type': 'application/json'
+               }
+             })
+             
+             if (validationResponse.ok) {
+               const validationResult = await validationResponse.json()
+               console.log('✅ Validación automática completada:', validationResult)
+               
+               if (validationResult.validation?.success) {
+                 console.log('🎉 Pago validado automáticamente:', validationResult.validation.action)
+                 setValidationStatus({
+                   isValidating: false,
+                   completed: true,
+                   success: true,
+                   message: 'Pago validado exitosamente'
+                 })
+               } else {
+                 setValidationStatus({
+                   isValidating: false,
+                   completed: true,
+                   success: false,
+                   message: 'Validación completada - Estado actual confirmado'
+                 })
+               }
+             } else {
+               setValidationStatus({
+                 isValidating: false,
+                 completed: true,
+                 success: false,
+                 message: 'Error en validación automática'
+               })
+             }
+           } catch (validationError) {
+             console.warn('⚠️ Error en validación automática (no crítico):', validationError)
+             setValidationStatus({
+               isValidating: false,
+               completed: true,
+               success: false,
+               message: 'Error de conexión en validación'
+             })
+           }
+         }
+        
+        // Obtener información completa de la orden (después de validación)
         if (orderId) {
           const response = await fetch(`/api/orders/${orderId}`)
           if (response.ok) {
@@ -97,6 +164,34 @@ function CheckoutSuccessContent() {
             Tu pedido ha sido confirmado y está siendo procesado
           </p>
         </div>
+        
+        {/* Estado de Validación Automática */}
+        {validationStatus.isValidating && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              <span className="text-blue-700 font-medium">{validationStatus.message}</span>
+            </div>
+          </div>
+        )}
+        
+        {validationStatus.completed && validationStatus.success && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-center space-x-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-green-700 font-medium">{validationStatus.message}</span>
+            </div>
+          </div>
+        )}
+        
+        {validationStatus.completed && !validationStatus.success && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-center space-x-2">
+              <span className="text-yellow-600">⚠️</span>
+              <span className="text-yellow-700 font-medium">{validationStatus.message}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">

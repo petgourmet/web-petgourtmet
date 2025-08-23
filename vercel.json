@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/auto-validate-payments",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/validate-payments",
       "schedule": "0 */6 * * *"
     },
@@ -14,6 +18,9 @@
     }
   ],
   "functions": {
+    "app/api/cron/auto-validate-payments/route.ts": {
+      "maxDuration": 300
+    },
     "app/api/cron/validate-payments/route.ts": {
       "maxDuration": 300
     },

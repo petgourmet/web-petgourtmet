@@ -1,0 +1,42 @@
+name: Auto Validate Payments
+
+# Ejecutar cada 5 minutos
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Cada 5 minutos
+  workflow_dispatch:  # Permitir ejecución manual
+
+jobs:
+  validate-payments:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Validate Pending Payments
+      run: |
+        curl -X POST "${{ secrets.APP_URL }}/api/cron/auto-validate-payments" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -d '{"maxAge": 2, "force": false}' \
+          --fail-with-body
+      
+    - name: Check System Health
+      run: |
+        curl -X GET "${{ secrets.APP_URL }}/api/admin/webhook-monitor?action=health" \
+          --fail-with-body
+          
+    - name: Notify on Failure
+      if: failure()
+      run: |
+        curl -X POST "${{ secrets.WEBHOOK_NOTIFICATION_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "text": "🚨 Error en validación automática de pagos - PetGourmet",
+            "attachments": [{
+              "color": "danger",
+              "fields": [{
+                "title": "Error",
+                "value": "La validación automática de pagos falló",
+                "short": false
+              }]
+            }]
+          }'

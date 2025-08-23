@@ -566,18 +566,37 @@ export class WebhookService {
         isApproved: paymentData.status === 'approved' || paymentData.status === 'paid'
       })
 
-      // Enviar email de confirmación inmediatamente si el pago fue aprobado
-      if (paymentData.status === 'approved' || paymentData.status === 'paid') {
-        logger.info('Enviando email de agradecimiento inmediato', 'ORDER', {
-          paymentId,
-          orderId,
-          payerEmail: paymentData.payer?.email,
-          customerEmail: order.customer_email
-        })
-        
-        // Enviar email de agradecimiento con datos completos
-        await this.sendThankYouEmail(order, paymentData)
-      }
+      // SEGUNDA VALIDACIÓN: Validación automática cuando el cliente efectivamente paga
+        if (paymentData.status === 'approved' || paymentData.status === 'paid') {
+          logger.info('🎉 PAGO COMPLETADO - Ejecutando validación automática inmediata', 'PAYMENT_COMPLETED', {
+            paymentId,
+            orderId,
+            payerEmail: paymentData.payer?.email,
+            customerEmail: order.customer_email,
+            amount: paymentData.transaction_amount,
+            paymentMethod: paymentData.payment_method_id
+          })
+          
+          // Enviar email de agradecimiento inmediato
+          await this.sendThankYouEmail(order, paymentData)
+          
+          // Notificar al sistema de monitoreo
+          webhookMonitor.logWebhookProcessed(eventId, Date.now() - startTime)
+          
+          logger.info('✅ Validación automática de pago completada exitosamente', 'PAYMENT_COMPLETED', {
+            paymentId,
+            orderId,
+            emailSent: true,
+            processingTime: Date.now() - startTime
+          })
+        } else {
+          logger.info('💰 Pago pendiente - Monitoreando estado', 'PAYMENT_PENDING', {
+            paymentId,
+            orderId,
+            status: paymentData.status,
+            paymentMethod: paymentData.payment_method_id
+          })
+        }
 
       const duration = Date.now() - startTime
       logger.info('Pago de orden procesado exitosamente', 'ORDER', {
