@@ -3,6 +3,8 @@ import crypto from 'crypto'
 import nodemailer from 'nodemailer'
 import logger, { LogCategory } from '@/lib/logger'
 import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
+import webhookMonitor from '@/lib/webhook-monitor'
+import autoSyncService from '@/lib/auto-sync-service'
 
 // Tipos para webhooks de MercadoPago
 interface WebhookPayload {
@@ -259,8 +261,12 @@ export class WebhookService {
     const startTime = Date.now()
     const paymentId = webhookData.data.id
     
+    // Registrar webhook recibido en el monitor
+    const eventId = webhookMonitor.logWebhookReceived(webhookData)
+    
     try {
       logger.info('Iniciando procesamiento de webhook de pago', 'WEBHOOK', {
+        eventId,
         paymentId,
         type: webhookData.type,
         action: webhookData.action,
@@ -310,28 +316,79 @@ export class WebhookService {
       
       if (result) {
         logger.info('Webhook de pago procesado exitosamente', 'WEBHOOK', {
+          eventId,
           paymentId,
           isSubscriptionPayment,
           duration
         })
+        
+        // Registrar éxito en el monitor
+        webhookMonitor.logWebhookProcessed(eventId, duration)
       } else {
-        logger.error('Fallo en el procesamiento del webhook de pago', 'WEBHOOK', {
-          paymentId,
-          isSubscriptionPayment,
-          duration
-        })
-      }
+          logger.error('Fallo en el procesamiento del webhook de pago', 'WEBHOOK', {
+            eventId,
+            paymentId,
+            isSubscriptionPayment,
+            duration
+          })
+          
+          // Registrar error en el monitor
+          webhookMonitor.logWebhookError(eventId, 'Fallo en el procesamiento del webhook de pago', duration)
+          
+          // Intentar auto-sincronización como respaldo
+          logger.info('Iniciando auto-sincronización de respaldo', 'WEBHOOK', {
+            eventId,
+            paymentId
+          })
+          
+          try {
+            const autoSyncResult = await autoSyncService.autoSyncOnWebhookFailure(
+              paymentId, 
+              paymentData.external_reference
+            )
+            
+            if (autoSyncResult.success) {
+              logger.info('Auto-sincronización exitosa después de fallo de webhook', 'WEBHOOK', {
+                eventId,
+                paymentId,
+                orderId: autoSyncResult.orderId,
+                action: autoSyncResult.action
+              })
+              
+              // Actualizar el monitor con éxito de auto-sync
+              webhookMonitor.logWebhookProcessed(eventId, duration)
+              return true
+            } else {
+              logger.warn('Auto-sincronización también falló', 'WEBHOOK', {
+                eventId,
+                paymentId,
+                error: autoSyncResult.error
+              })
+            }
+          } catch (autoSyncError) {
+            logger.error('Error en auto-sincronización de respaldo', 'WEBHOOK', {
+              eventId,
+              paymentId,
+              error: autoSyncError.message
+            })
+          }
+        }
       
       return result
 
     } catch (error) {
       const duration = Date.now() - startTime
       logger.error('Error procesando webhook de pago', 'WEBHOOK', {
+        eventId,
         paymentId,
         error: error.message,
         stack: error.stack,
         duration
       })
+      
+      // Registrar error en el monitor
+      webhookMonitor.logWebhookError(eventId, error.message, duration)
+      
       return false
     }
   }
@@ -509,14 +566,17 @@ export class WebhookService {
         isApproved: paymentData.status === 'approved' || paymentData.status === 'paid'
       })
 
-      // Enviar email de confirmación si el pago fue aprobado
+      // Enviar email de confirmación inmediatamente si el pago fue aprobado
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
-        logger.info('Enviando email de confirmación de orden', 'ORDER', {
+        logger.info('Enviando email de agradecimiento inmediato', 'ORDER', {
           paymentId,
           orderId,
-          payerEmail: paymentData.payer?.email
+          payerEmail: paymentData.payer?.email,
+          customerEmail: order.customer_email
         })
-        await this.sendOrderConfirmationEmail(order, paymentData)
+        
+        // Enviar email de agradecimiento con datos completos
+        await this.sendThankYouEmail(order, paymentData)
       }
 
       const duration = Date.now() - startTime
@@ -930,6 +990,74 @@ export class WebhookService {
         </div>
       </div>
     `
+  }
+
+  // Enviar email de agradecimiento inmediato al completar pago
+  private async sendThankYouEmail(order: any, paymentData: PaymentData): Promise<void> {
+    const startTime = Date.now()
+    
+    try {
+      // Obtener el email del cliente usando la función utilitaria
+      const recipientEmail = extractCustomerEmail(order, paymentData)
+      const customerName = extractCustomerName(order, paymentData)
+      
+      logger.info('Enviando email de agradecimiento', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        recipientEmail,
+        amount: paymentData.transaction_amount
+      })
+
+      const emailTemplate = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #16a34a; margin-bottom: 10px;">🎉 ¡Gracias por tu compra!</h1>
+            <p style="color: #64748b; font-size: 16px;">Tu pago ha sido confirmado exitosamente</p>
+          </div>
+          
+          <div style="background: #f0fdf4; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #16a34a;">
+            <h3 style="color: #1e293b; margin-top: 0;">📦 Detalles del pedido</h3>
+            <ul style="color: #475569; line-height: 1.6;">
+              <li><strong>Número de pedido:</strong> ${order.id}</li>
+              <li><strong>Monto pagado:</strong> $${paymentData.transaction_amount} ${paymentData.currency_id}</li>
+              <li><strong>Método de pago:</strong> ${paymentData.payment_method_id}</li>
+              <li><strong>Fecha de pago:</strong> ${new Date(paymentData.date_created).toLocaleDateString('es-MX')}</li>
+            </ul>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <p style="color: #475569; margin-bottom: 20px;">¡Gracias por confiar en Pet Gourmet! Procesaremos tu pedido pronto.</p>
+            <a href="https://petgourmet.mx/perfil" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver mis pedidos</a>
+          </div>
+          
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
+            <p style="color: #94a3b8; font-size: 14px; margin: 0;">Pet Gourmet - Nutrición premium para tu mascota</p>
+          </div>
+        </div>
+      `
+
+      await this.sendEmail({
+        to: recipientEmail,
+        subject: '🎉 ¡Gracias por tu compra! Pago confirmado - Pet Gourmet',
+        html: emailTemplate
+      })
+
+      const duration = Date.now() - startTime
+      logger.info('Email de agradecimiento enviado exitosamente', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        recipientEmail,
+        duration
+      })
+    } catch (error) {
+      const duration = Date.now() - startTime
+      logger.error('Error enviando email de agradecimiento', 'ORDER', {
+        orderId: order.id,
+        paymentId: paymentData.id,
+        error: error.message,
+        duration
+      })
+    }
   }
 
   // Enviar email de confirmación de orden

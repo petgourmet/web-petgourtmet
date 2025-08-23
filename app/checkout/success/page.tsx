@@ -21,12 +21,21 @@ function CheckoutSuccessContent() {
   useEffect(() => {
     const fetchPaymentInfo = async () => {
       try {
-        // Con webhooks, solo consultamos el estado actual
+        // Obtener información completa de la orden
         if (orderId) {
           const response = await fetch(`/api/orders/${orderId}`)
           if (response.ok) {
             const data = await response.json()
             setOrderData(data.order)
+            
+            // Si la orden tiene payment ID, obtener datos del pago
+            if (data.order?.mercadopago_payment_id) {
+              const paymentResponse = await fetch(`/api/mercadopago/payment/${data.order.mercadopago_payment_id}`)
+              if (paymentResponse.ok) {
+                const paymentInfo = await paymentResponse.json()
+                setPaymentData(paymentInfo)
+              }
+            }
           }
         } else if (externalReference) {
           const response = await fetch(`/api/orders/search?external_reference=${externalReference}`)
@@ -34,12 +43,21 @@ function CheckoutSuccessContent() {
             const data = await response.json()
             if (data.order) {
               setOrderData(data.order)
+              
+              // Obtener datos del pago si están disponibles
+              if (data.order?.mercadopago_payment_id) {
+                const paymentResponse = await fetch(`/api/mercadopago/payment/${data.order.mercadopago_payment_id}`)
+                if (paymentResponse.ok) {
+                  const paymentInfo = await paymentResponse.json()
+                  setPaymentData(paymentInfo)
+                }
+              }
             }
           }
         }
         
-        // Obtener información del pago si está disponible
-        if (paymentId) {
+        // Obtener información del pago directamente si se proporciona payment_id
+        if (paymentId && !paymentData) {
           const response = await fetch(`/api/mercadopago/payment/${paymentId}`)
           if (response.ok) {
             const data = await response.json()
@@ -91,32 +109,84 @@ function CheckoutSuccessContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {paymentId && (
+            {/* ID de Pago */}
+            {(paymentId || orderData?.mercadopago_payment_id) && (
               <div className="flex justify-between">
                 <span className="text-gray-600">ID de Pago:</span>
-                <span className="font-mono text-sm">{paymentId}</span>
+                <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                  {paymentId || orderData?.mercadopago_payment_id}
+                </span>
               </div>
             )}
-            {status && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Estado:</span>
-                <span className="capitalize font-semibold text-green-600">{status}</span>
-              </div>
-            )}
-            {externalReference && (
+            
+            {/* Número de Pedido */}
+            {(orderId || externalReference || orderData?.id) && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Número de Pedido:</span>
-                <span className="font-mono text-sm">{externalReference}</span>
+                <span className="font-mono text-sm bg-blue-100 px-2 py-1 rounded text-blue-800">
+                  #{orderId || externalReference || orderData?.id}
+                </span>
               </div>
             )}
+            
+            {/* Estado del Pago */}
+            {(status || paymentData?.status || orderData?.payment_status) && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Estado del Pago:</span>
+                <span className="capitalize font-semibold text-green-600 bg-green-100 px-2 py-1 rounded">
+                  {status || paymentData?.status || orderData?.payment_status}
+                </span>
+              </div>
+            )}
+            
+            {/* Método de Pago */}
+            {(paymentData?.payment_method_id || orderData?.payment_method) && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Método de Pago:</span>
+                <span className="capitalize">
+                  {paymentData?.payment_method_id || orderData?.payment_method}
+                </span>
+              </div>
+            )}
+            
+            {/* Tipo de Pago */}
+            {(paymentData?.payment_type_id || orderData?.payment_type) && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tipo de Pago:</span>
+                <span className="capitalize">
+                  {paymentData?.payment_type_id || orderData?.payment_type}
+                </span>
+              </div>
+            )}
+            
+            {/* Fecha del Pago */}
             <div className="flex justify-between">
-              <span className="text-gray-600">Fecha:</span>
-              <span>{new Date().toLocaleDateString('es-MX')}</span>
+              <span className="text-gray-600">Fecha del Pago:</span>
+              <span>
+                {paymentData?.date_created 
+                  ? new Date(paymentData.date_created).toLocaleString('es-MX')
+                  : orderData?.confirmed_at 
+                  ? new Date(orderData.confirmed_at).toLocaleString('es-MX')
+                  : new Date().toLocaleString('es-MX')
+                }
+              </span>
             </div>
-            {paymentData?.amount && (
-              <div className="flex justify-between font-semibold text-lg">
+            
+            {/* Total Pagado */}
+            {(paymentData?.transaction_amount || orderData?.total) && (
+              <div className="flex justify-between font-semibold text-lg border-t pt-3">
                 <span>Total Pagado:</span>
-                <span className="text-green-600">${paymentData.amount} MXN</span>
+                <span className="text-green-600">
+                  ${paymentData?.transaction_amount || orderData?.total} {paymentData?.currency_id || 'MXN'}
+                </span>
+              </div>
+            )}
+            
+            {/* Información adicional si está disponible */}
+            {paymentData?.installments && paymentData.installments > 1 && (
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Cuotas:</span>
+                <span>{paymentData.installments}x de ${(paymentData.transaction_amount / paymentData.installments).toFixed(2)}</span>
               </div>
             )}
           </CardContent>

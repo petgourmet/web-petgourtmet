@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/client'
 import logger from '@/lib/logger'
+import autoSyncService from '@/lib/auto-sync-service'
+import webhookMonitor from '@/lib/webhook-monitor'
 
 const CRON_SECRET = process.env.CRON_SECRET
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
@@ -14,18 +16,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    logger.info('Iniciando validación automática de pagos pendientes', 'CRON', {
+    logger.info('Iniciando validación automática de pagos pendientes (mejorada)', 'CRON_AUTO_VALIDATE', {
       timestamp: new Date().toISOString()
     })
 
-    const supabase = createClient()
+    // Usar el nuevo servicio de auto-sincronización
+    const syncResult = await autoSyncService.syncPendingOrders(2) // Últimas 2 horas
+    
+    // Generar reporte de salud del sistema
+    const healthReport = webhookMonitor.generateHealthReport()
+    
+    // Persistir estadísticas si hay problemas
+    if (healthReport.status !== 'healthy') {
+      await webhookMonitor.persistStats()
+    }
+
     const results = {
-      orders_processed: 0,
-      orders_updated: 0,
-      subscriptions_processed: 0,
+      orders_processed: syncResult.totalProcessed,
+      orders_updated: syncResult.successful,
+      subscriptions_processed: 0, // Mantenemos compatibilidad
       subscriptions_updated: 0,
-      errors: 0,
-      details: [] as any[]
+      errors: syncResult.failed,
+      details: syncResult.results.map(r => ({
+        orderId: r.orderId,
+        success: r.success,
+        action: r.action,
+        error: r.error,
+        paymentId: r.paymentId
+      })),
+      health: {
+        status: healthReport.status,
+        score: healthReport.score,
+        issues: healthReport.issues.length
+      }
     }
 
     // 1. Buscar órdenes pendientes (últimas 24 horas)

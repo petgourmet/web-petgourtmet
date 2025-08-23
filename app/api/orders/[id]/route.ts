@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import autoSyncService from '@/lib/auto-sync-service'
+import logger from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -40,6 +42,65 @@ export async function GET(
         { error: 'Orden no encontrada' },
         { status: 404 }
       )
+    }
+
+    // Validación proactiva automática
+    let validationResult = null
+    const needsValidation = 
+      !order.mercadopago_payment_id || 
+      order.payment_status === 'pending' ||
+      (order.status === 'pending' && order.payment_status !== 'pending')
+    
+    if (needsValidation) {
+      try {
+        logger.info('Ejecutando validación proactiva automática', 'PROACTIVE_AUTO', {
+          orderId: order.id,
+          reason: !order.mercadopago_payment_id ? 'missing_payment_id' : 
+                  order.payment_status === 'pending' ? 'pending_payment' : 'status_mismatch'
+        })
+        
+        validationResult = await autoSyncService.validateOrderPayment(parseInt(orderId))
+        
+        if (validationResult.success) {
+          logger.info('Validación proactiva exitosa', 'PROACTIVE_AUTO', {
+            orderId: order.id,
+            action: validationResult.action,
+            paymentId: validationResult.paymentId
+          })
+          
+          // Recargar la orden actualizada
+          const { data: updatedOrder } = await supabase
+            .from('orders')
+            .select(`
+              *,
+              order_items (
+                id,
+                product_id,
+                product_name,
+                product_image,
+                quantity,
+                price,
+                size
+              )
+            `)
+            .eq('id', orderId)
+            .single()
+          
+          if (updatedOrder) {
+            order = updatedOrder
+          }
+        } else {
+          logger.warn('Validación proactiva falló', 'PROACTIVE_AUTO', {
+            orderId: order.id,
+            error: validationResult.error
+          })
+        }
+      } catch (error) {
+        logger.error('Error en validación proactiva automática', 'PROACTIVE_AUTO', {
+          orderId: order.id,
+          error: error.message
+        })
+      }
     }
 
     // Parsear datos adicionales si existen
