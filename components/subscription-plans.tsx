@@ -83,8 +83,9 @@ export default function SubscriptionPlans({
     setCreatingSubscription(plan.id)
 
     try {
-      // Generar external_reference único
-      const externalReference = `PG-${Date.now()}-${userId}-${plan.id}`
+      // Generar external_reference único con información del usuario
+      const timestamp = Date.now()
+      const externalReference = `PG-SUB-${timestamp}-${userId}-${plan.id}`
       
       // Crear suscripción sin plan usando la nueva API
       const subscriptionResponse = await fetch('/api/subscriptions/create-without-plan', {
@@ -104,7 +105,7 @@ export default function SubscriptionPlans({
             transaction_amount: calculateDiscountedPrice(plan),
             currency_id: 'MXN'
           },
-          back_url: `${window.location.origin}/suscripcion?external_reference=${externalReference}`,
+          back_url: `${window.location.origin}/suscripcion/confirmacion?external_reference=${externalReference}&user_id=${userId}`,
           status: 'pending', // Sin método de pago, el usuario lo agregará en MercadoPago
           user_id: userId,
           product_id: productId,

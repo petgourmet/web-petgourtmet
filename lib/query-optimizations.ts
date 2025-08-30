@@ -481,9 +481,21 @@ export async function fetchOptimizedSubscriptions(
       ...processedBillingSubscriptions
     ]
     
-    return allSubscriptions.filter((sub, index, self) =>
+    const uniqueSubscriptions = allSubscriptions.filter((sub, index, self) =>
       index === self.findIndex(s => s.id === sub.id)
     )
+    
+    // Obtener perfiles de usuario
+    const userIds = [...new Set(uniqueSubscriptions.map(sub => sub.user_id))].filter(Boolean)
+    const userProfiles = await fetchOptimizedUserProfiles(userIds, supabase, useCache)
+    
+    // Agregar información del perfil a cada suscripción
+    const subscriptionsWithProfiles = uniqueSubscriptions.map(sub => ({
+      ...sub,
+      user_profile: userProfiles.find(profile => profile.id === sub.user_id)
+    }))
+    
+    return subscriptionsWithProfiles
   }
   
   return useCache ? getCachedQuery(cacheKey, queryFn) : queryFn()
@@ -502,8 +514,8 @@ export async function fetchOptimizedUserProfiles(
   const queryFn = async () => {
     const { data: profilesData } = await supabase
       .from('profiles')
-      .select('id, auth_users_id, full_name, email, phone')
-      .in('auth_users_id', userIds)
+      .select('id, full_name, email, phone')
+      .in('id', userIds)
     
     return profilesData || []
   }

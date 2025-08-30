@@ -1003,26 +1003,12 @@ export class WebhookService {
             })
           }
 
-          // Actualizar perfil del usuario
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              has_active_subscription: true,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', pendingSubscription.user_id)
-
-          if (profileError) {
-            logger.error('Error actualizando perfil del usuario', 'SUBSCRIPTION', {
-              userId: pendingSubscription.user_id,
-              error: profileError.message
-            })
-          } else {
-            logger.info('Perfil del usuario actualizado exitosamente', 'SUBSCRIPTION', {
-              userId: pendingSubscription.user_id,
-              subscriptionId: subscriptionData.id
-            })
-          }
+          // Log de suscripción activada exitosamente
+          logger.info('Suscripción activada exitosamente para el usuario', 'SUBSCRIPTION', {
+            userId: pendingSubscription.user_id,
+            subscriptionId: subscriptionData.id,
+            activeSubscriptionId: activeSubscription.id
+          })
         }
       } else {
         logger.warn('No se encontró suscripción pendiente para procesar', 'SUBSCRIPTION', {
@@ -1123,8 +1109,18 @@ export class WebhookService {
           updateData.next_billing_date = subscriptionData.next_payment_date
         }
 
-        // Actualizar estado activo basado en el status
-        updateData.is_active = subscriptionData.status === 'authorized' || subscriptionData.status === 'active'
+        // Mapear el estado de MercadoPago al estado local
+        // Solo considerar 'authorized' y 'active' como estados activos
+        if (subscriptionData.status === 'authorized' || subscriptionData.status === 'active') {
+          updateData.status = 'active'
+        } else if (subscriptionData.status === 'paused') {
+          updateData.status = 'paused'
+        } else if (subscriptionData.status === 'cancelled') {
+          updateData.status = 'cancelled'
+        } else {
+          // Para otros estados, mantener el estado actual pero actualizar el timestamp
+          updateData.status = subscriptionData.status
+        }
 
         const { error } = await supabase
           .from('user_subscriptions')
@@ -1201,15 +1197,11 @@ export class WebhookService {
           .eq('user_id', subscription.user_id)
           .eq('status', 'active')
 
-        if (!activeSubscriptions || activeSubscriptions.length === 0) {
-          await supabase
-            .from('profiles')
-            .update({
-              has_active_subscription: false,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', subscription.user_id)
-        }
+        // Log del estado de suscripciones activas del usuario
+        logger.info('Usuario después de cancelación', 'SUBSCRIPTION', {
+          userId: subscription.user_id,
+          remainingActiveSubscriptions: activeSubscriptions?.length || 0
+        })
 
         logger.info('Suscripción marcada como cancelada en BD', 'SUBSCRIPTION', {
           subscriptionId: subscriptionData.id,
@@ -1713,8 +1705,23 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
     logger.info(LogCategory.WEBHOOK, 'Procesando preapproval de suscripción', {
       subscriptionId: data.id,
       status: data.status,
-      payerEmail: data.payer_email
+      payerEmail: data.payer_email,
+      externalReference: data.external_reference
     })
+    
+    // Extraer user_id del external_reference si está disponible
+    let extractedUserId = null
+    if (data.external_reference) {
+      // Formato esperado: PG-SUB-timestamp-userId-planId
+      const parts = data.external_reference.split('-')
+      if (parts.length >= 4 && parts[0] === 'PG' && parts[1] === 'SUB') {
+        extractedUserId = parts[3]
+        logger.info(LogCategory.WEBHOOK, 'User ID extraído del external_reference', {
+          externalReference: data.external_reference,
+          extractedUserId
+        })
+      }
+    }
     
     // Buscar suscripción pendiente y activarla
     if (data.external_reference) {
@@ -1726,9 +1733,20 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
         .single()
       
       if (!findError && pendingSub) {
+        // Usar el user_id de la suscripción pendiente o el extraído del external_reference
+        const userId = pendingSub.user_id || extractedUserId
+        
+        if (!userId) {
+          logger.error(LogCategory.WEBHOOK, 'No se pudo determinar el user_id para la suscripción', {
+            subscriptionId: data.id,
+            externalReference: data.external_reference
+          })
+          return
+        }
+        
         // Crear suscripción activa
         const subscriptionData = {
-          user_id: pendingSub.user_id,
+          user_id: userId,
           product_id: pendingSub.cart_items?.[0]?.id || null,
           subscription_type: pendingSub.subscription_type,
           status: data.status === 'authorized' ? 'active' : data.status,
@@ -1755,20 +1773,85 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
             })
             .eq('id', pendingSub.id)
           
+          // Actualizar perfil del usuario con suscripción activa
+          if (data.status === 'authorized') {
+            await supabase
+              .from('profiles')
+              .update({
+                has_active_subscription: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', userId)
+          }
+          
           logger.info(LogCategory.WEBHOOK, 'Suscripción activada exitosamente', {
             subscriptionId: data.id,
-            userId: pendingSub.user_id
+            userId: userId,
+            status: data.status
           })
         } else {
           logger.error(LogCategory.WEBHOOK, 'Error creando suscripción activa', insertError.message, {
-            error: insertError.message
+            error: insertError.message,
+            subscriptionData
           })
         }
+      } else if (extractedUserId) {
+        // Si no hay suscripción pendiente pero tenemos user_id del external_reference,
+        // crear la suscripción directamente (para casos de enlaces directos)
+        logger.info(LogCategory.WEBHOOK, 'Creando suscripción directa desde external_reference', {
+          subscriptionId: data.id,
+          userId: extractedUserId
+        })
+        
+        const subscriptionData = {
+          user_id: extractedUserId,
+          product_id: null, // Se puede determinar del plan_id si está disponible
+          subscription_type: 'monthly', // Por defecto, se puede ajustar según el plan
+          status: data.status === 'authorized' ? 'active' : data.status,
+          mercadopago_subscription_id: data.id,
+          external_reference: data.external_reference,
+          payer_email: data.payer_email,
+          next_billing_date: data.next_payment_date,
+          is_active: data.status === 'authorized',
+          created_at: new Date().toISOString()
+        }
+        
+        const { error: insertError } = await supabase
+          .from('user_subscriptions')
+          .insert(subscriptionData)
+        
+        if (!insertError && data.status === 'authorized') {
+          // Actualizar perfil del usuario con suscripción activa
+          await supabase
+            .from('profiles')
+            .update({
+              has_active_subscription: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', extractedUserId)
+          
+          logger.info(LogCategory.WEBHOOK, 'Suscripción directa creada exitosamente', {
+            subscriptionId: data.id,
+            userId: extractedUserId
+          })
+        } else if (insertError) {
+          logger.error(LogCategory.WEBHOOK, 'Error creando suscripción directa', insertError.message, {
+            error: insertError.message,
+            subscriptionData
+          })
+        }
+      } else {
+        logger.warn(LogCategory.WEBHOOK, 'No se encontró suscripción pendiente ni user_id válido', {
+          externalReference: data.external_reference,
+          subscriptionId: data.id
+        })
       }
     }
   } catch (error: any) {
     logger.error(LogCategory.WEBHOOK, 'Error en handleSubscriptionPreapproval', error.message, {
-      error: error.message
+      error: error.message,
+      subscriptionId: data.id,
+      externalReference: data.external_reference
     })
   }
 }
