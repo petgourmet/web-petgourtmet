@@ -14,6 +14,7 @@ import RealtimeStatus from "@/components/realtime-status"
 
 
 import { fetchOptimizedOrders, fetchOptimizedSubscriptions, invalidateUserCache } from "@/lib/query-optimizations"
+import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 import { 
   User, 
   Package,
@@ -115,6 +116,47 @@ interface Subscription {
     quarterly_discount?: number
     annual_discount?: number
   }
+}
+
+// Funciones de utilidad
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    minimumFractionDigits: 0,
+  }).format(amount)
+}
+
+function formatDate(dateString: string) {
+  const date = new Date(dateString)
+  return new Intl.DateTimeFormat("es-CO", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
+// Función para extraer items de la orden (similar a la página de admin)
+function getOrderItems(order: Order): OrderItem[] {
+  // Primero intentar obtener items desde shipping_address
+  if (order.shipping_address && typeof order.shipping_address === 'object') {
+    try {
+      const shippingData = typeof order.shipping_address === 'string' 
+        ? JSON.parse(order.shipping_address) 
+        : order.shipping_address
+      
+      if (shippingData.items && Array.isArray(shippingData.items)) {
+        return shippingData.items
+      }
+    } catch (e) {
+      console.warn('Error parsing shipping_address items:', e)
+    }
+  }
+  
+  // Fallback a order_items o items
+  return order.order_items || order.items || []
 }
 
 export default function PerfilPage() {
@@ -1082,84 +1124,215 @@ export default function PerfilPage() {
                       </div>
                      </div>
                      
-                     {/* Productos de la orden */}
+                     {/* Información del Cliente */}
+                     <CardContent className="p-6 border-b">
+                       <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                         <User className="h-4 w-4" />
+                         Información del Cliente
+                       </h4>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                         <div>
+                           <span className="font-medium text-gray-700">Nombre:</span>
+                           <p className="text-gray-900">{extractCustomerName(order) || 'No disponible'}</p>
+                         </div>
+                         <div>
+                           <span className="font-medium text-gray-700">Email:</span>
+                           <p className="text-gray-900">{extractCustomerEmail(order) || 'No disponible'}</p>
+                         </div>
+                         {order.shipping_address && (() => {
+                           try {
+                             const shippingData = typeof order.shipping_address === 'string' 
+                               ? JSON.parse(order.shipping_address) 
+                               : order.shipping_address
+                             return (
+                               <>
+                                 {shippingData.phone && (
+                                   <div>
+                                     <span className="font-medium text-gray-700">Teléfono:</span>
+                                     <p className="text-gray-900">{shippingData.phone}</p>
+                                   </div>
+                                 )}
+                                 {(shippingData.address || shippingData.street) && (
+                                   <div className="md:col-span-2">
+                                     <span className="font-medium text-gray-700">Dirección:</span>
+                                     <p className="text-gray-900">
+                                       {shippingData.address || 
+                                        `${shippingData.street || ''} ${shippingData.city || ''} ${shippingData.state || ''} ${shippingData.zipCode || ''}`.trim()}
+                                     </p>
+                                   </div>
+                                 )}
+                               </>
+                             )
+                           } catch (e) {
+                             return null
+                           }
+                         })()}
+                       </div>
+                     </CardContent>
+
+                     {/* Información de Pago MercadoPago */}
+                     {(order.payment_id || order.external_reference || order.preference_id) && (
+                       <CardContent className="p-6 border-b">
+                         <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                           <DollarSign className="h-4 w-4" />
+                           Información de Pago
+                         </h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                           {order.payment_id && (
+                             <div>
+                               <span className="font-medium text-gray-700">Payment ID:</span>
+                               <p className="text-gray-900 font-mono text-xs">{order.payment_id}</p>
+                             </div>
+                           )}
+                           {order.external_reference && (
+                             <div>
+                               <span className="font-medium text-gray-700">External Reference:</span>
+                               <p className="text-gray-900 font-mono text-xs">{order.external_reference}</p>
+                             </div>
+                           )}
+                           {order.preference_id && (
+                             <div>
+                               <span className="font-medium text-gray-700">Preference ID:</span>
+                               <p className="text-gray-900 font-mono text-xs">{order.preference_id}</p>
+                             </div>
+                           )}
+                           {order.payment_type && (
+                             <div>
+                               <span className="font-medium text-gray-700">Tipo de Pago:</span>
+                               <p className="text-gray-900">{order.payment_type}</p>
+                             </div>
+                           )}
+                           {order.collection_id && (
+                             <div>
+                               <span className="font-medium text-gray-700">Collection ID:</span>
+                               <p className="text-gray-900 font-mono text-xs">{order.collection_id}</p>
+                             </div>
+                           )}
+                           {order.merchant_order_id && (
+                             <div>
+                               <span className="font-medium text-gray-700">Merchant Order ID:</span>
+                               <p className="text-gray-900 font-mono text-xs">{order.merchant_order_id}</p>
+                             </div>
+                           )}
+                         </div>
+                       </CardContent>
+                     )}
+
+                     {/* Tabla de Productos */}
+                     <CardContent className="p-6 border-b">
+                       <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                         <Package className="h-4 w-4" />
+                         Productos
+                       </h4>
+                       {(() => {
+                         const items = getOrderItems(order)
+                         return items.length > 0 ? (
+                           <div className="overflow-x-auto">
+                             <table className="w-full border-collapse">
+                               <thead>
+                                 <tr className="border-b border-gray-200">
+                                   <th className="text-left py-3 px-2 font-medium text-gray-700">Producto</th>
+                                   <th className="text-center py-3 px-2 font-medium text-gray-700">Cantidad</th>
+                                   <th className="text-right py-3 px-2 font-medium text-gray-700">Precio</th>
+                                   <th className="text-right py-3 px-2 font-medium text-gray-700">Subtotal</th>
+                                 </tr>
+                               </thead>
+                               <tbody>
+                                 {items.map((item, index) => {
+                                   const quantity = item.quantity || 1
+                                   const price = item.unit_price || item.price || 0
+                                   const subtotal = quantity * price
+                                   
+                                   return (
+                                     <tr key={item.id || index} className="border-b border-gray-100">
+                                       <td className="py-3 px-2">
+                                         <div className="flex items-center gap-3">
+                                           {(item.product_image || item.products?.image) ? (
+                                             <img
+                                               src={item.product_image || item.products?.image}
+                                               alt={item.product_name || 'Producto'}
+                                               className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                                             />
+                                           ) : (
+                                             <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-lg flex items-center justify-center border border-gray-200">
+                                               <Package className="w-6 h-6 text-blue-600" />
+                                             </div>
+                                           )}
+                                           <div>
+                                             <p className="font-medium text-gray-900">
+                                               {item.title || item.name || item.product_name || 'Producto sin nombre'}
+                                             </p>
+                                             {item.size && (
+                                               <p className="text-sm text-gray-500">Tamaño: {item.size}</p>
+                                             )}
+                                           </div>
+                                         </div>
+                                       </td>
+                                       <td className="py-3 px-2 text-center">
+                                         <span className="inline-flex items-center px-2 py-1 rounded-md text-sm font-medium bg-gray-100 text-gray-800">
+                                           {quantity}
+                                         </span>
+                                       </td>
+                                       <td className="py-3 px-2 text-right font-medium">
+                                         {formatCurrency(price)}
+                                       </td>
+                                       <td className="py-3 px-2 text-right font-bold">
+                                         {formatCurrency(subtotal)}
+                                       </td>
+                                     </tr>
+                                   )
+                                 })}
+                               </tbody>
+                             </table>
+                           </div>
+                         ) : (
+                           <div className="text-center py-8 text-gray-500">
+                             <Package className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                             <p>No se encontraron productos en esta orden</p>
+                           </div>
+                         )
+                       })()}
+                     </CardContent>
+
+                     {/* Resumen de Totales */}
                      <CardContent className="p-6">
-                       {order.items && order.items.length > 0 ? (
-                         <div className="space-y-4">
-                           <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                             <Package className="h-4 w-4" />
-                             Productos ({order.items.length})
-                           </h4>
-                           <div className="grid gap-4">
-                             {order.items.map((item, index) => (
-                               <div key={item.id || index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
-                                 {/* Imagen del producto */}
-                                 <div className="flex-shrink-0">
-                                   {item.product_image || item.products?.image ? (
-                                     <img
-                                       src={item.product_image || item.products?.image}
-                                       alt={item.product_name || item.products?.name || 'Producto'}
-                                       className="w-16 h-16 rounded-lg object-cover border border-gray-200"
-                                       onError={(e) => {
-                                         e.currentTarget.style.display = 'none'
-                                         e.currentTarget.nextElementSibling.style.display = 'flex'
-                                       }}
-                                     />
-                                   ) : null}
-                                   <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-lg flex items-center justify-center border border-gray-200" style={{display: item.product_image || item.products?.image ? 'none' : 'flex'}}>
-                                     <Package className="w-8 h-8 text-blue-600" />
-                                   </div>
+                       <div className="space-y-3">
+                         {(() => {
+                           const items = getOrderItems(order)
+                           const subtotal = items.reduce((sum, item) => {
+                             const quantity = item.quantity || 1
+                             const price = item.unit_price || item.price || 0
+                             return sum + (quantity * price)
+                           }, 0)
+                           const shipping = 0 // Asumiendo envío gratuito por defecto
+                           const discount = 0 // Asumiendo sin descuento por defecto
+                           
+                           return (
+                             <>
+                               <div className="flex justify-between text-sm">
+                                 <span className="text-gray-600">Subtotal:</span>
+                                 <span className="font-medium">{formatCurrency(subtotal)}</span>
+                               </div>
+                               <div className="flex justify-between text-sm">
+                                 <span className="text-gray-600">Envío:</span>
+                                 <span className="font-medium">{shipping > 0 ? formatCurrency(shipping) : 'Gratis'}</span>
+                               </div>
+                               {discount > 0 && (
+                                 <div className="flex justify-between text-sm">
+                                   <span className="text-gray-600">Descuento:</span>
+                                   <span className="font-medium text-green-600">-{formatCurrency(discount)}</span>
                                  </div>
-                                 
-                                 {/* Información del producto */}
-                                 <div className="flex-1 min-w-0">
-                                   <h5 className="font-semibold text-gray-900 truncate">
-                                     {item.product_name || item.products?.name || 'Producto sin nombre'}
-                                   </h5>
-                                   <div className="flex items-center space-x-3 mt-2">
-                                     {item.size && (
-                                       <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                                         📦 {item.size}
-                                       </span>
-                                     )}
-                                     <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-                                       ✖️ {item.quantity || 1}
-                                     </span>
-                                     {item.product_category && (
-                                       <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-                                         🏷️ {item.product_category}
-                                       </span>
-                                     )}
-                                   </div>
-                                   {(item.product_description || item.products?.description) && (
-                                     <p className="text-sm text-gray-600 mt-1 truncate">
-                                       {item.product_description || item.products?.description}
-                                     </p>
-                                   )}
-                                 </div>
-                                 
-                                 {/* Precio */}
-                                 <div className="text-right">
-                                   <p className="font-bold text-lg text-gray-900">
-                                     {formatPrice(item.unit_price || item.price || 0)}
-                                   </p>
-                                   <p className="text-sm text-gray-500">por unidad</p>
-                                   {(item.quantity || 1) > 1 && (
-                                     <p className="text-xs text-gray-400 mt-1">
-                                       Total: {formatPrice(item.total_price || ((item.unit_price || item.price || 0) * (item.quantity || 1)))}
-                                     </p>
-                                   )}
+                               )}
+                               <div className="border-t pt-3">
+                                 <div className="flex justify-between text-lg font-bold">
+                                   <span>Total:</span>
+                                   <span className="text-indigo-600">{formatCurrency(order.total)}</span>
                                  </div>
                                </div>
-                             ))}
-                           </div>
-                         </div>
-                       ) : (
-                         <div className="text-center py-8 text-gray-500">
-                           <Package className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                           <p>No se encontraron productos en esta orden</p>
-                         </div>
-                       )}
+                             </>
+                           )
+                         })()}
+                       </div>
                      </CardContent>
                   </Card>
                 ))}
