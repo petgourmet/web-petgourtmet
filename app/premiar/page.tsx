@@ -1,224 +1,44 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { ProductFilters, type Filters } from "@/components/product-filters"
-import { Filter, Loader2 } from "lucide-react"
-import { ProductCard } from "@/components/product-card"
 import { Toaster } from "@/components/toaster"
 import { ProductDetailModal } from "@/components/product-detail-modal"
 import { useCart } from "@/components/cart-context"
-import { supabase } from "@/lib/supabase/client"
 import type { ProductFeature } from "@/components/product-card"
-import type { Product } from "@/types/product" // Import the Product type
+import { ProductCategoryLoader } from "@/components/product-category-loader"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Heart, Shield, Star } from "lucide-react"
 
 // Tipo para los productos desde la base de datos
-// type Product = {
-//   id: number
-//   name: string
-//   description: string
-//   price: number
-//   image: string
-//   stock: number
-//   created_at: string
-//   features?: ProductFeature[]
-//   rating?: number
-//   reviews?: number
-//   sizes?: { weight: string; price: number }[]
-//   category?: string
-//   gallery?: { src: string; alt: string }[]
-// }
+type Product = {
+  id: number
+  name: string
+  description: string
+  price: number
+  image: string
+  stock: number
+  created_at: string
+  features?: ProductFeature[]
+  rating?: number
+  reviews?: number
+  sizes?: { weight: string; price: number }[]
+  category?: string
+  gallery?: { src: string; alt: string }[]
+}
 
 export default function PremiarPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showFilters, setShowFilters] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null) // Fixed the declaration
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [activeCategory, setActiveCategory] = useState("premiar")
   const { addToCart } = useCart()
-  const [filters, setFilters] = useState<Filters>({
-    priceRange: [0, 1000],
-    features: [],
-    sortBy: "relevance",
-  })
-
-  // Cargar productos de la categoría "Premiar" desde la base de datos
-  useEffect(() => {
-    async function loadProducts() {
-      setLoading(true)
-      try {
-        // Primero obtenemos el ID de la categoría "Premiar"
-        const { data: categoryData, error: categoryError } = await supabase
-          .from("categories")
-          .select("id")
-          .ilike("name", "%premi%")
-          .single()
-
-        if (categoryError) {
-          console.error("Error al obtener la categoría:", categoryError)
-          setLoading(false)
-          return
-        }
-
-        const categoryId = categoryData?.id
-
-        // Obtenemos los productos que tienen esta categoría directamente por category_id
-        const { data: productsData, error: productsError } = await supabase
-          .from("products")
-          .select("*, categories(name)")
-          .eq("category_id", categoryId)
-          .order("created_at", { ascending: false })
-
-        if (productsError) {
-          console.error("Error al obtener productos por categoría:", productsError)
-          setLoading(false)
-          return
-        }
-
-        if (!productsData || productsData.length === 0) {
-          setProducts([])
-          setFilteredProducts([])
-          setLoading(false)
-          return
-        }
-
-        // Procesar productos para agregar información adicional
-        const processedProducts = await Promise.all(
-          productsData.map(async (product) => {
-            // Obtener el nombre de la categoría
-            const categoryName = product.categories?.name || "Para Premiar"
-
-            // Obtener características del producto (si existe una tabla para esto)
-            let features: ProductFeature[] = []
-            try {
-              const { data: featuresData, error: featuresError } = await supabase
-                .from("product_features")
-                .select("name, color")
-                .eq("product_id", product.id)
-
-              if (featuresError) {
-                console.error(`Error al cargar características para el producto ${product.id}:`, featuresError.message)
-                // Opcionalmente, puedes dejar 'features' como un array vacío o asignar un valor por defecto si es crucial
-                // features = []; // o alguna característica de fallback si es necesario
-              } else if (featuresData && featuresData.length > 0) {
-                features = featuresData
-              }
-              // Ya no hay un 'else' que asigne características de fallback si no se encuentran,
-              // permitiendo que se muestre vacío si un producto realmente no tiene características.
-              // Si quieres un fallback general para productos sin características, puedes añadirlo aquí.
-              // else {
-              //   features = [{ name: "Sin características", color: "default" }];
-              // }
-            } catch (error) {
-              console.error(`Excepción al procesar características para el producto ${product.id}:`, error)
-              // Manejo de error en caso de una excepción en el bloque try
-              // features = []; // o alguna característica de fallback
-            }
-
-            // Obtener tamaños del producto desde la base de datos
-            let sizes: { weight: string; price: number }[] = []
-            try {
-              const { data: sizesData, error: sizesError } = await supabase
-                .from("product_sizes")
-                .select("weight, price")
-                .eq("product_id", product.id)
-
-              if (sizesError) {
-                console.error(`Error al cargar tamaños para el producto ${product.id}:`, sizesError.message)
-              } else if (sizesData && sizesData.length > 0) {
-                sizes = sizesData
-              }
-            } catch (error) {
-              console.error(`Excepción al procesar tamaños para el producto ${product.id}:`, error)
-            }
-
-            // Construir la URL completa de la imagen
-            let imageUrl = product.image
-            if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("/")) {
-              // Si es una ruta relativa en el bucket de Supabase
-              const { data } = supabase.storage.from("products").getPublicUrl(imageUrl)
-              imageUrl = data.publicUrl
-            } else if (!imageUrl) {
-              // Imagen predeterminada si no hay imagen
-              imageUrl = "/healthy-dog-training-treats.png"
-            }
-
-            return {
-              ...product,
-              image: imageUrl,
-              category: categoryName,
-              features,
-              rating: 4.5 + Math.random() * 0.5, // Rating aleatorio entre 4.5 y 5.0
-              reviews: Math.floor(Math.random() * 100) + 50, // Número aleatorio de reseñas
-              sizes, // Usar tamaños reales de la base de datos
-              spotlightColor: "rgba(122, 184, 191, 0.2)",
-            }
-          }),
-        )
-
-        setProducts(processedProducts)
-        setFilteredProducts(processedProducts)
-      } catch (error) {
-        console.error("Error al cargar productos:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadProducts()
-  }, [])
-
-  const handleShowDetail = (product: Product) => {
-    setSelectedProduct(product)
-    setShowDetail(true)
-  }
-
-  const applyFilters = () => {
-    let result = [...products]
-
-    // Filtrar por rango de precio
-    result = result.filter((product) => {
-      return product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
-    })
-
-    // Filtrar por características
-    if (filters.features.length > 0) {
-      result = result.filter((product) => {
-        return filters.features.some((feature) =>
-          product.features?.some((f) => f.name.toLowerCase() === feature.toLowerCase()),
-        )
-      })
-    }
-
-    // Ordenar productos
-    if (filters.sortBy === "price-asc") {
-      result.sort((a, b) => a.price - b.price)
-    } else if (filters.sortBy === "price-desc") {
-      result.sort((a, b) => b.price - a.price)
-    } else if (filters.sortBy === "rating") {
-      result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
-    } else if (filters.sortBy === "popularity") {
-      result.sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
-    }
-
-    setFilteredProducts(result)
-    setShowFilters(false)
-  }
-
-  // Extraer características únicas de todos los productos
-  const allFeatures = Array.from(new Set(products.flatMap((product) => product.features?.map((f) => f.name) || [])))
-
-  // Encontrar el precio máximo para el filtro
-  const maxPrice = Math.max(...products.map((product) => product.price), 20)
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
       {/* Banner de categoría a ancho completo */}
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
-          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20premiar-3zEy8fX4CSDDrmAnYIJpl2cV1t26l3.webp"
+          src="https://trae-api-us.mchost.guru/api/ide/v1/text_to_image?prompt=delicious%20dog%20treats%20rewards%20snacks%20happy%20pet%20training%20orange%20background%20professional%20pet%20food&image_size=landscape_16_9"
           alt="Productos para premiar"
           fill
           className="object-cover saturate-90 brightness-60"
@@ -233,8 +53,8 @@ export default function PremiarPage() {
             <div className="max-w-4xl mx-auto text-center">
               <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">Para Premiar</h2>
               <p className="text-white/90 text-lg">
-                Deliciosos premios y golosinas para recompensar a tu mascota. Perfectos para entrenamiento o simplemente
-                para consentir a tu amigo peludo.
+                Deliciosos premios y snacks que harán feliz a tu mascota. Perfectos para entrenamientos
+                y momentos especiales con ingredientes naturales de la más alta calidad.
               </p>
             </div>
           </div>
@@ -243,83 +63,102 @@ export default function PremiarPage() {
 
       <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
         <div className="responsive-container">
-          {/* Controles de filtro */}
-          <div className="mb-8 flex justify-between items-center">
-            <Button
-              variant="outline"
-              className="rounded-full flex items-center gap-2"
-              onClick={() => setShowFilters(true)}
-            >
-              <Filter className="h-4 w-4" /> Filtrar
-            </Button>
-            <div></div> {/* Empty div to maintain spacing */}
-          </div>
+          {/* Tabs para categorías */}
+          <Tabs defaultValue="premiar" className="w-full mb-12" onValueChange={(value) => setActiveCategory(value)}>
+            <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-transparent">
+              <TabsTrigger
+                value="all"
+                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
+              >
+                Todos
+              </TabsTrigger>
+              <TabsTrigger
+                value="celebrar"
+                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900 rounded-full"
+              >
+                Para Celebrar
+              </TabsTrigger>
+              <TabsTrigger
+                value="premiar"
+                className="data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-full"
+              >
+                Para Premiar
+              </TabsTrigger>
+              <TabsTrigger
+                value="complementar"
+                className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-full"
+              >
+                Para Complementar
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Productos de la categoría */}
-          <div className="mb-12">
-            {loading ? (
-              <div className="flex justify-center items-center py-20">
-                <Loader2 className="h-10 w-10 animate-spin text-blue-700" />
-                <span className="ml-2 text-lg">Cargando productos...</span>
+            <TabsContent value="all" className="mt-8">
+              <ProductCategoryLoader categorySlug="all" showAllCategories={true} />
+            </TabsContent>
+
+            <TabsContent value="celebrar" className="mt-8">
+              <ProductCategoryLoader categorySlug="celebrar" />
+            </TabsContent>
+
+            <TabsContent value="premiar" className="mt-8">
+              <ProductCategoryLoader categorySlug="premiar" />
+            </TabsContent>
+
+            <TabsContent value="complementar" className="mt-8">
+              <ProductCategoryLoader categorySlug="complementar" />
+            </TabsContent>
+          </Tabs>
+
+          {/* Sección de Beneficios */}
+          <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
+            <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">¿Por qué elegir nuestros premios?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Heart className="w-8 h-8 text-orange-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Sabor Irresistible</h3>
+                <p className="text-gray-600">
+                  Premios con sabores que enloquecen a las mascotas, perfectos para entrenamientos y momentos especiales.
+                </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      id={product.id}
-                      name={product.name}
-                      description={product.description}
-                      image={product.image}
-                      price={product.price}
-                      rating={product.rating}
-                      reviews={product.reviews}
-                      features={product.features}
-                      sizes={product.sizes}
-                      category={product.category}
-                      spotlightColor="rgba(122, 184, 191, 0.2)"
-                      onShowDetail={() => handleShowDetail(product)}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <p className="text-gray-500 dark:text-white">No se encontraron productos en esta categoría.</p>
-                  </div>
-                )}
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Ingredientes Naturales</h3>
+                <p className="text-gray-600">
+                  Elaborados con ingredientes naturales y sin conservantes artificiales para cuidar la salud de tu mascota.
+                </p>
               </div>
-            )}
+              <div className="text-center">
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Star className="w-8 h-8 text-yellow-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Refuerzo Positivo</h3>
+                <p className="text-gray-600">
+                  Ideales para entrenamientos y refuerzo positivo, fortaleciendo el vínculo con tu mascota.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de filtros */}
-      {showFilters && (
-        <ProductFilters
-          filters={filters}
-          setFilters={setFilters}
-          showFilters={showFilters}
-          setShowFilters={setShowFilters}
-          applyFilters={applyFilters}
-          features={
-            allFeatures.length > 0
-              ? allFeatures
-              : ["Bajo en Calorías", "Sin Conservantes", "Sabor Irresistible", "Dental", "Entrenamiento"]
-          }
-          maxPrice={maxPrice}
-        />
-      )}
-
       {/* Modal de detalle del producto */}
-      {showDetail && selectedProduct && (
-        <ProductDetailModal
-          product={selectedProduct}
-          isOpen={showDetail}
-          onClose={() => setShowDetail(false)}
-          onAddToCart={addToCart}
-        />
-      )}
-      <Toaster />
-    </div>
-  )
+       {showDetail && selectedProduct && (
+         <ProductDetailModal
+           product={{
+             ...selectedProduct,
+             category: "Para Premiar",
+           }}
+           isOpen={showDetail}
+           onClose={() => setShowDetail(false)}
+           onAddToCart={addToCart}
+         />
+       )}
+
+       <Toaster />
+     </div>
+   )
 }

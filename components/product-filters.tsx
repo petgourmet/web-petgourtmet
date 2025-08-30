@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
 import { X } from "lucide-react"
+import { createPortal } from "react-dom"
+import { useEffect, useState } from "react"
 
 // Tipo para los filtros
 export type Filters = {
@@ -32,19 +34,30 @@ export function ProductFilters({
   features = ["Natural", "Hipoalergénico", "Sin Conservantes", "Alta Palatabilidad", "Bajo en Calorías"],
   maxPrice = 100,
 }: ProductFiltersProps) {
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#e7ae84] rounded-3xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!showFilters || !mounted) return null
+
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start p-4 pt-[150px]"
+      onClick={() => setShowFilters(false)}
+    >
+      <div className="bg-white dark:bg-[#e7ae84] rounded-3xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
             <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)}>
               <X className="h-5 w-5" />
             </Button>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div>
-              <h3 className="font-medium mb-3">Rango de Precio</h3>
+              <h3 className="font-medium mb-2">Rango de Precio</h3>
               <div className="px-2">
                 <Slider
                   defaultValue={[filters.priceRange[0], filters.priceRange[1]]}
@@ -56,18 +69,18 @@ export function ProductFilters({
                       priceRange: [value[0], value[1]],
                     })
                   }}
-                  className="mb-6"
+                  className="mb-4"
                 />
                 <div className="flex items-center justify-between dark:text-white">
-                  <span>€{filters.priceRange[0]}</span>
-                  <span>€{filters.priceRange[1]}</span>
+                  <span>${filters.priceRange[0]}</span>
+                  <span>${filters.priceRange[1]}</span>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="font-medium mb-3">Características</h3>
-              <div className="space-y-2">
+              <h3 className="font-medium mb-2">Características</h3>
+              <div className="space-y-1">
                 {features.map((feature) => (
                   <div key={feature} className="flex items-center space-x-2">
                     <Checkbox
@@ -97,11 +110,11 @@ export function ProductFilters({
             </div>
 
             <div>
-              <h3 className="font-medium mb-3 dark:text-white">Ordenar por</h3>
+              <h3 className="font-medium mb-2 dark:text-white">Ordenar por</h3>
               <RadioGroup
                 value={filters.sortBy}
                 onValueChange={(value) => setFilters({ ...filters, sortBy: value })}
-                className="space-y-2"
+                className="space-y-1"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem id="sort-relevance" value="relevance" className="dark:border-white dark:text-white" />
@@ -144,7 +157,7 @@ export function ProductFilters({
               </RadioGroup>
             </div>
 
-            <div className="flex gap-4 pt-4 border-t">
+            <div className="flex gap-3 pt-3 border-t">
               <Button
                 variant="outline"
                 className="flex-1 rounded-full"
@@ -167,4 +180,6 @@ export function ProductFilters({
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

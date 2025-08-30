@@ -423,17 +423,15 @@ export function ProductCategoryLoader({
       )}
 
       {/* Modal de filtros */}
-      {showFilters && (
-        <ProductFilters
-          filters={filters}
-          setFilters={setFilters}
-          showFilters={showFilters}
-          setShowFilters={setShowFilters}
-          applyFilters={applyFilters}
-          features={allFeatures.length > 0 ? allFeatures : ["Natural", "Sin Conservantes", "Alta Calidad"]}
-          maxPrice={maxPrice}
-        />
-      )}
+      <ProductFilters
+        filters={filters}
+        setFilters={setFilters}
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
+        applyFilters={applyFilters}
+        features={allFeatures.length > 0 ? allFeatures : ["Natural", "Sin Conservantes", "Alta Calidad"]}
+        maxPrice={maxPrice}
+      />
 
       {/* Modal de detalle del producto */}
       {selectedProduct && (
