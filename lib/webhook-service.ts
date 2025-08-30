@@ -195,7 +195,7 @@ export class WebhookService {
     
     try {
       // Si es un ID de prueba, crear datos simulados
-      if (subscriptionId.includes('test_') || subscriptionId.includes('subscription_test_') || subscriptionId.includes('payment_test_')) {
+      if (subscriptionId.includes('test_') || subscriptionId.includes('subscription_test_') || subscriptionId.includes('payment_test_') || /^\d{1,6}$/.test(subscriptionId)) {
         logger.info('Generando datos de suscripción simulados para prueba', 'SUBSCRIPTION', { subscriptionId })
         
         return {
@@ -216,7 +216,7 @@ export class WebhookService {
       
       logger.info('Obteniendo datos de suscripción desde MercadoPago', 'SUBSCRIPTION', { subscriptionId })
       
-      const response = await fetch(`https://api.mercadopago.com/preapproval/${subscriptionId}`, {
+      const response = await fetch(`https://api.mercadopago.com/v1/preapproval/${subscriptionId}`, {
         headers: {
           'Authorization': `Bearer ${this.mercadoPagoToken}`,
           'Content-Type': 'application/json'
@@ -226,10 +226,13 @@ export class WebhookService {
       const duration = Date.now() - startTime
 
       if (!response.ok) {
+        const errorText = await response.text()
         logger.error('Error obteniendo suscripción desde MercadoPago API', 'SUBSCRIPTION', {
           subscriptionId,
           status: response.status,
           statusText: response.statusText,
+          errorBody: errorText,
+          url: `https://api.mercadopago.com/v1/preapproval/${subscriptionId}`,
           duration
         })
         return null
@@ -250,6 +253,11 @@ export class WebhookService {
       logger.error('Error en API de MercadoPago para suscripción', 'SUBSCRIPTION', {
         subscriptionId,
         error: error.message,
+        errorName: error.name,
+        errorStack: error.stack,
+        url: `https://api.mercadopago.com/v1/preapproval/${subscriptionId}`,
+        hasToken: !!this.mercadoPagoToken,
+        tokenLength: this.mercadoPagoToken ? this.mercadoPagoToken.length : 0,
         duration
       })
       return null

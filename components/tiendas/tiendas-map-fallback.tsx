@@ -23,11 +23,7 @@ export default function TiendasMapFallback() {
             : "Explora nuestras boutiques aliadas en la CDMX"
           }
         </p>
-              </div>
-            </div>
-          </div>
-        )
-      }
+      </div>
 
       <div className="p-6">
         {selectedTienda && (
@@ -76,3 +72,7 @@ export default function TiendasMapFallback() {
             Si tienes problemas para ver el mapa, por favor intenta con otro navegador o dispositivo.
           </p>      
         </div>
+      </div>
+    </div>
+  )
+}

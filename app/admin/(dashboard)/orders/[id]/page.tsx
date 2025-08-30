@@ -520,7 +520,7 @@ export default function OrderDetailPage() {
                     )}
                   </div>
                 </div>
-              )}
+              )
 
               <div className="mb-6">
                 <h3 className="mb-2 font-medium">Productos</h3>

@@ -11,8 +11,7 @@ import { useClientAuth } from "@/hooks/use-client-auth"
 import { createClient } from "@/lib/supabase/client"
 import UserBillingHistory from "@/components/user-billing-history"
 import RealtimeStatus from "@/components/realtime-status"
-import AuthDebugger from "@/components/debug/AuthDebugger"
-import QueryTester from "@/components/debug/QueryTester"
+
 import SubscriptionValidator from "@/components/subscription-validator"
 import { fetchOptimizedOrders, fetchOptimizedSubscriptions, invalidateUserCache } from "@/lib/query-optimizations"
 import { 
@@ -1291,8 +1290,7 @@ export default function PerfilPage() {
       
       {/* Componentes de debugging para diagnosticar problemas */}
       <div className="mt-8 space-y-6">
-        <AuthDebugger />
-        <QueryTester />
+
       </div>
     </div>
   )
