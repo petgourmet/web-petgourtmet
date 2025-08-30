@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { MercadoPagoService } from '@/lib/mercadopago-service'
+import MercadoPagoService from '@/lib/mercadopago-service'
 
 const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
 const MP_ACCESS_TOKEN = IS_TEST_MODE 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     
     if (subscriptionId) {
       try {
-        subscriptionData = await mercadoPagoService.getSubscriptionData(subscriptionId)
+        subscriptionData = await mercadoPagoService.getSubscription(subscriptionId)
         console.log('📊 Estado en MercadoPago:', {
           id: subscriptionData.id,
           status: subscriptionData.status,

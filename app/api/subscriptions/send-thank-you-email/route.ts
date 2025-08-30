@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Crear transporter para emails usando SMTP
+const createTransporter = () => {
+  return nodemailer.createTransporter({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '465'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false
+    }
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,15 +70,18 @@ export async function POST(request: NextRequest) {
     const emailHtml = generateThankYouEmailHtml(user_name, subscription_details)
     const emailText = generateThankYouEmailText(user_name, subscription_details)
 
-    // Enviar email usando Resend
-    const emailResult = await resend.emails.send({
-      from: 'PetGourmet <noreply@petgourmet.com>',
-      to: [user_email],
+    // Enviar email usando SMTP
+    const transporter = createTransporter()
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+      to: user_email,
       subject: emailSubject,
       html: emailHtml,
       text: emailText
-    })
+    }
 
+    const emailResult = await transporter.sendMail(mailOptions)
     console.log('📧 Resultado del envío:', emailResult)
 
     // Registrar el envío en la base de datos
@@ -77,9 +94,8 @@ export async function POST(request: NextRequest) {
           email_type: 'subscription_thank_you',
           recipient_email: user_email,
           subject: emailSubject,
-          status: emailResult.error ? 'failed' : 'sent',
-          external_id: emailResult.data?.id,
-          error_message: emailResult.error?.message,
+          status: 'sent',
+          external_id: emailResult.messageId,
           sent_at: new Date().toISOString()
         })
 
@@ -88,18 +104,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (emailResult.error) {
-      console.error('❌ Error enviando email:', emailResult.error)
-      return NextResponse.json(
-        { success: false, error: 'Error enviando email', details: emailResult.error },
-        { status: 500 }
-      )
-    }
-
     return NextResponse.json({
       success: true,
       message: 'Email de agradecimiento enviado exitosamente',
-      email_id: emailResult.data?.id
+      email_id: emailResult.messageId
     })
 
   } catch (error) {

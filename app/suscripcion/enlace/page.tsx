@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import SubscriptionLinkValidator from '@/components/subscription/SubscriptionLinkValidator'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/hooks/use-auth'
 import { Loader2 } from 'lucide-react'
 
 function SubscriptionLinkPageContent() {

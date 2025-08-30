@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { supabase } from "@/lib/supabase/client"
@@ -16,7 +16,7 @@ interface SubscriptionStatus {
   message?: string
 }
 
-export default function ConfirmacionSuscripcionPage() {
+function ConfirmacionSuscripcionContent() {
   const { user, loading } = useClientAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -365,5 +365,20 @@ export default function ConfirmacionSuscripcionPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ConfirmacionSuscripcionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Cargando...</p>
+        </div>
+      </div>
+    }>
+      <ConfirmacionSuscripcionContent />
+    </Suspense>
   )
 }
