@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // Validar firma del webhook (en producción)
     if (process.env.NODE_ENV === 'production') {
-      const isValidSignature = webhookService.validateWebhookSignature(rawBody, signature)
+      const isValidSignature = webhookService.validateWebhookSignature(rawBody, signature, requestId)
       if (!isValidSignature) {
         console.error('❌ Firma de webhook inválida')
         return NextResponse.json(

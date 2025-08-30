@@ -107,8 +107,8 @@ export class WebhookService {
     return this.supabase
   }
 
-  // Validar firma del webhook
-  validateWebhookSignature(payload: string, signature: string): boolean {
+  // Validar firma del webhook según formato de MercadoPago
+  validateWebhookSignature(payload: string, signature: string, requestId?: string): boolean {
     if (!this.webhookSecret || !signature) {
       logger.warn(LogCategory.WEBHOOK, 'Webhook secret o signature no configurados - permitiendo en desarrollo', {
         hasSecret: !!this.webhookSecret,
@@ -118,25 +118,73 @@ export class WebhookService {
     }
 
     try {
+      // Extraer timestamp (ts) y hash (v1) del header x-signature
+      // Formato: "ts=1234567890,v1=abcdef123456..."
+      const parts = signature.split(',');
+      let ts: string | undefined;
+      let hash: string | undefined;
+      
+      parts.forEach((part) => {
+        const [key, value] = part.split('=');
+        if (key && value) {
+          const trimmedKey = key.trim();
+          const trimmedValue = value.trim();
+          if (trimmedKey === 'ts') {
+            ts = trimmedValue;
+          } else if (trimmedKey === 'v1') {
+            hash = trimmedValue;
+          }
+        }
+      });
+      
+      if (!ts || !hash) {
+        logger.error(LogCategory.WEBHOOK, 'Formato de firma inválido - no se encontraron ts o v1', {
+          signature,
+          foundTs: !!ts,
+          foundHash: !!hash
+        })
+        return false
+      }
+      
+      // Crear el manifest según la documentación de MercadoPago
+      // Formato: id:DATA_ID;request-id:REQUEST_ID;ts:TIMESTAMP;
+      const dataId = JSON.parse(payload).data?.id || '';
+      let manifest = `id:${dataId};`;
+      
+      if (requestId) {
+        manifest += `request-id:${requestId};`;
+      }
+      
+      manifest += `ts:${ts};`;
+      
+      // Generar la firma esperada usando HMAC SHA256
       const expectedSignature = crypto
         .createHmac('sha256', this.webhookSecret)
-        .update(payload)
+        .update(manifest)
         .digest('hex')
       
       const isValid = crypto.timingSafeEqual(
-        Buffer.from(signature, 'hex'),
+        Buffer.from(hash, 'hex'),
         Buffer.from(expectedSignature, 'hex')
       )
       
-      logger.info(LogCategory.WEBHOOK, 'Validación de firma de webhook', {
+      logger.info(LogCategory.WEBHOOK, 'Validación de firma de webhook MercadoPago', {
         isValid,
+        manifest,
+        dataId,
+        requestId,
+        timestamp: ts,
         signatureLength: signature.length,
         payloadLength: payload.length
       })
       
       return isValid
     } catch (error: any) {
-      logger.error(LogCategory.WEBHOOK, 'Error validando firma del webhook', error.message, { error: error.message })
+      logger.error(LogCategory.WEBHOOK, 'Error validando firma del webhook', error.message, { 
+        error: error.message,
+        signature,
+        payloadLength: payload.length
+      })
       return false
     }
   }
