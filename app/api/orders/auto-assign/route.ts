@@ -15,7 +15,8 @@ function extractEmailFromOrder(order: any): string | null {
       ? JSON.parse(order.shipping_address) 
       : order.shipping_address
     
-    return shippingData.customer_data?.email || null
+    // Buscar email en diferentes ubicaciones posibles
+    return shippingData.email || shippingData.customer_data?.email || null
   } catch (e) {
     return null
   }

@@ -503,7 +503,8 @@ export default function PerfilPage() {
               ? JSON.parse(order.shipping_address) 
               : order.shipping_address
             
-            const customerEmail = parsedShipping?.customer_data?.email
+            // Buscar email en diferentes ubicaciones posibles
+            const customerEmail = parsedShipping?.email || parsedShipping?.customer_data?.email
             return customerEmail === user.email
           } catch (e) {
             console.warn('Error parsing shipping_address:', e)

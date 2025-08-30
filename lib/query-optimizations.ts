@@ -92,7 +92,7 @@ export async function fetchOptimizedOrders(
             image,
             price,
             description,
-            category
+            category_id
           )
         )
       `)
@@ -144,7 +144,7 @@ export async function fetchOptimizedOrders(
           // Descripción del producto
           product_description: product.description || null,
           // Categoría del producto
-          product_category: product.category || null,
+          product_category: product.category_id || null,
           // Precio unitario (usar el del item que es el precio al momento de la compra)
           unit_price: item.price || product.price || 0,
           // Total del item
