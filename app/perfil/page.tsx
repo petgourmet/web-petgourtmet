@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { createClient } from "@/lib/supabase/client"
-import UserBillingHistory from "@/components/user-billing-history"
+
 import RealtimeStatus from "@/components/realtime-status"
 
-import SubscriptionValidator from "@/components/subscription-validator"
+
 import { fetchOptimizedOrders, fetchOptimizedSubscriptions, invalidateUserCache } from "@/lib/query-optimizations"
 import { 
   User, 
@@ -127,7 +127,7 @@ export default function PerfilPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [updatingSubscription, setUpdatingSubscription] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions' | 'billing'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions'>('profile')
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting')
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
@@ -824,86 +824,87 @@ export default function PerfilPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          <Button
-            variant={activeTab === 'profile' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('profile')}
-            className="flex items-center gap-2"
-          >
-            <User className="h-4 w-4" />
-            Perfil
-          </Button>
-          <Button
-            variant={activeTab === 'orders' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('orders')}
-            className="flex items-center gap-2"
-          >
-            <Package className="h-4 w-4" />
-            Mis Compras ({orders.length})
-          </Button>
-          <Button
-            variant={activeTab === 'subscriptions' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('subscriptions')}
-            className="flex items-center gap-2"
-          >
-            <Calendar className="h-4 w-4" />
-            Suscripciones ({subscriptions.length})
-          </Button>
-          <Button
-            variant={activeTab === 'billing' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('billing')}
-            className="flex items-center gap-2"
-          >
-            <Receipt className="h-4 w-4" />
-            Facturación
-          </Button>
-        </div>
+        {/* Navegación de pestañas responsive */}
+         <div className="mb-6">
+           <div className="flex flex-col sm:flex-row gap-2 sm:gap-1">
+             <Button
+               variant={activeTab === 'profile' ? 'default' : 'outline'}
+               onClick={() => setActiveTab('profile')}
+               className="flex items-center justify-center gap-2 flex-1 sm:flex-none"
+             >
+               <User className="h-4 w-4" />
+               <span className="hidden sm:inline">Perfil</span>
+               <span className="sm:hidden">Mi Perfil</span>
+             </Button>
+             <Button
+               variant={activeTab === 'orders' ? 'default' : 'outline'}
+               onClick={() => setActiveTab('orders')}
+               className="flex items-center justify-center gap-2 flex-1 sm:flex-none"
+             >
+               <Package className="h-4 w-4" />
+               <span className="hidden sm:inline">Mis Compras ({orders.length})</span>
+               <span className="sm:hidden">Compras ({orders.length})</span>
+             </Button>
+             <Button
+               variant={activeTab === 'subscriptions' ? 'default' : 'outline'}
+               onClick={() => setActiveTab('subscriptions')}
+               className="flex items-center justify-center gap-2 flex-1 sm:flex-none"
+             >
+               <Calendar className="h-4 w-4" />
+               <span className="hidden sm:inline">Suscripciones ({subscriptions.length})</span>
+               <span className="sm:hidden">Suscripciones ({subscriptions.length})</span>
+             </Button>
+           </div>
+         </div>
 
         {activeTab === 'profile' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Package className="h-5 w-5 text-blue-600" />
+            {/* Estadísticas del perfil - Layout responsive mejorado */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                      <Package className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Total Compras</p>
-                      <p className="text-lg font-semibold">{orders.length}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">Total Compras</p>
+                      <p className="text-lg sm:text-xl font-semibold">{orders.length}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <Calendar className="h-5 w-5 text-green-600" />
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg flex-shrink-0">
+                      <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Suscripciones</p>
-                      <p className="text-lg font-semibold">
-                        {subscriptions.filter(s => s.status === 'active').length} activas
-                        {subscriptions.filter(s => s.status === 'pending').length > 0 && 
-                          ` • ${subscriptions.filter(s => s.status === 'pending').length} pendientes`
-                        }
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">Suscripciones</p>
+                      <p className="text-sm sm:text-lg font-semibold leading-tight">
+                        <span className="block">{subscriptions.filter(s => s.status === 'active').length} activas</span>
+                        {subscriptions.filter(s => s.status === 'pending').length > 0 && (
+                          <span className="text-xs sm:text-sm text-gray-500">
+                            {subscriptions.filter(s => s.status === 'pending').length} pendientes
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <DollarSign className="h-5 w-5 text-orange-600" />
+              <Card className="hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-orange-100 rounded-lg flex-shrink-0">
+                      <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Total Gastado</p>
-                      <p className="text-lg font-semibold">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">Total Gastado</p>
+                      <p className="text-lg sm:text-xl font-semibold">
                         {formatPrice(orders.reduce((total, order) => total + order.total, 0))}
                       </p>
                     </div>
@@ -1010,60 +1011,155 @@ export default function PerfilPage() {
         )}
 
         {activeTab === 'orders' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {orders.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <CardContent className="py-16 text-center">
+                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
                     No tienes compras aún
                   </h3>
-                  <p className="text-gray-600 mb-4">
-                    Explora nuestros productos y haz tu primera compra
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Explora nuestros productos premium para mascotas y haz tu primera compra
                   </p>
-                  <Button onClick={() => window.location.href = '/productos'}>
+                  <Button onClick={() => window.location.href = '/productos'} size="lg">
+                    <Package className="h-4 w-4 mr-2" />
                     Ver Productos
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="grid gap-4 sm:gap-6">
                 {orders.map((order) => (
-                  <Card key={order.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-lg">Orden #{String(order.id).slice(-8)}</h3>
-                            <Badge variant={order.payment_status === 'approved' ? 'default' : 'secondary'}>
-                              {order.payment_status === 'approved' ? 'Pagado' : 
-                               order.payment_status === 'pending' ? 'Pendiente' :
-                               order.payment_status === 'rejected' ? 'Rechazado' :
-                               order.payment_status === 'in_process' ? 'En Proceso' :
-                               order.payment_status === 'cancelled' ? 'Cancelado' :
-                               order.payment_status === 'refunded' ? 'Reembolsado' :
-                               order.payment_status}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {formatDate(order.created_at)} • {order.total_items} productos
-                          </p>
-                          <div className="text-sm text-gray-500">
-                            {order.items?.map((item, index) => (
-                              <span key={item.id}>
-                                {item.products?.name || item.product_name} (x{item.quantity})
-                                {index < (order.items?.length || 0) - 1 && ', '}
+                  <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
+                    {/* Header de la orden - Responsive */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 sm:px-6 py-3 sm:py-4 border-b">
+                      <div className="flex flex-col gap-3 sm:gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                          <div className="space-y-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                              <h3 className="font-bold text-lg sm:text-xl text-gray-900">Orden #{String(order.id).slice(-8)}</h3>
+                              <Badge 
+                                variant={order.payment_status === 'approved' ? 'default' : 'secondary'}
+                                className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold w-fit ${
+                                  order.payment_status === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
+                                  order.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                  order.payment_status === 'rejected' ? 'bg-red-100 text-red-800 border-red-200' :
+                                  order.payment_status === 'in_process' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                  order.payment_status === 'cancelled' ? 'bg-gray-100 text-gray-800 border-gray-200' :
+                                  order.payment_status === 'refunded' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                  'bg-gray-100 text-gray-800 border-gray-200'
+                                }`}
+                              >
+                                {order.payment_status === 'approved' ? '✓ Pagado' : 
+                                 order.payment_status === 'pending' ? '⏳ Pendiente' :
+                                 order.payment_status === 'rejected' ? '✗ Rechazado' :
+                                 order.payment_status === 'in_process' ? '🔄 En Proceso' :
+                                 order.payment_status === 'cancelled' ? '❌ Cancelado' :
+                                 order.payment_status === 'refunded' ? '💰 Reembolsado' :
+                                 order.payment_status}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                                {formatDate(order.created_at)}
                               </span>
-                            ))}
+                              <span className="flex items-center gap-1">
+                                <Package className="h-3 w-3 sm:h-4 sm:w-4" />
+                                {order.total_items} producto{order.total_items !== 1 ? 's' : ''}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-green-600">
-                            {formatPrice(order.total)}
-                          </p>
+                          <div className="text-left sm:text-right">
+                            <p className="text-xl sm:text-2xl font-bold text-indigo-600">
+                              {formatPrice(order.total)}
+                            </p>
+                            <p className="text-xs sm:text-sm text-gray-500 mt-1">Total</p>
+                          </div>
                         </div>
                       </div>
-                    </CardContent>
+                     </div>
+                     
+                     {/* Productos de la orden */}
+                     <CardContent className="p-6">
+                       {order.items && order.items.length > 0 ? (
+                         <div className="space-y-4">
+                           <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                             <Package className="h-4 w-4" />
+                             Productos ({order.items.length})
+                           </h4>
+                           <div className="grid gap-4">
+                             {order.items.map((item, index) => (
+                               <div key={item.id || index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
+                                 {/* Imagen del producto */}
+                                 <div className="flex-shrink-0">
+                                   {item.product_image || item.products?.image ? (
+                                     <img
+                                       src={item.product_image || item.products?.image}
+                                       alt={item.product_name || item.products?.name || 'Producto'}
+                                       className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                                       onError={(e) => {
+                                         e.currentTarget.style.display = 'none'
+                                         e.currentTarget.nextElementSibling.style.display = 'flex'
+                                       }}
+                                     />
+                                   ) : null}
+                                   <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-lg flex items-center justify-center border border-gray-200" style={{display: item.product_image || item.products?.image ? 'none' : 'flex'}}>
+                                     <Package className="w-8 h-8 text-blue-600" />
+                                   </div>
+                                 </div>
+                                 
+                                 {/* Información del producto */}
+                                 <div className="flex-1 min-w-0">
+                                   <h5 className="font-semibold text-gray-900 truncate">
+                                     {item.product_name || item.products?.name || 'Producto sin nombre'}
+                                   </h5>
+                                   <div className="flex items-center space-x-3 mt-2">
+                                     {item.size && (
+                                       <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                                         📦 {item.size}
+                                       </span>
+                                     )}
+                                     <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                                       ✖️ {item.quantity || 1}
+                                     </span>
+                                     {item.product_category && (
+                                       <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                                         🏷️ {item.product_category}
+                                       </span>
+                                     )}
+                                   </div>
+                                   {(item.product_description || item.products?.description) && (
+                                     <p className="text-sm text-gray-600 mt-1 truncate">
+                                       {item.product_description || item.products?.description}
+                                     </p>
+                                   )}
+                                 </div>
+                                 
+                                 {/* Precio */}
+                                 <div className="text-right">
+                                   <p className="font-bold text-lg text-gray-900">
+                                     {formatPrice(item.unit_price || item.price || 0)}
+                                   </p>
+                                   <p className="text-sm text-gray-500">por unidad</p>
+                                   {(item.quantity || 1) > 1 && (
+                                     <p className="text-xs text-gray-400 mt-1">
+                                       Total: {formatPrice(item.total_price || ((item.unit_price || item.price || 0) * (item.quantity || 1)))}
+                                     </p>
+                                   )}
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="text-center py-8 text-gray-500">
+                           <Package className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                           <p>No se encontraron productos en esta orden</p>
+                         </div>
+                       )}
+                     </CardContent>
                   </Card>
                 ))}
               </div>
@@ -1073,9 +1169,6 @@ export default function PerfilPage() {
 
         {activeTab === 'subscriptions' && (
           <div className="space-y-6">
-            {/* Validador de Suscripciones */}
-            <SubscriptionValidator userId={user?.id} />
-            
             {subscriptions.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
@@ -1109,45 +1202,74 @@ export default function PerfilPage() {
                   const finalPrice = price - discountAmount
                 
                   return (
-                    <Card key={subscription.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex flex-col md:flex-row gap-4">
-                          {product?.image && (
-                            <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                              <img
-                                src={product.image}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                              />
+                    <Card key={subscription.id} className={`hover:shadow-lg transition-all duration-300 border-l-4 ${subscription.status === 'pending' ? 'border-l-[#78b7bf]' : 'border-l-indigo-500'}`}>
+                      <CardContent className="p-0">
+                        {/* Header de la suscripción */}
+                        <div className={`p-4 border-b border-gray-100 ${subscription.status === 'pending' ? 'bg-gradient-to-r from-[#e6f3f4] to-[#f0f7f8]' : 'bg-gradient-to-r from-indigo-50 to-purple-50'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${subscription.status === 'pending' ? 'bg-[#d1e9eb]' : 'bg-indigo-100'}`}>
+                                <Calendar className={`h-5 w-5 ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`} />
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-lg text-gray-900">
+                                  Suscripción #{String(subscription.id).slice(-8)}
+                                </h3>
+                                <p className="text-sm text-gray-600">
+                                  Creada el {formatDate(subscription.created_at)}
+                                </p>
+                              </div>
                             </div>
-                          )}
-                          
-                          <div className="flex-1">
-                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                              <div className="space-y-3">
-                                <div>
-                                  <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                                    {product?.name || 'Producto no encontrado'}
-                                  </h3>
-                                  <p className="text-sm text-gray-500">
-                                    ID: {String(subscription.id).slice(-8)}
-                                  </p>
+                            <Badge 
+                              variant={subscription.status === 'active' ? 'default' : 
+                                      subscription.status === 'pending' ? 'secondary' :
+                                      subscription.cancelled_at ? 'destructive' : 'secondary'}
+                              className="text-sm px-3 py-1"
+                            >
+                              {subscription.cancelled_at ? '❌ Cancelada' :
+                               subscription.status === 'active' ? '✅ Activa' : 
+                               subscription.status === 'pending' ? '⏳ Pendiente' :
+                               subscription.status === 'paused' ? '⏸️ Pausada' :
+                               '⏳ Inactiva'}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {/* Contenido principal */}
+                        <div className="p-6">
+                          <div className="flex flex-col lg:flex-row gap-6">
+                            {/* Imagen del producto */}
+                            <div className="flex-shrink-0">
+                              {product?.image ? (
+                                <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 shadow-sm">
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                  />
                                 </div>
+                              ) : (
+                                <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-200 rounded-xl flex items-center justify-center border-2 border-gray-200">
+                                  <Package className="w-10 h-10 text-indigo-600" />
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Información del producto */}
+                            <div className="flex-1 space-y-4">
+                              <div>
+                                <h4 className="font-bold text-xl text-gray-900 mb-2">
+                                  {product?.name || 'Producto no encontrado'}
+                                </h4>
+                                {product?.description && (
+                                  <p className="text-gray-600 text-sm mb-3">
+                                    {product.description}
+                                  </p>
+                                )}
                                 
-                                <div className="flex flex-wrap gap-2">
-                                  <Badge 
-                                    variant={subscription.status === 'active' ? 'default' : 
-                                            subscription.status === 'pending' ? 'secondary' :
-                                            subscription.cancelled_at ? 'destructive' : 'secondary'}
-                                  >
-                                    {subscription.cancelled_at ? '❌ Cancelada' :
-                                     subscription.status === 'active' ? '✅ Activa' : 
-                                     subscription.status === 'pending' ? '⏳ Pendiente' :
-                                     subscription.status === 'paused' ? '⏸️ Pausada' :
-                                     '⏳ Inactiva'}
-                                  </Badge>
-                                  
-                                  <Badge variant="outline">
+                                {/* Badges de información */}
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                  <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-blue-50 text-blue-700 border-blue-200'}>
                                     🔄 {frequency === 'monthly' ? 'Mensual' :
                                          frequency === 'biweekly' ? 'Quincenal' :
                                          frequency === 'quarterly' ? 'Trimestral' :
@@ -1156,116 +1278,181 @@ export default function PerfilPage() {
                                   </Badge>
                                   
                                   {subscription.size && (
-                                    <Badge variant="outline">
+                                    <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-purple-50 text-purple-700 border-purple-200'}>
                                       📦 {subscription.size}
                                     </Badge>
                                   )}
                                   
                                   {subscription.quantity && subscription.quantity > 1 && (
-                                    <Badge variant="outline">
-                                      ✖️ {subscription.quantity}
+                                    <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-green-50 text-green-700 border-green-200'}>
+                                      ✖️ {subscription.quantity} unidades
                                     </Badge>
                                   )}
                                 </div>
                                 
-                                <div className="text-sm text-gray-600 space-y-2">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <div className="flex items-center gap-2">
-                                      <Calendar className="h-4 w-4 text-blue-500" />
+                                {/* Información de fechas y facturación */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Próximo pago */}
+                                  <div className={subscription.status === 'pending' ? 'bg-[#e6f3f4] p-4 rounded-lg border border-[#78b7bf]' : 'bg-blue-50 p-4 rounded-lg border border-blue-200'}>
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <div className={subscription.status === 'pending' ? 'p-2 bg-[#d1e9eb] rounded-full' : 'p-2 bg-blue-100 rounded-full'}>
+                                        <Calendar className={subscription.status === 'pending' ? 'h-4 w-4 text-[#4a7c7f]' : 'h-4 w-4 text-blue-600'} />
+                                      </div>
                                       <div>
-                                        <span className="font-medium">Próximo envío:</span>
-                                        <br />
-                                        <span className="text-blue-600">
+                                        <h5 className={subscription.status === 'pending' ? 'font-semibold text-[#4a7c7f]' : 'font-semibold text-blue-900'}>Próximo Pago</h5>
+                                        <p className={subscription.status === 'pending' ? 'text-sm text-[#4a7c7f]' : 'text-sm text-blue-700'}>
                                           {subscription.next_billing_date ? formatDate(subscription.next_billing_date) : 'No programado'}
-                                        </span>
+                                        </p>
                                       </div>
                                     </div>
-                                    
-                                    {subscription.last_billing_date && (
-                                      <div className="flex items-center gap-2">
-                                        <Receipt className="h-4 w-4 text-green-500" />
-                                        <div>
-                                          <span className="font-medium">Último envío:</span>
-                                          <br />
-                                          <span className="text-green-600">
-                                            {formatDate(subscription.last_billing_date)}
-                                          </span>
-                                        </div>
+                                    {subscription.next_billing_date && (
+                                      <div className={subscription.status === 'pending' ? 'text-xs text-[#4a7c7f] bg-[#d1e9eb] px-2 py-1 rounded-md inline-block' : 'text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-md inline-block'}>
+                                        📅 En {Math.ceil((new Date(subscription.next_billing_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} días
                                       </div>
                                     )}
                                   </div>
                                   
-                                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    <span>Creada: {formatDate(subscription.created_at)}</span>
-                                    {subscription.cancelled_at && (
-                                      <span className="text-red-500">• Cancelada: {formatDate(subscription.cancelled_at)}</span>
-                                    )}
-                                  </div>
+                                  {/* Último pago */}
+                                  {subscription.last_billing_date ? (
+                                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 bg-green-100 rounded-full">
+                                          <Receipt className="h-4 w-4 text-green-600" />
+                                        </div>
+                                        <div>
+                                          <h5 className="font-semibold text-green-900">Último Pago</h5>
+                                          <p className="text-sm text-green-700">
+                                            {formatDate(subscription.last_billing_date)}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-md inline-block">
+                                        ✅ Procesado exitosamente
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                      <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-gray-100 rounded-full">
+                                          <Receipt className="h-4 w-4 text-gray-500" />
+                                        </div>
+                                        <div>
+                                          <h5 className="font-semibold text-gray-700">Primer Pago</h5>
+                                          <p className="text-sm text-gray-600">Pendiente de procesar</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
+                                
+                                {/* Información adicional */}
+                                {subscription.cancelled_at && (
+                                  <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                                    <div className="flex items-center gap-2 text-red-700">
+                                      <span className="text-sm font-medium">❌ Suscripción cancelada el {formatDate(subscription.cancelled_at)}</span>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              
-                              <div className="text-right space-y-2">
-                                <div className="space-y-1">
+                            </div>
+                            
+                            {/* Sección de precio y acciones */}
+                            <div className="lg:w-80 flex-shrink-0">
+                              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-4">
+                                {/* Precio */}
+                                <div className="text-center">
                                   {discountAmount > 0 ? (
-                                    <>
-                                      <div className="text-sm text-gray-500 line-through">
+                                    <div className="space-y-2">
+                                      <div className="text-lg text-gray-500 line-through">
                                         {formatPrice(price)}
                                       </div>
-                                      <div className="flex items-center gap-1 justify-end">
-                                        <DollarSign className="h-4 w-4 text-green-600" />
-                                        <span className="text-lg font-semibold text-green-600">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <DollarSign className="h-6 w-6 text-green-600" />
+                                        <span className="text-3xl font-bold text-green-600">
                                           {formatPrice(finalPrice)}
                                         </span>
                                       </div>
-                                      <div className="text-xs text-green-600">
-                                        Ahorras {formatPrice(discountAmount)}
+                                      <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                                        💰 Ahorras {formatPrice(discountAmount)}
                                       </div>
-                                    </>
+                                    </div>
                                   ) : (
-                                    <div className="flex items-center gap-1 justify-end">
-                                      <DollarSign className="h-4 w-4 text-gray-600" />
-                                      <span className="text-lg font-semibold">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <DollarSign className={`h-6 w-6 ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`} />
+                                      <span className={`text-3xl font-bold ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`}>
                                         {formatPrice(price)}
                                       </span>
                                     </div>
                                   )}
                                   
-                                  <div className="text-sm text-gray-500">
+                                  <p className="text-sm text-gray-600 mt-2">
                                     cada {frequency === 'monthly' ? 'mes' :
                                           frequency === 'biweekly' ? 'quincena' :
                                           frequency === 'quarterly' ? 'trimestre' :
                                           frequency === 'annual' ? 'año' :
                                           'período'}
-                                  </div>
+                                  </p>
                                 </div>
                                 
-                                <div className="flex flex-col gap-2 mt-4">
-                                  {subscription.status === 'active' ? (
+                                {/* Botones de acción */}
+                                <div className="space-y-3">
+                                  {/* Si no hay primer pago, mostrar solo mensaje de estado */}
+                                  {!subscription.last_billing_date && subscription.status === 'pending' ? (
+                                    <div className="px-4 py-3 rounded-lg text-center font-medium" style={{backgroundColor: '#e6f3f4', color: '#4a7c7f'}}>
+                          ⏳ Suscripción Pendiente
+                        </div>
+                                  ) : subscription.status === 'active' ? (
                                     <>
                                       <Button 
-                                        size="sm" 
+                                        className="w-full" 
                                         variant="outline" 
-                                        className="text-xs"
                                         onClick={() => handleSubscriptionAction(subscription.id, 'pause')}
                                         disabled={updatingSubscription === subscription.id}
                                       >
-                                        {updatingSubscription === subscription.id ? '⏳' : '⏸️'} Pausar
+                                        {updatingSubscription === subscription.id ? (
+                                          <div className="flex items-center gap-2">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                            Procesando...
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2">
+                                            <span>⏸️</span>
+                                            Pausar Suscripción
+                                          </div>
+                                        )}
                                       </Button>
                                       <Button 
-                                        size="sm" 
+                                        className="w-full" 
                                         variant="outline" 
-                                        className="text-xs text-red-600 hover:text-red-700"
                                         onClick={() => handleSubscriptionAction(subscription.id, 'cancel')}
                                         disabled={updatingSubscription === subscription.id}
                                       >
-                                        {updatingSubscription === subscription.id ? '⏳' : '❌'} Cancelar
+                                        {updatingSubscription === subscription.id ? (
+                                          <div className="flex items-center gap-2">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                                            Cancelando...
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2 text-red-600 hover:text-red-700">
+                                            <span>❌</span>
+                                            Cancelar Suscripción
+                                          </div>
+                                        )}
                                       </Button>
                                     </>
                                   ) : subscription.cancelled_at ? (
-                                    <Button size="sm" variant="outline" disabled className="text-xs">
-                                      Cancelada
-                                    </Button>
-                                  ) : null}
+                                    <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg text-center font-medium">
+                                      ❌ Suscripción Cancelada
+                                    </div>
+                                  ) : subscription.status === 'paused' ? (
+                                    <div className="bg-yellow-100 text-yellow-800 px-4 py-3 rounded-lg text-center font-medium">
+                                      ⏸️ Suscripción Pausada
+                                    </div>
+                                  ) : (
+                                    <div className="bg-gray-100 text-gray-800 px-4 py-3 rounded-lg text-center font-medium">
+                                      ⏳ Suscripción Pendiente
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1280,12 +1467,7 @@ export default function PerfilPage() {
           </div>
         )}
 
-        {activeTab === 'billing' && user && (
-          <UserBillingHistory 
-            userId={user.id} 
-            userEmail={user.email || undefined}
-          />
-        )}
+
       </div>
       
       {/* Componentes de debugging para diagnosticar problemas */}

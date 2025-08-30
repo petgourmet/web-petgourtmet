@@ -72,18 +72,27 @@ export async function fetchOptimizedOrders(
   const cacheKey = `orders_${userId}`
   
   const queryFn = async () => {
-    // Consulta optimizada: una sola query con JOIN
+    console.log('🔍 Fetching optimized orders for user:', userId)
+    
+    // Consulta optimizada: una sola query con JOIN incluyendo más datos del producto
     const { data: ordersData, error } = await supabase
       .from('orders')
       .select(`
         *,
         order_items (
-          *,
+          id,
+          product_id,
+          quantity,
+          price,
+          size,
+          product_name,
           products (
             id,
             name,
             image,
-            price
+            price,
+            description,
+            category
           )
         )
       `)
@@ -91,9 +100,11 @@ export async function fetchOptimizedOrders(
       .order('created_at', { ascending: false })
     
     if (error) {
-      console.error('Error fetching optimized orders:', error)
+      console.error('❌ Error fetching optimized orders:', error)
       return []
     }
+    
+    console.log('✅ Orders fetched successfully:', ordersData?.length || 0, 'orders')
     
     return ordersData?.map(order => {
       // Parsear shipping_address una sola vez
@@ -117,14 +128,36 @@ export async function fetchOptimizedOrders(
             }
           }
         } catch (e) {
-          console.warn('Error parsing shipping_address:', e)
+          console.warn('⚠️ Error parsing shipping_address:', e)
         }
       }
       
+      // Procesar items con mejor manejo de productos
+      const processedItems = (order.order_items || []).map((item: any) => {
+        const product = item.products || {}
+        return {
+          ...item,
+          // Usar el nombre del producto de la relación o el guardado en el item
+          product_name: product.name || item.product_name || 'Producto sin nombre',
+          // Asegurar que tenemos la imagen del producto
+          product_image: product.image || null,
+          // Descripción del producto
+          product_description: product.description || null,
+          // Categoría del producto
+          product_category: product.category || null,
+          // Precio unitario (usar el del item que es el precio al momento de la compra)
+          unit_price: item.price || product.price || 0,
+          // Total del item
+          total_price: (item.price || product.price || 0) * (item.quantity || 1)
+        }
+      })
+      
+      console.log('📦 Processing order:', order.id, 'with', processedItems.length, 'items')
+      
       return {
         ...order,
-        items: order.order_items || [],
-        total_items: order.order_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0,
+        items: processedItems,
+        total_items: processedItems.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
         customer_name: customerInfo?.name || 'Cliente anónimo',
         customer_email: customerInfo?.email || 'No especificado',
         customer_phone: customerInfo?.phone || 'No especificado',
