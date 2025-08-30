@@ -38,14 +38,24 @@ export default function SuscripcionPage() {
     }
 
     if (user) {
-      // Verificar si viene de MercadoPago y activar suscripciones pendientes
+      // Verificar si viene de MercadoPago y procesar suscripción
       const urlParams = new URLSearchParams(window.location.search)
+      const preapprovalId = urlParams.get('preapproval_id')
       const externalReference = urlParams.get('external_reference')
       const status = urlParams.get('status')
       
-      if (externalReference && status === 'approved') {
+      console.log('URL params:', { preapprovalId, externalReference, status })
+      
+      if (preapprovalId) {
+        // Prioridad 1: Validar suscripción usando preapproval_id
+        console.log('Procesando preapproval_id:', preapprovalId)
+        validatePreapprovalSubscription(preapprovalId)
+      } else if (externalReference && status === 'approved') {
+        // Prioridad 2: Activar suscripción pendiente por external_reference
+        console.log('Procesando external_reference:', externalReference)
         activatePendingSubscription(externalReference)
       } else {
+        // Cargar suscripciones normalmente
         loadUserSubscriptions()
       }
     }
@@ -174,6 +184,109 @@ export default function SuscripcionPage() {
     }
   }
 
+  const validatePreapprovalSubscription = async (preapprovalId: string) => {
+    if (!user?.id) return
+
+    try {
+      setIsProcessing(true)
+      console.log('Validando preapproval_id:', preapprovalId, 'para usuario:', user.id)
+      
+      // Primero verificar si ya existe una suscripción pendiente con este preapproval_id
+      const { data: existingPending, error: pendingError } = await supabase
+        .from('pending_subscriptions')
+        .select('*')
+        .eq('mercadopago_subscription_id', preapprovalId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (existingPending && existingPending.status === 'processed') {
+        console.log('Suscripción ya procesada, cargando suscripciones activas')
+        loadUserSubscriptions()
+        window.history.replaceState({}, document.title, window.location.pathname)
+        return
+      }
+
+      // Si no existe pending_subscription, crear una nueva entrada
+      if (!existingPending) {
+        console.log('Creando pending_subscription para preapproval_id:', preapprovalId)
+        const { error: insertError } = await supabase
+          .from('pending_subscriptions')
+          .insert({
+            user_id: user.id,
+            mercadopago_subscription_id: preapprovalId,
+            external_reference: preapprovalId,
+            status: 'pending',
+            subscription_type: 'monthly', // Default, se actualizará con webhook
+            cart_items: [],
+            created_at: new Date().toISOString()
+          })
+
+        if (insertError) {
+          console.error('Error creando pending_subscription:', insertError)
+        } else {
+          console.log('Pending subscription creada exitosamente')
+        }
+      }
+      
+      // Llamar al endpoint para validar la suscripción
+      const response = await fetch('/api/validate-preapproval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          preapproval_id: preapprovalId,
+          user_id: user.id
+        })
+      })
+
+      const result = await response.json()
+      console.log('Resultado de validación:', result)
+
+      if (response.ok && result.success) {
+        toast({
+          title: "¡Suscripción procesada!",
+          description: result.message || "Tu suscripción ha sido procesada exitosamente",
+        })
+        
+        // Cargar suscripciones actualizadas
+        loadUserSubscriptions()
+        
+        // Limpiar URL para evitar revalidaciones
+        window.history.replaceState({}, document.title, window.location.pathname)
+      } else {
+        console.error("Error validando suscripción:", result.error)
+        
+        // Mostrar mensaje informativo en lugar de error
+        toast({
+          title: "Suscripción registrada",
+          description: "Tu suscripción ha sido registrada y será procesada automáticamente cuando se confirme el pago.",
+        })
+        
+        // Cargar suscripciones normalmente
+        loadUserSubscriptions()
+        
+        // Limpiar URL
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
+      
+    } catch (error) {
+      console.error("Error validando preapproval:", error)
+      toast({
+        title: "Suscripción registrada",
+        description: "Tu suscripción ha sido registrada y será procesada automáticamente.",
+      })
+      
+      // Cargar suscripciones normalmente
+      loadUserSubscriptions()
+      
+      // Limpiar URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const calculateNextBillingDate = (subscriptionType: string): string => {
     const now = new Date()
     
@@ -268,7 +381,9 @@ export default function SuscripcionPage() {
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Verificando tu suscripción...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {isProcessing ? 'Procesando tu suscripción...' : 'Verificando tu suscripción...'}
+          </p>
         </div>
       </div>
     )

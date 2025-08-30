@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { fetchOptimizedSubscriptions, invalidateSubscriptionsCache } from '@/lib/query-optimizations'
@@ -41,6 +43,44 @@ interface AdminSubscription {
   created_at: string
   cancelled_at?: string
   is_active: boolean
+  // Nuevos campos del webhook
+  discount_percentage?: number
+  base_price?: number
+  discounted_price?: number
+  updated_at?: string
+  product_name?: string
+  product_image?: string
+  metadata?: {
+    preapproval_id?: string
+    processed_manually?: boolean
+    original_cart_items?: Array<{
+      size: string
+      price: number
+      quantity: number
+      product_id: number
+      product_name: string
+      isSubscription: boolean
+      subscriptionType: string
+    }>
+  }
+  mercadopago_subscription_id?: string
+  mercadopago_plan_id?: string
+  external_reference?: string
+  reason?: string
+  charges_made?: number
+  frequency?: number
+  frequency_type?: string
+  version?: string
+  application_id?: string
+  collector_id?: string
+  preapproval_plan_id?: string
+  back_url?: string
+  init_point?: string
+  start_date?: string
+  end_date?: string
+  currency_id?: string
+  transaction_amount?: number
+  free_trial?: any
   // Relaciones
   user_profile?: {
     full_name: string
@@ -359,9 +399,10 @@ export default function AdminSubscriptionOrdersPage() {
       (sub.id && sub.id.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "active" && sub.is_active) ||
-      (statusFilter === "inactive" && !sub.is_active) ||
-      (statusFilter === "cancelled" && sub.cancelled_at)
+      (statusFilter === "active" && sub.is_active && !sub.cancelled_at) ||
+      (statusFilter === "inactive" && !sub.is_active && !sub.cancelled_at) ||
+      (statusFilter === "cancelled" && sub.cancelled_at) ||
+      (statusFilter === "pending" && sub.status === "pending")
     
     return matchesSearch && matchesStatus
   })
@@ -385,6 +426,9 @@ export default function AdminSubscriptionOrdersPage() {
   const getStatusBadge = (subscription: AdminSubscription) => {
     if (subscription.cancelled_at) {
       return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelada</Badge>
+    }
+    if (subscription.status === "pending") {
+      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pendiente (Webhook)</Badge>
     }
     if (subscription.is_active) {
       return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Activa</Badge>
@@ -448,14 +492,31 @@ export default function AdminSubscriptionOrdersPage() {
     )
   }
 
-  const getFrequencyLabel = (type: string) => {
+  const getFrequencyLabel = (subscription: AdminSubscription) => {
+    // Si tiene frequency y frequency_type (datos del webhook), usar esos
+    if (subscription.frequency && subscription.frequency_type) {
+      const frequency = subscription.frequency
+      const type = subscription.frequency_type
+      
+      if (type === 'weeks') {
+        return frequency === 1 ? 'Semanal' : `Cada ${frequency} semanas`
+      } else if (type === 'months') {
+        return frequency === 1 ? 'Mensual' : `Cada ${frequency} meses`
+      } else if (type === 'days') {
+        return frequency === 1 ? 'Diario' : `Cada ${frequency} días`
+      }
+      return `Cada ${frequency} ${type}`
+    }
+    
+    // Fallback a subscription_type tradicional
     const labels: Record<string, string> = {
+      'weekly': 'Semanal',
       'biweekly': 'Cada 2 semanas',
       'monthly': 'Mensual',
       'quarterly': 'Cada 3 meses',
       'annual': 'Anual'
     }
-    return labels[type] || type
+    return labels[subscription.subscription_type] || subscription.subscription_type
   }
 
   if (loading) {
@@ -523,32 +584,17 @@ export default function AdminSubscriptionOrdersPage() {
         </p>
       </div>
 
-      {/* Validador de Suscripciones */}
-      <div className="mb-6">
-        <SubscriptionValidator isAdmin={true} />
-      </div>
 
-      {/* Filters and Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center">
-              <Package className="h-8 w-8 text-blue-600" />
+              <CheckCircle className="h-6 w-6 text-green-600" />
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Total</p>
-                <p className="text-2xl font-bold">{subscriptions.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Activas</p>
-                <p className="text-2xl font-bold">
+                <p className="text-sm text-gray-600">Activas</p>
+                <p className="text-xl font-bold">
                   {subscriptions.filter(s => s.is_active && !s.cancelled_at).length}
                 </p>
               </div>
@@ -559,10 +605,24 @@ export default function AdminSubscriptionOrdersPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center">
-              <XCircle className="h-8 w-8 text-red-600" />
+              <Clock className="h-6 w-6 text-yellow-600" />
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Canceladas</p>
-                <p className="text-2xl font-bold">
+                <p className="text-sm text-gray-600">Pendientes</p>
+                <p className="text-xl font-bold">
+                  {subscriptions.filter(s => s.status === "pending").length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <XCircle className="h-6 w-6 text-red-600" />
+              <div className="ml-3">
+                <p className="text-sm text-gray-600">Canceladas</p>
+                <p className="text-xl font-bold">
                   {subscriptions.filter(s => s.cancelled_at).length}
                 </p>
               </div>
@@ -573,12 +633,10 @@ export default function AdminSubscriptionOrdersPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center">
-              <DollarSign className="h-8 w-8 text-yellow-600" />
+              <Package className="h-6 w-6 text-blue-600" />
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Ingresos</p>
-                <p className="text-2xl font-bold">
-                  {formatPrice(subscriptions.reduce((sum, s) => sum + s.total_paid, 0))}
-                </p>
+                <p className="text-sm text-gray-600">Total</p>
+                <p className="text-xl font-bold">{subscriptions.length}</p>
               </div>
             </div>
           </CardContent>
@@ -608,28 +666,36 @@ export default function AdminSubscriptionOrdersPage() {
               >
                 <option value="all">Todos los estados</option>
                 <option value="active">Activas</option>
+                <option value="pending">Pendientes</option>
                 <option value="inactive">Inactivas</option>
                 <option value="cancelled">Canceladas</option>
               </select>
               
-              <Button
-                onClick={() => validateAllPayments('pending', 50)}
-                disabled={validatingAll}
-                variant="outline"
-                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-              >
-                <Shield className={`h-4 w-4 ${validatingAll ? 'animate-pulse' : ''}`} />
-                {validatingAll ? 'Validando...' : 'Validar Pagos'}
-              </Button>
+
               
-              <Button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                variant="outline"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                Actualizar
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  variant="outline"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </Button>
+                
+                {filteredSubscriptions.some(sub => sub.status === 'pending') && (
+                  <Button
+                    onClick={() => {
+                      toast.info('Función de procesamiento manual en desarrollo');
+                    }}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    Procesar Pendientes
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -656,22 +722,22 @@ export default function AdminSubscriptionOrdersPage() {
           filteredSubscriptions.map((subscription) => (
             <Card key={subscription.id}>
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Información del Usuario y Producto */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Información Principal */}
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
-                      {subscription.product?.image && (
-                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      {(subscription.product?.image || subscription.product_image) && (
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                           <img
-                            src={subscription.product.image}
-                            alt={subscription.product.name}
+                            src={subscription.product?.image || subscription.product_image}
+                            alt={subscription.product?.name || subscription.product_name}
                             className="w-full h-full object-cover"
                           />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-lg text-gray-900 truncate">
-                          {subscription.product?.name || 'Producto no encontrado'}
+                          {subscription.product?.name || subscription.product_name || 'Producto no encontrado'}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
                           <User className="h-4 w-4 text-gray-400" />
@@ -682,22 +748,28 @@ export default function AdminSubscriptionOrdersPage() {
                         <p className="text-sm text-gray-500 mt-1">
                           {subscription.user_profile?.email}
                         </p>
-                        {subscription.user_profile?.phone && (
-                          <p className="text-sm text-gray-500">
-                            📞 {subscription.user_profile.phone}
+                        {/* ID de suscripción y MercadoPago */}
+                        <div className="flex flex-col gap-1 mt-2">
+                          <p className="text-xs text-gray-400 font-mono">
+                            ID: {subscription.id}
                           </p>
-                        )}
+                          {subscription.mercadopago_subscription_id && (
+                            <p className="text-xs text-blue-600 font-mono">
+                              MP: {subscription.mercadopago_subscription_id}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
                     <div className="flex flex-wrap gap-2">
                       {getStatusBadge(subscription)}
                       <Badge variant="outline">
-                        {getFrequencyLabel(subscription.subscription_type)}
+                        {getFrequencyLabel(subscription)}
                       </Badge>
                       {subscription.size && (
                         <Badge variant="outline">
-                          Tamaño: {subscription.size}
+                          {subscription.size}
                         </Badge>
                       )}
                     </div>
@@ -705,124 +777,75 @@ export default function AdminSubscriptionOrdersPage() {
 
                   {/* Información de Suscripción */}
                   <div className="space-y-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Detalles de Suscripción</p>
-                      <div className="mt-2 space-y-1 text-sm text-gray-600">
-                        <div className="flex justify-between">
-                          <span>ID:</span>
-                          <span className="font-mono text-xs">{String(subscription.id).slice(-8)}</span>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Precio</p>
+                        <div className="flex flex-col">
+                          <p className="font-semibold">{formatPrice(subscription.discounted_price || subscription.price)}</p>
+                          {subscription.discount_percentage > 0 && (
+                            <p className="text-xs text-green-600">
+                              {subscription.discount_percentage}% descuento
+                            </p>
+                          )}
                         </div>
-                        <div className="flex justify-between">
-                          <span>Precio:</span>
-                          <span className="font-semibold">{formatPrice(subscription.price)}</span>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Creada</p>
+                        <p>{formatDate(subscription.created_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Próximo cobro</p>
+                        <p className="font-medium">
+                          {subscription.next_billing_date 
+                            ? formatDate(subscription.next_billing_date)
+                            : "No programado"
+                          }
+                        </p>
+                      </div>
+                      {subscription.start_date && (
+                        <div>
+                          <p className="text-gray-500">Fecha inicio</p>
+                          <p>{formatDate(subscription.start_date)}</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Cantidad:</span>
-                          <span>{subscription.quantity}</span>
+                      )}
+                      {subscription.charges_made !== undefined && (
+                        <div>
+                          <p className="text-gray-500">Cobros realizados</p>
+                          <p className="font-medium">{subscription.charges_made}</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Creada:</span>
-                          <span>{formatDate(subscription.created_at)}</span>
-                        </div>
-                        {subscription.cancelled_at && (
-                          <div className="flex justify-between text-red-600">
-                            <span>Cancelada:</span>
-                            <span>{formatDate(subscription.cancelled_at)}</span>
+                      )}
+                      {subscription.cancelled_at && (
+                        <div>
+                          <p className="text-gray-500">Cancelada</p>
+                          <div className="flex flex-col">
+                            <p className="text-red-600">{formatDate(subscription.cancelled_at)}</p>
+                            {subscription.reason && (
+                              <p className="text-xs text-red-500 mt-1">
+                                Motivo: {subscription.reason}
+                              </p>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Próximas Fechas</p>
-                      <div className="mt-2 space-y-1 text-sm text-gray-600">
-                        <div className="flex justify-between">
-                          <span>Próximo cobro:</span>
-                          <span className="font-medium">
-                            {subscription.next_billing_date 
-                              ? formatDate(subscription.next_billing_date)
-                              : "No programado"
-                            }
-                          </span>
                         </div>
-                        {subscription.last_billing_date && (
-                          <div className="flex justify-between">
-                            <span>Último cobro:</span>
-                            <span>{formatDate(subscription.last_billing_date)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Información de Pagos */}
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Estado de Pagos</p>
-                      <div className="mt-2">
-                        {getPaymentStatusBadge(subscription.last_payment)}
-                      </div>
-                      {getMoneyTransferStatus(subscription.last_payment)}
-                    </div>
-                    
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex justify-between">
-                        <span>Total pagos:</span>
-                        <span className="font-semibold">{subscription.payment_history_count}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total cobrado:</span>
-                        <span className="font-semibold text-green-600">
-                          {formatPrice(subscription.total_paid)}
-                        </span>
-                      </div>
-                      
-                      {subscription.last_payment && (
-                        <>
-                          <div className="border-t pt-2 mt-2">
-                            <div className="flex justify-between items-center mb-1">
-                              <p className="font-medium text-gray-700">Último Pago:</p>
-                              {subscription.last_payment.mercadopago_payment_id && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => validatePaymentWithMercadoPago(subscription.last_payment!.mercadopago_payment_id!)}
-                                  disabled={validatingPayment === subscription.last_payment.mercadopago_payment_id}
-                                  className="h-6 px-2 text-xs"
-                                >
-                                  {validatingPayment === subscription.last_payment.mercadopago_payment_id ? (
-                                    <RefreshCw className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Shield className="h-3 w-3 mr-1" />
-                                  )}
-                                  Validar
-                                </Button>
-                              )}
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex justify-between">
-                                <span>Fecha:</span>
-                                <span>{formatDate(subscription.last_payment.billing_date)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Monto:</span>
-                                <span className="font-semibold">
-                                  {formatPrice(subscription.last_payment.amount)}
-                                </span>
-                              </div>
-                              {subscription.last_payment.mercadopago_payment_id && (
-                                <div className="flex justify-between">
-                                  <span>MP ID:</span>
-                                  <span className="font-mono text-xs">
-                                    {subscription.last_payment.mercadopago_payment_id}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </>
                       )}
                     </div>
+                    
+                    {/* Información adicional del metadata */}
+                    {subscription.metadata?.processed_manually && (
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 text-blue-700">
+                          <Shield className="h-4 w-4" />
+                          <span className="text-sm font-medium">Procesada manualmente</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {subscription.currency_id && subscription.currency_id !== 'MXN' && (
+                      <div className="bg-yellow-50 p-2 rounded border border-yellow-200">
+                        <p className="text-xs text-yellow-700">
+                          Moneda: {subscription.currency_id}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

@@ -168,7 +168,7 @@ export default function PerfilPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [updatingSubscription, setUpdatingSubscription] = useState<string | null>(null)
+
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions'>('profile')
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting')
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
@@ -720,59 +720,7 @@ export default function PerfilPage() {
     setProfile(prev => prev ? { ...prev, [field]: value } : null)
   }
 
-  const handleSubscriptionAction = async (subscriptionId: string, action: 'pause' | 'cancel' | 'reactivate') => {
-    setUpdatingSubscription(subscriptionId)
-    try {
-      const supabase = createClient()
-      let updateData: any = {}
-      
-      switch (action) {
-        case 'pause':
-          updateData = { status: 'paused' }
-          break
-        case 'cancel':
-          updateData = { 
-            status: 'cancelled',
-            cancelled_at: new Date().toISOString()
-          }
-          break
-        case 'reactivate':
-          updateData = { 
-            status: 'active',
-            cancelled_at: null
-          }
-          break
-      }
 
-      const { error } = await supabase
-        .from('user_subscriptions')
-        .update(updateData)
-        .eq('id', subscriptionId)
-
-      if (error) {
-        console.error('Error updating subscription:', error)
-        toast.error('Error al actualizar la suscripción')
-        return
-      }
-
-      // Actualizar el estado local
-      setSubscriptions(prev => prev.map(sub => 
-        sub.id === subscriptionId 
-          ? { ...sub, ...updateData }
-          : sub
-      ))
-
-      const actionText = action === 'pause' ? 'pausada' : 
-                        action === 'cancel' ? 'cancelada' : 'reactivada'
-      toast.success(`Suscripción ${actionText} correctamente`)
-      
-    } catch (error) {
-      console.error('Error in handleSubscriptionAction:', error)
-      toast.error('Error al actualizar la suscripción')
-    } finally {
-      setUpdatingSubscription(null)
-    }
-  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -1369,11 +1317,41 @@ export default function PerfilPage() {
                   </p>
                 </div>
                 {subscriptions.map((subscription) => {
+                  // Extraer datos del metadata si existe
+                  const metadata = subscription.metadata || {}
+                  const originalCartItems = metadata.original_cart_items || []
+                  const firstCartItem = originalCartItems[0] || {}
+                  
+                  // Determinar datos del producto
                   const product = subscription.product || subscription.products
-                  const frequency = subscription.frequency || 'monthly'
-                  const price = subscription.price || (product?.price || 0)
-                  const discountAmount = subscription.discount_amount || 0
-                  const finalPrice = price - discountAmount
+                  const productName = subscription.product_name || firstCartItem.product_name || product?.name || 'Producto no encontrado'
+                  const productImage = subscription.product_image || product?.image
+                  const size = subscription.size || firstCartItem.size
+                  const quantity = subscription.quantity || firstCartItem.quantity || 1
+                  
+                  // Determinar frecuencia
+                  const subscriptionType = subscription.subscription_type || firstCartItem.subscriptionType || 'monthly'
+                  const frequencyType = subscription.frequency_type || 'weeks'
+                  const frequencyValue = subscription.frequency || 1
+                  
+                  let frequencyDisplay = 'Mensual'
+                  if (subscriptionType === 'weekly' || (frequencyType === 'weeks' && frequencyValue === 1)) {
+                    frequencyDisplay = 'Semanal'
+                  } else if (subscriptionType === 'biweekly' || (frequencyType === 'weeks' && frequencyValue === 2)) {
+                    frequencyDisplay = 'Quincenal'
+                  } else if (subscriptionType === 'monthly' || (frequencyType === 'months' && frequencyValue === 1)) {
+                    frequencyDisplay = 'Mensual'
+                  } else if (subscriptionType === 'quarterly' || (frequencyType === 'months' && frequencyValue === 3)) {
+                    frequencyDisplay = 'Trimestral'
+                  } else if (subscriptionType === 'annual' || (frequencyType === 'months' && frequencyValue === 12)) {
+                    frequencyDisplay = 'Anual'
+                  }
+                  
+                  // Precios
+                  const basePrice = subscription.base_price || subscription.transaction_amount || firstCartItem.price || (product?.price || 0)
+                  const discountedPrice = subscription.discounted_price || basePrice
+                  const discountPercentage = subscription.discount_percentage || 0
+                  const discountAmount = basePrice - discountedPrice
                 
                   return (
                     <Card key={subscription.id} className={`hover:shadow-lg transition-all duration-300 border-l-4 ${subscription.status === 'pending' ? 'border-l-[#78b7bf]' : 'border-l-indigo-500'}`}>
@@ -1387,11 +1365,16 @@ export default function PerfilPage() {
                               </div>
                               <div>
                                 <h3 className="font-bold text-lg text-gray-900">
-                                  Suscripción #{String(subscription.id).slice(-8)}
+                                  Suscripción #{subscription.id}
                                 </h3>
                                 <p className="text-sm text-gray-600">
                                   Creada el {formatDate(subscription.created_at)}
                                 </p>
+                                {subscription.mercadopago_subscription_id && (
+                                  <p className="text-xs text-blue-600 font-mono">
+                                    MP ID: {subscription.mercadopago_subscription_id}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <Badge 
@@ -1414,11 +1397,11 @@ export default function PerfilPage() {
                           <div className="flex flex-col lg:flex-row gap-6">
                             {/* Imagen del producto */}
                             <div className="flex-shrink-0">
-                              {product?.image ? (
+                              {productImage ? (
                                 <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 shadow-sm">
                                   <img
-                                    src={product.image}
-                                    alt={product.name}
+                                    src={productImage}
+                                    alt={productName}
                                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
                                   />
                                 </div>
@@ -1433,7 +1416,7 @@ export default function PerfilPage() {
                             <div className="flex-1 space-y-4">
                               <div>
                                 <h4 className="font-bold text-xl text-gray-900 mb-2">
-                                  {product?.name || 'Producto no encontrado'}
+                                  {productName}
                                 </h4>
                                 {product?.description && (
                                   <p className="text-gray-600 text-sm mb-3">
@@ -1441,25 +1424,43 @@ export default function PerfilPage() {
                                   </p>
                                 )}
                                 
+                                {/* Información adicional de la suscripción */}
+                                <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                                  {subscription.start_date && (
+                                    <div>
+                                      <span className="text-gray-500">Fecha de inicio:</span>
+                                      <p className="font-medium">{formatDate(subscription.start_date)}</p>
+                                    </div>
+                                  )}
+                                  {subscription.charges_made !== undefined && (
+                                    <div>
+                                      <span className="text-gray-500">Cobros realizados:</span>
+                                      <p className="font-medium">{subscription.charges_made}</p>
+                                    </div>
+                                  )}
+                                </div>
+                                
                                 {/* Badges de información */}
                                 <div className="flex flex-wrap gap-2 mb-4">
                                   <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-blue-50 text-blue-700 border-blue-200'}>
-                                    🔄 {frequency === 'monthly' ? 'Mensual' :
-                                         frequency === 'biweekly' ? 'Quincenal' :
-                                         frequency === 'quarterly' ? 'Trimestral' :
-                                         frequency === 'annual' ? 'Anual' :
-                                         frequency}
+                                    🔄 {frequencyDisplay}
                                   </Badge>
                                   
-                                  {subscription.size && (
+                                  {size && (
                                     <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-purple-50 text-purple-700 border-purple-200'}>
-                                      📦 {subscription.size}
+                                      📦 {size}
                                     </Badge>
                                   )}
                                   
-                                  {subscription.quantity && subscription.quantity > 1 && (
+                                  {quantity && quantity > 1 && (
                                     <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-green-50 text-green-700 border-green-200'}>
-                                      ✖️ {subscription.quantity} unidades
+                                      ✖️ {quantity} unidades
+                                    </Badge>
+                                  )}
+                                  
+                                  {discountPercentage > 0 && (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                      💰 {discountPercentage}% descuento
                                     </Badge>
                                   )}
                                 </div>
@@ -1506,14 +1507,19 @@ export default function PerfilPage() {
                                     </div>
                                   ) : (
                                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                      <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-3 mb-2">
                                         <div className="p-2 bg-gray-100 rounded-full">
                                           <Receipt className="h-4 w-4 text-gray-500" />
                                         </div>
                                         <div>
                                           <h5 className="font-semibold text-gray-700">Primer Pago</h5>
-                                          <p className="text-sm text-gray-600">Pendiente de procesar</p>
+                                          <p className="text-sm text-gray-600">
+                                            Fecha de inscripción: {formatDate(subscription.created_at)}
+                                          </p>
                                         </div>
+                                      </div>
+                                      <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md inline-block">
+                                        📅 Inscrito el {formatDate(subscription.created_at)}
                                       </div>
                                     </div>
                                   )}
@@ -1521,9 +1527,23 @@ export default function PerfilPage() {
                                 
                                 {/* Información adicional */}
                                 {subscription.cancelled_at && (
-                                  <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                                    <div className="flex items-center gap-2 text-red-700">
+                                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                                    <div className="flex items-center gap-2 text-red-700 mb-2">
                                       <span className="text-sm font-medium">❌ Suscripción cancelada el {formatDate(subscription.cancelled_at)}</span>
+                                    </div>
+                                    {subscription.reason && (
+                                      <div className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                        Motivo: {subscription.reason}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Información de procesamiento manual */}
+                                {metadata.processed_manually && (
+                                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                    <div className="flex items-center gap-2 text-blue-700">
+                                      <span className="text-sm font-medium">🔧 Procesada manualmente</span>
                                     </div>
                                   </div>
                                 )}
@@ -1538,12 +1558,12 @@ export default function PerfilPage() {
                                   {discountAmount > 0 ? (
                                     <div className="space-y-2">
                                       <div className="text-lg text-gray-500 line-through">
-                                        {formatPrice(price)}
+                                        {formatPrice(basePrice)}
                                       </div>
                                       <div className="flex items-center justify-center gap-2">
                                         <DollarSign className="h-6 w-6 text-green-600" />
                                         <span className="text-3xl font-bold text-green-600">
-                                          {formatPrice(finalPrice)}
+                                          {formatPrice(discountedPrice)}
                                         </span>
                                       </div>
                                       <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
@@ -1554,18 +1574,20 @@ export default function PerfilPage() {
                                     <div className="flex items-center justify-center gap-2">
                                       <DollarSign className={`h-6 w-6 ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`} />
                                       <span className={`text-3xl font-bold ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`}>
-                                        {formatPrice(price)}
+                                        {formatPrice(discountedPrice)}
                                       </span>
                                     </div>
                                   )}
                                   
                                   <p className="text-sm text-gray-600 mt-2">
-                                    cada {frequency === 'monthly' ? 'mes' :
-                                          frequency === 'biweekly' ? 'quincena' :
-                                          frequency === 'quarterly' ? 'trimestre' :
-                                          frequency === 'annual' ? 'año' :
-                                          'período'}
+                                    cada {frequencyDisplay.toLowerCase()}
                                   </p>
+                                  
+                                  {subscription.currency_id && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Moneda: {subscription.currency_id}
+                                    </p>
+                                  )}
                                 </div>
                                 
                                 {/* Botones de acción */}
@@ -1576,44 +1598,19 @@ export default function PerfilPage() {
                           ⏳ Suscripción Pendiente
                         </div>
                                   ) : subscription.status === 'active' ? (
-                                    <>
-                                      <Button 
-                                        className="w-full" 
-                                        variant="outline" 
-                                        onClick={() => handleSubscriptionAction(subscription.id, 'pause')}
-                                        disabled={updatingSubscription === subscription.id}
-                                      >
-                                        {updatingSubscription === subscription.id ? (
-                                          <div className="flex items-center gap-2">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                                            Procesando...
-                                          </div>
-                                        ) : (
-                                          <div className="flex items-center gap-2">
-                                            <span>⏸️</span>
-                                            Pausar Suscripción
-                                          </div>
-                                        )}
-                                      </Button>
-                                      <Button 
-                                        className="w-full" 
-                                        variant="outline" 
-                                        onClick={() => handleSubscriptionAction(subscription.id, 'cancel')}
-                                        disabled={updatingSubscription === subscription.id}
-                                      >
-                                        {updatingSubscription === subscription.id ? (
-                                          <div className="flex items-center gap-2">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                                            Cancelando...
-                                          </div>
-                                        ) : (
-                                          <div className="flex items-center gap-2 text-red-600 hover:text-red-700">
-                                            <span>❌</span>
-                                            Cancelar Suscripción
-                                          </div>
-                                        )}
-                                      </Button>
-                                    </>
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                                      <div className="flex items-center justify-center gap-2 mb-2">
+                                        <span className="text-blue-600">📞</span>
+                                        <span className="font-medium text-blue-800">Gestión de Suscripción</span>
+                                      </div>
+                                      <p className="text-sm text-blue-700 mb-2">
+                                        Para pausar o cancelar tu suscripción, contáctanos:
+                                      </p>
+                                      <div className="text-xs text-blue-600 space-y-1">
+                                        <div>📧 contacto@petgourmet.com</div>
+                                        <div>📱 WhatsApp: +1234567890</div>
+                                      </div>
+                                    </div>
                                   ) : subscription.cancelled_at ? (
                                     <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg text-center font-medium">
                                       ❌ Suscripción Cancelada

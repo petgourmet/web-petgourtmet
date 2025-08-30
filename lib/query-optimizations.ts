@@ -201,7 +201,7 @@ export async function fetchOptimizedSubscriptions(
           `)
           .eq('user_id', userId)
           .not('mercadopago_subscription_id', 'is', null)
-          .eq('is_active', true)
+          .eq('status', 'active')
           .order('created_at', { ascending: false })
         :
         supabase
@@ -221,7 +221,7 @@ export async function fetchOptimizedSubscriptions(
             )
           `)
           .not('mercadopago_subscription_id', 'is', null)
-          .eq('is_active', true)
+          .eq('status', 'active')
           .order('created_at', { ascending: false }),
       
       // Suscripciones pendientes válidas (incluir todas las pendientes, con o sin mercadopago_subscription_id)
@@ -325,12 +325,10 @@ export async function fetchOptimizedSubscriptions(
       }
       
       // Estandarizar estado
-      let standardizedStatus = sub.status || (sub.is_active ? 'active' : 'inactive')
+      let standardizedStatus = sub.status || 'inactive'
       if (sub.cancelled_at) {
         standardizedStatus = 'cancelled'
-      } else if (!sub.is_active) {
-        standardizedStatus = 'inactive'
-      } else if (sub.is_active) {
+      } else if (sub.status === 'active') {
         standardizedStatus = 'active'
       }
       
