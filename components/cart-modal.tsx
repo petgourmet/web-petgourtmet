@@ -82,7 +82,7 @@ export function CartModal() {
                     </div>
                     <div className="text-right min-w-[80px]">
                       <div className="font-medium">
-                        ${(item.isSubscription ? item.price * 0.9 : item.price).toFixed(2)} MXN
+                        ${item.price.toFixed(2)} MXN
                       </div>
                       <Button
                         variant="ghost"
@@ -131,12 +131,12 @@ export function CartModal() {
                 
                 <div className="flex justify-between mb-4">
                   <span>Envío</span>
-                  <span>{calculateCartTotal() >= 1000 ? "Gratis" : "$90.00 MXN"}</span>
+                  <span>{calculateCartTotal() >= 1000 ? "Gratis" : "$100.00 MXN"}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg mb-6">
                   <span>Total</span>
                   <span>
-                    ${(calculateCartTotal() >= 1000 ? calculateCartTotal() : calculateCartTotal() + 90).toFixed(2)} MXN
+                    ${(calculateCartTotal() >= 1000 ? calculateCartTotal() : calculateCartTotal() + 100).toFixed(2)} MXN
                   </span>
                 </div>
 

@@ -295,7 +295,7 @@ export function CheckoutModal() {
 
       // Calcular el total
       const subtotal = calculateCartTotal()
-      const shipping = subtotal >= 1000 ? 0 : 90 // Envío gratis por compras mayores a $1000 MXN
+      const shipping = subtotal >= 1000 ? 0 : 100 // Envío gratis por compras mayores a $1000 MXN
       const total = subtotal + shipping
 
       // Generar un número de orden único
@@ -759,7 +759,7 @@ export function CheckoutModal() {
                         </div>
                       </div>
                       <div className="font-medium">
-                        ${((item.isSubscription ? item.price * 0.9 : item.price) * item.quantity).toFixed(2)} MXN
+                        ${(item.price * item.quantity).toFixed(2)} MXN
                       </div>
                     </div>
                   ))}
@@ -797,7 +797,7 @@ export function CheckoutModal() {
                   
                   <div className="flex justify-between mb-2">
                     <span>Envío</span>
-                    <span>{calculateCartTotal() >= 1000 ? "Gratis" : "$90.00 MXN"}</span>
+                    <span>{calculateCartTotal() >= 1000 ? "Gratis" : "$100.00 MXN"}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg mt-4">
                     <span>Total</span>
@@ -805,7 +805,7 @@ export function CheckoutModal() {
                       $
                       {(
                         calculateCartTotal() +
-                        (calculateCartTotal() >= 1000 ? 0 : 90)
+                        (calculateCartTotal() >= 1000 ? 0 : 100)
                       ).toFixed(2)}{" "}
                       MXN
                     </span>

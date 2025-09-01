@@ -33,6 +33,17 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
     return () => setMounted(false)
   }, [])
 
+  // Reiniciar estados cuando cambie el producto
+  useEffect(() => {
+    if (product) {
+      setSelectedSize(product.sizes ? product.sizes[0] : null)
+      setQuantity(1)
+      setPurchaseType('single')
+      setSelectedSubscriptionType(null)
+      setShowFullDescription(false)
+    }
+  }, [product])
+
   // Obtener tipos de suscripción disponibles
   const availableSubscriptionTypes = product.subscription_types || []
   const hasSubscriptionOptions = product.subscription_available && availableSubscriptionTypes.length > 0
@@ -85,7 +96,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
     onAddToCart({
       id: product.id,
       name: product.name,
-      price: calculatePrice(),
+      price: price,
       image: product.image,
       size: sizeWeight,
       quantity,

@@ -144,10 +144,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const calculateCartTotal = () => {
     return cart.reduce((total, item) => {
-      const itemPrice = item.isSubscription
-        ? item.price * 0.9 // 10% de descuento para suscripciones
-        : item.price
-      return total + itemPrice * item.quantity
+      return total + item.price * item.quantity
     }, 0)
   }
 
@@ -161,7 +158,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         item_id: item.id.toString(),
         item_name: item.name,
         category: item.isSubscription ? "subscription" : "one-time",
-        price: item.isSubscription ? item.price * 0.9 : item.price,
+        price: item.price,
         quantity: item.quantity,
       }))
       
