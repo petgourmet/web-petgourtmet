@@ -2,11 +2,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useCallback, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, Clock, RefreshCw } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { handleAuthError } from "@/lib/auth-error-handler"
@@ -21,8 +21,42 @@ export function AuthForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [rateLimited, setRateLimited] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
+  const [cooldownTime, setCooldownTime] = useState(0)
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
+
+  // Manejar parámetros de URL para mostrar mensajes
+  useEffect(() => {
+    const error = searchParams.get('error')
+    const verified = searchParams.get('verified')
+    
+    if (error) {
+      toast({
+        title: "Error de verificación",
+        description: decodeURIComponent(error),
+        variant: "destructive",
+      })
+      // Limpiar el parámetro de error de la URL
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('error')
+      window.history.replaceState({}, '', newUrl.toString())
+    }
+    
+    if (verified === 'true') {
+      toast({
+        title: "Email verificado",
+        description: "Tu email ha sido verificado exitosamente. Ya puedes usar todas las funciones de tu cuenta.",
+      })
+      // Limpiar el parámetro de verified de la URL
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('verified')
+      window.history.replaceState({}, '', newUrl.toString())
+    }
+  }, [searchParams, toast])
 
 
   const toggleMode = () => {
@@ -31,10 +65,65 @@ export function AuthForm() {
     setEmail("")
     setPassword("")
     setConfirmPassword("")
+    setAcceptTerms(false)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Función para manejar el cooldown cuando hay rate limit
+  const startCooldown = useCallback((seconds: number = 300) => {
+    setRateLimited(true)
+    setCooldownTime(seconds)
+    
+    const interval = setInterval(() => {
+      setCooldownTime((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          setRateLimited(false)
+          setRetryCount(0)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }, [])
+
+  // Función para reintentar después del rate limit
+  const handleRetry = useCallback(async () => {
+    if (retryCount >= 3) {
+      toast({
+        title: "Demasiados intentos",
+        description: "Has alcanzado el límite máximo de reintentos. Por favor, espera 5 minutos antes de intentar nuevamente.",
+        variant: "destructive",
+      })
+      startCooldown(300) // 5 minutos
+      return
+    }
+
+    setRetryCount(prev => prev + 1)
+    // Esperar un tiempo progresivo antes del reintento
+    const waitTime = Math.min(30000 * Math.pow(2, retryCount), 120000) // Max 2 minutos
+    
+    toast({
+      title: "Reintentando...",
+      description: `Esperando ${waitTime / 1000} segundos antes del reintento ${retryCount + 1}/3`,
+    })
+
+    setTimeout(() => {
+      handleSubmit(new Event('submit') as any, true)
+    }, waitTime)
+  }, [retryCount, toast, startCooldown])
+
+  const handleSubmit = async (e: React.FormEvent, isRetry: boolean = false) => {
     e.preventDefault()
+    
+    if (rateLimited && !isRetry) {
+      toast({
+        title: "Límite de tasa activo",
+        description: `Debes esperar ${Math.floor(cooldownTime / 60)}:${(cooldownTime % 60).toString().padStart(2, '0')} antes de intentar nuevamente.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -49,24 +138,57 @@ export function AuthForm() {
           return
         }
 
-        // Registrar nuevo usuario
-        const { error } = await supabase.auth.signUp({
+        // Validar que se hayan aceptado los términos
+        if (!acceptTerms) {
+          toast({
+            title: "Error",
+            description: "Debes aceptar los términos y condiciones para registrarte",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Registro sin confirmación de email
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
+            emailRedirectTo: undefined, // No enviar email de confirmación
+          }
         })
 
         if (error) throw error
 
+        // Si el usuario se creó exitosamente, crear el perfil manualmente
+        if (data.user && !data.user.email_confirmed_at) {
+          // Crear perfil directamente usando el service role
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email!,
+              role: 'user'
+            })
+
+          if (profileError) {
+            console.warn('Error creando perfil:', profileError)
+            // No lanzar error, el trigger debería manejarlo
+          }
+        }
+
+        // Reset estados de rate limit en caso de éxito
+        setRateLimited(false)
+        setRetryCount(0)
+        setCooldownTime(0)
+
         toast({
           title: "Registro exitoso",
-          description: "Por favor, verifica tu correo electrónico para confirmar tu cuenta.",
+          description: "Tu cuenta ha sido creada exitosamente. Ya puedes iniciar sesión.",
         })
 
-        // Redirigir a página de verificación
-        router.push("/auth/verificar")
+        // Cambiar a modo login automáticamente
+        setMode("login")
+        setEmail(email) // Mantener el email para facilitar el login
       } else {
         // Iniciar sesión
         const { error } = await supabase.auth.signInWithPassword({
@@ -75,6 +197,11 @@ export function AuthForm() {
         })
 
         if (error) throw error
+
+        // Reset estados de rate limit en caso de éxito
+        setRateLimited(false)
+        setRetryCount(0)
+        setCooldownTime(0)
 
         toast({
           title: "Inicio de sesión exitoso",
@@ -86,6 +213,20 @@ export function AuthForm() {
       }
     } catch (error: any) {
       console.error("Error de autenticación:", error)
+      const errorMessage = error?.message || error?.toString() || ''
+      
+      // Manejo específico para rate limit
+      if (errorMessage.includes('Email rate limit exceeded') || errorMessage.includes('Too many requests')) {
+        if (!isRetry) {
+          toast({
+            title: "Límite de correos excedido",
+            description: "Has enviado demasiados correos. Reintentaremos automáticamente en unos momentos.",
+          })
+        }
+        startCooldown(60) // 1 minuto inicial
+        return
+      }
+      
       const { title, message } = handleAuthError(error, mode === "login" ? "login" : "register")
       toast({
         title,
@@ -149,33 +290,65 @@ export function AuthForm() {
           </div>
 
           {mode === "register" && (
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1">
-                Confirmar Contraseña
-              </label>
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="********"
-                />
+            <>
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1">
+                  Confirmar Contraseña
+                </label>
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="********"
+                  />
+                </div>
               </div>
-            </div>
+              
+              <div className="flex items-start space-x-2">
+                <input
+                  id="acceptTerms"
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  required
+                  className="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="acceptTerms" className="text-sm text-gray-600">
+                  Al registrarte aceptas nuestra{" "}
+                  <Link href="/privacidad" className="text-primary hover:underline">
+                    Política de Privacidad
+                  </Link>
+                  {" "}y{" "}
+                  <Link href="/terminos" className="text-primary hover:underline">
+                    Términos de Servicio
+                  </Link>
+                </label>
+              </div>
+            </>
           )}
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+            disabled={loading || rateLimited || (mode === "register" && !acceptTerms)}
+            className={`w-full font-medium py-2 px-4 rounded-md transition-colors flex items-center justify-center ${
+              rateLimited || (mode === "register" && !acceptTerms)
+                ? 'bg-gray-400 cursor-not-allowed text-white' 
+                : 'bg-primary hover:bg-primary/90 text-white'
+            }`}
           >
             {loading ? (
               <>
                 <Loader2 className="animate-spin mr-2" size={18} />
                 {mode === "login" ? "Iniciando sesión..." : "Registrando..."}
+              </>
+            ) : rateLimited ? (
+              <>
+                <Clock className="mr-2" size={18} />
+                Espera {Math.floor(cooldownTime / 60)}:{(cooldownTime % 60).toString().padStart(2, '0')}
               </>
             ) : mode === "login" ? (
               "Iniciar Sesión"
@@ -183,6 +356,39 @@ export function AuthForm() {
               "Registrarse"
             )}
           </button>
+
+          {rateLimited && retryCount > 0 && (
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Clock className="text-yellow-600 mr-2" size={16} />
+                  <span className="text-sm text-yellow-800">
+                    Reintento {retryCount}/3 programado
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="text-sm text-yellow-600 hover:text-yellow-800 flex items-center"
+                >
+                  <RefreshCw size={14} className="mr-1" />
+                  Reintentar ahora
+                </button>
+              </div>
+            </div>
+          )}
+
+          {rateLimited && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-center">
+                <Clock className="text-blue-600 mr-2" size={16} />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium">Límite de correos alcanzado</p>
+                  <p>Se ha detectado demasiados intentos de envío de correos. Por tu seguridad, debes esperar antes de intentar nuevamente.</p>
+                </div>
+              </div>
+            </div>
+          )}
         </form>
 
         <div className="mt-4 text-center">

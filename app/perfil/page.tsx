@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -161,6 +162,7 @@ function getOrderItems(order: Order): OrderItem[] {
 
 export default function PerfilPage() {
   const { user, loading } = useClientAuth()
+  const searchParams = useSearchParams()
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
@@ -175,6 +177,18 @@ export default function PerfilPage() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [maxReconnectAttempts] = useState(5)
   const [isReconnecting, setIsReconnecting] = useState(false)
+
+  // Manejar parámetro de verificación
+  useEffect(() => {
+    const verified = searchParams.get('verified')
+    if (verified === 'true') {
+      toast.success('¡Email verificado exitosamente! Bienvenido a PetGourmet.')
+      // Limpiar el parámetro de la URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('verified')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [searchParams])
 
   useEffect(() => {
     console.log('🔍 PerfilPage useEffect - loading:', loading, 'user:', !!user, 'user.id:', user?.id)

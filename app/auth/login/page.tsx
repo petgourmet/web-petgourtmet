@@ -1,7 +1,8 @@
 import { AuthForm } from "@/components/auth/auth-form"
 import { ThemedBackground } from "@/components/themed-background"
+import { Suspense } from "react"
 
-export default function LoginPage() {
+function LoginContent() {
   return (
     <ThemedBackground theme="default">
       <div className="min-h-screen flex items-center justify-center p-4 relative">
@@ -20,5 +21,13 @@ export default function LoginPage() {
         </div>
       </div>
     </ThemedBackground>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <LoginContent />
+    </Suspense>
   )
 }
