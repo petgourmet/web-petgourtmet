@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     // Calcular el total de la orden incluyendo envío
     console.log("Calculating order total...")
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
-    const shipping = subtotal > 500 ? 0 : 90.0  // Envío gratis por compras mayores a $500
+    const shipping = subtotal > 1000 ? 0 : 100.0  // Envío gratis por compras mayores a $1000
     const taxes = 0  // Los impuestos ya están incluidos en el precio del producto
     const total = subtotal + shipping
     console.log(`Calculated subtotal: ${subtotal}, shipping: ${shipping}, taxes: ${taxes}, total: ${total}`)
