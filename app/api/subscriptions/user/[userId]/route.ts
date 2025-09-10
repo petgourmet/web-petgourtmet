@@ -1,7 +1,7 @@
 // app/api/subscriptions/user/[userId]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import MercadoPagoService from '@/lib/mercadopago-service'
 import nodemailer from 'nodemailer'
 
@@ -91,8 +91,8 @@ export async function GET(
   { params }: { params: { userId: string } }
 ) {
   try {
-    const supabase = await createClient()
-    const { userId } = params
+    const supabase = createServiceClient()
+    const { userId } = await params
 
     if (!userId) {
       return NextResponse.json(
@@ -110,7 +110,7 @@ export async function GET(
           id,
           name,
           description,
-          images,
+          image,
           price
         )
       `)
@@ -181,8 +181,8 @@ export async function PUT(
   { params }: { params: { userId: string } }
 ) {
   try {
-    const supabase = await createClient()
-    const { userId } = params
+    const supabase = createServiceClient()
+    const { userId } = await params
     const body = await request.json()
     
     const { subscriptionId, action } = body

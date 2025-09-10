@@ -774,11 +774,12 @@ export class WebhookService {
         }
       }
 
-      // Actualizar fecha de último pago en la suscripción si fue aprobado
+      // Actualizar fecha de último pago y estado en la suscripción si fue aprobado
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
         const { error: subscriptionError } = await supabase
           .from('user_subscriptions')
           .update({
+            status: 'active',
             last_billing_date: paymentData.date_created,
             updated_at: new Date().toISOString()
           })
@@ -789,6 +790,12 @@ export class WebhookService {
             paymentId,
             subscriptionId,
             error: subscriptionError.message
+          })
+        } else {
+          logger.info('Suscripción activada por pago aprobado', 'SUBSCRIPTION', {
+            paymentId,
+            subscriptionId,
+            newStatus: 'active'
           })
         }
 

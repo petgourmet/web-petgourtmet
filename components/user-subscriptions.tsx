@@ -111,6 +111,7 @@ export default function UserSubscriptions({ userId }: UserSubscriptionsProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'authorized':
+      case 'active':
         return 'text-green-600 bg-green-100'
       case 'pending':
         return 'text-yellow-600 bg-yellow-100'
@@ -126,6 +127,7 @@ export default function UserSubscriptions({ userId }: UserSubscriptionsProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'authorized':
+      case 'active':
         return <CheckCircle className="h-4 w-4" />
       case 'pending':
         return <AlertCircle className="h-4 w-4" />
@@ -141,6 +143,7 @@ export default function UserSubscriptions({ userId }: UserSubscriptionsProps) {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'authorized':
+      case 'active':
         return 'Activa'
       case 'pending':
         return 'Pendiente'
@@ -210,8 +213,8 @@ export default function UserSubscriptions({ userId }: UserSubscriptionsProps) {
       <div className="grid gap-6">
         {subscriptions.map((subscription) => {
           const isUpdating = updatingSubscription === subscription.id
-          const canCancel = ['authorized', 'pending'].includes(subscription.status)
-          const canPause = subscription.status === 'authorized'
+          const canCancel = ['authorized', 'active', 'pending'].includes(subscription.status)
+          const canPause = ['authorized', 'active'].includes(subscription.status)
           const canReactivate = subscription.status === 'paused'
 
           return (
@@ -244,7 +247,7 @@ export default function UserSubscriptions({ userId }: UserSubscriptionsProps) {
                         <span>{getFrequencyText(subscription.frequency, subscription.frequency_type)}</span>
                       </div>
                       
-                      {subscription.next_payment_date && subscription.status === 'authorized' && (
+                      {subscription.next_payment_date && ['authorized', 'active'].includes(subscription.status) && (
                         <div className="flex items-center gap-2 text-gray-600">
                           <AlertCircle className="h-4 w-4" />
                           <span>
