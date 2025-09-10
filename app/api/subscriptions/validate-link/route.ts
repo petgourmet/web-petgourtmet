@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { logger } from '@/lib/logger'
+import logger, { LogCategory } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    logger.info('Enlace de suscripción validado exitosamente', 'SUBSCRIPTION', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Enlace de suscripción validado exitosamente', {
       external_reference,
       user_id: extractedUserId,
       plan_id: planId,
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    logger.error('Error validando enlace de suscripción', 'SUBSCRIPTION', {
+    logger.error(LogCategory.SUBSCRIPTION, 'Error validando enlace de suscripción', error.message, {
       error: error.message
     })
 
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
     return await POST(postRequest)
 
   } catch (error: any) {
-    logger.error('Error en GET de validación de enlace', 'SUBSCRIPTION', {
+    logger.error(LogCategory.SUBSCRIPTION, 'Error en GET de validación de enlace', error.message, {
       error: error.message
     })
 

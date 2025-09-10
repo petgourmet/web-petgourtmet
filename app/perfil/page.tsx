@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -160,7 +160,7 @@ function getOrderItems(order: Order): OrderItem[] {
   return order.order_items || order.items || []
 }
 
-export default function PerfilPage() {
+function PerfilPageContent() {
   const { user, loading } = useClientAuth()
   const searchParams = useSearchParams()
   
@@ -1660,5 +1660,24 @@ export default function PerfilPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function PerfilPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Cargando perfil...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <PerfilPageContent />
+    </Suspense>
   )
 }
