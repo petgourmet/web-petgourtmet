@@ -246,6 +246,199 @@ export interface Database {
           is_subscription?: boolean
         }
       }
+      user_subscriptions: {
+        Row: {
+          id: number
+          user_id: string
+          product_id: number
+          status: string
+          frequency: string
+          next_delivery: string
+          created_at: string
+          updated_at: string
+          price: number
+          quantity: number
+          size: string | null
+          paused_until: string | null
+          mercadopago_subscription_id: string | null
+          last_payment_date: string | null
+          payment_method: string | null
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          product_id: number
+          status?: string
+          frequency: string
+          next_delivery: string
+          created_at?: string
+          updated_at?: string
+          price: number
+          quantity: number
+          size?: string | null
+          paused_until?: string | null
+          mercadopago_subscription_id?: string | null
+          last_payment_date?: string | null
+          payment_method?: string | null
+        }
+        Update: {
+          id?: number
+          user_id?: string
+          product_id?: number
+          status?: string
+          frequency?: string
+          next_delivery?: string
+          created_at?: string
+          updated_at?: string
+          price?: number
+          quantity?: number
+          size?: string | null
+          paused_until?: string | null
+          mercadopago_subscription_id?: string | null
+          last_payment_date?: string | null
+          payment_method?: string | null
+        }
+      }
+      pending_subscriptions: {
+        Row: {
+          id: number
+          user_id: string
+          product_id: number
+          frequency: string
+          quantity: number
+          size: string | null
+          price: number
+          created_at: string
+          mercadopago_preference_id: string | null
+          status: string
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          product_id: number
+          frequency: string
+          quantity: number
+          size?: string | null
+          price: number
+          created_at?: string
+          mercadopago_preference_id?: string | null
+          status?: string
+        }
+        Update: {
+          id?: number
+          user_id?: string
+          product_id?: number
+          frequency?: string
+          quantity?: number
+          size?: string | null
+          price?: number
+          created_at?: string
+          mercadopago_preference_id?: string | null
+          status?: string
+        }
+      }
+      subscription_payments: {
+        Row: {
+          id: number
+          subscription_id: number
+          amount: number
+          status: string
+          payment_date: string
+          mercadopago_payment_id: string | null
+          created_at: string
+          failure_reason: string | null
+        }
+        Insert: {
+          id?: number
+          subscription_id: number
+          amount: number
+          status: string
+          payment_date: string
+          mercadopago_payment_id?: string | null
+          created_at?: string
+          failure_reason?: string | null
+        }
+        Update: {
+          id?: number
+          subscription_id?: number
+          amount?: number
+          status?: string
+          payment_date?: string
+          mercadopago_payment_id?: string | null
+          created_at?: string
+          failure_reason?: string | null
+        }
+      }
+      email_logs: {
+        Row: {
+          id: number
+          user_id: string | null
+          email_type: string
+          recipient_email: string
+          subject: string
+          sent_at: string
+          status: string
+          error_message: string | null
+          template_data: Json | null
+        }
+        Insert: {
+          id?: number
+          user_id?: string | null
+          email_type: string
+          recipient_email: string
+          subject: string
+          sent_at?: string
+          status: string
+          error_message?: string | null
+          template_data?: Json | null
+        }
+        Update: {
+          id?: number
+          user_id?: string | null
+          email_type?: string
+          recipient_email?: string
+          subject?: string
+          sent_at?: string
+          status?: string
+          error_message?: string | null
+          template_data?: Json | null
+        }
+      }
+      mercadopago_webhooks: {
+        Row: {
+          id: number
+          webhook_id: string
+          event_type: string
+          data_id: string
+          processed: boolean
+          created_at: string
+          processed_at: string | null
+          raw_data: Json
+          error_message: string | null
+        }
+        Insert: {
+          id?: number
+          webhook_id: string
+          event_type: string
+          data_id: string
+          processed?: boolean
+          created_at?: string
+          processed_at?: string | null
+          raw_data: Json
+          error_message?: string | null
+        }
+        Update: {
+          id?: number
+          webhook_id?: string
+          event_type?: string
+          data_id?: string
+          processed?: boolean
+          created_at?: string
+          processed_at?: string | null
+          raw_data?: Json
+          error_message?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never

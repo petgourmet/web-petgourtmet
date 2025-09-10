@@ -55,8 +55,8 @@ export default function SuscripcionPage() {
         console.log('Procesando external_reference:', externalReference)
         activatePendingSubscription(externalReference)
       } else {
-        // Cargar suscripciones normalmente
-        loadUserSubscriptions()
+        // Activar automáticamente suscripciones pendientes del usuario
+        activateUserPendingSubscriptions()
       }
     }
   }, [user, loading, router])
@@ -94,6 +94,142 @@ export default function SuscripcionPage() {
       console.error("Error al cargar suscripciones:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const activateUserPendingSubscriptions = async () => {
+    if (!user?.id) return
+
+    try {
+      setIsProcessing(true)
+      
+      // Buscar todas las suscripciones pendientes del usuario
+      const { data: pendingSubscriptions, error: pendingError } = await supabase
+        .from("pending_subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .not('mercadopago_subscription_id', 'is', null)
+
+      if (pendingError) {
+        console.error("Error buscando suscripciones pendientes:", pendingError)
+        loadUserSubscriptions()
+        return
+      }
+
+      if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
+        console.log("No se encontraron suscripciones pendientes")
+        loadUserSubscriptions()
+        return
+      }
+
+      console.log(`Encontradas ${pendingSubscriptions.length} suscripciones pendientes`)
+      
+      // Activar cada suscripción pendiente
+      for (const pendingSubscription of pendingSubscriptions) {
+        await activateSingleSubscription(pendingSubscription)
+      }
+      
+      // Actualizar perfil del usuario
+      await updateUserProfile()
+      
+      // Enviar email de bienvenida
+      await sendWelcomeEmail()
+      
+      // Mostrar mensaje de éxito
+      toast({
+        title: "¡Bienvenido a Pet Gourmet!",
+        description: `Se ${pendingSubscriptions.length === 1 ? 'ha activado tu suscripción' : 'han activado ' + pendingSubscriptions.length + ' suscripciones'} exitosamente`,
+      })
+      
+      // Cargar suscripciones actualizadas
+      loadUserSubscriptions()
+      
+    } catch (error) {
+      console.error("Error activando suscripciones pendientes:", error)
+      toast({
+        title: "Error",
+        description: "Hubo un problema al activar las suscripciones",
+        variant: "destructive",
+      })
+      loadUserSubscriptions()
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const activateSingleSubscription = async (pendingSubscription: any) => {
+    if (!user?.id) return
+
+    try {
+      // Calcular próxima fecha de pago basada en el tipo de suscripción
+      const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
+      
+      // Crear suscripción activa en user_subscriptions
+      const { data: newSubscription, error: createError } = await supabase
+        .from("user_subscriptions")
+        .insert({
+          user_id: user.id,
+          subscription_type: pendingSubscription.subscription_type,
+          status: "active",
+          external_reference: pendingSubscription.external_reference || pendingSubscription.mercadopago_subscription_id,
+          next_billing_date: nextBillingDate,
+          last_billing_date: new Date().toISOString(),
+          product_id: pendingSubscription.cart_items?.[0]?.id || null,
+          product_name: pendingSubscription.cart_items?.[0]?.name || "Producto Pet Gourmet",
+          discounted_price: pendingSubscription.cart_items?.[0]?.price || 0,
+          frequency: getFrequencyFromType(pendingSubscription.subscription_type),
+          frequency_type: "months",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        console.error("Error creando suscripción activa:", createError)
+        throw createError
+      }
+
+      // Marcar suscripción pendiente como procesada
+      await supabase
+        .from("pending_subscriptions")
+        .update({ status: "processed" })
+        .eq("id", pendingSubscription.id)
+
+      console.log("Suscripción activada exitosamente:", newSubscription)
+      
+    } catch (error) {
+      console.error("Error activando suscripción individual:", error)
+      throw error
+    }
+  }
+
+  const sendWelcomeEmail = async () => {
+    if (!user?.email) return
+
+    try {
+      const response = await fetch('/api/subscriptions/send-thank-you-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          name: user.user_metadata?.full_name || user.email
+        })
+      })
+
+      const result = await response.json()
+      
+      if (response.ok) {
+        console.log("Email de bienvenida enviado exitosamente")
+      } else {
+        console.error("Error enviando email de bienvenida:", result.error)
+      }
+      
+    } catch (error) {
+      console.error("Error enviando email de bienvenida:", error)
     }
   }
 
@@ -495,18 +631,14 @@ export default function SuscripcionPage() {
           <div className="max-w-2xl mx-auto text-center">
             <Card>
               <CardContent className="p-8">
-                <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  No se encontraron suscripciones activas
+                  ¡Tu suscripción está siendo procesada!
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Parece que aún no tienes suscripciones activas. ¡Explora nuestros productos y encuentra el plan perfecto para tu mascota!
+                  Estamos activando tu suscripción. En unos momentos podrás ver todos los detalles de tu plan Pet Gourmet.
                 </p>
-                <Link href="/">
-                  <Button className="bg-primary hover:bg-primary/90">
-                    Explorar Productos
-                  </Button>
-                </Link>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               </CardContent>
             </Card>
           </div>

@@ -282,7 +282,7 @@ export default function PerfilPage() {
           setRealtimeStatus('connected')
           setReconnectAttempts(0) // Reset contador de reconexión
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error en canal de órdenes en tiempo real')
+          console.warn('⚠️ Error en canal de órdenes en tiempo real')
           setRealtimeStatus('disconnected')
           handleRealtimeError('orders')
         } else if (status === 'CLOSED') {
@@ -329,7 +329,7 @@ export default function PerfilPage() {
           setRealtimeStatus('connected')
           setReconnectAttempts(0) // Reset contador de reconexión
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error en canal de suscripciones en tiempo real')
+          console.warn('⚠️ Error en canal de suscripciones en tiempo real')
           setRealtimeStatus('disconnected')
           handleRealtimeError('subscriptions')
         } else if (status === 'CLOSED') {
@@ -362,7 +362,7 @@ export default function PerfilPage() {
           setRealtimeStatus('connected')
           setReconnectAttempts(0) // Reset contador de reconexión
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Error en canal de perfil en tiempo real')
+          console.warn('⚠️ Error en canal de perfil en tiempo real')
           setRealtimeStatus('disconnected')
           handleRealtimeError('profile')
         } else if (status === 'CLOSED') {
@@ -386,7 +386,7 @@ export default function PerfilPage() {
     }
 
     if (reconnectAttempts >= maxReconnectAttempts) {
-      console.error(`❌ Máximo número de intentos de reconexión alcanzado para ${channelType}`)
+      console.warn(`⚠️ Máximo número de intentos de reconexión alcanzado para ${channelType}`)
       toast.error('Error de conexión en tiempo real. Recarga la página para reconectar.')
       return
     }
