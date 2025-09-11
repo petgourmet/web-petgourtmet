@@ -351,14 +351,42 @@ export class WebhookService {
       })
 
       // Determinar si es pago de orden o suscripción
-      const isSubscriptionPayment = paymentData.metadata?.subscription_id || 
-                                   paymentData.external_reference?.startsWith('subscription_')
+      // Primero verificar por metadata y patrón de external_reference
+      let isSubscriptionPayment = paymentData.metadata?.subscription_id || 
+                                 paymentData.external_reference?.startsWith('subscription_')
+      
+      // Si no se detectó como suscripción, buscar en pending_subscriptions por external_reference
+      if (!isSubscriptionPayment && paymentData.external_reference) {
+        try {
+          const { data: pendingSubscription } = await supabase
+            .from('pending_subscriptions')
+            .select('id')
+            .eq('external_reference', paymentData.external_reference)
+            .single()
+          
+          if (pendingSubscription) {
+            isSubscriptionPayment = true
+            logger.info('Pago identificado como suscripción por pending_subscriptions', 'WEBHOOK', {
+              paymentId,
+              externalReference: paymentData.external_reference,
+              pendingSubscriptionId: pendingSubscription.id
+            })
+          }
+        } catch (error) {
+          // No es error crítico, continuar con detección normal
+          logger.debug('No se encontró suscripción pendiente para external_reference', 'WEBHOOK', {
+            paymentId,
+            externalReference: paymentData.external_reference
+          })
+        }
+      }
 
       logger.info('Tipo de pago determinado', 'WEBHOOK', {
         paymentId,
         isSubscriptionPayment,
         hasMetadataSubscriptionId: !!paymentData.metadata?.subscription_id,
-        externalReferenceStartsWithSubscription: paymentData.external_reference?.startsWith('subscription_')
+        externalReferenceStartsWithSubscription: paymentData.external_reference?.startsWith('subscription_'),
+        foundInPendingSubscriptions: isSubscriptionPayment && !paymentData.metadata?.subscription_id && !paymentData.external_reference?.startsWith('subscription_')
       })
 
       let result: boolean
@@ -689,15 +717,37 @@ export class WebhookService {
     const startTime = Date.now()
     
     try {
-      const subscriptionId = paymentData.metadata?.subscription_id || 
-                           paymentData.external_reference?.replace('subscription_', '')
+      let subscriptionId = paymentData.metadata?.subscription_id || 
+                          paymentData.external_reference?.replace('subscription_', '')
       const paymentId = paymentData.id
+      let pendingSubscription = null
+      
+      // Si no tenemos subscriptionId, buscar en pending_subscriptions por external_reference
+      if (!subscriptionId && paymentData.external_reference) {
+        const { data: pending, error: pendingError } = await supabase
+          .from('pending_subscriptions')
+          .select('*')
+          .eq('external_reference', paymentData.external_reference)
+          .single()
+        
+        if (pending && !pendingError) {
+          pendingSubscription = pending
+          subscriptionId = pending.id // Usar el ID de la suscripción pendiente temporalmente
+          logger.info('Suscripción pendiente encontrada por external_reference', 'SUBSCRIPTION', {
+            paymentId,
+            externalReference: paymentData.external_reference,
+            pendingSubscriptionId: pending.id,
+            userId: pending.user_id
+          })
+        }
+      }
       
       logger.info('Iniciando manejo de pago de suscripción', 'SUBSCRIPTION', {
         paymentId,
         subscriptionId,
         paymentStatus: paymentData.status,
-        amount: paymentData.transaction_amount
+        amount: paymentData.transaction_amount,
+        hasPendingSubscription: !!pendingSubscription
       })
       
       if (!subscriptionId) {
@@ -776,27 +826,81 @@ export class WebhookService {
 
       // Actualizar fecha de último pago y estado en la suscripción si fue aprobado
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
-        const { error: subscriptionError } = await supabase
-          .from('user_subscriptions')
-          .update({
-            status: 'active',
-            last_billing_date: paymentData.date_created,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', subscriptionId)
-
-        if (subscriptionError) {
-          logger.error('Error actualizando suscripción', 'SUBSCRIPTION', {
-            paymentId,
-            subscriptionId,
-            error: subscriptionError.message
-          })
+        if (pendingSubscription) {
+          // Activar suscripción pendiente
+          const nextBillingDate = this.calculateNextBillingDate(
+            pendingSubscription.subscription_type || 'monthly'
+          )
+          
+          // Crear suscripción activa desde la pendiente
+          const { data: newSubscription, error: createError } = await supabase
+            .from('user_subscriptions')
+            .insert({
+              user_id: pendingSubscription.user_id,
+              plan_id: pendingSubscription.plan_id,
+              status: 'active',
+              subscription_type: pendingSubscription.subscription_type,
+              price: pendingSubscription.price,
+              external_reference: pendingSubscription.external_reference,
+              mercadopago_subscription_id: paymentData.metadata?.subscription_id,
+              last_billing_date: paymentData.date_created,
+              next_billing_date: nextBillingDate,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+          
+          if (createError) {
+            logger.error('Error creando suscripción activa desde pendiente', 'SUBSCRIPTION', {
+              paymentId,
+              pendingSubscriptionId: pendingSubscription.id,
+              error: createError.message
+            })
+          } else {
+            // Actualizar estado de suscripción pendiente a completada
+            await supabase
+              .from('pending_subscriptions')
+              .update({ 
+                status: 'completed',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', pendingSubscription.id)
+            
+            logger.info('Suscripción pendiente activada exitosamente', 'SUBSCRIPTION', {
+              paymentId,
+              pendingSubscriptionId: pendingSubscription.id,
+              newSubscriptionId: newSubscription.id,
+              userId: pendingSubscription.user_id
+            })
+            
+            // Usar el ID de la nueva suscripción para el email
+            subscriptionId = newSubscription.id
+          }
         } else {
-          logger.info('Suscripción activada por pago aprobado', 'SUBSCRIPTION', {
-            paymentId,
-            subscriptionId,
-            newStatus: 'active'
-          })
+          // Actualizar suscripción existente
+          const { error: subscriptionError } = await supabase
+            .from('user_subscriptions')
+            .update({
+              status: 'active',
+              last_billing_date: paymentData.date_created,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', subscriptionId)
+
+          if (subscriptionError) {
+            logger.error('Error actualizando suscripción', 'SUBSCRIPTION', {
+              paymentId,
+              subscriptionId,
+              error: subscriptionError.message
+            })
+          } else {
+            logger.info('Suscripción activada por pago aprobado', 'SUBSCRIPTION', {
+              paymentId,
+              subscriptionId,
+              newStatus: 'active'
+            })
+          }
         }
 
         // Enviar email de confirmación de pago
@@ -1045,7 +1149,8 @@ export class WebhookService {
       'weekly': 1,
       'biweekly': 2,
       'monthly': 1,
-      'quarterly': 3
+      'quarterly': 3,
+      'annual': 12
     }
     return frequencyMap[subscriptionType] || 1
   }
@@ -1055,7 +1160,8 @@ export class WebhookService {
       'weekly': 'weeks',
       'biweekly': 'weeks',
       'monthly': 'months',
-      'quarterly': 'months'
+      'quarterly': 'months',
+      'annual': 'months'
     }
     return typeMap[subscriptionType] || 'months'
   }
@@ -1567,42 +1673,59 @@ export class WebhookService {
         return
       }
 
-      const recipientEmail = paymentData.payer?.email || subscription.customer_email
+      // Obtener información del usuario
+      const { data: userData } = await supabase.auth.admin.getUserById(subscription.user_id)
+      const userEmail = userData.user?.email || paymentData.payer?.email
+      const userName = userData.user?.user_metadata?.full_name || userEmail?.split('@')[0] || 'Cliente'
       
       logger.info('Enviando email de pago de suscripción', 'SUBSCRIPTION', {
         subscriptionId,
         paymentId: paymentData.id,
-        recipientEmail,
+        userEmail,
         productName: subscription.product?.name,
         amount: paymentData.transaction_amount
       })
 
+      // Enviar email al cliente usando la plantilla de email-service
       const { sendSubscriptionEmail } = await import('./email-service')
       
       await sendSubscriptionEmail({
-        to: recipientEmail,
+        to: userEmail,
         planName: subscription.subscription_type || 'Plan Pet Gourmet',
         productName: subscription.product?.name || 'Producto Pet Gourmet Premium',
         amount: paymentData.transaction_amount,
         frequency: 'mensual',
         nextBillingDate: subscription.next_billing_date,
         subscriptionId: subscription.id,
-        customerName: recipientEmail.split('@')[0] || 'Cliente',
+        customerName: userName,
         paymentId: paymentData.id,
         paymentMethod: paymentData.payment_method_id,
         paymentDate: paymentData.date_created
       }, 'payment')
 
+      // Enviar notificación al admin usando contact-email-service
+      const { sendSubscriptionPaymentSuccess } = await import('./contact-email-service')
+      
+      await sendSubscriptionPaymentSuccess({
+        userEmail: userEmail,
+        userName: userName,
+        productName: subscription.product?.name || 'Producto Pet Gourmet Premium',
+        amount: paymentData.transaction_amount,
+        paymentDate: paymentData.date_created,
+        nextPaymentDate: subscription.next_billing_date,
+        subscriptionId: subscription.id
+      })
+
       const duration = Date.now() - startTime
-      logger.info('Email de pago de suscripción enviado exitosamente', 'SUBSCRIPTION', {
+      logger.info('Emails de pago de suscripción enviados exitosamente (cliente y admin)', 'SUBSCRIPTION', {
         subscriptionId,
         paymentId: paymentData.id,
-        recipientEmail,
+        userEmail,
         duration
       })
     } catch (error) {
       const duration = Date.now() - startTime
-      logger.error('Error enviando email de pago de suscripción', 'SUBSCRIPTION', {
+      logger.error('Error enviando emails de pago de suscripción', 'SUBSCRIPTION', {
         subscriptionId,
         paymentId: paymentData.id,
         error: error.message,

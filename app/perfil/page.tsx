@@ -736,11 +736,19 @@ function PerfilPageContent() {
 
 
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | null | undefined) => {
+    // Manejar valores null, undefined o NaN
+    if (price == null || isNaN(Number(price))) {
+      return '$0.00'
+    }
+    
+    // Asegurar que sea un número válido
+    const validPrice = Number(price)
+    
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN'
-    }).format(price)
+    }).format(validPrice)
   }
 
   const formatDate = (dateString: string) => {
@@ -1361,11 +1369,11 @@ function PerfilPageContent() {
                     frequencyDisplay = 'Anual'
                   }
                   
-                  // Precios
-                  const basePrice = subscription.base_price || subscription.transaction_amount || firstCartItem.price || (product?.price || 0)
-                  const discountedPrice = subscription.discounted_price || basePrice
+                  // Precios - Asegurar valores válidos
+                  const basePrice = subscription.base_price || subscription.transaction_amount || firstCartItem?.price || product?.price || 0
+                  const discountedPrice = subscription.discounted_price || basePrice || 0
                   const discountPercentage = subscription.discount_percentage || 0
-                  const discountAmount = basePrice - discountedPrice
+                  const discountAmount = Math.max(0, (basePrice || 0) - (discountedPrice || 0))
                 
                   return (
                     <Card key={subscription.id} className={`hover:shadow-lg transition-all duration-300 border-l-4 ${subscription.status === 'pending' ? 'border-l-[#78b7bf]' : 'border-l-indigo-500'}`}>
@@ -1564,27 +1572,38 @@ function PerfilPageContent() {
                               <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-4">
                                 {/* Precio */}
                                 <div className="text-center">
-                                  {discountAmount > 0 ? (
-                                    <div className="space-y-2">
-                                      <div className="text-lg text-gray-500 line-through">
-                                        {formatPrice(basePrice)}
+                                  {/* Detalles de precio */}
+                                  <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
+                                    <h4 className="font-semibold text-gray-800 mb-3">Detalles de Precio</h4>
+                                    <div className="space-y-2 text-sm">
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Producto:</span>
+                                        <span className="font-medium">{formatPrice(discountedPrice)}</span>
                                       </div>
-                                      <div className="flex items-center justify-center gap-2">
-                                        <DollarSign className="h-6 w-6 text-green-600" />
-                                        <span className="text-3xl font-bold text-green-600">
-                                          {formatPrice(discountedPrice)}
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Envío:</span>
+                                        <span className="font-medium">
+                                          {discountedPrice >= 1000 ? (
+                                            <span className="text-green-600">GRATIS</span>
+                                          ) : (
+                                            formatPrice(100)
+                                          )}
                                         </span>
                                       </div>
-                                      <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                                        💰 Ahorras {formatPrice(discountAmount)}
+                                      <div className="border-t border-gray-200 pt-2 mt-2">
+                                        <div className="flex justify-between font-semibold text-lg">
+                                          <span className="text-gray-800">Total:</span>
+                                          <span className={`${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`}>
+                                            {formatPrice(discountedPrice >= 1000 ? discountedPrice : discountedPrice + 100)}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
-                                  ) : (
-                                    <div className="flex items-center justify-center gap-2">
-                                      <DollarSign className={`h-6 w-6 ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`} />
-                                      <span className={`text-3xl font-bold ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`}>
-                                        {formatPrice(discountedPrice)}
-                                      </span>
+                                  </div>
+
+                                  {discountAmount > 0 && (
+                                    <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium mb-3">
+                                      💰 Ahorras {formatPrice(discountAmount)} en el producto
                                     </div>
                                   )}
                                   

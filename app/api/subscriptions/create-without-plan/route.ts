@@ -133,6 +133,8 @@ export async function POST(request: NextRequest) {
             frequency: result.auto_recurring?.frequency || auto_recurring.frequency,
             frequency_type: result.auto_recurring?.frequency_type || auto_recurring.frequency_type,
             transaction_amount: result.auto_recurring?.transaction_amount || auto_recurring.transaction_amount,
+            base_price: body.original_price || auto_recurring.transaction_amount,
+            discounted_price: body.discounted_price || auto_recurring.transaction_amount,
             currency_id: result.auto_recurring?.currency_id || auto_recurring.currency_id || 'MXN',
             start_date: result.auto_recurring?.start_date || auto_recurring.start_date,
             end_date: result.auto_recurring?.end_date || auto_recurring.end_date,

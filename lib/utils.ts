@@ -5,13 +5,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatPrice(price: number): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(price)
+export function formatPrice(price: number | null | undefined): string {
+  // Manejar valores undefined, null o NaN
+  if (price === null || price === undefined || isNaN(price)) {
+    return '$0.00'
+  }
+  
+  // Asegurar que el precio sea un número válido
+  const validPrice = typeof price === 'number' ? price : parseFloat(String(price))
+  
+  // Si después de la conversión sigue siendo NaN, devolver $0.00
+  if (isNaN(validPrice)) {
+    return '$0.00'
+  }
+  
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  }).format(validPrice)
 }
 
 export function formatDate(date: string | Date): string {

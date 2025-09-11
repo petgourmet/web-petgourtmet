@@ -404,7 +404,7 @@ export default function AdminSubscriptionOrdersPage() {
       (sub.user_profile?.full_name && sub.user_profile.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (sub.user_profile?.email && sub.user_profile.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (sub.product?.name && sub.product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (sub.id && sub.id.toLowerCase().includes(searchTerm.toLowerCase()))
+      (sub.id && sub.id.toString().toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesStatus = statusFilter === "all" || 
       (statusFilter === "active" && sub.status === 'active') ||
@@ -424,11 +424,22 @@ export default function AdminSubscriptionOrdersPage() {
     })
   }
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | null | undefined) => {
+    // Manejar valores undefined, null o NaN
+    if (price === null || price === undefined || isNaN(price)) {
+      return '$0.00'
+    }
+    
+    // Asegurar que el precio sea un número válido
+    const validPrice = typeof price === 'number' ? price : parseFloat(String(price))
+    if (isNaN(validPrice)) {
+      return '$0.00'
+    }
+    
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN'
-    }).format(price)
+    }).format(validPrice)
   }
 
   const getStatusBadge = (subscription: AdminSubscription) => {
@@ -823,9 +834,52 @@ export default function AdminSubscriptionOrdersPage() {
                       <div>
                         <p className="text-gray-500">Precio</p>
                         <div className="flex flex-col">
-                          <p className="font-semibold">{formatPrice(subscription.discounted_price || subscription.price)}</p>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span>Producto:</span>
+                              <span>{formatPrice(
+                                subscription.discounted_price || 
+                                subscription.base_price || 
+                                subscription.transaction_amount || 
+                                subscription.price || 
+                                subscription.products?.price || 
+                                0
+                              )}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span>Envío:</span>
+                              <span>
+                                {(
+                                  subscription.discounted_price || 
+                                  subscription.base_price || 
+                                  subscription.transaction_amount || 
+                                  subscription.price || 
+                                  subscription.products?.price || 
+                                  0
+                                ) >= 1000 ? (
+                                  <span className="text-green-600">GRATIS</span>
+                                ) : (
+                                  formatPrice(100)
+                                )}
+                              </span>
+                            </div>
+                            <div className="border-t pt-1">
+                              <div className="flex justify-between font-semibold">
+                                <span>Total:</span>
+                                <span>{formatPrice((() => {
+                                  const productPrice = subscription.discounted_price || 
+                                    subscription.base_price || 
+                                    subscription.transaction_amount || 
+                                    subscription.price || 
+                                    subscription.products?.price || 
+                                    0;
+                                  return productPrice >= 1000 ? productPrice : productPrice + 100;
+                                })())}</span>
+                              </div>
+                            </div>
+                          </div>
                           {subscription.discount_percentage > 0 && (
-                            <p className="text-xs text-green-600">
+                            <p className="text-xs text-green-600 mt-1">
                               {subscription.discount_percentage}% descuento
                             </p>
                           )}

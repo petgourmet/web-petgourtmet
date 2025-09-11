@@ -67,9 +67,14 @@ export default function SubscriptionPlans({
     const type = plan.frequency_type
     
     if (type === 'weeks') {
-      return frequency === 1 ? 'Semanal' : `Cada ${frequency} semanas`
+      if (frequency === 1) return 'Semanal'
+      if (frequency === 2) return 'Quincenal'
+      return `Cada ${frequency} semanas`
     } else if (type === 'months') {
-      return frequency === 1 ? 'Mensual' : `Cada ${frequency} meses`
+      if (frequency === 1) return 'Mensual'
+      if (frequency === 3) return 'Trimestral'
+      if (frequency === 12) return 'Anual'
+      return `Cada ${frequency} meses`
     }
     return `Cada ${frequency} ${type}`
   }

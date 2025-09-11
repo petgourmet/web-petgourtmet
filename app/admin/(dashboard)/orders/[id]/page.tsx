@@ -211,12 +211,23 @@ export default function OrderDetailPage() {
   }
 
   // Formatear número como moneda
-  function formatCurrency(amount: number) {
+  function formatCurrency(amount: number | null | undefined) {
+    // Manejar valores undefined, null o NaN
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '$0'
+    }
+    
+    // Asegurar que el monto sea un número válido
+    const validAmount = typeof amount === 'number' ? amount : parseFloat(String(amount))
+    if (isNaN(validAmount)) {
+      return '$0'
+    }
+    
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
       currency: "COP",
       minimumFractionDigits: 0,
-    }).format(amount)
+    }).format(validAmount)
   }
 
   // Formatear fecha

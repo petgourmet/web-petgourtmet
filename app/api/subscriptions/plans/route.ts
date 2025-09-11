@@ -138,6 +138,15 @@ export async function GET(request: NextRequest) {
         recommended: false
       },
       {
+        id: "plan_quincenal_petgourmet",
+        name: "Plan Quincenal",
+        description: "Entrega cada 2 semanas con descuento atractivo",
+        frequency: 2,
+        frequency_type: "weeks",
+        discount_percentage: 7,
+        recommended: false
+      },
+      {
         id: "plan_mensual_petgourmet", 
         name: "Plan Mensual",
         description: "Entrega mensual con descuento especial",
