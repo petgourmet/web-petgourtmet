@@ -1,5 +1,8 @@
 // Optimizaciones de consultas para evitar duplicación y mejorar rendimiento
 import { SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 // Tipos compartidos
 export interface OptimizedOrder {
@@ -181,7 +184,7 @@ export async function fetchOptimizedSubscriptions(
   const queryFn = async () => {
     // Consulta batch optimizada incluyendo historial de facturación
     const [userSubscriptionsResult, pendingSubscriptionsResult, billingHistoryResult] = await Promise.all([
-      // Suscripciones activas
+      // Todas las suscripciones (activas, canceladas, etc.)
       userId ? 
         supabase
           .from('user_subscriptions')
@@ -200,8 +203,6 @@ export async function fetchOptimizedSubscriptions(
             )
           `)
           .eq('user_id', userId)
-          .not('mercadopago_subscription_id', 'is', null)
-          .eq('status', 'active')
           .order('created_at', { ascending: false })
         :
         supabase
@@ -220,8 +221,6 @@ export async function fetchOptimizedSubscriptions(
               biweekly_discount
             )
           `)
-          .not('mercadopago_subscription_id', 'is', null)
-          .eq('status', 'active')
           .order('created_at', { ascending: false }),
       
       // Suscripciones pendientes válidas (incluir todas las pendientes, con o sin mercadopago_subscription_id)
@@ -324,9 +323,12 @@ export async function fetchOptimizedSubscriptions(
         }
       }
       
-      // Estandarizar estado
+      // Estandarizar estado - priorizar el status de la base de datos
       let standardizedStatus = sub.status || 'inactive'
-      if (sub.cancelled_at) {
+      
+      // Solo marcar como cancelada si el status es explícitamente 'cancelled'
+      // No usar cancelled_at como único criterio ya que puede haber intentos de cancelación fallidos
+      if (sub.status === 'cancelled') {
         standardizedStatus = 'cancelled'
       } else if (sub.status === 'active') {
         standardizedStatus = 'active'
@@ -628,9 +630,314 @@ export function invalidateOrdersCache() {
   clearQueryCache('orders_')
 }
 
+/**
+ * Versión para administradores que bypasea RLS
+ * Obtiene todas las suscripciones del sistema sin filtros de usuario
+ */
+export async function fetchOptimizedSubscriptionsAdmin(
+  _supabase?: SupabaseClient, // Parámetro opcional para compatibilidad
+  includeInactive: boolean = false
+): Promise<OptimizedSubscription[]> {
+  try {
+    // Usar cliente de servicio que bypassa RLS completamente
+    const serviceClient = createServiceClient()
+    
+    let query = serviceClient
+      .from('subscriptions')
+      .select(`
+        id,
+        user_id,
+        plan_id,
+        status,
+        current_period_start,
+        current_period_end,
+        created_at,
+        updated_at,
+        stripe_subscription_id,
+        stripe_customer_id,
+        cancel_at_period_end,
+        canceled_at,
+        trial_end,
+        profiles!inner (
+          id,
+          email,
+          full_name,
+          phone
+        ),
+        subscription_plans!inner (
+          id,
+          name,
+          price,
+          interval,
+          features
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (!includeInactive) {
+      query = query.in('status', ['active', 'trialing', 'past_due'])
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error fetching admin subscriptions:', error)
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error in fetchOptimizedSubscriptionsAdmin:', error)
+    throw error
+  }
+}
+
+// Función optimizada para obtener TODAS las suscripciones (para admin) - Legacy
+export async function fetchOptimizedSubscriptionsAdminLegacy(
+  supabase: SupabaseClient,
+  useCache: boolean = true
+): Promise<OptimizedSubscription[]> {
+  const cacheKey = 'subscriptions_admin_all'
+  
+  const queryFn = async () => {
+    console.log('🔍 Fetching ALL subscriptions for admin (bypassing RLS)...')
+    
+    // Consulta batch optimizada para TODAS las suscripciones (sin filtro de usuario)
+    const [userSubscriptionsResult, pendingSubscriptionsResult, billingHistoryResult] = await Promise.all([
+      // Todas las suscripciones (activas, canceladas, etc.) - SIN FILTRO DE USUARIO
+      supabase
+        .from('user_subscriptions')
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price,
+            monthly_discount,
+            quarterly_discount,
+            annual_discount,
+            biweekly_discount
+          )
+        `)
+        .order('created_at', { ascending: false }),
+      
+      // Suscripciones pendientes - SIN FILTRO DE USUARIO
+      supabase
+        .from('pending_subscriptions')
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price,
+            monthly_discount,
+            quarterly_discount,
+            annual_discount,
+            biweekly_discount
+          )
+        `)
+        .order('created_at', { ascending: false }),
+      
+      // Historial de facturación - SIN FILTRO DE USUARIO
+      supabase
+        .from('billing_history')
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price,
+            monthly_discount,
+            quarterly_discount,
+            annual_discount,
+            biweekly_discount
+          )
+        `)
+        .eq('status', 'approved')
+        .order('billing_date', { ascending: false })
+    ])
+    
+    if (userSubscriptionsResult.error) {
+      console.error('Error fetching user subscriptions (admin):', userSubscriptionsResult.error)
+    }
+    if (pendingSubscriptionsResult.error) {
+      console.error('Error fetching pending subscriptions (admin):', pendingSubscriptionsResult.error)
+    }
+    if (billingHistoryResult.error) {
+      console.error('Error fetching billing history (admin):', billingHistoryResult.error)
+    }
+    
+    const userSubscriptions = userSubscriptionsResult.data || []
+    const pendingSubscriptions = pendingSubscriptionsResult.data || []
+    const billingHistory = billingHistoryResult.data || []
+    
+    console.log(`📊 Admin data loaded: ${userSubscriptions.length} user subs, ${pendingSubscriptions.length} pending, ${billingHistory.length} billing records`)
+    
+    // Procesar suscripciones activas
+    const processedActiveSubscriptions = userSubscriptions.map(subscription => {
+      const product = subscription.products
+      const frequency = getFrequencyFromType(subscription.subscription_type)
+      
+      let discountAmount = 0
+      if (product) {
+        switch (frequency) {
+          case 'weekly':
+            discountAmount = product.weekly_discount || 0
+            break
+          case 'monthly':
+            discountAmount = product.monthly_discount || 0
+            break
+          case 'quarterly':
+            discountAmount = product.quarterly_discount || 0
+            break
+          case 'annual':
+            discountAmount = product.annual_discount || 0
+            break
+          case 'biweekly':
+            discountAmount = product.biweekly_discount || 0
+            break
+        }
+      }
+      
+      return {
+        ...subscription,
+        frequency,
+        discount_amount: discountAmount,
+        source: 'user_subscriptions',
+        products: product
+      }
+    })
+    
+    // Procesar suscripciones pendientes
+    const processedPendingSubscriptions = pendingSubscriptions.map(subscription => {
+      const product = subscription.products
+      const frequency = getFrequencyFromType(subscription.subscription_type)
+      
+      let discountAmount = 0
+      if (product) {
+        switch (frequency) {
+          case 'weekly':
+            discountAmount = product.weekly_discount || 0
+            break
+          case 'monthly':
+            discountAmount = product.monthly_discount || 0
+            break
+          case 'quarterly':
+            discountAmount = product.quarterly_discount || 0
+            break
+          case 'annual':
+            discountAmount = product.annual_discount || 0
+            break
+          case 'biweekly':
+            discountAmount = product.biweekly_discount || 0
+            break
+        }
+      }
+      
+      return {
+        ...subscription,
+        frequency,
+        discount_amount: discountAmount,
+        source: 'pending_subscriptions',
+        products: product
+      }
+    })
+    
+    // Procesar historial de facturación
+    const processedBillingSubscriptions = billingHistory
+      .filter(billing => {
+        // Solo incluir si no existe ya en user_subscriptions o pending_subscriptions
+        const existsInActive = userSubscriptions.some(sub => 
+          sub.user_id === billing.user_id && sub.product_id === billing.product_id
+        )
+        const existsInPending = pendingSubscriptions.some(sub => 
+          sub.user_id === billing.user_id && sub.product_id === billing.product_id
+        )
+        return !existsInActive && !existsInPending
+      })
+      .map(billing => {
+        const product = billing.products
+        const frequency = getFrequencyFromType(billing.subscription_type)
+        
+        let discountAmount = 0
+        if (product) {
+          switch (frequency) {
+            case 'weekly':
+              discountAmount = product.weekly_discount || 0
+              break
+            case 'monthly':
+              discountAmount = product.monthly_discount || 0
+              break
+            case 'quarterly':
+              discountAmount = product.quarterly_discount || 0
+              break
+            case 'annual':
+              discountAmount = product.annual_discount || 0
+              break
+            case 'biweekly':
+              discountAmount = product.biweekly_discount || 0
+              break
+          }
+        }
+        
+        return {
+          id: `billing_${billing.id}`,
+          user_id: billing.user_id,
+          product_id: billing.product_id,
+          status: 'active',
+          frequency,
+          price: billing.amount,
+          discount_amount: discountAmount,
+          next_billing_date: null,
+          created_at: billing.billing_date,
+          last_billing_date: billing.billing_date,
+          source: 'billing_history',
+          products: product,
+          billing_info: {
+            payment_id: billing.mercadopago_payment_id,
+            payment_method: billing.payment_method,
+            status: billing.status,
+            amount: billing.amount
+          }
+        }
+      })
+    
+    // Combinar y deduplicar
+    const allSubscriptions = [
+      ...processedActiveSubscriptions, 
+      ...processedPendingSubscriptions,
+      ...processedBillingSubscriptions
+    ]
+    
+    const uniqueSubscriptions = allSubscriptions.filter((sub, index, self) =>
+      index === self.findIndex(s => s.id === sub.id)
+    )
+    
+    // Obtener perfiles de usuario para TODAS las suscripciones
+    const userIds = [...new Set(uniqueSubscriptions.map(sub => sub.user_id))].filter(Boolean)
+    const userProfiles = await fetchOptimizedUserProfiles(userIds, supabase, useCache)
+    
+    // Agregar información del perfil a cada suscripción
+    const subscriptionsWithProfiles = uniqueSubscriptions.map(sub => ({
+      ...sub,
+      user_profile: userProfiles.find(profile => profile.id === sub.user_id)
+    }))
+    
+    console.log(`✅ Admin subscriptions processed: ${subscriptionsWithProfiles.length} total subscriptions`)
+    
+    return subscriptionsWithProfiles
+  }
+  
+  return useCache ? getCachedQuery(cacheKey, queryFn) : queryFn()
+}
+
 // Función para invalidar cache de suscripciones
 export function invalidateSubscriptionsCache() {
   clearQueryCache('subscriptions_')
+  clearQueryCache('subscriptions_admin_all')
 }
 
 // Función para invalidar cache cuando hay cambios

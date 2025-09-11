@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
-import { fetchOptimizedSubscriptions, invalidateSubscriptionsCache } from '@/lib/query-optimizations'
+import { invalidateSubscriptionsCache } from '@/lib/query-optimizations'
 import SubscriptionValidator from "@/components/subscription-validator"
 import { 
   Calendar, 
@@ -202,8 +202,16 @@ export default function AdminSubscriptionOrdersPage() {
         console.log('⚠️ Canal de tiempo real ya existe, evitando duplicación')
       }
       
-      // Usar función optimizada
-      const optimizedSubscriptions = await fetchOptimizedSubscriptions(null, supabase, false)
+      // Usar API route para obtener suscripciones (bypasea RLS)
+      const response = await fetch('/api/admin/subscriptions')
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`)
+      }
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || 'Error al obtener suscripciones')
+      }
+      const optimizedSubscriptions = result.data
       
       // Convertir a formato AdminSubscription
       const adminSubscriptions = optimizedSubscriptions.map(sub => ({
@@ -399,9 +407,9 @@ export default function AdminSubscriptionOrdersPage() {
       (sub.id && sub.id.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "active" && sub.is_active && !sub.cancelled_at) ||
-      (statusFilter === "inactive" && !sub.is_active && !sub.cancelled_at) ||
-      (statusFilter === "cancelled" && sub.cancelled_at) ||
+      (statusFilter === "active" && sub.status === 'active') ||
+      (statusFilter === "inactive" && !sub.is_active && sub.status !== 'cancelled') ||
+      (statusFilter === "cancelled" && sub.status === 'cancelled') ||
       (statusFilter === "pending" && sub.status === "pending")
     
     return matchesSearch && matchesStatus
@@ -424,13 +432,13 @@ export default function AdminSubscriptionOrdersPage() {
   }
 
   const getStatusBadge = (subscription: AdminSubscription) => {
-    if (subscription.cancelled_at) {
+    if (subscription.status === 'cancelled') {
       return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelada</Badge>
     }
     if (subscription.status === "pending") {
       return <Badge variant="outline" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pendiente (Webhook)</Badge>
     }
-    if (subscription.is_active) {
+    if (subscription.status === 'active') {
       return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Activa</Badge>
     }
     return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Inactiva</Badge>
@@ -587,7 +595,7 @@ export default function AdminSubscriptionOrdersPage() {
 
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center">
@@ -595,7 +603,7 @@ export default function AdminSubscriptionOrdersPage() {
               <div className="ml-3">
                 <p className="text-sm text-gray-600">Activas</p>
                 <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.is_active && !s.cancelled_at).length}
+                  {subscriptions.filter(s => s.status === 'active').length}
                 </p>
               </div>
             </div>
@@ -623,7 +631,21 @@ export default function AdminSubscriptionOrdersPage() {
               <div className="ml-3">
                 <p className="text-sm text-gray-600">Canceladas</p>
                 <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.cancelled_at).length}
+                  {subscriptions.filter(s => s.status === 'cancelled').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <Activity className="h-6 w-6 text-gray-600" />
+              <div className="ml-3">
+                <p className="text-sm text-gray-600">Inactivas</p>
+                <p className="text-xl font-bold">
+                  {subscriptions.filter(s => !s.is_active && s.status !== 'cancelled' && s.status !== 'pending').length}
                 </p>
               </div>
             </div>
@@ -751,11 +773,16 @@ export default function AdminSubscriptionOrdersPage() {
                         {/* ID de suscripción y MercadoPago */}
                         <div className="flex flex-col gap-1 mt-2">
                           <p className="text-xs text-gray-400 font-mono">
-                            ID: {subscription.id}
+                            ID: {String(subscription.id).slice(0, 8)}...
                           </p>
                           {subscription.mercadopago_subscription_id && (
                             <p className="text-xs text-blue-600 font-mono">
                               MP: {subscription.mercadopago_subscription_id}
+                            </p>
+                          )}
+                          {subscription.user_profile?.phone && (
+                            <p className="text-xs text-gray-500">
+                              📱 {subscription.user_profile.phone}
                             </p>
                           )}
                         </div>
@@ -770,6 +797,21 @@ export default function AdminSubscriptionOrdersPage() {
                       {subscription.size && (
                         <Badge variant="outline">
                           {subscription.size}
+                        </Badge>
+                      )}
+                      {subscription.quantity > 1 && (
+                        <Badge variant="outline" className="bg-purple-100 text-purple-800">
+                          Qty: {subscription.quantity}
+                        </Badge>
+                      )}
+                      {subscription.discount_percentage > 0 && (
+                        <Badge variant="outline" className="bg-green-100 text-green-800">
+                          -{subscription.discount_percentage}%
+                        </Badge>
+                      )}
+                      {subscription.metadata?.processed_manually && (
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                          🔧 Manual
                         </Badge>
                       )}
                     </div>
@@ -808,13 +850,8 @@ export default function AdminSubscriptionOrdersPage() {
                           <p>{formatDate(subscription.start_date)}</p>
                         </div>
                       )}
-                      {subscription.charges_made !== undefined && (
-                        <div>
-                          <p className="text-gray-500">Cobros realizados</p>
-                          <p className="font-medium">{subscription.charges_made}</p>
-                        </div>
-                      )}
-                      {subscription.cancelled_at && (
+
+                      {subscription.status === 'cancelled' && subscription.cancelled_at && (
                         <div>
                           <p className="text-gray-500">Cancelada</p>
                           <div className="flex flex-col">

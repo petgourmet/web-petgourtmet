@@ -25,3 +25,32 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# testing and temporary files
+test_*.js
+test_*.mjs
+test_*.ts
+test_*.tsx
+temp_*.js
+temp_*.mjs
+temp_*.ts
+temp_*.tsx
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+test-auth/
+
+# documentation with sensitive data
+.trae/documents/*webhook*
+.trae/documents/*mercadopago*
+.trae/documents/*config*
+.trae/documents/*implementacion*
+
+# scripts with sensitive operations
+verify_*.mjs
+fix_*.mjs
+sync_*.mjs
+query_*.mjs

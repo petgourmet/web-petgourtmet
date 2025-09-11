@@ -1025,11 +1025,7 @@ export class WebhookService {
       }
 
       // Enviar email de confirmación
-      await this.sendEmail({
-        to: subscriptionData.payer_email,
-        subject: '🎉 ¡Tu suscripción a Pet Gourmet está activa!',
-        html: this.getSubscriptionCreatedEmailTemplate(subscriptionData)
-      })
+      await this.sendSubscriptionCreatedEmail(subscriptionData, subscriptionData.payer_email)
       
       logger.info('Email de suscripción creada enviado', 'SUBSCRIPTION', {
         subscriptionId: subscriptionData.id,
@@ -1222,11 +1218,7 @@ export class WebhookService {
       }
 
       // Enviar email de cancelación
-      await this.sendEmail({
-        to: subscriptionData.payer_email,
-        subject: '📋 Suscripción cancelada - Pet Gourmet',
-        html: this.getSubscriptionCancelledEmailTemplate(subscriptionData)
-      })
+      await this.sendSubscriptionCancelledEmail(subscriptionData, subscriptionData.payer_email)
       
       logger.info('Email de cancelación enviado', 'SUBSCRIPTION', {
         subscriptionId: subscriptionData.id,
@@ -1271,65 +1263,35 @@ export class WebhookService {
     }
   }
 
-  // Templates de email
-  private getSubscriptionCreatedEmailTemplate(subscriptionData: SubscriptionData): string {
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #2563eb; margin-bottom: 10px;">🎉 ¡Bienvenido a Pet Gourmet!</h1>
-          <p style="color: #64748b; font-size: 16px;">Tu suscripción ha sido activada exitosamente</p>
-        </div>
-        
-        <div style="background: #f8fafc; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #2563eb;">
-          <h3 style="color: #1e293b; margin-top: 0;">📋 Detalles de tu suscripción</h3>
-          <ul style="color: #475569; line-height: 1.6;">
-            <li><strong>Descripción:</strong> ${subscriptionData.reason}</li>
-            <li><strong>ID de suscripción:</strong> ${subscriptionData.id}</li>
-            <li><strong>Estado:</strong> ${subscriptionData.status}</li>
-            ${subscriptionData.next_payment_date ? `<li><strong>Próximo cobro:</strong> ${new Date(subscriptionData.next_payment_date).toLocaleDateString('es-MX')}</li>` : ''}
-            ${subscriptionData.auto_recurring ? `<li><strong>Monto:</strong> $${subscriptionData.auto_recurring.transaction_amount} ${subscriptionData.auto_recurring.currency_id}</li>` : ''}
-          </ul>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <p style="color: #475569; margin-bottom: 20px;">¡Gracias por confiar en Pet Gourmet para el cuidado de tu mascota!</p>
-          <a href="https://petgourmet.mx/perfil" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver mi perfil</a>
-        </div>
-        
-        <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
-          <p style="color: #94a3b8; font-size: 14px; margin: 0;">Pet Gourmet - Nutrición premium para tu mascota</p>
-        </div>
-      </div>
-    `
+  // Funciones de envío de correos de suscripción usando las nuevas plantillas
+  private async sendSubscriptionCreatedEmail(subscriptionData: SubscriptionData, recipientEmail: string): Promise<void> {
+    const { sendSubscriptionEmail } = await import('./email-service')
+    
+    await sendSubscriptionEmail({
+      to: recipientEmail,
+      planName: subscriptionData.reason || 'Plan Pet Gourmet',
+      productName: 'Producto Pet Gourmet Premium',
+      amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+      frequency: 'mensual',
+      nextBillingDate: subscriptionData.next_payment_date,
+      subscriptionId: subscriptionData.id,
+      customerName: recipientEmail.split('@')[0] || 'Cliente'
+    }, 'created')
   }
 
-  private getSubscriptionCancelledEmailTemplate(subscriptionData: SubscriptionData): string {
-    return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #dc2626; margin-bottom: 10px;">📋 Suscripción cancelada</h1>
-          <p style="color: #64748b; font-size: 16px;">Tu suscripción a Pet Gourmet ha sido cancelada</p>
-        </div>
-        
-        <div style="background: #fef2f2; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #dc2626;">
-          <h3 style="color: #1e293b; margin-top: 0;">📋 Detalles de la cancelación</h3>
-          <ul style="color: #475569; line-height: 1.6;">
-            <li><strong>Suscripción:</strong> ${subscriptionData.reason}</li>
-            <li><strong>ID:</strong> ${subscriptionData.id}</li>
-            <li><strong>Fecha de cancelación:</strong> ${new Date().toLocaleDateString('es-MX')}</li>
-          </ul>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <p style="color: #475569; margin-bottom: 20px;">Lamentamos verte partir. Si cambias de opinión, estaremos aquí para ti.</p>
-          <a href="https://petgourmet.mx/productos" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Explorar productos</a>
-        </div>
-        
-        <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
-          <p style="color: #94a3b8; font-size: 14px; margin: 0;">Pet Gourmet - Siempre aquí para tu mascota</p>
-        </div>
-      </div>
-    `
+  private async sendSubscriptionCancelledEmail(subscriptionData: SubscriptionData, recipientEmail: string): Promise<void> {
+    const { sendSubscriptionEmail } = await import('./email-service')
+    
+    await sendSubscriptionEmail({
+      to: recipientEmail,
+      planName: subscriptionData.reason || 'Plan Pet Gourmet',
+      productName: 'Producto Pet Gourmet Premium',
+      amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+      frequency: 'mensual',
+      nextBillingDate: null,
+      subscriptionId: subscriptionData.id,
+      customerName: recipientEmail.split('@')[0] || 'Cliente'
+    }, 'cancelled')
   }
 
   // Enviar email de notificación de nueva compra a administradores
@@ -1585,7 +1547,7 @@ export class WebhookService {
     }
   }
 
-  // Enviar email de pago de suscripción
+  // Enviar email de pago de suscripción usando las nuevas plantillas
   private async sendSubscriptionPaymentEmail(subscriptionId: string, paymentData: PaymentData, supabase: any): Promise<void> {
     const startTime = Date.now()
     
@@ -1615,40 +1577,21 @@ export class WebhookService {
         amount: paymentData.transaction_amount
       })
 
-      const emailTemplate = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #16a34a; margin-bottom: 10px;">💳 Pago procesado</h1>
-            <p style="color: #64748b; font-size: 16px;">Tu suscripción sigue activa</p>
-          </div>
-          
-          <div style="background: #f0fdf4; padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #16a34a;">
-            <h3 style="color: #1e293b; margin-top: 0;">💳 Detalles del pago</h3>
-            <ul style="color: #475569; line-height: 1.6;">
-              <li><strong>Suscripción:</strong> ${subscription.product?.name || 'Suscripción Pet Gourmet'}</li>
-              <li><strong>Monto:</strong> $${paymentData.transaction_amount} ${paymentData.currency_id}</li>
-              <li><strong>Fecha de pago:</strong> ${new Date(paymentData.date_created).toLocaleDateString('es-MX')}</li>
-              <li><strong>Método de pago:</strong> ${paymentData.payment_method_id}</li>
-              <li><strong>ID de transacción:</strong> ${paymentData.id}</li>
-            </ul>
-          </div>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <p style="color: #475569; margin-bottom: 20px;">¡Gracias por mantener tu suscripción activa!</p>
-            <a href="https://petgourmet.mx/perfil" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver mi suscripción</a>
-          </div>
-          
-          <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
-            <p style="color: #94a3b8; font-size: 14px; margin: 0;">Pet Gourmet - Nutrición premium para tu mascota</p>
-          </div>
-        </div>
-      `
-
-      await this.sendEmail({
+      const { sendSubscriptionEmail } = await import('./email-service')
+      
+      await sendSubscriptionEmail({
         to: recipientEmail,
-        subject: '💳 Pago procesado - Suscripción Pet Gourmet',
-        html: emailTemplate
-      })
+        planName: subscription.subscription_type || 'Plan Pet Gourmet',
+        productName: subscription.product?.name || 'Producto Pet Gourmet Premium',
+        amount: paymentData.transaction_amount,
+        frequency: 'mensual',
+        nextBillingDate: subscription.next_billing_date,
+        subscriptionId: subscription.id,
+        customerName: recipientEmail.split('@')[0] || 'Cliente',
+        paymentId: paymentData.id,
+        paymentMethod: paymentData.payment_method_id,
+        paymentDate: paymentData.date_created
+      }, 'payment')
 
       const duration = Date.now() - startTime
       logger.info('Email de pago de suscripción enviado exitosamente', 'SUBSCRIPTION', {

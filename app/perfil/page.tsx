@@ -1394,10 +1394,10 @@ function PerfilPageContent() {
                             <Badge 
                               variant={subscription.status === 'active' ? 'default' : 
                                       subscription.status === 'pending' ? 'secondary' :
-                                      subscription.cancelled_at ? 'destructive' : 'secondary'}
+                                      subscription.status === 'cancelled' ? 'destructive' : 'secondary'}
                               className="text-sm px-3 py-1"
                             >
-                              {subscription.cancelled_at ? '❌ Cancelada' :
+                              {subscription.status === 'cancelled' ? '❌ Cancelada' :
                                subscription.status === 'active' ? '✅ Activa' : 
                                subscription.status === 'pending' ? '⏳ Pendiente' :
                                subscription.status === 'paused' ? '⏸️ Pausada' :
@@ -1446,12 +1446,7 @@ function PerfilPageContent() {
                                       <p className="font-medium">{formatDate(subscription.start_date)}</p>
                                     </div>
                                   )}
-                                  {subscription.charges_made !== undefined && (
-                                    <div>
-                                      <span className="text-gray-500">Cobros realizados:</span>
-                                      <p className="font-medium">{subscription.charges_made}</p>
-                                    </div>
-                                  )}
+
                                 </div>
                                 
                                 {/* Badges de información */}
@@ -1540,7 +1535,7 @@ function PerfilPageContent() {
                                 </div>
                                 
                                 {/* Información adicional */}
-                                {subscription.cancelled_at && (
+                                {subscription.status === 'cancelled' && subscription.cancelled_at && (
                                   <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                                     <div className="flex items-center gap-2 text-red-700 mb-2">
                                       <span className="text-sm font-medium">❌ Suscripción cancelada el {formatDate(subscription.cancelled_at)}</span>
@@ -1625,7 +1620,7 @@ function PerfilPageContent() {
                                         <div>📱 WhatsApp: +1234567890</div>
                                       </div>
                                     </div>
-                                  ) : subscription.cancelled_at ? (
+                                  ) : subscription.status === 'cancelled' ? (
                                     <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg text-center font-medium">
                                       ❌ Suscripción Cancelada
                                     </div>

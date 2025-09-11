@@ -1271,7 +1271,7 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
                        subscriptionData.status === 'paused' ? 'Pausada' : subscriptionData.status}
                     </span>
                   </p>
-                  <p><strong>Cobros realizados:</strong> {subscriptionData.charges_made || 0}</p>
+
                 </>
               )}
             </div>
