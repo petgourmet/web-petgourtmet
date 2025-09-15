@@ -446,3 +446,4 @@ export async function quickIntegrityCheck(user_id: string, external_reference?: 
 export async function batchIntegrityCheck(user_ids?: string[], limit: number = 50): Promise<BatchIntegrityResult> {
   const checker = new SubscriptionIntegrityChecker();
   return await checker.checkBatchIntegrity(user_ids, limit);
+}

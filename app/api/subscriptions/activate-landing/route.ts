@@ -200,6 +200,12 @@ function getNextBillingDate(subscriptionType: string): string {
   const now = new Date();
   
   switch (subscriptionType) {
+    case 'weekly':
+      now.setDate(now.getDate() + 7);
+      break;
+    case 'biweekly':
+      now.setDate(now.getDate() + 14);
+      break;
     case 'monthly':
       now.setMonth(now.getMonth() + 1);
       break;
@@ -221,6 +227,8 @@ function getNextBillingDate(subscriptionType: string): string {
 
 function getSubscriptionTypeName(type: string): string {
   const typeNames: { [key: string]: string } = {
+    'weekly': 'Semanal',
+    'biweekly': 'Quincenal',
     'monthly': 'Mensual',
     'quarterly': 'Trimestral', 
     'semiannual': 'Semestral',

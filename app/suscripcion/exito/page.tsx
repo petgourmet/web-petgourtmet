@@ -122,6 +122,8 @@ function ExitoSuscripcionContent() {
 
   const getSubscriptionTypeText = (type: string) => {
     switch (type) {
+      case 'weekly': return 'Semanal'
+      case 'biweekly': return 'Quincenal'
       case 'monthly': return 'Mensual'
       case 'bimonthly': return 'Bimestral'
       case 'quarterly': return 'Trimestral'
