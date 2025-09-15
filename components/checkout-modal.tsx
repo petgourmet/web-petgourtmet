@@ -184,6 +184,26 @@ export function CheckoutModal() {
     return subscriptionLinks[type] || subscriptionLinks.monthly || "#"
   }
 
+  // Función para obtener el descuento dinámico del producto según la frecuencia
+  const getProductSubscriptionDiscount = (item: any, subscriptionType: string): number => {
+    if (!item.isSubscription) return 0
+    
+    switch (subscriptionType) {
+      case 'weekly':
+        return (item.weekly_discount || 0) / 100
+      case 'biweekly':
+        return (item.biweekly_discount || 0) / 100
+      case 'monthly':
+        return (item.monthly_discount || 0) / 100
+      case 'quarterly':
+        return (item.quarterly_discount || 0) / 100
+      case 'annual':
+        return (item.annual_discount || 0) / 100
+      default:
+        return 0
+    }
+  }
+
   // Función auxiliar para obtener URL específica del producto
   const getProductSpecificUrl = (item: any, type: string) => {
     switch (type) {
@@ -324,11 +344,21 @@ export function CheckoutModal() {
           total: total,
           status: "pending",
           user_id: user?.id || null,
-          items: cart.map((item) => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.isSubscription ? item.price * 0.9 : item.price,
-          })),
+          items: cart.map((item) => {
+            let finalPrice = item.price
+            
+            if (item.isSubscription) {
+              const subscriptionType = item.subscriptionType || getSubscriptionType() || 'monthly'
+              const discount = getProductSubscriptionDiscount(item, subscriptionType)
+              finalPrice = item.price * (1 - discount)
+            }
+            
+            return {
+              product_id: item.id,
+              quantity: item.quantity,
+              price: finalPrice,
+            }
+          }),
           metadata: {
             customer_name: `${customerInfo.firstName} ${customerInfo.lastName}`,
             customer_phone: customerInfo.phone,
@@ -467,17 +497,27 @@ export function CheckoutModal() {
         console.log("Modo de pruebas: Creando orden completa...")
 
         // Preparar los datos como se haría para MercadoPago
-        const items = cart.map((item) => ({
-          id: item.id,
-          name: item.name,
-          title: item.name,
-          description: `${item.size || "Standard"}${item.isSubscription ? " (Suscripción)" : ""}`,
-          image: item.image,
-          picture_url: item.image,
-          quantity: item.quantity,
-          price: item.isSubscription ? item.price * 0.9 : item.price,
-          unit_price: item.isSubscription ? item.price * 0.9 : item.price,
-        }))
+        const items = cart.map((item) => {
+          let finalPrice = item.price
+          
+          if (item.isSubscription) {
+            const subscriptionType = item.subscriptionType || getSubscriptionType() || 'monthly'
+            const discount = getProductSubscriptionDiscount(item, subscriptionType)
+            finalPrice = item.price * (1 - discount)
+          }
+          
+          return {
+            id: item.id,
+            name: item.name,
+            title: item.name,
+            description: `${item.size || "Standard"}${item.isSubscription ? " (Suscripción)" : ""}`,
+            image: item.image,
+            picture_url: item.image,
+            quantity: item.quantity,
+            price: finalPrice,
+            unit_price: finalPrice,
+          }
+        })
 
         const customerData = {
           firstName: customerInfo.firstName,
@@ -543,17 +583,27 @@ export function CheckoutModal() {
         console.log("Creando preferencia de pago en Mercado Pago...")
 
         // Preparar los datos para la API
-        const items = cart.map((item) => ({
-          id: item.id,
-          name: item.name,
-          title: item.name,
-          description: `${item.size || "Standard"}${item.isSubscription ? " (Suscripción)" : ""}`,
-          image: item.image,
-          picture_url: item.image,
-          quantity: item.quantity,
-          price: item.isSubscription ? item.price * 0.9 : item.price,
-          unit_price: item.isSubscription ? item.price * 0.9 : item.price,
-        }))
+        const items = cart.map((item) => {
+          let finalPrice = item.price
+          
+          if (item.isSubscription) {
+            const subscriptionType = item.subscriptionType || getSubscriptionType() || 'monthly'
+            const discount = getProductSubscriptionDiscount(item, subscriptionType)
+            finalPrice = item.price * (1 - discount)
+          }
+          
+          return {
+            id: item.id,
+            name: item.name,
+            title: item.name,
+            description: `${item.size || "Standard"}${item.isSubscription ? " (Suscripción)" : ""}`,
+            image: item.image,
+            picture_url: item.image,
+            quantity: item.quantity,
+            price: finalPrice,
+            unit_price: finalPrice,
+          }
+        })
 
         const customerData = {
           firstName: customerInfo.firstName,

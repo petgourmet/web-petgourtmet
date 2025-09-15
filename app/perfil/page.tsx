@@ -1369,11 +1369,36 @@ function PerfilPageContent() {
                     frequencyDisplay = 'Anual'
                   }
                   
-                  // Precios - Asegurar valores válidos
+                  // Precios - Calcular descuento correcto según producto y frecuencia
                   const basePrice = subscription.base_price || subscription.transaction_amount || firstCartItem?.price || product?.price || 0
-                  const discountedPrice = subscription.discounted_price || basePrice || 0
-                  const discountPercentage = subscription.discount_percentage || 0
-                  const discountAmount = Math.max(0, (basePrice || 0) - (discountedPrice || 0))
+                  
+                  // Obtener el porcentaje de descuento correcto según la frecuencia
+                  let discountPercentage = 0
+                  if (product) {
+                    switch (subscriptionType) {
+                      case 'weekly':
+                        discountPercentage = product.weekly_discount || 0
+                        break
+                      case 'biweekly':
+                        discountPercentage = product.biweekly_discount || 0
+                        break
+                      case 'monthly':
+                        discountPercentage = product.monthly_discount || 0
+                        break
+                      case 'quarterly':
+                        discountPercentage = product.quarterly_discount || 0
+                        break
+                      case 'annual':
+                        discountPercentage = product.annual_discount || 0
+                        break
+                      default:
+                        discountPercentage = 0
+                    }
+                  }
+                  
+                  // Calcular precio con descuento y monto del descuento
+                  const discountAmount = (basePrice * discountPercentage) / 100
+                  const discountedPrice = basePrice - discountAmount
                 
                   return (
                     <Card key={subscription.id} className={`hover:shadow-lg transition-all duration-300 border-l-4 ${subscription.status === 'pending' ? 'border-l-[#78b7bf]' : 'border-l-indigo-500'}`}>
@@ -1577,8 +1602,18 @@ function PerfilPageContent() {
                                     <h4 className="font-semibold text-gray-800 mb-3">Detalles de Precio</h4>
                                     <div className="space-y-2 text-sm">
                                       <div className="flex justify-between">
-                                        <span className="text-gray-600">Producto:</span>
-                                        <span className="font-medium">{formatPrice(discountedPrice)}</span>
+                                        <span className="text-gray-600">Precio original:</span>
+                                        <span className="font-medium">{formatPrice(basePrice)}</span>
+                                      </div>
+                                      {discountPercentage > 0 && (
+                                        <div className="flex justify-between text-green-600">
+                                          <span>Descuento suscripción ({discountPercentage}%):</span>
+                                          <span className="font-medium">-{formatPrice(discountAmount)}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Precio con descuento:</span>
+                                        <span className="font-medium text-green-700">{formatPrice(discountedPrice)}</span>
                                       </div>
                                       <div className="flex justify-between">
                                         <span className="text-gray-600">Envío:</span>
@@ -1592,7 +1627,7 @@ function PerfilPageContent() {
                                       </div>
                                       <div className="border-t border-gray-200 pt-2 mt-2">
                                         <div className="flex justify-between font-semibold text-lg">
-                                          <span className="text-gray-800">Total:</span>
+                                          <span className="text-gray-800">Total final:</span>
                                           <span className={`${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`}>
                                             {formatPrice(discountedPrice >= 1000 ? discountedPrice : discountedPrice + 100)}
                                           </span>
@@ -1636,7 +1671,7 @@ function PerfilPageContent() {
                                       </p>
                                       <div className="text-xs text-blue-600 space-y-1">
                                         <div>📧 contacto@petgourmet.com</div>
-                                        <div>📱 WhatsApp: +1234567890</div>
+                                        <div>📱 WhatsApp: +52 55 6126 9681</div>
                                       </div>
                                     </div>
                                   ) : subscription.status === 'cancelled' ? (

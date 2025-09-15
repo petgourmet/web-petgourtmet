@@ -54,3 +54,22 @@ verify_*.mjs
 fix_*.mjs
 sync_*.mjs
 query_*.mjs
+
+# Test files
+*.test.js
+*.test.ts
+*.test.jsx
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.jsx
+*.spec.tsx
+__tests__/
+tests/
+test/
+*.test.*
+*.spec.*
+coverage/
+.nyc_output/
+jest.config.*
+*.snap

@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import MercadoPagoService from '@/lib/mercadopago-service'
 import { createClient } from '@/lib/supabase/server'
+import DynamicDiscountService, { SubscriptionType } from '@/lib/dynamic-discount-service'
 
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -30,7 +31,9 @@ export async function POST(request: NextRequest) {
       status,
       user_id,
       product_id,
-      quantity = 1
+      quantity = 1,
+      subscription_type,
+      plan_id
     } = body
 
     console.log('🔄 Creando suscripción sin plan:', {
@@ -119,42 +122,51 @@ export async function POST(request: NextRequest) {
       init_point: result.init_point
     })
 
-    // Guardar en base de datos local si hay user_id
-    if (user_id) {
+    // Crear suscripción pendiente con descuentos dinámicos si hay user_id y product_id
+    if (user_id && product_id && subscription_type) {
       try {
-        const { data: subscription, error: dbError } = await supabase
-          .from('user_subscriptions')
-          .insert({
-            user_id,
-            mercadopago_subscription_id: result.id,
-            external_reference: result.external_reference,
-            reason: result.reason,
-            status: result.status,
-            frequency: result.auto_recurring?.frequency || auto_recurring.frequency,
-            frequency_type: result.auto_recurring?.frequency_type || auto_recurring.frequency_type,
-            transaction_amount: result.auto_recurring?.transaction_amount || auto_recurring.transaction_amount,
-            base_price: body.original_price || auto_recurring.transaction_amount,
-            discounted_price: body.discounted_price || auto_recurring.transaction_amount,
-            currency_id: result.auto_recurring?.currency_id || auto_recurring.currency_id || 'MXN',
-            start_date: result.auto_recurring?.start_date || auto_recurring.start_date,
-            end_date: result.auto_recurring?.end_date || auto_recurring.end_date,
-            next_billing_date: result.next_payment_date,
-            init_point: result.init_point,
-            product_id: product_id || null,
-            quantity: quantity,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single()
-
-        if (dbError) {
-          console.error('⚠️ Error guardando suscripción en BD:', dbError)
+        // Convertir subscription_type a SubscriptionType si es necesario
+        let subscriptionTypeEnum: SubscriptionType
+        
+        // Mapear tipos de suscripción comunes
+        if (subscription_type.includes('week')) {
+          subscriptionTypeEnum = subscription_type.includes('2') ? 'biweekly' : 'weekly'
+        } else if (subscription_type.includes('month')) {
+          if (subscription_type.includes('3')) {
+            subscriptionTypeEnum = 'quarterly'
+          } else if (subscription_type.includes('12')) {
+            subscriptionTypeEnum = 'annual'
+          } else {
+            subscriptionTypeEnum = 'monthly'
+          }
         } else {
-          console.log('💾 Suscripción guardada en BD:', subscription?.id)
+          // Fallback basado en auto_recurring
+          subscriptionTypeEnum = DynamicDiscountService.planFrequencyToSubscriptionType(
+            auto_recurring.frequency,
+            auto_recurring.frequency_type
+          )
         }
+
+        const { pendingSubscription, discountResult } = await DynamicDiscountService.createPendingSubscription({
+          userId: user_id,
+          productId: product_id,
+          subscriptionType: subscriptionTypeEnum,
+          externalReference: result.external_reference,
+          mercadopagoSubscriptionId: result.id,
+          quantity: quantity,
+          planId: plan_id
+        })
+
+        console.log('💾 Suscripción pendiente creada con descuentos dinámicos:', {
+          id: pendingSubscription.id,
+          originalPrice: discountResult.originalPrice,
+          discountPercentage: discountResult.discountPercentage,
+          discountedPrice: discountResult.discountedPrice
+        })
+
       } catch (dbError) {
-        console.error('⚠️ Error en base de datos:', dbError)
+        console.error('⚠️ Error creando suscripción pendiente:', dbError)
+        // No fallar la respuesta si hay error en BD, pero loggearlo
       }
     }
 

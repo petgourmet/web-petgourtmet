@@ -7,6 +7,7 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
+    "test": "jest",
     "verify-mercadopago": "node scripts/verify-mercadopago.js",
     "update-payments": "node scripts/update-pending-payments.mjs",
     "start-payment-monitor": "node scripts/startup-payment-monitor.mjs",
@@ -83,13 +84,18 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9.33.0",
     "eslint-config-next": "^15.4.6",
+    "jest": "^30.1.3",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.4.2",
     "typescript": "^5"
   }
 }

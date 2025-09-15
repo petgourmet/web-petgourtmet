@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Check, Calendar, CreditCard, Star, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import DynamicDiscountService, { SubscriptionType } from '@/lib/dynamic-discount-service'
 
 interface SubscriptionPlan {
   id: string
@@ -34,10 +35,14 @@ export default function SubscriptionPlans({
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [creatingSubscription, setCreatingSubscription] = useState<string | null>(null)
+  const [dynamicDiscounts, setDynamicDiscounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     fetchPlans()
-  }, [])
+    if (productId) {
+      fetchDynamicDiscounts()
+    }
+  }, [productId])
 
   const fetchPlans = async () => {
     try {
@@ -58,8 +63,45 @@ export default function SubscriptionPlans({
   }
 
   const calculateDiscountedPrice = (plan: SubscriptionPlan) => {
-    const discount = plan.discount_percentage / 100
+    // Usar descuento dinámico si está disponible, sino usar el del plan
+    const subscriptionType = planToSubscriptionType(plan)
+    const dynamicDiscount = dynamicDiscounts[subscriptionType] || 0
+    const discountToUse = dynamicDiscount > 0 ? dynamicDiscount : plan.discount_percentage
+    
+    const discount = discountToUse / 100
     return basePrice * (1 - discount)
+  }
+
+  const planToSubscriptionType = (plan: SubscriptionPlan): SubscriptionType => {
+    if (plan.frequency_type === 'weeks') {
+      if (plan.frequency === 1) return 'weekly'
+      if (plan.frequency === 2) return 'biweekly'
+    } else if (plan.frequency_type === 'months') {
+      if (plan.frequency === 1) return 'monthly'
+      if (plan.frequency === 3) return 'quarterly'
+      if (plan.frequency === 12) return 'annual'
+    }
+    return 'monthly' // fallback
+  }
+
+  const fetchDynamicDiscounts = async () => {
+    if (!productId) return
+    
+    try {
+      const subscriptionTypes: SubscriptionType[] = ['weekly', 'biweekly', 'monthly', 'quarterly', 'annual']
+      const discounts: Record<string, number> = {}
+      
+      for (const type of subscriptionTypes) {
+        const result = await DynamicDiscountService.getProductSubscriptionDiscount(productId, type)
+        if (result) {
+          discounts[type] = result.discountPercentage
+        }
+      }
+      
+      setDynamicDiscounts(discounts)
+    } catch (error) {
+      console.error('Error fetching dynamic discounts:', error)
+    }
   }
 
   const getFrequencyText = (plan: SubscriptionPlan) => {
@@ -115,10 +157,11 @@ export default function SubscriptionPlans({
           user_id: userId,
           product_id: productId,
           product_name: productName,
-          subscription_type: `${plan.frequency_type === 'weeks' ? plan.frequency + '_week' : plan.frequency + '_month'}`,
+          subscription_type: planToSubscriptionType(plan),
           discounted_price: calculateDiscountedPrice(plan),
           original_price: basePrice,
-          discount_percentage: plan.discount_percentage,
+          discount_percentage: dynamicDiscounts[planToSubscriptionType(plan)] || plan.discount_percentage,
+          plan_id: plan.id,
           quantity: 1
         })
       })
@@ -189,6 +232,8 @@ export default function SubscriptionPlans({
         {plans.map((plan) => {
           const discountedPrice = calculateDiscountedPrice(plan)
           const savings = basePrice - discountedPrice
+          const subscriptionType = planToSubscriptionType(plan)
+          const dynamicDiscountPercentage = dynamicDiscounts[subscriptionType] || plan.discount_percentage
           const isCreating = creatingSubscription === plan.id
 
           return (
@@ -226,13 +271,13 @@ export default function SubscriptionPlans({
                       <span className="text-gray-500">MXN</span>
                     </div>
                     
-                    {plan.discount_percentage > 0 && (
+                    {dynamicDiscountPercentage > 0 && (
                       <div className="space-y-1">
                         <div className="text-sm text-gray-500 line-through">
                           Precio normal: ${basePrice}
                         </div>
                         <div className="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-semibold">
-                          Ahorras ${savings.toFixed(0)} ({plan.discount_percentage}%)
+                          Ahorras ${savings.toFixed(0)} ({dynamicDiscountPercentage}%)
                         </div>
                       </div>
                     )}

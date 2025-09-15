@@ -611,3 +611,278 @@ export async function sendSubscriptionEmail(
     }
   }
 }
+
+// Interface para datos de correo de agradecimiento
+interface ThankYouEmailData {
+  user_name: string;
+  user_email: string;
+  subscription_type: string;
+  original_price: number;
+  discounted_price?: number;
+  discount_percentage?: number;
+  start_date: string;
+  next_billing_date: string;
+  external_reference: string;
+}
+
+// Clase EmailService para manejar los nuevos correos
+export class EmailService {
+  // Enviar correo de agradecimiento al cliente
+  async sendThankYouEmail(data: ThankYouEmailData) {
+    try {
+      const template = this.createThankYouTemplate(data);
+      return await this.sendEmail({
+        to: data.user_email,
+        subject: template.subject,
+        html: template.html
+      });
+    } catch (error) {
+      console.error('Error enviando correo de agradecimiento:', error);
+      throw error;
+    }
+  }
+
+  // Enviar correo de notificación a administradores
+  async sendAdminNotificationEmail(data: ThankYouEmailData) {
+    try {
+      const template = this.createAdminNotificationTemplate(data);
+      const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['admin@petgourmet.mx'];
+      
+      const promises = adminEmails.map(email => 
+        this.sendEmail({
+          to: email.trim(),
+          subject: template.subject,
+          html: template.html
+        })
+      );
+      
+      return await Promise.all(promises);
+    } catch (error) {
+      console.error('Error enviando correo a administradores:', error);
+      throw error;
+    }
+  }
+
+  // Plantilla de correo de agradecimiento
+  private createThankYouTemplate(data: ThankYouEmailData) {
+    const discountText = data.discount_percentage 
+      ? `<tr>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Descuento aplicado</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; color: #16a34a; font-weight: bold;">${data.discount_percentage}% de descuento</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Precio original</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; text-decoration: line-through;">$${data.original_price} MXN</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Precio con descuento</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; color: #16a34a; font-weight: bold;">$${data.discounted_price} MXN</td>
+        </tr>`
+      : `<tr>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Precio</td>
+          <td style="padding: 8px 12px; border: 1px solid #ddd; color: #16a34a; font-weight: bold;">$${data.original_price} MXN</td>
+        </tr>`;
+
+    return {
+      subject: '🎉 ¡Gracias por tu suscripción a Pet Gourmet!',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>¡Gracias por tu suscripción!</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                  <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+                </div>
+              </div>
+              
+              <h1 style="color: #7AB8BF; text-align: center;">🎉 ¡Gracias por tu suscripción, ${data.user_name}!</h1>
+              
+              <p>¡Excelente elección! Tu suscripción ha sido activada exitosamente. Ahora formas parte de la familia Pet Gourmet y tu mascota recibirá la mejor nutrición de forma automática.</p>
+              
+              <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7AB8BF;">
+                <h3 style="margin-top: 0; color: #8c4a23;">📋 Detalles de tu suscripción:</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Plan</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.subscription_type}</td>
+                  </tr>
+                  ${discountText}
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Fecha de inicio</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.start_date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Próximo cobro</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.next_billing_date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Referencia</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; font-family: monospace;">${data.external_reference}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              ${data.discount_percentage ? `
+              <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #856404;">🎁 ¡Felicidades por tu descuento!</h3>
+                <p>Has obtenido un <strong>${data.discount_percentage}% de descuento</strong> en tu suscripción. ¡Gracias por confiar en Pet Gourmet!</p>
+              </div>
+              ` : ''}
+              
+              <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>📋 ¿Qué sigue?</strong></p>
+                <ul>
+                  <li>Tu suscripción se renovará automáticamente según el plan seleccionado</li>
+                  <li>Recibirás notificaciones antes de cada cobro</li>
+                  <li>Puedes gestionar tu suscripción desde tu <a href="https://petgourmet.mx/perfil">perfil</a></li>
+                  <li>Si tienes dudas, nuestro equipo está aquí para ayudarte</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://petgourmet.mx/perfil" style="background: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-right: 10px;">Ver mi perfil</a>
+                <a href="https://petgourmet.mx/contacto" style="background: #6c757d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Contactar soporte</a>
+              </div>
+              
+              <p style="margin-top: 30px;">Gracias por elegir Pet Gourmet. ¡Tu mascota lo va a amar!</p>
+              
+              <p style="margin-top: 30px;">
+                Saludos cordiales,<br>
+                <strong>El equipo de Pet Gourmet</strong>
+              </p>
+              
+              <p style="color: #666; font-size: 12px; text-align: center; margin-top: 40px;">
+                Pet Gourmet - Nutrición premium para tus compañeros<br>
+                Si no deseas recibir más emails, puedes <a href="https://petgourmet.mx/unsubscribe?email=${encodeURIComponent(data.user_email)}">darte de baja aquí</a>.
+              </p>
+            </div>
+          </body>
+        </html>
+      `
+    };
+  }
+
+  // Plantilla de correo para administradores
+  private createAdminNotificationTemplate(data: ThankYouEmailData) {
+    return {
+      subject: `🔔 Nueva suscripción activada - ${data.user_name}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Nueva suscripción activada</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
+                  <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+                </div>
+              </div>
+              
+              <h1 style="color: #7AB8BF;">🔔 Nueva suscripción activada</h1>
+              
+              <p>Se ha activado una nueva suscripción en Pet Gourmet:</p>
+              
+              <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
+                <h3 style="margin-top: 0; color: #004085;">👤 Información del cliente:</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Nombre</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.user_name}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Email</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.user_email}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Plan</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.subscription_type}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Precio original</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">$${data.original_price} MXN</td>
+                  </tr>
+                  ${data.discount_percentage ? `
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Descuento</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; color: #28a745; font-weight: bold;">${data.discount_percentage}%</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Precio final</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; color: #28a745; font-weight: bold;">$${data.discounted_price} MXN</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Fecha de inicio</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.start_date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Próximo cobro</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.next_billing_date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Referencia</td>
+                    <td style="padding: 8px 12px; border: 1px solid #ddd; font-family: monospace;">${data.external_reference}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>✅ Acciones completadas:</strong></p>
+                <ul>
+                  <li>Suscripción activada automáticamente</li>
+                  <li>Correo de agradecimiento enviado al cliente</li>
+                  <li>Perfil de usuario actualizado</li>
+                  <li>Próximo cobro programado</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://petgourmet.mx/admin/subscriptions" style="background: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver en panel admin</a>
+              </div>
+              
+              <p style="color: #666; font-size: 12px; text-align: center;">
+                Pet Gourmet - Panel de administración<br>
+                Este correo fue generado automáticamente por el sistema de suscripciones.
+              </p>
+            </div>
+          </body>
+        </html>
+      `
+    };
+  }
+
+  // Método privado para enviar correos
+  private async sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+    // Verificar configuración SMTP
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.log('SMTP not configured, skipping email send');
+      return { success: false, error: 'SMTP not configured' };
+    }
+
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      html
+    };
+
+    try {
+      const result = await transporter.sendMail(mailOptions);
+      console.log(`Email sent successfully to ${to}:`, result.messageId);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error(`Error sending email to ${to}:`, error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+}

@@ -32,19 +32,20 @@ export default function WhatsappButton() {
         <motion.button
           className="flex items-center justify-center w-10 h-10 rounded-full shadow-lg transition-all duration-75"
           style={{
-            backgroundColor: "#10b981", // Color oficial de WhatsApp
-            boxShadow: "0 4px 15px rgba(16, 185, 129, 0.5)",
+            backgroundColor: "#7AB8BF", // Color principal de PetGourmet
+            boxShadow: "0 4px 15px rgba(122, 184, 191, 0.5)",
           }}
           whileHover={{
             scale: 1.2,
-            boxShadow: "0 6px 20px rgba(16, 185, 129, 0.6)",
+            backgroundColor: "#5A9EA6", // Color hover más oscuro
+            boxShadow: "0 6px 20px rgba(122, 184, 191, 0.6)",
           }}
           whileTap={{ scale: 0.95 }}
           animate={{
             boxShadow: [
-              "0 4px 15px rgba(16, 185, 129, 0.3)",
-              "0 4px 15px rgba(16, 185, 129, 0.7)",
-              "0 4px 15px rgba(16, 185, 129, 0.3)",
+              "0 4px 15px rgba(122, 184, 191, 0.3)",
+              "0 4px 15px rgba(122, 184, 191, 0.7)",
+              "0 4px 15px rgba(122, 184, 191, 0.3)",
             ],
           }}
           transition={{

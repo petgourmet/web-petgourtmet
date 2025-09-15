@@ -408,7 +408,7 @@ export default function AdminSubscriptionOrdersPage() {
     
     const matchesStatus = statusFilter === "all" || 
       (statusFilter === "active" && sub.status === 'active') ||
-      (statusFilter === "inactive" && !sub.is_active && sub.status !== 'cancelled') ||
+      (statusFilter === "inactive" && sub.status === 'paused') ||
       (statusFilter === "cancelled" && sub.status === 'cancelled') ||
       (statusFilter === "pending" && sub.status === "pending")
     
@@ -654,9 +654,9 @@ export default function AdminSubscriptionOrdersPage() {
             <div className="flex items-center">
               <Activity className="h-6 w-6 text-gray-600" />
               <div className="ml-3">
-                <p className="text-sm text-gray-600">Inactivas</p>
+                <p className="text-sm text-gray-600">Pausadas</p>
                 <p className="text-xl font-bold">
-                  {subscriptions.filter(s => !s.is_active && s.status !== 'cancelled' && s.status !== 'pending').length}
+                  {subscriptions.filter(s => s.status === 'paused').length}
                 </p>
               </div>
             </div>
@@ -700,7 +700,7 @@ export default function AdminSubscriptionOrdersPage() {
                 <option value="all">Todos los estados</option>
                 <option value="active">Activas</option>
                 <option value="pending">Pendientes</option>
-                <option value="inactive">Inactivas</option>
+                <option value="inactive">Pausadas</option>
                 <option value="cancelled">Canceladas</option>
               </select>
               
