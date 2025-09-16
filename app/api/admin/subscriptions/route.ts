@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const [userSubscriptionsResult, pendingSubscriptionsResult, billingHistoryResult] = await Promise.all([
       // Todas las suscripciones (activas, canceladas, etc.) - SIN FILTRO DE USUARIO
       serviceClient
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .select(`
           *,
           products (
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       
       // Suscripciones pendientes - SIN FILTRO DE USUARIO
       serviceClient
-        .from('pending_subscriptions')
+        .from('unified_subscriptions')
         .select(`
           *,
           products (
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         .from('billing_history')
         .select(`
           *,
-          user_subscriptions (
+          unified_subscriptions (
             *,
             products (
               id,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
         ...subscription,
         frequency,
         discount_amount: discountAmount,
-        source: 'user_subscriptions',
+        source: 'subscriptions',
         products: product
       }
     })
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
         discount_amount: discountAmount,
         next_billing_date: null,
         created_at: subscription.created_at,
-        source: 'pending_subscriptions',
+        source: 'subscriptions',
         products: product
       }
     })
@@ -177,15 +177,15 @@ export async function GET(request: NextRequest) {
     // Procesar suscripciones del historial de facturación
     const processedBillingSubscriptions = billingHistory
       .filter(billing => {
-        // Solo incluir si no existe ya en user_subscriptions
+        // Solo incluir si no existe ya en subscriptions
         const existsInActive = userSubscriptions.some(sub => 
-          sub.id === billing.user_subscriptions?.id ||
-          sub.mercadopago_subscription_id === billing.user_subscriptions?.mercadopago_subscription_id
+          sub.id === billing.unified_subscriptions?.id ||
+          sub.mercadopago_subscription_id === billing.unified_subscriptions?.mercadopago_subscription_id
         )
-        return !existsInActive && billing.user_subscriptions
+        return !existsInActive && billing.unified_subscriptions
       })
       .map(billing => {
-        const subscription = billing.user_subscriptions
+        const subscription = billing.unified_subscriptions
         const product = subscription.products
         const frequency = subscription.frequency || 'monthly'
         let discountAmount = 0

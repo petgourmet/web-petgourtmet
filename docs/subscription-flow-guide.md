@@ -130,7 +130,7 @@ await supabase
 
 ```bash
 # Ejecutar test completo
-npm test tests/subscription-flow.test.ts
+pnpm test tests/subscription-flow.test.ts
 ```
 
 ### 2. Test Manual con Endpoint de Debug

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Buscar suscripción pendiente que coincida con el preapproval_id
     const { data: pendingSubscriptions, error: pendingError } = await supabase
-      .from("pending_subscriptions")
+      .from("subscriptions")
       .select("*")
       .eq("user_id", user_id)
       .eq("status", "pending")
@@ -54,25 +54,17 @@ export async function POST(request: NextRequest) {
     // Calcular próxima fecha de facturación
     const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
 
-    // Crear suscripción activa
+    // Actualizar suscripción pendiente a activa
     const { data: newSubscription, error: createError } = await supabase
-      .from("user_subscriptions")
-      .insert({
-        user_id: user_id,
-        subscription_type: pendingSubscription.subscription_type,
+      .from("subscriptions")
+      .update({
         status: "active",
-        mercadopago_subscription_id: preapproval_id,
         external_reference: subscriptionInfo.external_reference || preapproval_id,
         next_billing_date: nextBillingDate,
         last_billing_date: new Date().toISOString(),
-        product_id: pendingSubscription.cart_items?.[0]?.id || null,
-        product_name: pendingSubscription.cart_items?.[0]?.name || "Producto",
-        discounted_price: pendingSubscription.cart_items?.[0]?.price || 0,
-        frequency: getFrequencyFromType(pendingSubscription.subscription_type),
-        frequency_type: "months",
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
+      .eq("id", pendingSubscription.id)
       .select()
       .single()
 
@@ -84,11 +76,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Marcar suscripción pendiente como procesada
-    await supabase
-      .from("pending_subscriptions")
-      .update({ status: "processed" })
-      .eq("id", pendingSubscription.id)
+    // La suscripción ya fue actualizada a 'active' arriba
 
     // Actualizar perfil del usuario
     await supabase

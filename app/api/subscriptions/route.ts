@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     
     // Obtener todas las suscripciones con información del usuario y producto
     const { data: subscriptions, error } = await supabase
-      .from('user_subscriptions')
+      .from('unified_subscriptions')
       .select(`
         *,
         products:product_id (
@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
            image
          )
       `)
+      .neq('status', 'pending')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     // Obtener suscripción específica
     const { data: subscription, error } = await supabase
-      .from('user_subscriptions')
+      .from('unified_subscriptions')
       .select(`
         *,
         profiles (

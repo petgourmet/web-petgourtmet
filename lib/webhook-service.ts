@@ -355,18 +355,18 @@ export class WebhookService {
       let isSubscriptionPayment = paymentData.metadata?.subscription_id || 
                                  paymentData.external_reference?.startsWith('subscription_')
       
-      // Si no se detectó como suscripción, buscar en pending_subscriptions por external_reference
+      // Si no se detectó como suscripción, buscar en subscriptions por external_reference
       if (!isSubscriptionPayment && paymentData.external_reference) {
         try {
           const { data: pendingSubscription } = await supabase
-            .from('pending_subscriptions')
+            .from('unified_subscriptions')
             .select('id')
             .eq('external_reference', paymentData.external_reference)
             .single()
           
           if (pendingSubscription) {
             isSubscriptionPayment = true
-            logger.info('Pago identificado como suscripción por pending_subscriptions', 'WEBHOOK', {
+            logger.info('Pago identificado como suscripción por subscriptions', 'WEBHOOK', {
               paymentId,
               externalReference: paymentData.external_reference,
               pendingSubscriptionId: pendingSubscription.id
@@ -722,10 +722,10 @@ export class WebhookService {
       const paymentId = paymentData.id
       let pendingSubscription = null
       
-      // Si no tenemos subscriptionId, buscar en pending_subscriptions por external_reference
+      // Si no tenemos subscriptionId, buscar en subscriptions por external_reference
       if (!subscriptionId && paymentData.external_reference) {
         const { data: pending, error: pendingError } = await supabase
-          .from('pending_subscriptions')
+          .from('unified_subscriptions')
           .select('*')
           .eq('external_reference', paymentData.external_reference)
           .single()
@@ -828,26 +828,22 @@ export class WebhookService {
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
         if (pendingSubscription) {
           // Activar suscripción pendiente
-          const nextBillingDate = this.calculateNextBillingDate(
-            pendingSubscription.subscription_type || 'monthly'
+          const nextBillingDate = await this.calculateNextBillingDate(
+            pendingSubscription.subscription_type || 'monthly',
+            supabase
           )
           
-          // Crear suscripción activa desde la pendiente
+          // Actualizar suscripción pendiente a activa
           const { data: newSubscription, error: createError } = await supabase
-            .from('user_subscriptions')
-            .insert({
-              user_id: pendingSubscription.user_id,
-              plan_id: pendingSubscription.plan_id,
+            .from('unified_subscriptions')
+            .update({
               status: 'active',
-              subscription_type: pendingSubscription.subscription_type,
-              price: pendingSubscription.price,
-              external_reference: pendingSubscription.external_reference,
               mercadopago_subscription_id: paymentData.metadata?.subscription_id,
               last_billing_date: paymentData.date_created,
               next_billing_date: nextBillingDate,
-              created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             })
+            .eq('id', pendingSubscription.id)
             .select()
             .single()
           
@@ -858,14 +854,7 @@ export class WebhookService {
               error: createError.message
             })
           } else {
-            // Actualizar estado de suscripción pendiente a completada
-            await supabase
-              .from('pending_subscriptions')
-              .update({ 
-                status: 'completed',
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', pendingSubscription.id)
+            // La suscripción ya fue actualizada arriba, no necesitamos otra actualización
             
             logger.info('Suscripción pendiente activada exitosamente', 'SUBSCRIPTION', {
               paymentId,
@@ -880,7 +869,7 @@ export class WebhookService {
         } else {
           // Actualizar suscripción existente
           const { error: subscriptionError } = await supabase
-            .from('user_subscriptions')
+            .from('unified_subscriptions')
             .update({
               status: 'active',
               last_billing_date: paymentData.date_created,
@@ -945,21 +934,47 @@ export class WebhookService {
         updated_at: new Date().toISOString()
       }
 
-      // Buscar por external_reference si no se encuentra por mercadopago_subscription_id
-      let { data: subscription, error: findError } = await supabase
-        .from('user_subscriptions')
-        .select('id')
-        .eq('mercadopago_subscription_id', subscriptionData.id)
-        .single()
-
-      if (findError && subscriptionData.external_reference) {
-        const { data: subscriptionByRef } = await supabase
-          .from('user_subscriptions')
-          .select('id')
-          .eq('external_reference', subscriptionData.external_reference)
-          .single()
+      // Usar función optimizada para buscar suscripción
+      let subscription = null
+      
+      try {
+        const { data, error } = await supabase.rpc('get_subscription_by_reference', {
+          mp_subscription_id: subscriptionData.id,
+          ext_reference: subscriptionData.external_reference,
+          subscription_status: 'active'
+        })
         
-        subscription = subscriptionByRef
+        if (!error && data && data.length > 0) {
+          subscription = { id: data[0].id }
+        } else {
+          // Fallback a búsqueda manual
+          let { data: subscriptionData_local, error: findError } = await supabase
+            .from('unified_subscriptions')
+            .select('id')
+            .eq('mercadopago_subscription_id', subscriptionData.id)
+            .single()
+
+          if (findError && subscriptionData.external_reference) {
+            const { data: subscriptionByRef } = await supabase
+              .from('unified_subscriptions')
+              .select('id')
+              .eq('external_reference', subscriptionData.external_reference)
+              .single()
+            
+            subscription = subscriptionByRef
+          } else {
+            subscription = subscriptionData_local
+          }
+        }
+      } catch (error) {
+        // Fallback completo
+        let { data: subscriptionData_local, error: findError } = await supabase
+          .from('unified_subscriptions')
+          .select('id')
+          .eq('mercadopago_subscription_id', subscriptionData.id)
+          .single()
+
+        subscription = subscriptionData_local
       }
 
       if (!subscription) {
@@ -971,7 +986,7 @@ export class WebhookService {
       }
 
       const { error } = await supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .update(updateData)
         .eq('id', subscription.id)
 
@@ -1003,31 +1018,57 @@ export class WebhookService {
     })
     
     try {
-      // Buscar suscripción pendiente por mercadopago_subscription_id o external_reference
+      // Usar la función optimizada para buscar suscripciones pendientes
       let pendingSubscription = null
       let pendingError = null
 
-      // Primero buscar por mercadopago_subscription_id
-      const { data: pendingById, error: errorById } = await supabase
-        .from('pending_subscriptions')
-        .select('*')
-        .eq('mercadopago_subscription_id', subscriptionData.id)
-        .eq('status', 'pending')
-        .single()
+      try {
+        const { data, error } = await supabase.rpc('get_subscription_by_reference', {
+          mp_subscription_id: subscriptionData.id,
+          ext_reference: subscriptionData.external_reference,
+          subscription_status: 'pending'
+        })
+        
+        if (!error && data && data.length > 0) {
+          pendingSubscription = data[0]
+        } else {
+          // Fallback a búsqueda manual si la función no está disponible
+          const { data: pendingById, error: errorById } = await supabase
+            .from('unified_subscriptions')
+            .select('*')
+            .eq('mercadopago_subscription_id', subscriptionData.id)
+            .eq('status', 'pending')
+            .single()
 
-      if (pendingById) {
-        pendingSubscription = pendingById
-      } else if (subscriptionData.external_reference) {
-        // Si no se encuentra por ID, buscar por external_reference
-        const { data: pendingByRef, error: errorByRef } = await supabase
-          .from('pending_subscriptions')
+          if (pendingById) {
+            pendingSubscription = pendingById
+          } else if (subscriptionData.external_reference) {
+            const { data: pendingByRef, error: errorByRef } = await supabase
+              .from('unified_subscriptions')
+              .select('*')
+              .eq('external_reference', subscriptionData.external_reference)
+              .eq('status', 'pending')
+              .single()
+            
+            pendingSubscription = pendingByRef
+            pendingError = errorByRef
+          }
+        }
+      } catch (error) {
+        logger.warn('Error usando función optimizada, usando búsqueda manual', 'SUBSCRIPTION', {
+          error: error.message
+        })
+        
+        // Fallback completo
+        const { data: pendingById, error: errorById } = await supabase
+          .from('unified_subscriptions')
           .select('*')
-          .eq('external_reference', subscriptionData.external_reference)
+          .eq('mercadopago_subscription_id', subscriptionData.id)
           .eq('status', 'pending')
           .single()
-        
-        pendingSubscription = pendingByRef
-        pendingError = errorByRef
+
+        pendingSubscription = pendingById
+        pendingError = errorById
       }
 
       if (pendingError && pendingError.code !== 'PGRST116') {
@@ -1045,8 +1086,9 @@ export class WebhookService {
         })
 
         // Calcular próxima fecha de facturación basada en la frecuencia
-        const nextBillingDate = this.calculateNextBillingDate(
-          pendingSubscription.subscription_type || 'monthly'
+        const nextBillingDate = await this.calculateNextBillingDate(
+          pendingSubscription.subscription_type || 'monthly',
+          supabase
         )
 
         // Preparar metadata con información completa
@@ -1057,19 +1099,11 @@ export class WebhookService {
           ...pendingSubscription.metadata
         }
 
-        // Crear suscripción activa en user_subscriptions con todos los campos necesarios
+        // Actualizar suscripción pendiente a activa en unified_subscriptions
         const { data: activeSubscription, error: activeError } = await supabase
-          .from('user_subscriptions')
-          .insert({
-            user_id: pendingSubscription.user_id,
-            product_id: pendingSubscription.product_id,
-            subscription_type: pendingSubscription.subscription_type || 'monthly',
+          .from('unified_subscriptions')
+          .update({
             status: 'active',
-            quantity: pendingSubscription.quantity || 1,
-            size: pendingSubscription.size,
-            discount_percentage: pendingSubscription.discount_percentage || 0,
-            base_price: pendingSubscription.base_price,
-            discounted_price: pendingSubscription.discounted_price || pendingSubscription.base_price,
             next_billing_date: nextBillingDate,
             mercadopago_subscription_id: subscriptionData.id,
             external_reference: subscriptionData.external_reference || subscriptionData.id,
@@ -1079,9 +1113,9 @@ export class WebhookService {
             currency_id: 'MXN',
             transaction_amount: pendingSubscription.discounted_price || pendingSubscription.base_price,
             metadata: metadata,
-            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
+          .eq('id', pendingSubscription.id)
           .select()
           .single()
 
@@ -1097,22 +1131,7 @@ export class WebhookService {
             userId: pendingSubscription.user_id
           })
 
-          // Marcar suscripción pendiente como procesada
-          const { error: updateError } = await supabase
-            .from('pending_subscriptions')
-            .update({
-              status: 'processed',
-              processed_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', pendingSubscription.id)
-
-          if (updateError) {
-            logger.error('Error marcando suscripción pendiente como procesada', 'SUBSCRIPTION', {
-              pendingId: pendingSubscription.id,
-              error: updateError.message
-            })
-          }
+          // La suscripción ya fue actualizada a 'active' arriba, no necesitamos marcarla como 'processed'
 
           // Log de suscripción activada exitosamente
           logger.info('Suscripción activada exitosamente para el usuario', 'SUBSCRIPTION', {
@@ -1166,18 +1185,43 @@ export class WebhookService {
     return typeMap[subscriptionType] || 'months'
   }
 
-  private calculateNextBillingDate(subscriptionType: string): string {
-    const now = new Date()
-    const frequency = this.getFrequencyFromType(subscriptionType)
-    const frequencyType = this.getFrequencyTypeFromType(subscriptionType)
-    
-    if (frequencyType === 'weeks') {
-      now.setDate(now.getDate() + (frequency * 7))
-    } else if (frequencyType === 'months') {
-      now.setMonth(now.getMonth() + frequency)
+  private async calculateNextBillingDate(subscriptionType: string, supabase?: any): Promise<string> {
+    try {
+      // Usar la función de la base de datos si está disponible
+      if (supabase) {
+        const { data, error } = await supabase.rpc('calculate_next_billing_date', {
+          subscription_type_name: subscriptionType,
+          from_date: new Date().toISOString()
+        })
+        
+        if (!error && data) {
+          return data
+        }
+      }
+      
+      // Fallback al cálculo local
+      const now = new Date()
+      const frequency = this.getFrequencyFromType(subscriptionType)
+      const frequencyType = this.getFrequencyTypeFromType(subscriptionType)
+      
+      if (frequencyType === 'weeks') {
+        now.setDate(now.getDate() + (frequency * 7))
+      } else if (frequencyType === 'months') {
+        now.setMonth(now.getMonth() + frequency)
+      }
+      
+      return now.toISOString()
+    } catch (error) {
+      logger.error('Error calculando próxima fecha de facturación', 'SUBSCRIPTION', {
+        subscriptionType,
+        error: error.message
+      })
+      
+      // Fallback por defecto (mensual)
+      const now = new Date()
+      now.setMonth(now.getMonth() + 1)
+      return now.toISOString()
     }
-    
-    return now.toISOString()
   }
 
   // Manejar suscripción actualizada
@@ -1191,14 +1235,14 @@ export class WebhookService {
     try {
       // Buscar suscripción existente
       let { data: subscription } = await supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('mercadopago_subscription_id', subscriptionData.id)
         .single()
 
       if (!subscription && subscriptionData.external_reference) {
         const { data: subscriptionByRef } = await supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .select('*')
           .eq('external_reference', subscriptionData.external_reference)
           .single()
@@ -1232,7 +1276,7 @@ export class WebhookService {
         }
 
         const { error } = await supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .update(updateData)
           .eq('id', subscription.id)
 
@@ -1272,14 +1316,14 @@ export class WebhookService {
     try {
       // Buscar suscripción por ID o external_reference
       let { data: subscription } = await supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('mercadopago_subscription_id', subscriptionData.id)
         .single()
 
       if (!subscription && subscriptionData.external_reference) {
         const { data: subscriptionByRef } = await supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .select('*')
           .eq('external_reference', subscriptionData.external_reference)
           .single()
@@ -1290,7 +1334,7 @@ export class WebhookService {
       if (subscription) {
         // Marcar como cancelada en base de datos
         await supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .update({
             status: 'cancelled',
             cancelled_at: new Date().toISOString(),
@@ -1301,7 +1345,7 @@ export class WebhookService {
 
         // Actualizar perfil del usuario si no tiene más suscripciones activas
         const { data: activeSubscriptions } = await supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .select('id')
           .eq('user_id', subscription.user_id)
           .eq('status', 'active')
@@ -1664,7 +1708,7 @@ export class WebhookService {
     try {
       // Obtener detalles de la suscripción
       const { data: subscription } = await supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .select('*, product:products(*)')
         .eq('id', subscriptionId)
         .single()
@@ -1805,7 +1849,7 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
     // Buscar suscripción pendiente y activarla
     if (data.external_reference) {
       const { data: pendingSub, error: findError } = await supabase
-        .from('pending_subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('external_reference', data.external_reference)
         .eq('status', 'pending')
@@ -1838,15 +1882,15 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
         }
         
         const { error: insertError } = await supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .insert(subscriptionData)
         
         if (!insertError) {
-          // Marcar suscripción pendiente como procesada
+          // Marcar suscripción como procesada
           await supabase
-            .from('pending_subscriptions')
+            .from('unified_subscriptions')
             .update({
-              status: 'completed',
+              status: 'active',
               processed_at: new Date().toISOString(),
               mercadopago_subscription_id: data.id
             })
@@ -1896,7 +1940,7 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
         }
         
         const { error: insertError } = await supabase
-          .from('user_subscriptions')
+          .from('subscriptions')
           .insert(subscriptionData)
         
         if (!insertError && data.status === 'authorized') {
@@ -1965,7 +2009,7 @@ async function handleSubscriptionPayment(data: any, supabase: any): Promise<void
       nextBillingDate.setMonth(nextBillingDate.getMonth() + 1) // Asumir mensual por defecto
       
       await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .update({
           last_billing_date: data.date_created || new Date().toISOString(),
           next_billing_date: nextBillingDate.toISOString(),

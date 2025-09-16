@@ -14,7 +14,7 @@ async function sendConfirmationEmail() {
   try {
     // 1. Obtener datos de la suscripción
     const { data: subscription, error: subError } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select('*')
       .eq('id', subscriptionId)
       .single()

@@ -112,17 +112,17 @@ export class DynamicDiscountService {
         throw new Error('No se pudo calcular el descuento dinámico para el producto')
       }
 
-      // Crear registro en pending_subscriptions
+      // Crear registro en unified_subscriptions
       const { data: pendingSubscription, error } = await supabase
-        .from('pending_subscriptions')
+        .from('unified_subscriptions')
         .insert({
           user_id: data.userId,
           product_id: data.productId,
           subscription_type: data.subscriptionType,
           external_reference: data.externalReference,
           mercadopago_subscription_id: data.mercadopagoSubscriptionId,
-          price: discountResult.discountedPrice,
-          original_price: discountResult.originalPrice,
+          discounted_price: discountResult.discountedPrice,
+          base_price: discountResult.originalPrice,
           discount_percentage: discountResult.discountPercentage,
           quantity: data.quantity || 1,
           plan_id: data.planId,

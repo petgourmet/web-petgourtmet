@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     // Obtener suscripciones activas relacionadas
     const { data: subscriptions, error: subsError } = await supabase
-      .from('user_subscriptions')
+      .from('unified_subscriptions')
       .select('*')
       .in('status', ['pending', 'authorized'])
 

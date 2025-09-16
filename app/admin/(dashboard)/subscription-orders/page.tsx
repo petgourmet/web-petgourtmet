@@ -26,7 +26,8 @@ import {
   Download,
   Upload,
   TrendingUp,
-  Activity
+  Activity,
+  Trash2
 } from "lucide-react"
 
 interface AdminSubscription {
@@ -118,6 +119,9 @@ export default function AdminSubscriptionOrdersPage() {
   const [validatingAll, setValidatingAll] = useState(false)
   const [validationStats, setValidationStats] = useState<any>(null)
   const [showValidationModal, setShowValidationModal] = useState(false)
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupResults, setCleanupResults] = useState<any>(null)
+  const [showCleanupModal, setShowCleanupModal] = useState(false)
   
   const supabase = createClient()
 
@@ -139,7 +143,7 @@ export default function AdminSubscriptionOrdersPage() {
           .on('postgres_changes', {
             event: '*',
             schema: 'public',
-            table: 'user_subscriptions'
+            table: 'subscriptions'
           }, (payload) => {
             console.log('📡 Cambio detectado en suscripciones:', payload.eventType)
             
@@ -174,7 +178,7 @@ export default function AdminSubscriptionOrdersPage() {
           .on('postgres_changes', {
             event: '*',
             schema: 'public',
-            table: 'pending_subscriptions'
+            table: 'subscriptions'
           }, (payload) => {
             console.log('📡 Cambio detectado en suscripciones pendientes:', payload.eventType)
             
@@ -383,6 +387,47 @@ export default function AdminSubscriptionOrdersPage() {
       console.error('Error al obtener estadísticas:', error)
     }
     return null
+  }
+
+  const handleCleanupSubscriptions = async () => {
+    setCleanupLoading(true)
+    
+    try {
+      console.log('🧹 Iniciando limpieza de suscripciones...')
+      
+      const response = await fetch('/api/admin/cleanup-subscriptions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        console.log('✅ Limpieza exitosa:', result.summary)
+        
+        setCleanupResults(result.summary)
+        setShowCleanupModal(true)
+        
+        toast.success(`Limpieza completada: ${result.summary.updated_subscriptions} suscripciones actualizadas`, {
+          description: `${result.summary.cancelled_subscriptions} canceladas, ${result.summary.paused_subscriptions} pausadas`
+        })
+        
+        // Refrescar datos
+        await fetchAllSubscriptions()
+      } else {
+        console.error('❌ Error en limpieza:', result)
+        toast.error("Error en limpieza de suscripciones", {
+          description: result.error || "Error desconocido"
+        })
+      }
+    } catch (error) {
+      console.error('💥 Error en limpieza:', error)
+      toast.error("Error de conexión en limpieza")
+    } finally {
+      setCleanupLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -714,6 +759,16 @@ export default function AdminSubscriptionOrdersPage() {
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                   Actualizar
+                </Button>
+                
+                <Button
+                  onClick={handleCleanupSubscriptions}
+                  disabled={cleanupLoading}
+                  variant="outline"
+                  className="flex items-center gap-2 bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
+                >
+                  <Trash2 className={`h-4 w-4 ${cleanupLoading ? 'animate-pulse' : ''}`} />
+                  {cleanupLoading ? 'Limpiando...' : 'Limpiar Estados'}
                 </Button>
                 
                 {filteredSubscriptions.some(sub => sub.status === 'pending') && (
@@ -1064,6 +1119,138 @@ export default function AdminSubscriptionOrdersPage() {
                 <Button
                   onClick={() => {
                     setShowValidationModal(false)
+                    handleRefresh()
+                  }}
+                >
+                  Actualizar Lista
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Resultados de Limpieza */}
+      {showCleanupModal && cleanupResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Resultados de Limpieza de Suscripciones</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCleanupModal(false)}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              {/* Resumen */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-600">{cleanupResults.total_checked}</div>
+                    <div className="text-sm text-gray-600">Total Revisadas</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-orange-600">{cleanupResults.updated_subscriptions}</div>
+                    <div className="text-sm text-gray-600">Actualizadas</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-red-600">{cleanupResults.cancelled_subscriptions}</div>
+                    <div className="text-sm text-gray-600">Canceladas</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-600">{cleanupResults.paused_subscriptions}</div>
+                    <div className="text-sm text-gray-600">Pausadas</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Detalles */}
+              {cleanupResults.updated_details && cleanupResults.updated_details.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Suscripciones Actualizadas</h3>
+                  <div className="max-h-96 overflow-y-auto">
+                    {cleanupResults.updated_details.map((detail: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">
+                            {detail.user_name || 'Usuario desconocido'}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {detail.product_name || 'Producto desconocido'}
+                          </div>
+                          <div className="font-mono text-xs text-gray-500">
+                            ID: {detail.subscription_id}
+                          </div>
+                          {detail.mercadopago_id && (
+                            <div className="font-mono text-xs text-blue-600">
+                              MP: {detail.mercadopago_id}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm">
+                            <span className="text-gray-500">{detail.old_status}</span>
+                            <span className="mx-2">→</span>
+                            <span className="font-medium">{detail.new_status}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {detail.new_status === 'cancelled' ? (
+                              <Badge variant="destructive">
+                                <XCircle className="h-3 w-3 mr-1" />Cancelada
+                              </Badge>
+                            ) : detail.new_status === 'paused' ? (
+                              <Badge variant="secondary">
+                                <Clock className="h-3 w-3 mr-1" />Pausada
+                              </Badge>
+                            ) : (
+                              <Badge variant="default">
+                                <CheckCircle className="h-3 w-3 mr-1" />Actualizada
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {cleanupResults.updated_subscriptions === 0 && (
+                <div className="text-center py-8">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    ¡Todo está actualizado!
+                  </h3>
+                  <p className="text-gray-600">
+                    No se encontraron suscripciones que requieran actualización.
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t bg-gray-50">
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCleanupModal(false)}
+                >
+                  Cerrar
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowCleanupModal(false)
                     handleRefresh()
                   }}
                 >

@@ -75,14 +75,14 @@ export default function PaymentValidationPage() {
         .from('subscription_billing_history')
         .select(`
           *,
-          user_subscriptions!inner (
+          subscriptions!inner (
             id,
             user_id,
             product_id,
             products (
               name
             ),
-            user_profile:profiles!user_subscriptions_user_id_fkey (
+            user_profile:profiles!subscriptions_user_id_fkey (
               full_name,
               email
             )
@@ -122,9 +122,9 @@ export default function PaymentValidationPage() {
         amount: payment.amount || 0,
         status: payment.status || 'pending',
         mercadopago_status: payment.payment_details?.status || payment.status,
-        customer_email: payment.user_subscriptions?.user_profile?.email || 'Sin email',
-        customer_name: payment.user_subscriptions?.user_profile?.full_name || 'Sin nombre',
-        product_name: payment.user_subscriptions?.products?.name || 'Producto de suscripción',
+        customer_email: payment.subscriptions?.user_profile?.email || 'Sin email',
+        customer_name: payment.subscriptions?.user_profile?.full_name || 'Sin nombre',
+        product_name: payment.subscriptions?.products?.name || 'Producto de suscripción',
         payment_method: payment.payment_method || 'Desconocido',
         created_at: payment.billing_date || payment.created_at,
         validated_at: payment.updated_at,

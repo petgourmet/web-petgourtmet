@@ -1135,7 +1135,7 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
       
       // Buscar suscripción relacionada con esta orden
       const { data: subscription, error } = await supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .select(`
           *,
           products (

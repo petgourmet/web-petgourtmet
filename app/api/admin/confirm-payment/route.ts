@@ -80,7 +80,7 @@ export async function POST(request: Request) {
           }
 
           const { error: subscriptionError } = await supabaseAdmin
-            .from("user_subscriptions")
+            .from("subscriptions")
             .insert(subscriptionData)
 
           if (subscriptionError) {

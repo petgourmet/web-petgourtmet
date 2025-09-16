@@ -246,29 +246,33 @@ export interface Database {
           is_subscription?: boolean
         }
       }
-      user_subscriptions: {
+      subscriptions: {
         Row: {
           id: number
           user_id: string | null
-          product_id: number | null
           subscription_type: string
           status: string
+          external_reference: string | null
+          created_at: string | null
+          updated_at: string | null
+          customer_data: Json | null
+          cart_items: Json | null
+          processed_at: string | null
+          notes: string | null
+          product_id: number | null
           quantity: number
           size: string | null
           discount_percentage: number | null
-          base_price: number
-          discounted_price: number
-          created_at: string | null
-          updated_at: string | null
-          next_billing_date: string
+          base_price: number | null
+          discounted_price: number | null
+          next_billing_date: string | null
           last_billing_date: string | null
           cancelled_at: string | null
-          product_name: string
+          product_name: string | null
           product_image: string | null
           metadata: Json | null
           mercadopago_subscription_id: string | null
           mercadopago_plan_id: string | null
-          external_reference: string | null
           reason: string | null
           charges_made: number | null
           frequency: number | null
@@ -293,25 +297,29 @@ export interface Database {
         Insert: {
           id?: number
           user_id?: string | null
-          product_id?: number | null
           subscription_type: string
           status?: string
+          external_reference?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          customer_data?: Json | null
+          cart_items?: Json | null
+          processed_at?: string | null
+          notes?: string | null
+          product_id?: number | null
           quantity?: number
           size?: string | null
           discount_percentage?: number | null
-          base_price: number
-          discounted_price: number
-          created_at?: string | null
-          updated_at?: string | null
-          next_billing_date: string
+          base_price?: number | null
+          discounted_price?: number | null
+          next_billing_date?: string | null
           last_billing_date?: string | null
           cancelled_at?: string | null
-          product_name: string
+          product_name?: string | null
           product_image?: string | null
           metadata?: Json | null
           mercadopago_subscription_id?: string | null
           mercadopago_plan_id?: string | null
-          external_reference?: string | null
           reason?: string | null
           charges_made?: number | null
           frequency?: number | null
@@ -336,25 +344,29 @@ export interface Database {
         Update: {
           id?: number
           user_id?: string | null
-          product_id?: number | null
           subscription_type?: string
           status?: string
+          external_reference?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          customer_data?: Json | null
+          cart_items?: Json | null
+          processed_at?: string | null
+          notes?: string | null
+          product_id?: number | null
           quantity?: number
           size?: string | null
           discount_percentage?: number | null
-          base_price?: number
-          discounted_price?: number
-          created_at?: string | null
-          updated_at?: string | null
-          next_billing_date?: string
+          base_price?: number | null
+          discounted_price?: number | null
+          next_billing_date?: string | null
           last_billing_date?: string | null
           cancelled_at?: string | null
-          product_name?: string
+          product_name?: string | null
           product_image?: string | null
           metadata?: Json | null
           mercadopago_subscription_id?: string | null
           mercadopago_plan_id?: string | null
-          external_reference?: string | null
           reason?: string | null
           charges_made?: number | null
           frequency?: number | null
@@ -375,50 +387,6 @@ export interface Database {
           expired_at?: string | null
           suspended_at?: string | null
           last_sync_at?: string | null
-        }
-      }
-      pending_subscriptions: {
-        Row: {
-          id: number
-          user_id: string | null
-          subscription_type: string
-          status: string | null
-          external_reference: string
-          customer_data: Json
-          cart_items: Json
-          created_at: string | null
-          updated_at: string | null
-          processed_at: string | null
-          mercadopago_subscription_id: string | null
-          notes: string | null
-        }
-        Insert: {
-          id?: number
-          user_id?: string | null
-          subscription_type: string
-          status?: string | null
-          external_reference: string
-          customer_data: Json
-          cart_items: Json
-          created_at?: string | null
-          updated_at?: string | null
-          processed_at?: string | null
-          mercadopago_subscription_id?: string | null
-          notes?: string | null
-        }
-        Update: {
-          id?: number
-          user_id?: string | null
-          subscription_type?: string
-          status?: string | null
-          external_reference?: string
-          customer_data?: Json
-          cart_items?: Json
-          created_at?: string | null
-          updated_at?: string | null
-          processed_at?: string | null
-          mercadopago_subscription_id?: string | null
-          notes?: string | null
         }
       }
       subscription_payments: {

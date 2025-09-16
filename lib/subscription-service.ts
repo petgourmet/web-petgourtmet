@@ -90,7 +90,7 @@ export class SubscriptionService {
     const today = new Date().toISOString().split("T")[0]
 
     const { data: subscriptions, error } = await this.supabase
-      .from("user_subscriptions")
+      .from("unified_subscriptions")
       .select(
         `
         *,

@@ -101,9 +101,9 @@ export async function GET(
       )
     }
 
-    // Obtener suscripciones del usuario desde la base de datos
+    // Obtener suscripciones del usuario desde la tabla unificada
     const { data: subscriptions, error } = await supabase
-      .from('user_subscriptions')
+      .from('unified_subscriptions')
       .select(`
         *,
         products (
@@ -115,6 +115,7 @@ export async function GET(
         )
       `)
       .eq('user_id', userId)
+      .neq('status', 'pending')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -137,7 +138,7 @@ export async function GET(
             // Actualizar estado si es diferente
             if (mpSubscription.status !== subscription.status) {
               await supabase
-                .from('user_subscriptions')
+                .from('unified_subscriptions')
                 .update({ 
                   status: mpSubscription.status,
                   next_payment_date: mpSubscription.next_payment_date,
@@ -196,7 +197,7 @@ export async function PUT(
 
     // Verificar que la suscripción pertenece al usuario
     const { data: subscription, error: fetchError } = await supabase
-      .from('user_subscriptions')
+      .from('unified_subscriptions')
       .select('*')
       .eq('id', subscriptionId)
       .eq('user_id', userId)
@@ -255,7 +256,7 @@ export async function PUT(
 
     // Actualizar estado en base de datos
     const { data: updatedSubscription, error: updateError } = await supabase
-      .from('user_subscriptions')
+      .from('unified_subscriptions')
       .update({
         status: newStatus,
         updated_at: new Date().toISOString()

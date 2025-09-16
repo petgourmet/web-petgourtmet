@@ -294,31 +294,17 @@ function PerfilPageContent() {
     
     // Canal para suscripciones de usuario
     const subscriptionsChannel = supabase
-      .channel('user_subscriptions_realtime')
+      .channel('subscriptions_realtime')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'user_subscriptions',
+          table: 'unified_subscriptions',
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
           console.log('🔄 Cambio en suscripciones:', payload)
-          setLastSyncTime(new Date())
-          fetchSubscriptions() // Recargar suscripciones cuando hay cambios
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'pending_subscriptions',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('🔄 Cambio en suscripciones pendientes:', payload)
           setLastSyncTime(new Date())
           fetchSubscriptions() // Recargar suscripciones cuando hay cambios
         }

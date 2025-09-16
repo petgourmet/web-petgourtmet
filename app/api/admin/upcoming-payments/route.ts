@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Obtener suscripciones activas con próximos pagos
     const { data: subscriptions, error: subscriptionsError } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select(`
         *,
         products (
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         for (const subscriptionId of subscriptionIds) {
           try {
             const { data: subscription } = await supabase
-              .from('user_subscriptions')
+              .from('subscriptions')
               .select('*')
               .eq('id', subscriptionId)
               .single()

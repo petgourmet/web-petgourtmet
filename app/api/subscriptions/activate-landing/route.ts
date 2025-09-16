@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Buscar suscripción pendiente
     let query = supabase
-      .from('pending_subscriptions')
+      .from('subscriptions')
       .select('*')
       .eq('status', 'pending');
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si ya existe una suscripción activa para este usuario
     const { data: existingSubscription } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select('*')
       .eq('user_id', pendingSubscription.user_id)
       .eq('status', 'active')
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     };
 
     const { data: newSubscription, error: subscriptionError } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .insert(subscriptionData)
       .select()
       .single();
@@ -125,9 +125,9 @@ export async function POST(request: NextRequest) {
 
     // Actualizar suscripción pendiente a completada
     await supabase
-      .from('pending_subscriptions')
+      .from('subscriptions')
       .update({ 
-        status: 'completed',
+        status: 'active',
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingSubscription.id);
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         product_image: firstItem.image,
         quantity: firstItem.quantity || 1,
         size: firstItem.size,
-        original_price: basePrice,
+        base_price: basePrice,
         discounted_price: discountPercentage > 0 ? discountedPrice : undefined,
         discount_percentage: discountPercentage > 0 ? discountPercentage : undefined,
         start_date: startDate,

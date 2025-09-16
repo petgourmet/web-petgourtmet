@@ -159,7 +159,7 @@ export default function SubscriptionPlans({
           product_name: productName,
           subscription_type: planToSubscriptionType(plan),
           discounted_price: calculateDiscountedPrice(plan),
-          original_price: basePrice,
+          base_price: basePrice,
           discount_percentage: dynamicDiscounts[planToSubscriptionType(plan)] || plan.discount_percentage,
           plan_id: plan.id,
           quantity: 1

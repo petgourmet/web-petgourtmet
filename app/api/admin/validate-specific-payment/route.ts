@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
     // 5. Actualizar suscripción si es necesario y el pago fue aprobado
     if (isSubscription && (payment.status === 'approved' || payment.status === 'paid')) {
       const { error: subscriptionError } = await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .update({
           last_billing_date: payment.date_created,
           status: 'active',

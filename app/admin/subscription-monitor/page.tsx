@@ -69,7 +69,8 @@ export default function SubscriptionMonitorPage() {
       
       // Obtener suscripciones pendientes
       const { data: pending, error: pendingError } = await supabase
-        .from('pending_subscriptions')
+        .from('unified_subscriptions')
+        .eq('status', 'pending')
         .select(`
           *,
           profiles:user_id (
@@ -89,7 +90,8 @@ export default function SubscriptionMonitorPage() {
       
       // Obtener suscripciones activas
       const { data: active, error: activeError } = await supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
+        .eq('status', 'active')
         .select(`
           *,
           profiles:user_id (

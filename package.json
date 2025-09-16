@@ -8,10 +8,11 @@
     "lint": "next lint",
     "start": "next start",
     "test": "jest",
+    "test:sandbox": "dotenv -e .env.test -- jest",
     "verify-mercadopago": "node scripts/verify-mercadopago.js",
     "update-payments": "node scripts/update-pending-payments.mjs",
     "start-payment-monitor": "node scripts/startup-payment-monitor.mjs",
-    "dev:full": "npm run start-payment-monitor & npm run dev",
+    "dev:full": "pnpm run start-payment-monitor & pnpm run dev",
     "update-customer-emails": "node scripts/update-customer-emails.mjs",
     "fix-emails": "node scripts/update-emails-from-mercadopago.mjs",
     "analyze-emails": "node scripts/fix-customer-emails-display.mjs",
@@ -19,7 +20,7 @@
     "add-customer-email-column": "node scripts/add-customer-email-column-direct.mjs",
     "run-email-migration": "node scripts/run-customer-email-migration.mjs",
     "auto-validate": "node scripts/auto-validate-payments.js",
-    "dev:auto": "npm run auto-validate & npm run dev"
+    "dev:auto": "pnpm run auto-validate & pnpm run dev"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -90,6 +91,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv-cli": "^10.0.0",
     "eslint": "^9.33.0",
     "eslint-config-next": "^15.4.6",
     "jest": "^30.1.3",

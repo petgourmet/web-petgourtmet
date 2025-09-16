@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import MercadoPagoService from '@/lib/mercadopago-service'
+import MercadoPagoServiceMock from '@/lib/mercadopago-service-mock'
 import { createClient } from '@/lib/supabase/server'
 import DynamicDiscountService, { SubscriptionType } from '@/lib/dynamic-discount-service'
 
@@ -14,7 +15,11 @@ if (!MP_ACCESS_TOKEN) {
   throw new Error('MERCADOPAGO_ACCESS_TOKEN is required')
 }
 
-const mercadoPagoService = new MercadoPagoService(MP_ACCESS_TOKEN)
+// Configurar MercadoPago (usar mock en modo de prueba)
+const USE_MOCK = process.env.USE_MERCADOPAGO_MOCK === 'true'
+const mercadoPagoService = USE_MOCK
+  ? new MercadoPagoServiceMock(MP_ACCESS_TOKEN, { sandbox: IS_TEST_MODE })
+  : new MercadoPagoService(MP_ACCESS_TOKEN, { sandbox: IS_TEST_MODE })
 
 export async function POST(request: NextRequest) {
   try {

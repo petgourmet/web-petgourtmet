@@ -37,7 +37,7 @@ interface ValidationResult {
   external_reference?: string
   validation_status: 'valid' | 'invalid' | 'warning' | 'pending_validation'
   validation_message: string
-  source: 'user_subscriptions' | 'pending_subscriptions'
+  source: 'subscriptions'
 }
 
 export default function SubscriptionValidator({ isAdmin = false, userId }: SubscriptionValidatorProps) {
@@ -56,7 +56,7 @@ export default function SubscriptionValidator({ isAdmin = false, userId }: Subsc
 
       // 1. Validar suscripciones activas
       const { data: activeSubscriptions, error: activeError } = await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .select(`
           id,
           user_id,
@@ -70,6 +70,7 @@ export default function SubscriptionValidator({ isAdmin = false, userId }: Subsc
           products (name),
           profiles (email)
         `)
+        .eq('status', 'active')
         .match(userFilter)
         .order('created_at', { ascending: false })
 
@@ -109,14 +110,14 @@ export default function SubscriptionValidator({ isAdmin = false, userId }: Subsc
             external_reference: sub.external_reference,
             validation_status: validationStatus,
             validation_message: validationMessage,
-            source: 'user_subscriptions'
+            source: 'subscriptions'
           })
         })
       }
 
       // 2. Validar suscripciones pendientes
       const { data: pendingSubscriptions, error: pendingError } = await supabase
-        .from('pending_subscriptions')
+        .from('subscriptions')
         .select(`
           id,
           user_id,
@@ -130,6 +131,7 @@ export default function SubscriptionValidator({ isAdmin = false, userId }: Subsc
           processed_at,
           profiles (email)
         `)
+        .eq('status', 'pending')
         .match(userFilter)
         .order('created_at', { ascending: false })
 
@@ -175,7 +177,7 @@ export default function SubscriptionValidator({ isAdmin = false, userId }: Subsc
             external_reference: sub.external_reference,
             validation_status: validationStatus,
             validation_message: validationMessage,
-            source: 'pending_subscriptions'
+            source: 'subscriptions'
           })
         })
       }

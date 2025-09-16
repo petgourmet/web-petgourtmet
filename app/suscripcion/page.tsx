@@ -68,7 +68,7 @@ export default function SuscripcionPage() {
       setIsLoading(true)
       
       const { data: subscriptions, error } = await supabase
-        .from("user_subscriptions")
+        .from("unified_subscriptions")
         .select("*")
         .eq("user_id", user.id)
         .eq("status", "active")
@@ -105,7 +105,7 @@ export default function SuscripcionPage() {
       
       // Buscar todas las suscripciones pendientes del usuario
       const { data: pendingSubscriptions, error: pendingError } = await supabase
-        .from("pending_subscriptions")
+        .from("unified_subscriptions")
         .select("*")
         .eq("user_id", user.id)
         .eq("status", "pending")
@@ -165,24 +165,16 @@ export default function SuscripcionPage() {
       // Calcular próxima fecha de pago basada en el tipo de suscripción
       const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
       
-      // Crear suscripción activa en user_subscriptions
+      // Actualizar suscripción a activa
       const { data: newSubscription, error: createError } = await supabase
-        .from("user_subscriptions")
-        .insert({
-          user_id: user.id,
-          subscription_type: pendingSubscription.subscription_type,
+        .from("unified_subscriptions")
+        .update({
           status: "active",
-          external_reference: pendingSubscription.external_reference || pendingSubscription.mercadopago_subscription_id,
           next_billing_date: nextBillingDate,
           last_billing_date: new Date().toISOString(),
-          product_id: pendingSubscription.cart_items?.[0]?.id || null,
-          product_name: pendingSubscription.cart_items?.[0]?.name || "Producto Pet Gourmet",
-          discounted_price: pendingSubscription.cart_items?.[0]?.price || 0,
-          frequency: getFrequencyFromType(pendingSubscription.subscription_type),
-          frequency_type: "months",
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
+        .eq("id", pendingSubscription.id)
         .select()
         .single()
 
@@ -191,11 +183,7 @@ export default function SuscripcionPage() {
         throw createError
       }
 
-      // Marcar suscripción pendiente como procesada
-      await supabase
-        .from("pending_subscriptions")
-        .update({ status: "processed" })
-        .eq("id", pendingSubscription.id)
+      // La suscripción ya fue actualizada a activa en el paso anterior
 
       console.log("Suscripción activada exitosamente:", newSubscription)
       
@@ -241,7 +229,7 @@ export default function SuscripcionPage() {
       
       // Buscar suscripción pendiente por external_reference
       const { data: pendingSubscriptions, error: pendingError } = await supabase
-        .from("pending_subscriptions")
+        .from("unified_subscriptions")
         .select("*")
         .eq("external_reference", externalReference)
         .eq("user_id", user.id)
@@ -259,24 +247,16 @@ export default function SuscripcionPage() {
       // Calcular próxima fecha de pago basada en el tipo de suscripción
       const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
       
-      // Crear suscripción activa en user_subscriptions
+      // Actualizar suscripción a activa
       const { data: newSubscription, error: createError } = await supabase
-        .from("user_subscriptions")
-        .insert({
-          user_id: user.id,
-          subscription_type: pendingSubscription.subscription_type,
+        .from("unified_subscriptions")
+        .update({
           status: "active",
-          external_reference: externalReference,
           next_billing_date: nextBillingDate,
           last_billing_date: new Date().toISOString(),
-          product_id: pendingSubscription.cart_items?.[0]?.id || null,
-          product_name: pendingSubscription.cart_items?.[0]?.name || "Producto",
-          discounted_price: pendingSubscription.cart_items?.[0]?.price || 0,
-          frequency: getFrequencyFromType(pendingSubscription.subscription_type),
-          frequency_type: "months",
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
+        .eq("id", pendingSubscription.id)
         .select()
         .single()
 
@@ -290,11 +270,7 @@ export default function SuscripcionPage() {
         return
       }
 
-      // Marcar suscripción pendiente como procesada
-      await supabase
-        .from("pending_subscriptions")
-        .update({ status: "processed" })
-        .eq("id", pendingSubscription.id)
+      // La suscripción ya fue actualizada a activa
 
       // Actualizar perfil del usuario
       await updateUserProfile()
@@ -327,40 +303,44 @@ export default function SuscripcionPage() {
       setIsProcessing(true)
       console.log('Validando preapproval_id:', preapprovalId, 'para usuario:', user.id)
       
-      // Primero verificar si ya existe una suscripción pendiente con este preapproval_id
+      // Primero verificar si ya existe una suscripción con este preapproval_id
       const { data: existingPending, error: pendingError } = await supabase
-        .from('pending_subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('mercadopago_subscription_id', preapprovalId)
         .eq('user_id', user.id)
         .single()
 
-      if (existingPending && existingPending.status === 'processed') {
-        console.log('Suscripción ya procesada, cargando suscripciones activas')
+      if (existingPending && existingPending.status === 'active') {
+        console.log('Suscripción ya activa, cargando suscripciones activas')
         loadUserSubscriptions()
         window.history.replaceState({}, document.title, window.location.pathname)
         return
       }
 
-      // Si no existe pending_subscription, crear una nueva entrada
+      // Si no existe suscripción, crear una nueva entrada
       if (!existingPending) {
-        console.log('Creando pending_subscription para preapproval_id:', preapprovalId)
+        console.log('Creando suscripción para preapproval_id:', preapprovalId)
         const { error: insertError } = await supabase
-          .from('pending_subscriptions')
+          .from('unified_subscriptions')
           .insert({
             user_id: user.id,
             mercadopago_subscription_id: preapprovalId,
             external_reference: preapprovalId,
             status: 'pending',
             subscription_type: 'monthly', // Default, se actualizará con webhook
-            cart_items: [],
-            created_at: new Date().toISOString()
+            product_name: 'Producto Pet Gourmet',
+            discounted_price: 0,
+            frequency: '1',
+            frequency_type: 'months',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           })
 
         if (insertError) {
-          console.error('Error creando pending_subscription:', insertError)
+          console.error('Error creando suscripción:', insertError)
         } else {
-          console.log('Pending subscription creada exitosamente')
+          console.log('Suscripción creada exitosamente')
         }
       }
       

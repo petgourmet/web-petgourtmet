@@ -289,7 +289,7 @@ export class PaymentSyncService {
       const cutoffDate = new Date(Date.now() - maxAge * 60 * 60 * 1000).toISOString()
       
       const { data: pendingSubscriptions, error } = await this.supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('status', 'pending')
         .gte('created_at', cutoffDate)

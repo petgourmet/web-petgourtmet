@@ -431,7 +431,7 @@ export function CheckoutModal() {
 
           // Guardar información de suscripción pendiente y esperar confirmación
           const { data: insertedData, error: subscriptionError } = await supabase
-            .from('pending_subscriptions')
+            .from('subscriptions')
             .insert(subscriptionData)
             .select()
 

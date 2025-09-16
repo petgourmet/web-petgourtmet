@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       .from('subscription_billing_history')
       .select(`
         *,
-        user_subscriptions!inner (
+        subscriptions!inner (
           id,
           product_id,
           products (
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       payment_method: payment.payment_method || 'subscription',
       created_at: payment.billing_date || payment.created_at,
       type: 'subscription',
-      product_name: payment.user_subscriptions?.products?.name || 'Suscripción'
+      product_name: payment.subscriptions?.products?.name || 'Suscripción'
     }))
 
     // Procesar datos de órdenes

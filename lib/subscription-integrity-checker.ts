@@ -131,7 +131,7 @@ export class SubscriptionIntegrityChecker {
       // Si no se proporcionan user_ids, obtener usuarios con suscripciones
       if (!user_ids) {
         const { data: users } = await this.supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .select('user_id')
           .limit(limit);
         
@@ -171,7 +171,7 @@ export class SubscriptionIntegrityChecker {
 
   private async checkPendingSubscription(result: IntegrityCheckResult) {
     try {
-      let query = this.supabase.from('pending_subscriptions').select('*');
+      let query = this.supabase.from('unified_subscriptions').select('*').eq('status', 'pending');
       
       if (result.external_reference) {
         query = query.eq('external_reference', result.external_reference);
@@ -199,7 +199,7 @@ export class SubscriptionIntegrityChecker {
   private async checkActiveSubscription(result: IntegrityCheckResult) {
     try {
       const { data } = await this.supabase
-        .from('user_subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('user_id', result.user_id)
         .eq('status', 'active')

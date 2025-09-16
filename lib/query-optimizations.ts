@@ -182,12 +182,12 @@ export async function fetchOptimizedSubscriptions(
   const cacheKey = `subscriptions_${userId || 'all'}`
   
   const queryFn = async () => {
-    // Consulta batch optimizada incluyendo historial de facturación
-    const [userSubscriptionsResult, pendingSubscriptionsResult, billingHistoryResult] = await Promise.all([
-      // Todas las suscripciones (activas, canceladas, etc.)
+    // Consulta optimizada usando tabla unificada 'unified_subscriptions'
+    const [subscriptionsResult, billingHistoryResult] = await Promise.all([
+      // Todas las suscripciones de la tabla unificada
       userId ? 
         supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .select(`
             *,
             products (
@@ -206,7 +206,7 @@ export async function fetchOptimizedSubscriptions(
           .order('created_at', { ascending: false })
         :
         supabase
-          .from('user_subscriptions')
+          .from('unified_subscriptions')
           .select(`
             *,
             products (
@@ -221,21 +221,6 @@ export async function fetchOptimizedSubscriptions(
               biweekly_discount
             )
           `)
-          .order('created_at', { ascending: false }),
-      
-      // Suscripciones pendientes válidas (incluir todas las pendientes, con o sin mercadopago_subscription_id)
-      userId ?
-        supabase
-          .from('pending_subscriptions')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-        :
-        supabase
-          .from('pending_subscriptions')
-          .select('*')
-          .eq('status', 'pending')
           .order('created_at', { ascending: false }),
       
       // Historial de facturación para validar pagos de webhooks
@@ -244,7 +229,7 @@ export async function fetchOptimizedSubscriptions(
           .from('subscription_billing_history')
           .select(`
             *,
-            user_subscriptions!inner (
+            unified_subscriptions!inner (
               id,
               user_id,
               product_id,
@@ -264,7 +249,7 @@ export async function fetchOptimizedSubscriptions(
               )
             )
           `)
-          .eq('user_subscriptions.user_id', userId)
+          .eq('unified_subscriptions.user_id', userId)
           .eq('status', 'approved')
           .order('created_at', { ascending: false })
         :
@@ -272,7 +257,7 @@ export async function fetchOptimizedSubscriptions(
           .from('subscription_billing_history')
           .select(`
             *,
-            user_subscriptions!inner (
+            unified_subscriptions!inner (
               id,
               user_id,
               product_id,
@@ -296,12 +281,11 @@ export async function fetchOptimizedSubscriptions(
           .order('created_at', { ascending: false })
     ])
     
-    const userSubscriptions = userSubscriptionsResult.data || []
-    const pendingSubscriptions = pendingSubscriptionsResult.data || []
+    const subscriptions = subscriptionsResult.data || []
     const billingHistory = billingHistoryResult.data || []
     
-    // Procesar suscripciones activas
-    const processedActiveSubscriptions = userSubscriptions.map(sub => {
+    // Procesar todas las suscripciones de la tabla unificada
+    const processedSubscriptions = subscriptions.map(sub => {
       const product = sub.products
       const frequency = sub.frequency || 'monthly'
       let discountAmount = 0
@@ -339,100 +323,22 @@ export async function fetchOptimizedSubscriptions(
         status: standardizedStatus,
         frequency,
         discount_amount: discountAmount,
-        source: 'user_subscriptions'
-      }
-    })
-    
-    // Procesar todas las suscripciones pendientes (sin filtro de expiración)
-    // Las suscripciones solo cambian de estado cuando se procesa el pago vía webhook
-    const validPendingSubscriptions = pendingSubscriptions
-    
-    // Obtener productos para suscripciones pendientes en una sola consulta
-    const pendingProductIds = validPendingSubscriptions
-      .map(sub => {
-        try {
-          let cartItems = []
-          if (typeof sub.cart_items === 'string') {
-            cartItems = JSON.parse(sub.cart_items)
-          } else if (Array.isArray(sub.cart_items)) {
-            cartItems = sub.cart_items
-          } else if (sub.cart_items && typeof sub.cart_items === 'object') {
-            cartItems = [sub.cart_items]
-          }
-          return cartItems[0]?.product_id
-        } catch (error) {
-          console.error('Error parsing cart_items for product_id:', error)
-          return null
-        }
-      })
-      .filter(Boolean)
-    
-    let pendingProductsData = []
-    if (pendingProductIds.length > 0) {
-      const { data: productsData } = await supabase
-        .from('products')
-        .select('id, name, image, price')
-        .in('id', pendingProductIds)
-      
-      pendingProductsData = productsData || []
-    }
-    
-    const processedPendingSubscriptions = validPendingSubscriptions.map(sub => {
-      // Parsear cart_items - puede ser string JSON, objeto, o array
-      let cartItems = []
-      try {
-        if (typeof sub.cart_items === 'string') {
-          // Si es string, intentar parsear como JSON
-          cartItems = JSON.parse(sub.cart_items)
-        } else if (Array.isArray(sub.cart_items)) {
-          // Si ya es array, usarlo directamente
-          cartItems = sub.cart_items
-        } else if (sub.cart_items && typeof sub.cart_items === 'object') {
-          // Si es objeto, convertir a array
-          cartItems = [sub.cart_items]
-        } else {
-          cartItems = []
-        }
-      } catch (error) {
-        console.error('Error parsing cart_items:', error, 'Raw data:', sub.cart_items)
-        cartItems = []
-      }
-      
-      const cartItem = cartItems[0] || {}
-      const productData = pendingProductsData.find(p => p.id === cartItem.product_id)
-      
-      return {
-        id: `pending_${sub.id}`,
-        user_id: sub.user_id,
-        product_id: cartItem.product_id || null,
-        status: 'pending',
-        frequency: getFrequencyFromType(sub.subscription_type),
-        price: cartItem.price || 0,
-        discount_amount: 0,
-        next_billing_date: null,
-        created_at: sub.created_at,
-        source: 'pending_subscriptions',
-        products: {
-          id: cartItem.product_id || '',
-          name: productData?.name || cartItem.product_name || 'Producto',
-          image: productData?.image || cartItem.image || '/placeholder.svg',
-          price: productData?.price || cartItem.price || 0
-        }
+        source: 'subscriptions'
       }
     })
     
     // Procesar suscripciones del historial de facturación (pagos validados por webhooks)
     const processedBillingSubscriptions = billingHistory
       .filter(billing => {
-        // Solo incluir si no existe ya en user_subscriptions
-        const existsInActive = userSubscriptions.some(sub => 
-          sub.id === billing.user_subscriptions?.id ||
-          sub.mercadopago_subscription_id === billing.user_subscriptions?.mercadopago_subscription_id
+        // Solo incluir si no existe ya en subscriptions
+        const existsInActive = subscriptions.some(sub => 
+          sub.id === billing.subscriptions?.id ||
+          sub.mercadopago_subscription_id === billing.subscriptions?.mercadopago_subscription_id
         )
-        return !existsInActive && billing.user_subscriptions
+        return !existsInActive && billing.subscriptions
       })
       .map(billing => {
-        const subscription = billing.user_subscriptions
+        const subscription = billing.subscriptions
         const product = subscription.products
         const frequency = subscription.frequency || 'monthly'
         let discountAmount = 0
@@ -478,8 +384,7 @@ export async function fetchOptimizedSubscriptions(
     
     // Combinar y deduplicar
     const allSubscriptions = [
-      ...processedActiveSubscriptions, 
-      ...processedPendingSubscriptions,
+      ...processedSubscriptions,
       ...processedBillingSubscriptions
     ]
     
@@ -702,29 +607,11 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
   const queryFn = async () => {
     console.log('🔍 Fetching ALL subscriptions for admin (bypassing RLS)...')
     
-    // Consulta batch optimizada para TODAS las suscripciones (sin filtro de usuario)
-    const [userSubscriptionsResult, pendingSubscriptionsResult, billingHistoryResult] = await Promise.all([
-      // Todas las suscripciones (activas, canceladas, etc.) - SIN FILTRO DE USUARIO
+    // Consulta optimizada para TODAS las suscripciones usando tabla unificada
+    const [subscriptionsResult, billingHistoryResult] = await Promise.all([
+      // Todas las suscripciones de la tabla unificada - SIN FILTRO DE USUARIO
       supabase
-        .from('user_subscriptions')
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            image,
-            price,
-            monthly_discount,
-            quarterly_discount,
-            annual_discount,
-            biweekly_discount
-          )
-        `)
-        .order('created_at', { ascending: false }),
-      
-      // Suscripciones pendientes - SIN FILTRO DE USUARIO
-      supabase
-        .from('pending_subscriptions')
+        .from('subscriptions')
         .select(`
           *,
           products (
@@ -760,26 +647,22 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
         .order('billing_date', { ascending: false })
     ])
     
-    if (userSubscriptionsResult.error) {
-      console.error('Error fetching user subscriptions (admin):', userSubscriptionsResult.error)
-    }
-    if (pendingSubscriptionsResult.error) {
-      console.error('Error fetching pending subscriptions (admin):', pendingSubscriptionsResult.error)
+    if (subscriptionsResult.error) {
+      console.error('Error fetching subscriptions (admin):', subscriptionsResult.error)
     }
     if (billingHistoryResult.error) {
       console.error('Error fetching billing history (admin):', billingHistoryResult.error)
     }
     
-    const userSubscriptions = userSubscriptionsResult.data || []
-    const pendingSubscriptions = pendingSubscriptionsResult.data || []
+    const subscriptions = subscriptionsResult.data || []
     const billingHistory = billingHistoryResult.data || []
     
-    console.log(`📊 Admin data loaded: ${userSubscriptions.length} user subs, ${pendingSubscriptions.length} pending, ${billingHistory.length} billing records`)
+    console.log(`📊 Admin data loaded: ${subscriptions.length} subscriptions, ${billingHistory.length} billing records`)
     
-    // Procesar suscripciones activas
-    const processedActiveSubscriptions = userSubscriptions.map(subscription => {
+    // Procesar todas las suscripciones de la tabla unificada
+    const processedSubscriptions = subscriptions.map(subscription => {
       const product = subscription.products
-      const frequency = getFrequencyFromType(subscription.subscription_type)
+      const frequency = getFrequencyFromType(subscription.subscription_type || subscription.frequency)
       
       let discountAmount = 0
       if (product) {
@@ -806,42 +689,7 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
         ...subscription,
         frequency,
         discount_amount: discountAmount,
-        source: 'user_subscriptions',
-        products: product
-      }
-    })
-    
-    // Procesar suscripciones pendientes
-    const processedPendingSubscriptions = pendingSubscriptions.map(subscription => {
-      const product = subscription.products
-      const frequency = getFrequencyFromType(subscription.subscription_type)
-      
-      let discountAmount = 0
-      if (product) {
-        switch (frequency) {
-          case 'weekly':
-            discountAmount = product.weekly_discount || 0
-            break
-          case 'monthly':
-            discountAmount = product.monthly_discount || 0
-            break
-          case 'quarterly':
-            discountAmount = product.quarterly_discount || 0
-            break
-          case 'annual':
-            discountAmount = product.annual_discount || 0
-            break
-          case 'biweekly':
-            discountAmount = product.biweekly_discount || 0
-            break
-        }
-      }
-      
-      return {
-        ...subscription,
-        frequency,
-        discount_amount: discountAmount,
-        source: 'pending_subscriptions',
+        source: 'subscriptions',
         products: product
       }
     })
@@ -849,14 +697,11 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
     // Procesar historial de facturación
     const processedBillingSubscriptions = billingHistory
       .filter(billing => {
-        // Solo incluir si no existe ya en user_subscriptions o pending_subscriptions
-        const existsInActive = userSubscriptions.some(sub => 
+        // Solo incluir si no existe ya en subscriptions
+        const existsInActive = subscriptions.some(sub => 
           sub.user_id === billing.user_id && sub.product_id === billing.product_id
         )
-        const existsInPending = pendingSubscriptions.some(sub => 
-          sub.user_id === billing.user_id && sub.product_id === billing.product_id
-        )
-        return !existsInActive && !existsInPending
+        return !existsInActive
       })
       .map(billing => {
         const product = billing.products
@@ -907,8 +752,7 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
     
     // Combinar y deduplicar
     const allSubscriptions = [
-      ...processedActiveSubscriptions, 
-      ...processedPendingSubscriptions,
+      ...processedSubscriptions,
       ...processedBillingSubscriptions
     ]
     

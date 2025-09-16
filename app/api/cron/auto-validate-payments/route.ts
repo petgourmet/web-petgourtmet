@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Buscar suscripciones pendientes de validación
     const { data: pendingSubscriptions, error: subscriptionsError } = await supabase
-      .from('pending_subscriptions')
+      .from('subscriptions')
       .select('*')
       .eq('status', 'pending')
       .not('mercadopago_subscription_id', 'is', null)
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
               status: subscriptionData.status
             })
 
-            // Si la suscripción está autorizada, moverla a user_subscriptions
+            // Si la suscripción está autorizada, activarla en la tabla subscriptions
             if (subscriptionData.status === 'authorized') {
               // Calcular próxima fecha de pago
               const nextBillingDate = new Date()
@@ -212,22 +212,16 @@ export async function POST(request: NextRequest) {
                   nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
               }
 
-              // Crear suscripción activa
+              // Actualizar suscripción a activa
               const { error: createError } = await supabase
-                .from('user_subscriptions')
-                .insert({
-                  user_id: subscription.user_id,
-                  product_id: subscription.product_id,
+                .from('subscriptions')
+                .update({
                   status: 'active',
-                  frequency: subscription.subscription_type,
-                  price: subscription.amount,
                   next_billing_date: nextBillingDate.toISOString(),
-                  mercadopago_subscription_id: subscription.mercadopago_subscription_id,
-                  external_reference: subscription.external_reference,
                   is_active: true,
-                  created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
                 })
+                .eq('id', subscription.id)
 
               if (createError) {
                 logger.error(`Error creando suscripción activa ${subscription.id}`, 'CRON', {
@@ -235,12 +229,6 @@ export async function POST(request: NextRequest) {
                 })
                 results.errors++
               } else {
-                // Marcar suscripción pendiente como procesada
-                await supabase
-                  .from('pending_subscriptions')
-                  .update({ status: 'processed' })
-                  .eq('id', subscription.id)
-
                 results.subscriptions_updated++
                 results.details.push({
                   type: 'subscription',

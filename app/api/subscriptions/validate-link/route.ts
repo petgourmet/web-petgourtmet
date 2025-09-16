@@ -62,10 +62,10 @@ export async function POST(request: NextRequest) {
 
     // Verificar si ya existe una suscripción activa para este usuario
     const { data: existingSubscription, error: subError } = await supabase
-      .from('user_subscriptions')
-      .select('id, status, is_active')
+      .from('subscriptions')
+      .select('id, status')
       .eq('user_id', extractedUserId)
-      .eq('is_active', true)
+      .eq('status', 'active')
       .single()
 
     if (!subError && existingSubscription) {
@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
 
     // Verificar si ya existe una suscripción con este external_reference
     const { data: duplicateSubscription, error: dupError } = await supabase
-      .from('user_subscriptions')
-      .select('id, status, is_active')
+      .from('subscriptions')
+      .select('id, status')
       .eq('external_reference', external_reference)
       .single()
 

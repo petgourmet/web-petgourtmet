@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     // 1. Buscar suscripciones que necesitan recordatorio (3 días antes)
     const { data: subscriptionsForReminder, error: reminderError } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select(`
         *,
         products (
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         )
       `)
       .eq('status', 'authorized')
+      .neq('status', 'pending')
       .lte('next_payment_date', threeDaysFromNow.toISOString())
       .gte('next_payment_date', oneDayFromNow.toISOString())
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Buscar suscripciones que necesitan procesamiento de pago (hoy)
     const { data: subscriptionsForPayment, error: paymentError } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select(`
         *,
         products (
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
         )
       `)
       .eq('status', 'authorized')
+      .neq('status', 'pending')
       .lte('next_payment_date', now.toISOString())
 
     if (paymentError) {
@@ -190,7 +192,7 @@ export async function POST(request: NextRequest) {
 
           // Actualizar suscripción
           await supabase
-            .from('user_subscriptions')
+            .from('subscriptions')
             .update({
               next_payment_date: nextPaymentDate.toISOString(),
               last_payment_date: now.toISOString(),

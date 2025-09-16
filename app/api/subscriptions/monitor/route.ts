@@ -27,9 +27,10 @@ export async function GET(request: NextRequest) {
 
     // Métricas básicas de suscripciones activas
     const { data: activeSubscriptions, error: activeError } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select('subscription_type, status, transaction_amount, created_at')
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .neq('status', 'pending');
 
     if (activeError) {
       throw new Error(`Error fetching active subscriptions: ${activeError.message}`);
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Métricas de suscripciones pendientes
     const { data: pendingSubscriptions, error: pendingError } = await supabase
-      .from('pending_subscriptions')
+      .from('subscriptions')
       .select('subscription_type, status, created_at')
       .eq('status', 'pending');
 
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     // Suscripciones canceladas en los últimos 30 días
     const { data: cancelledSubscriptions } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select('created_at')
       .eq('status', 'cancelled')
       .gte('updated_at', thirtyDaysAgo.toISOString());
@@ -159,10 +160,11 @@ export async function POST(request: NextRequest) {
 
     // Métricas por producto
     const { data: productMetrics, error } = await supabase
-      .from('user_subscriptions')
+      .from('subscriptions')
       .select('product_id, subscription_type, status, transaction_amount')
       .in('product_id', product_ids)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .neq('status', 'pending');
 
     if (error) {
       throw new Error(`Error fetching product metrics: ${error.message}`);

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     // Crear la suscripción
     const { data, error } = await supabase
-      .from("subscriptions")
+      .from("unified_subscriptions")
       .insert([
         {
           user_id: userId,
@@ -54,7 +54,7 @@ export async function PUT(request: Request) {
 
     // Actualizar el estado de la suscripción
     const { data, error } = await supabase
-      .from("subscriptions")
+      .from("unified_subscriptions")
       .update({ status, updated_at: new Date().toISOString() })
       .eq("id", subscriptionId)
       .select()
@@ -82,7 +82,7 @@ export async function DELETE(request: Request) {
 
     // Cancelar la suscripción (soft delete)
     const { data, error } = await supabase
-      .from("subscriptions")
+      .from("unified_subscriptions")
       .update({
         status: "cancelled",
         cancelled_at: new Date().toISOString(),

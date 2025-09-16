@@ -1,288 +1,255 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServiceClient } from '@/lib/supabase/service'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+// Configuración de MercadoPago
+const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 
-export async function POST(request: NextRequest) {
+interface CleanupResult {
+  subscription_id: string
+  mercadopago_id?: string
+  user_name?: string
+  product_name?: string
+  old_status: string
+  new_status: string
+  reason?: string
+}
+
+interface CleanupSummary {
+  total_checked: number
+  updated_subscriptions: number
+  cancelled_subscriptions: number
+  paused_subscriptions: number
+  errors: number
+  updated_details: CleanupResult[]
+}
+
+// Función para consultar el estado de una suscripción en MercadoPago
+async function getMercadoPagoSubscriptionStatus(subscriptionId: string) {
   try {
-    console.log('🧹 Iniciando limpieza y configuración de suscripciones...')
-
-    const results = []
-    let successCount = 0
-    let errorCount = 0
-
-    // 1. Primero obtener IDs de orders de prueba
-    let testOrderIds: number[] = []
-    try {
-      console.log('🔍 Buscando orders de prueba...')
-      const { data: testOrders, error: findOrdersError } = await supabaseAdmin
-           .from('orders')
-           .select('id')
-           .eq('status', 'test')
-      
-      if (findOrdersError) {
-        console.error('❌ Error buscando orders de prueba:', findOrdersError)
-        errorCount++
-        results.push({ step: 'find_test_orders', success: false, error: findOrdersError.message })
-      } else {
-        testOrderIds = testOrders?.map(order => order.id) || []
-        console.log(`📋 Encontrados ${testOrderIds.length} orders de prueba`)
-        successCount++
-        results.push({ step: 'find_test_orders', success: true, count: testOrderIds.length })
-      }
-    } catch (err) {
-      console.error('💥 Excepción buscando orders de prueba:', err)
-      errorCount++
-      results.push({ step: 'find_test_orders', success: false, error: err instanceof Error ? err.message : 'Error desconocido' })
-    }
-
-    // 2. Limpiar order_items de prueba
-    if (testOrderIds.length > 0) {
-      try {
-        console.log('🗑️ Limpiando order_items de prueba...')
-        const { error: deleteOrderItemsError } = await supabaseAdmin
-          .from('order_items')
-          .delete()
-          .in('order_id', testOrderIds)
-        
-        if (deleteOrderItemsError) {
-          console.error('❌ Error limpiando order_items:', deleteOrderItemsError)
-          errorCount++
-          results.push({ step: 'delete_order_items', success: false, error: deleteOrderItemsError.message })
-        } else {
-          console.log('✅ Order_items de prueba eliminados')
-          successCount++
-          results.push({ step: 'delete_order_items', success: true })
-        }
-      } catch (err) {
-        console.error('💥 Excepción limpiando order_items:', err)
-        errorCount++
-        results.push({ step: 'delete_order_items', success: false, error: err instanceof Error ? err.message : 'Error desconocido' })
-      }
-    } else {
-      console.log('ℹ️ No hay order_items de prueba para eliminar')
-      results.push({ step: 'delete_order_items', success: true, note: 'No hay datos de prueba' })
-    }
-
-    // 3. Limpiar orders de prueba
-    if (testOrderIds.length > 0) {
-      try {
-        console.log('🗑️ Limpiando orders de prueba...')
-        const { error: deleteOrdersError } = await supabaseAdmin
-          .from('orders')
-          .delete()
-          .in('id', testOrderIds)
-        
-        if (deleteOrdersError) {
-          console.error('❌ Error limpiando orders:', deleteOrdersError)
-          errorCount++
-          results.push({ step: 'delete_orders', success: false, error: deleteOrdersError.message })
-        } else {
-          console.log('✅ Orders de prueba eliminados')
-          successCount++
-          results.push({ step: 'delete_orders', success: true })
-        }
-      } catch (err) {
-        console.error('💥 Excepción limpiando orders:', err)
-        errorCount++
-        results.push({ step: 'delete_orders', success: false, error: err instanceof Error ? err.message : 'Error desconocido' })
-      }
-    } else {
-      console.log('ℹ️ No hay orders de prueba para eliminar')
-      results.push({ step: 'delete_orders', success: true, note: 'No hay datos de prueba' })
-    }
-
-    // 4. Limpiar pending_subscriptions de prueba
-    try {
-      console.log('🗑️ Limpiando pending_subscriptions de prueba...')
-      const { error: deletePendingError } = await supabaseAdmin
-        .from('pending_subscriptions')
-        .delete()
-        .or('external_reference.ilike.%test%,status.eq.test')
-      
-      if (deletePendingError) {
-        console.error('❌ Error limpiando pending_subscriptions:', deletePendingError)
-        errorCount++
-        results.push({ step: 'delete_pending_subscriptions', success: false, error: deletePendingError.message })
-      } else {
-        console.log('✅ Pending_subscriptions de prueba eliminados')
-        successCount++
-        results.push({ step: 'delete_pending_subscriptions', success: true })
-      }
-    } catch (err) {
-      console.error('💥 Excepción limpiando pending_subscriptions:', err)
-      errorCount++
-      results.push({ step: 'delete_pending_subscriptions', success: false, error: err instanceof Error ? err.message : 'Error desconocido' })
-    }
-
-    // 5. Verificar si user_subscriptions existe
-    try {
-      console.log('🔍 Verificando tabla user_subscriptions...')
-      const { error: checkError } = await supabaseAdmin
-        .from('user_subscriptions')
-        .select('id')
-        .limit(1)
-        .maybeSingle()
-      
-      if (checkError) {
-        console.log('⚠️ Tabla user_subscriptions no existe, necesita ser creada manualmente')
-        results.push({ 
-          step: 'check_user_subscriptions', 
-          success: false, 
-          error: 'Tabla no existe - crear manualmente en Supabase',
-          note: 'Usar SQL: CREATE TABLE user_subscriptions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES auth.users(id), product_id INTEGER REFERENCES products(id), status VARCHAR(20) DEFAULT \'pending\', subscription_type VARCHAR(50), price NUMERIC(10,2), quantity INTEGER DEFAULT 1, size VARCHAR(50), next_billing_date TIMESTAMPTZ, last_billing_date TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(), cancelled_at TIMESTAMPTZ, is_active BOOLEAN DEFAULT true, mercadopago_subscription_id TEXT, external_reference TEXT, discount_amount NUMERIC(10,2) DEFAULT 0, frequency INTEGER DEFAULT 1, frequency_type VARCHAR(20) DEFAULT \'months\');'
-        })
-        errorCount++
-      } else {
-        console.log('✅ Tabla user_subscriptions existe')
-        successCount++
-        results.push({ step: 'check_user_subscriptions', success: true })
-        
-        // Limpiar user_subscriptions de prueba
-        try {
-          const { error: deleteUserSubsError } = await supabaseAdmin
-            .from('user_subscriptions')
-            .delete()
-            .or('external_reference.ilike.%test%,status.eq.test')
-          
-          if (deleteUserSubsError) {
-            console.error('❌ Error limpiando user_subscriptions:', deleteUserSubsError)
-            errorCount++
-            results.push({ step: 'delete_user_subscriptions', success: false, error: deleteUserSubsError.message })
-          } else {
-            console.log('✅ User_subscriptions de prueba eliminados')
-            successCount++
-            results.push({ step: 'delete_user_subscriptions', success: true })
-          }
-        } catch (err) {
-          console.error('💥 Excepción limpiando user_subscriptions:', err)
-          errorCount++
-          results.push({ step: 'delete_user_subscriptions', success: false, error: err instanceof Error ? err.message : 'Error desconocido' })
-        }
-      }
-    } catch (err) {
-      console.error('💥 Excepción verificando user_subscriptions:', err)
-      errorCount++
-      results.push({ step: 'check_user_subscriptions', success: false, error: err instanceof Error ? err.message : 'Error desconocido' })
-    }
-
-    // 6. Verificar subscription_payments
-    try {
-      console.log('🔍 Verificando tabla subscription_payments...')
-      const { error: checkPaymentsError } = await supabaseAdmin
-        .from('subscription_payments')
-        .select('id')
-        .limit(1)
-        .maybeSingle()
-      
-      if (checkPaymentsError) {
-        console.log('⚠️ Tabla subscription_payments no existe, necesita ser creada manualmente')
-        results.push({ 
-          step: 'check_subscription_payments', 
-          success: false, 
-          error: 'Tabla no existe - crear manualmente en Supabase',
-          note: 'Usar SQL: CREATE TABLE subscription_payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), subscription_id UUID REFERENCES user_subscriptions(id), billing_date TIMESTAMPTZ NOT NULL, amount NUMERIC(10,2) NOT NULL, status VARCHAR(20) DEFAULT \'pending\', payment_method VARCHAR(50), mercadopago_payment_id TEXT, collection_id TEXT, external_reference TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), processed_at TIMESTAMPTZ);'
-        })
-        errorCount++
-      } else {
-        console.log('✅ Tabla subscription_payments existe')
-        successCount++
-        results.push({ step: 'check_subscription_payments', success: true })
-      }
-    } catch (err) {
-      console.error('💥 Excepción verificando subscription_payments:', err)
-      errorCount++
-      results.push({ step: 'check_subscription_payments', success: false, error: err instanceof Error ? err.message : 'Error desconocido' })
-    }
-
-    // 7. Verificar estado final de las tablas
-    console.log('🔍 Verificando estado final de tablas...')
-    
-    const tableChecks = [
-      'user_subscriptions',
-      'subscription_payments', 
-      'pending_subscriptions',
-      'orders',
-      'order_items'
-    ]
-
-    const tableStatus = []
-    for (const tableName of tableChecks) {
-      try {
-        const { data, error } = await supabaseAdmin
-          .from(tableName)
-          .select('id')
-          .limit(1)
-
-        tableStatus.push({
-          table: tableName,
-          exists: !error,
-          recordCount: data?.length || 0,
-          error: error?.message
-        })
-      } catch (err) {
-        tableStatus.push({
-          table: tableName,
-          exists: false,
-          error: err instanceof Error ? err.message : 'Error desconocido'
-        })
-      }
-    }
-
-    console.log('📊 Resumen de limpieza y configuración:')
-    console.log(`✅ Pasos exitosos: ${successCount}`)
-    console.log(`❌ Pasos con error: ${errorCount}`)
-    console.log('📋 Estado de tablas:', tableStatus)
-
-    return NextResponse.json({
-      success: errorCount === 0,
-      message: `Limpieza completada. ${successCount} pasos exitosos, ${errorCount} errores.`,
-      summary: {
-        totalSteps: results.length,
-        successCount,
-        errorCount,
-        tableStatus
-      },
-      details: results,
-      instructions: {
-        createUserSubscriptions: 'Si user_subscriptions no existe, crear en Supabase SQL Editor',
-        createSubscriptionPayments: 'Si subscription_payments no existe, crear en Supabase SQL Editor',
-        sqlFile: 'Ver archivo sql/cleanup-and-setup-subscriptions.sql para comandos completos'
+    const response = await fetch(`https://api.mercadopago.com/preapproval/${subscriptionId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json'
       }
     })
 
-  } catch (error: any) {
+    if (!response.ok) {
+      console.error(`Error al consultar MP subscription ${subscriptionId}:`, response.status)
+      return null
+    }
+
+    const data = await response.json()
+    return {
+      id: data.id,
+      status: data.status,
+      reason: data.reason || null,
+      last_modified: data.last_modified
+    }
+  } catch (error) {
+    console.error(`Error al consultar MP subscription ${subscriptionId}:`, error)
+    return null
+  }
+}
+
+// Función para mapear estados de MercadoPago a estados locales
+function mapMercadoPagoStatus(mpStatus: string): string {
+  switch (mpStatus) {
+    case 'authorized':
+    case 'active':
+      return 'active'
+    case 'paused':
+      return 'paused'
+    case 'cancelled':
+    case 'finished':
+      return 'cancelled'
+    case 'pending':
+      return 'pending'
+    default:
+      return 'paused' // Estado por defecto para estados desconocidos
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('🧹 Iniciando limpieza de suscripciones...')
+
+    // Verificar token de acceso de MercadoPago
+    if (!MERCADOPAGO_ACCESS_TOKEN) {
+      console.error('❌ Token de MercadoPago no configurado')
+      return NextResponse.json(
+        { success: false, error: 'Token de MercadoPago no configurado' },
+        { status: 500 }
+      )
+    }
+
+    // Crear cliente de servicio de Supabase
+    const supabase = createServiceClient()
+
+    // Obtener todas las suscripciones activas y pausadas que tengan mercadopago_subscription_id
+    const { data: subscriptions, error: fetchError } = await supabase
+      .from('unified_subscriptions')
+      .select(`
+        id,
+        status,
+        mercadopago_subscription_id,
+        user_id,
+        product_id,
+        products!inner(name)
+      `)
+      .in('status', ['active', 'paused', 'pending'])
+      .not('mercadopago_subscription_id', 'is', null)
+
+    if (fetchError) {
+      console.error('❌ Error al obtener suscripciones:', fetchError)
+      return NextResponse.json(
+        { success: false, error: 'Error al obtener suscripciones de la base de datos' },
+        { status: 500 }
+      )
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log('ℹ️ No se encontraron suscripciones para limpiar')
+      return NextResponse.json({
+        success: true,
+        summary: {
+          total_checked: 0,
+          updated_subscriptions: 0,
+          cancelled_subscriptions: 0,
+          paused_subscriptions: 0,
+          errors: 0,
+          updated_details: []
+        }
+      })
+    }
+
+    console.log(`📊 Revisando ${subscriptions.length} suscripciones...`)
+
+    const summary: CleanupSummary = {
+      total_checked: subscriptions.length,
+      updated_subscriptions: 0,
+      cancelled_subscriptions: 0,
+      paused_subscriptions: 0,
+      errors: 0,
+      updated_details: []
+    }
+
+    // Procesar cada suscripción
+    for (const subscription of subscriptions) {
+      try {
+        console.log(`🔍 Revisando suscripción ${subscription.id} (MP: ${subscription.mercadopago_subscription_id})`)
+
+        // Consultar estado en MercadoPago
+        const mpStatus = await getMercadoPagoSubscriptionStatus(subscription.mercadopago_subscription_id)
+        
+        if (!mpStatus) {
+          console.warn(`⚠️ No se pudo obtener estado de MP para suscripción ${subscription.id}`)
+          summary.errors++
+          continue
+        }
+
+        // Mapear estado de MercadoPago a estado local
+        const newStatus = mapMercadoPagoStatus(mpStatus.status)
+        
+        // Solo actualizar si el estado cambió
+        if (newStatus !== subscription.status) {
+          console.log(`🔄 Actualizando suscripción ${subscription.id}: ${subscription.status} → ${newStatus}`)
+          
+          // Actualizar en la base de datos
+          const { error: updateError } = await supabase
+            .from('unified_subscriptions')
+            .update({
+              status: newStatus,
+              updated_at: new Date().toISOString(),
+              ...(newStatus === 'cancelled' && { cancelled_at: new Date().toISOString() })
+            })
+            .eq('id', subscription.id)
+
+          if (updateError) {
+            console.error(`❌ Error al actualizar suscripción ${subscription.id}:`, updateError)
+            summary.errors++
+            continue
+          }
+
+          // Agregar a estadísticas
+          summary.updated_subscriptions++
+          if (newStatus === 'cancelled') {
+            summary.cancelled_subscriptions++
+          } else if (newStatus === 'paused') {
+            summary.paused_subscriptions++
+          }
+
+          // Agregar detalles
+          summary.updated_details.push({
+            subscription_id: subscription.id,
+            mercadopago_id: subscription.mercadopago_subscription_id,
+            user_name: subscription.user_profiles?.full_name,
+            product_name: subscription.products?.name,
+            old_status: subscription.status,
+            new_status: newStatus,
+            reason: mpStatus.reason
+          })
+
+          console.log(`✅ Suscripción ${subscription.id} actualizada exitosamente`)
+        } else {
+          console.log(`ℹ️ Suscripción ${subscription.id} ya está sincronizada (${subscription.status})`)
+        }
+      } catch (error) {
+        console.error(`💥 Error procesando suscripción ${subscription.id}:`, error)
+        summary.errors++
+      }
+    }
+
+    console.log('✅ Limpieza completada:', summary)
+
+    return NextResponse.json({
+      success: true,
+      summary
+    })
+
+  } catch (error) {
     console.error('💥 Error general en limpieza:', error)
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Error desconocido',
-        message: 'Error al ejecutar la limpieza de suscripciones'
+      { 
+        success: false, 
+        error: 'Error interno del servidor durante la limpieza',
+        details: error instanceof Error ? error.message : 'Error desconocido'
       },
       { status: 500 }
     )
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    message: 'Endpoint para limpieza de datos de suscripciones',
-    usage: 'POST para ejecutar la limpieza',
-    tables: [
-      'user_subscriptions - Suscripciones activas de usuarios',
-      'subscription_payments - Historial de pagos de suscripciones',
-      'pending_subscriptions - Suscripciones pendientes de activación',
-      'orders - Órdenes de compra',
-      'order_items - Items de las órdenes'
-    ]
-  })
+// Método GET para obtener estadísticas sin ejecutar limpieza
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createServiceClient()
+
+    // Contar suscripciones que podrían necesitar limpieza
+    const { count, error } = await supabase
+      .from('unified_subscriptions')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['active', 'paused', 'pending'])
+      .not('mercadopago_subscription_id', 'is', null)
+
+    if (error) {
+      return NextResponse.json(
+        { success: false, error: 'Error al obtener estadísticas' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      stats: {
+        subscriptions_to_check: count || 0
+      }
+    })
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
 }

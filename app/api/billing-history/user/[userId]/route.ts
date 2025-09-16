@@ -110,7 +110,7 @@ export async function GET(
         .from('subscription_billing_history')
         .select(`
           *,
-          user_subscriptions!inner (
+          subscriptions!inner (
             id,
             product_id,
             products (
@@ -138,13 +138,13 @@ export async function GET(
             full_name: 'Cliente Suscripción',
             email: email || 'unknown@email.com'
           },
-          items: record.user_subscriptions?.products ? [{
-            id: record.user_subscriptions.id,
-            name: record.user_subscriptions.products.name,
-            product: record.user_subscriptions.products,
+          items: record.subscriptions?.products ? [{
+            id: record.subscriptions.id,
+            name: record.subscriptions.products.name,
+            product: record.subscriptions.products,
             quantity: 1,
             price: record.amount || 0,
-            description: `Suscripción - ${record.user_subscriptions.products.name}`
+            description: `Suscripción - ${record.subscriptions.products.name}`
           }] : []
         }))
         allBillingHistory.push(...processedBilling)
@@ -159,7 +159,7 @@ export async function GET(
         .from('subscription_payments')
         .select(`
           *,
-          user_subscriptions!inner (
+          subscriptions!inner (
             id,
             user_id,
             product_id,
@@ -171,7 +171,7 @@ export async function GET(
             )
           )
         `)
-        .eq('user_subscriptions.user_id', userId)
+        .eq('subscriptions.user_id', userId)
         .order('payment_date', { ascending: false })
         .limit(30)
 
@@ -188,13 +188,13 @@ export async function GET(
             full_name: 'Cliente MercadoPago',
             email: email || 'unknown@email.com'
           },
-          items: payment.user_subscriptions?.products ? [{
-            id: payment.user_subscriptions.id,
-            name: payment.user_subscriptions.products.name,
-            product: payment.user_subscriptions.products,
+          items: payment.subscriptions?.products ? [{
+            id: payment.subscriptions.id,
+            name: payment.subscriptions.products.name,
+            product: payment.subscriptions.products,
             quantity: 1,
             price: payment.amount || 0,
-            description: `Pago Suscripción - ${payment.user_subscriptions.products.name}`
+            description: `Pago Suscripción - ${payment.subscriptions.products.name}`
           }] : []
         }))
         allBillingHistory.push(...processedPayments)
