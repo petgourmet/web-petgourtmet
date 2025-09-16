@@ -249,92 +249,176 @@ export interface Database {
       user_subscriptions: {
         Row: {
           id: number
-          user_id: string
-          product_id: number
+          user_id: string | null
+          product_id: number | null
+          subscription_type: string
           status: string
-          frequency: string
-          next_delivery: string
-          created_at: string
-          updated_at: string
-          price: number
           quantity: number
           size: string | null
-          paused_until: string | null
+          discount_percentage: number | null
+          base_price: number
+          discounted_price: number
+          created_at: string | null
+          updated_at: string | null
+          next_billing_date: string
+          last_billing_date: string | null
+          cancelled_at: string | null
+          product_name: string
+          product_image: string | null
+          metadata: Json | null
           mercadopago_subscription_id: string | null
-          last_payment_date: string | null
-          payment_method: string | null
+          mercadopago_plan_id: string | null
+          external_reference: string | null
+          reason: string | null
+          charges_made: number | null
+          frequency: number | null
+          frequency_type: string | null
+          version: number | null
+          application_id: number | null
+          collector_id: number | null
+          preapproval_plan_id: string | null
+          back_url: string | null
+          init_point: string | null
+          start_date: string | null
+          end_date: string | null
+          currency_id: string | null
+          transaction_amount: number | null
+          free_trial: Json | null
+          paused_at: string | null
+          resumed_at: string | null
+          expired_at: string | null
+          suspended_at: string | null
+          last_sync_at: string | null
         }
         Insert: {
           id?: number
-          user_id: string
-          product_id: number
+          user_id?: string | null
+          product_id?: number | null
+          subscription_type: string
           status?: string
-          frequency: string
-          next_delivery: string
-          created_at?: string
-          updated_at?: string
-          price: number
-          quantity: number
+          quantity?: number
           size?: string | null
-          paused_until?: string | null
+          discount_percentage?: number | null
+          base_price: number
+          discounted_price: number
+          created_at?: string | null
+          updated_at?: string | null
+          next_billing_date: string
+          last_billing_date?: string | null
+          cancelled_at?: string | null
+          product_name: string
+          product_image?: string | null
+          metadata?: Json | null
           mercadopago_subscription_id?: string | null
-          last_payment_date?: string | null
-          payment_method?: string | null
+          mercadopago_plan_id?: string | null
+          external_reference?: string | null
+          reason?: string | null
+          charges_made?: number | null
+          frequency?: number | null
+          frequency_type?: string | null
+          version?: number | null
+          application_id?: number | null
+          collector_id?: number | null
+          preapproval_plan_id?: string | null
+          back_url?: string | null
+          init_point?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          currency_id?: string | null
+          transaction_amount?: number | null
+          free_trial?: Json | null
+          paused_at?: string | null
+          resumed_at?: string | null
+          expired_at?: string | null
+          suspended_at?: string | null
+          last_sync_at?: string | null
         }
         Update: {
           id?: number
-          user_id?: string
-          product_id?: number
+          user_id?: string | null
+          product_id?: number | null
+          subscription_type?: string
           status?: string
-          frequency?: string
-          next_delivery?: string
-          created_at?: string
-          updated_at?: string
-          price?: number
           quantity?: number
           size?: string | null
-          paused_until?: string | null
+          discount_percentage?: number | null
+          base_price?: number
+          discounted_price?: number
+          created_at?: string | null
+          updated_at?: string | null
+          next_billing_date?: string
+          last_billing_date?: string | null
+          cancelled_at?: string | null
+          product_name?: string
+          product_image?: string | null
+          metadata?: Json | null
           mercadopago_subscription_id?: string | null
-          last_payment_date?: string | null
-          payment_method?: string | null
+          mercadopago_plan_id?: string | null
+          external_reference?: string | null
+          reason?: string | null
+          charges_made?: number | null
+          frequency?: number | null
+          frequency_type?: string | null
+          version?: number | null
+          application_id?: number | null
+          collector_id?: number | null
+          preapproval_plan_id?: string | null
+          back_url?: string | null
+          init_point?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          currency_id?: string | null
+          transaction_amount?: number | null
+          free_trial?: Json | null
+          paused_at?: string | null
+          resumed_at?: string | null
+          expired_at?: string | null
+          suspended_at?: string | null
+          last_sync_at?: string | null
         }
       }
       pending_subscriptions: {
         Row: {
           id: number
-          user_id: string
-          product_id: number
-          frequency: string
-          quantity: number
-          size: string | null
-          price: number
-          created_at: string
-          mercadopago_preference_id: string | null
-          status: string
+          user_id: string | null
+          subscription_type: string
+          status: string | null
+          external_reference: string
+          customer_data: Json
+          cart_items: Json
+          created_at: string | null
+          updated_at: string | null
+          processed_at: string | null
+          mercadopago_subscription_id: string | null
+          notes: string | null
         }
         Insert: {
           id?: number
-          user_id: string
-          product_id: number
-          frequency: string
-          quantity: number
-          size?: string | null
-          price: number
-          created_at?: string
-          mercadopago_preference_id?: string | null
-          status?: string
+          user_id?: string | null
+          subscription_type: string
+          status?: string | null
+          external_reference: string
+          customer_data: Json
+          cart_items: Json
+          created_at?: string | null
+          updated_at?: string | null
+          processed_at?: string | null
+          mercadopago_subscription_id?: string | null
+          notes?: string | null
         }
         Update: {
           id?: number
-          user_id?: string
-          product_id?: number
-          frequency?: string
-          quantity?: number
-          size?: string | null
-          price?: number
-          created_at?: string
-          mercadopago_preference_id?: string | null
-          status?: string
+          user_id?: string | null
+          subscription_type?: string
+          status?: string | null
+          external_reference?: string
+          customer_data?: Json
+          cart_items?: Json
+          created_at?: string | null
+          updated_at?: string | null
+          processed_at?: string | null
+          mercadopago_subscription_id?: string | null
+          notes?: string | null
         }
       }
       subscription_payments: {

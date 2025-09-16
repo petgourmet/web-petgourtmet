@@ -1373,31 +1373,35 @@ export class WebhookService {
   private async sendSubscriptionCreatedEmail(subscriptionData: SubscriptionData, recipientEmail: string): Promise<void> {
     const { sendSubscriptionEmail } = await import('./email-service')
     
-    await sendSubscriptionEmail({
-      to: recipientEmail,
+    await sendSubscriptionEmail('created', {
+      customerName: recipientEmail.split('@')[0] || 'Cliente',
+      customerEmail: recipientEmail,
       planName: subscriptionData.reason || 'Plan Pet Gourmet',
       productName: 'Producto Pet Gourmet Premium',
       amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+      currency: 'MXN',
       frequency: 'mensual',
-      nextBillingDate: subscriptionData.next_payment_date,
+      nextPaymentDate: subscriptionData.next_payment_date,
       subscriptionId: subscriptionData.id,
-      customerName: recipientEmail.split('@')[0] || 'Cliente'
-    }, 'created')
+      externalReference: subscriptionData.external_reference
+    })
   }
 
   private async sendSubscriptionCancelledEmail(subscriptionData: SubscriptionData, recipientEmail: string): Promise<void> {
     const { sendSubscriptionEmail } = await import('./email-service')
     
-    await sendSubscriptionEmail({
-      to: recipientEmail,
+    await sendSubscriptionEmail('cancelled', {
+      customerName: recipientEmail.split('@')[0] || 'Cliente',
+      customerEmail: recipientEmail,
       planName: subscriptionData.reason || 'Plan Pet Gourmet',
       productName: 'Producto Pet Gourmet Premium',
       amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+      currency: 'MXN',
       frequency: 'mensual',
-      nextBillingDate: null,
+      nextPaymentDate: null,
       subscriptionId: subscriptionData.id,
-      customerName: recipientEmail.split('@')[0] || 'Cliente'
-    }, 'cancelled')
+      externalReference: subscriptionData.external_reference
+    })
   }
 
   // Enviar email de notificación de nueva compra a administradores
@@ -1689,19 +1693,21 @@ export class WebhookService {
       // Enviar email al cliente usando la plantilla de email-service
       const { sendSubscriptionEmail } = await import('./email-service')
       
-      await sendSubscriptionEmail({
-        to: userEmail,
+      await sendSubscriptionEmail('payment', {
+        customerName: userName,
+        customerEmail: userEmail,
         planName: subscription.subscription_type || 'Plan Pet Gourmet',
         productName: subscription.product?.name || 'Producto Pet Gourmet Premium',
         amount: paymentData.transaction_amount,
+        currency: 'MXN',
         frequency: 'mensual',
-        nextBillingDate: subscription.next_billing_date,
+        nextPaymentDate: subscription.next_billing_date,
         subscriptionId: subscription.id,
-        customerName: userName,
+        externalReference: subscription.external_reference,
         paymentId: paymentData.id,
         paymentMethod: paymentData.payment_method_id,
         paymentDate: paymentData.date_created
-      }, 'payment')
+      })
 
       // Enviar notificación al admin usando contact-email-service
       const { sendSubscriptionPaymentSuccess } = await import('./contact-email-service')
