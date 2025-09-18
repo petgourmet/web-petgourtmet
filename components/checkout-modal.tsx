@@ -44,7 +44,12 @@ export function CheckoutModal() {
           throw new Error(data.message || 'Error en respuesta del servidor')
         }
       } catch (error) {
-        console.error('Error al cargar URLs de suscripción:', error)
+        console.error('Error al cargar URLs de suscripción:', {
+          message: error?.message || 'Error desconocido',
+          stack: error?.stack,
+          name: error?.name,
+          fullError: error
+        })
         
         // URLs de respaldo en caso de error
         const fallbackUrls = {
@@ -98,7 +103,13 @@ export function CheckoutModal() {
           const { data: profile, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
           if (error) {
-            console.error("Error al cargar el perfil del usuario:", error)
+            console.error("Error al cargar el perfil del usuario:", {
+              message: error.message,
+              code: error.code,
+              details: error.details,
+              hint: error.hint,
+              fullError: error
+            })
             return
           }
 
@@ -138,12 +149,22 @@ export function CheckoutModal() {
                   country: address.country || "México",
                 })
               } catch (e) {
-                console.error("Error al parsear la dirección de envío:", e)
+                console.error("Error al parsear la dirección de envío:", {
+                  message: e?.message || 'Error desconocido',
+                  stack: e?.stack,
+                  name: e?.name,
+                  fullError: e
+                })
               }
             }
           }
         } catch (error) {
-          console.error("Error al cargar datos del usuario:", error)
+          console.error("Error al cargar datos del usuario:", {
+            message: error?.message || 'Error desconocido',
+            stack: error?.stack,
+            name: error?.name,
+            fullError: error
+          })
         }
       }
     }
@@ -239,13 +260,24 @@ export function CheckoutModal() {
       const { error } = await supabase.from("orders").update({ status: "processing" }).eq("id", orderId)
 
       if (error) {
-        console.error("Error al simular el pago:", error)
+        console.error("Error al simular el pago:", {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          fullError: error
+        })
         throw new Error("Error al simular el pago")
       }
 
       return true
     } catch (error) {
-      console.error("Error en simulateSuccessfulPayment:", error)
+      console.error("Error en simulateSuccessfulPayment:", {
+        message: error?.message || 'Error desconocido',
+        stack: error?.stack,
+        name: error?.name,
+        fullError: error
+      })
       return false
     }
   }
@@ -431,12 +463,18 @@ export function CheckoutModal() {
 
           // Guardar información de suscripción pendiente y esperar confirmación
           const { data: insertedData, error: subscriptionError } = await supabase
-            .from('subscriptions')
+            .from('unified_subscriptions')
             .insert(subscriptionData)
             .select()
 
           if (subscriptionError) {
-            console.error('Error al guardar suscripción pendiente:', subscriptionError)
+            console.error('Error al guardar suscripción pendiente:', {
+              message: subscriptionError.message,
+              code: subscriptionError.code,
+              details: subscriptionError.details,
+              hint: subscriptionError.hint,
+              fullError: subscriptionError
+            })
             
             // Manejo específico de errores
             let errorMessage = 'Error al guardar la suscripción. Por favor, inténtalo de nuevo.'
@@ -485,8 +523,22 @@ export function CheckoutModal() {
 
           return
         } catch (error) {
-          console.error('Error al procesar suscripción:', error)
-          setError('Error al procesar la suscripción. Por favor, inténtalo de nuevo.')
+          console.error('Error al procesar suscripción:', {
+            message: error?.message || 'Error desconocido',
+            stack: error?.stack,
+            name: error?.name,
+            fullError: error
+          })
+          
+          const errorMessage = error?.message || 'Error al procesar la suscripción. Por favor, inténtalo de nuevo.'
+          setError(errorMessage)
+          
+          toast({
+            title: "Error al procesar suscripción",
+            description: errorMessage,
+            variant: "destructive"
+          })
+          
           return
         }
       }
