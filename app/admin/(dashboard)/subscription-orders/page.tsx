@@ -890,54 +890,143 @@ export default function AdminSubscriptionOrdersPage() {
                         <p className="text-gray-500">Precio</p>
                         <div className="flex flex-col">
                           <div className="space-y-1">
+                            {/* Precio original del producto */}
+                            {subscription.discount_percentage > 0 && (
+                              <div className="flex justify-between text-xs">
+                                <span>Precio original:</span>
+                                <span className="line-through text-gray-500">
+                                  {formatPrice((() => {
+                                    // Si existe discounted_price, calcular el precio original basado en él
+                                    if (subscription.discounted_price && subscription.discount_percentage) {
+                                      return subscription.discounted_price / (1 - subscription.discount_percentage / 100);
+                                    }
+                                    // Si no existe discounted_price, usar la lógica original
+                                    return subscription.base_price || 
+                                      subscription.transaction_amount || 
+                                      subscription.price || 
+                                      subscription.products?.price || 
+                                      0;
+                                  })())}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Descuento aplicado */}
+                            {subscription.discount_percentage > 0 && (
+                              <div className="flex justify-between text-xs">
+                                <span className="text-green-600">Descuento ({subscription.discount_percentage}%):</span>
+                                <span className="text-green-600">
+                                  -{formatPrice((() => {
+                                    // Si existe discounted_price, calcular el precio original basado en él
+                                    if (subscription.discounted_price && subscription.discount_percentage) {
+                                      const originalPrice = subscription.discounted_price / (1 - subscription.discount_percentage / 100);
+                                      const discountAmount = originalPrice * (subscription.discount_percentage / 100);
+                                      return discountAmount;
+                                    }
+                                    // Si no existe discounted_price, usar la lógica original
+                                    const originalPrice = subscription.base_price || 
+                                      subscription.transaction_amount || 
+                                      subscription.price || 
+                                      subscription.products?.price || 
+                                      0;
+                                    const discountAmount = originalPrice * (subscription.discount_percentage / 100);
+                                    return discountAmount;
+                                  })())}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Precio del producto con descuento */}
                             <div className="flex justify-between text-xs">
                               <span>Producto:</span>
-                              <span>{formatPrice(
-                                subscription.discounted_price || 
-                                subscription.base_price || 
-                                subscription.transaction_amount || 
-                                subscription.price || 
-                                subscription.products?.price || 
-                                0
-                              )}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span>Envío:</span>
-                              <span>
-                                {(
-                                  subscription.discounted_price || 
-                                  subscription.base_price || 
-                                  subscription.transaction_amount || 
-                                  subscription.price || 
-                                  subscription.products?.price || 
-                                  0
-                                ) >= 1000 ? (
-                                  <span className="text-green-600">GRATIS</span>
-                                ) : (
-                                  formatPrice(100)
-                                )}
-                              </span>
-                            </div>
-                            <div className="border-t pt-1">
-                              <div className="flex justify-between font-semibold">
-                                <span>Total:</span>
-                                <span>{formatPrice((() => {
-                                  const productPrice = subscription.discounted_price || 
-                                    subscription.base_price || 
+                              <span className={subscription.discount_percentage > 0 ? "text-green-600 font-medium" : ""}>
+                                {formatPrice((() => {
+                                  // Si ya existe discounted_price, usarlo
+                                  if (subscription.discounted_price) {
+                                    return subscription.discounted_price;
+                                  }
+                                  
+                                  // Si hay descuento pero no discounted_price, calcularlo
+                                  if (subscription.discount_percentage > 0) {
+                                    const originalPrice = subscription.base_price || 
+                                      subscription.transaction_amount || 
+                                      subscription.price || 
+                                      subscription.products?.price || 
+                                      0;
+                                    return originalPrice * (1 - subscription.discount_percentage / 100);
+                                  }
+                                  
+                                  // Sin descuento, usar precio original
+                                  return subscription.base_price || 
                                     subscription.transaction_amount || 
                                     subscription.price || 
                                     subscription.products?.price || 
                                     0;
+                                })())}
+                              </span>
+                            </div>
+                            
+                            {/* Envío calculado sobre precio con descuento */}
+                            <div className="flex justify-between text-xs">
+                              <span>Envío:</span>
+                              <span>
+                                {(() => {
+                                  // Calcular precio con descuento para determinar envío
+                                  let finalPrice;
+                                  if (subscription.discounted_price) {
+                                    finalPrice = subscription.discounted_price;
+                                  } else if (subscription.discount_percentage > 0) {
+                                    const originalPrice = subscription.base_price || 
+                                      subscription.transaction_amount || 
+                                      subscription.price || 
+                                      subscription.products?.price || 
+                                      0;
+                                    finalPrice = originalPrice * (1 - subscription.discount_percentage / 100);
+                                  } else {
+                                    finalPrice = subscription.base_price || 
+                                      subscription.transaction_amount || 
+                                      subscription.price || 
+                                      subscription.products?.price || 
+                                      0;
+                                  }
+                                  
+                                  return finalPrice >= 1000 ? (
+                                    <span className="text-green-600">GRATIS</span>
+                                  ) : (
+                                    formatPrice(100)
+                                  );
+                                })()}
+                              </span>
+                            </div>
+                            
+                            <div className="border-t pt-1">
+                              <div className="flex justify-between font-semibold">
+                                <span>Total:</span>
+                                <span>{formatPrice((() => {
+                                  // Calcular precio con descuento para el total
+                                  let productPrice;
+                                  if (subscription.discounted_price) {
+                                    productPrice = subscription.discounted_price;
+                                  } else if (subscription.discount_percentage > 0) {
+                                    const originalPrice = subscription.base_price || 
+                                      subscription.transaction_amount || 
+                                      subscription.price || 
+                                      subscription.products?.price || 
+                                      0;
+                                    productPrice = originalPrice * (1 - subscription.discount_percentage / 100);
+                                  } else {
+                                    productPrice = subscription.base_price || 
+                                      subscription.transaction_amount || 
+                                      subscription.price || 
+                                      subscription.products?.price || 
+                                      0;
+                                  }
+                                  
                                   return productPrice >= 1000 ? productPrice : productPrice + 100;
                                 })())}</span>
                               </div>
                             </div>
                           </div>
-                          {subscription.discount_percentage > 0 && (
-                            <p className="text-xs text-green-600 mt-1">
-                              {subscription.discount_percentage}% descuento
-                            </p>
-                          )}
                         </div>
                       </div>
                       <div>
@@ -1263,4 +1352,25 @@ export default function AdminSubscriptionOrdersPage() {
       )}
     </div>
   )
+}
+
+interface AdminSubscription {
+  id: string
+  user_id: string
+  product_id: string
+  status: 'active' | 'paused' | 'cancelled'
+  current_period_start: string
+  current_period_end: string
+  created_at: string
+  updated_at: string
+  discount_percentage?: number
+  user?: {
+    email: string
+    full_name?: string
+  }
+  product?: {
+    name: string
+    price: number
+    discount_percentage?: number
+  }
 }

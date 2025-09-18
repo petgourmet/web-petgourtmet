@@ -1,15 +1,38 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import logger from '@/lib/logger'
-import webhookMonitor from '@/lib/webhook-monitor'
-import notificationService from '@/lib/notification-service'
+import { NotificationService } from '@/lib/notification-service'
 
 interface AutoSyncResult {
   success: boolean
   orderId?: number
   paymentId?: string
   action: string
-  details?: any
+  details?: string | Record<string, unknown>
   error?: string
+}
+
+interface MercadoPagoPayment {
+  id: number
+  status: string
+  external_reference?: string
+  transaction_amount: number
+  payment_type_id: string
+  payment_method_id: string
+  currency_id: string
+  payer?: {
+    email?: string
+  }
+  results?: MercadoPagoPayment[]
+}
+
+interface OrderData {
+  id: number
+  customer_email?: string
+  total: number
+  created_at: string
+  mercadopago_payment_id?: string
+  status?: string
+  payment_status?: string
 }
 
 class AutoSyncService {
@@ -17,9 +40,11 @@ class AutoSyncService {
   private isRunning: boolean = false
   private syncQueue: Set<number> = new Set()
   private lastSyncTime: Date = new Date()
+  private notificationService: NotificationService
 
   constructor() {
     this.mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
+    this.notificationService = new NotificationService()
   }
 
   // Sincronización automática inmediata cuando falla un webhook
@@ -250,33 +275,18 @@ class AutoSyncService {
         
         if (failureRate > 50) {
           // Más del 50% de fallos - crítico
-          await notificationService.sendNotification({
-            type: 'sync_failure',
-            severity: 'critical',
-            title: 'Fallo Crítico en Sincronización Masiva',
-            message: `${failed} de ${results.length} órdenes fallaron en sincronización (${failureRate.toFixed(1)}%). Requiere atención inmediata.`,
-            data: {
-              totalProcessed: results.length,
-              successful,
-              failed,
-              failureRate,
-              failedOrders: results.filter(r => !r.success).slice(0, 10) // Primeras 10 órdenes fallidas
-            }
-          })
+          await this.notificationService.notifyAdmins(
+            'Fallo Crítico en Sincronización Masiva',
+            `${failed} de ${results.length} órdenes fallaron en sincronización (${failureRate.toFixed(1)}%). Requiere atención inmediata.`,
+            'high'
+          )
         } else if (failed > 5) {
           // Más de 5 fallos - alerta
-          await notificationService.sendNotification({
-            type: 'sync_failure',
-            severity: 'medium',
-            title: 'Múltiples Fallos en Sincronización',
-            message: `${failed} órdenes fallaron en sincronización automática. Revisar logs para más detalles.`,
-            data: {
-              totalProcessed: results.length,
-              successful,
-              failed,
-              failedOrders: results.filter(r => !r.success).slice(0, 5)
-            }
-          })
+          await this.notificationService.notifyAdmins(
+            'Múltiples Fallos en Sincronización',
+            `${failed} órdenes fallaron en sincronización automática. Revisar logs para más detalles.`,
+            'medium'
+          )
         }
       }
 
@@ -310,7 +320,7 @@ class AutoSyncService {
   }
 
   // Obtener datos de pago desde MercadoPago
-  private async getPaymentFromMercadoPago(paymentId: string): Promise<any> {
+  private async getPaymentFromMercadoPago(paymentId: string): Promise<MercadoPagoPayment | null> {
     try {
       const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: {
@@ -334,7 +344,7 @@ class AutoSyncService {
   }
 
   // Buscar pagos para una orden específica
-  private async searchPaymentsForOrder(order: any): Promise<any[]> {
+  private async searchPaymentsForOrder(order: OrderData): Promise<MercadoPagoPayment[]> {
     const payments = []
     
     try {
@@ -378,7 +388,7 @@ class AutoSyncService {
           const emailData = await searchByEmail.json()
           if (emailData.results) {
             // Filtrar por monto similar
-            const similarPayments = emailData.results.filter((payment: any) => 
+            const similarPayments = emailData.results.filter((payment: MercadoPagoPayment) => 
               Math.abs(payment.transaction_amount - order.total) <= 5
             )
             payments.push(...similarPayments)
@@ -397,7 +407,7 @@ class AutoSyncService {
   }
 
   // Seleccionar el mejor pago de una lista
-  private selectBestPayment(payments: any[]): any {
+  private selectBestPayment(payments: MercadoPagoPayment[]): MercadoPagoPayment {
     // Prioridad: approved > pending > otros estados
     const approvedPayments = payments.filter(p => p.status === 'approved')
     if (approvedPayments.length > 0) {
@@ -413,7 +423,7 @@ class AutoSyncService {
   }
 
   // Sincronizar orden con datos de pago
-  private async syncOrderWithPayment(orderId: number, paymentData: any): Promise<AutoSyncResult> {
+  private async syncOrderWithPayment(orderId: number, paymentData: MercadoPagoPayment): Promise<AutoSyncResult> {
     try {
       const supabase = createServiceClient()
       
@@ -520,7 +530,7 @@ class AutoSyncService {
   }
 
   // Validar que un pago existente esté actualizado
-  private async validateExistingPayment(order: any): Promise<boolean> {
+  private async validateExistingPayment(order: OrderData): Promise<boolean> {
     try {
       const paymentData = await this.getPaymentFromMercadoPago(order.mercadopago_payment_id)
       if (!paymentData) {
@@ -558,9 +568,9 @@ class AutoSyncService {
   }
 
   // Enviar email de notificación de nueva compra a administradores
-  private async sendNewOrderNotificationEmail(order: any, paymentData: any): Promise<void> {
+  private async sendNewOrderNotificationEmail(order: OrderData, paymentData: MercadoPagoPayment): Promise<void> {
     try {
-      const nodemailer = require('nodemailer')
+      const nodemailer = await import('nodemailer')
       
       // Configurar transportador SMTP
       const transporter = nodemailer.createTransport({
@@ -684,9 +694,9 @@ class AutoSyncService {
   }
 
   // Enviar email de agradecimiento para auto-sync
-  private async sendThankYouEmailForAutoSync(order: any, paymentData: any): Promise<void> {
+  private async sendThankYouEmailForAutoSync(order: OrderData, paymentData: MercadoPagoPayment): Promise<void> {
     try {
-      const nodemailer = require('nodemailer')
+      const nodemailer = await import('nodemailer')
       
       // Configurar transportador SMTP
       const transporter = nodemailer.createTransport({

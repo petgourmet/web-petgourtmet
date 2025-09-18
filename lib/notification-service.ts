@@ -1,432 +1,382 @@
-import logger from '@/lib/logger'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@supabase/supabase-js'
+import { EmailService } from './email-service'
 
-interface NotificationData {
-  type: 'payment_issue' | 'system_health' | 'sync_failure' | 'webhook_error'
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  title: string
-  message: string
-  data?: any
-  orderId?: number
-  paymentId?: string
-}
-
-interface NotificationChannel {
-  email?: boolean
-  webhook?: boolean
-  database?: boolean
-}
-
-class NotificationService {
-  private emailTransporter: any
-  private adminEmails: string[]
-  private webhookUrl?: string
-
+// ✅ SISTEMA DE NOTIFICACIONES PROACTIVAS - FASE 2
+export class NotificationService {
+  private supabase
+  private emailService: EmailService
+  
   constructor() {
-    this.adminEmails = [
-      process.env.ADMIN_EMAIL,
-      process.env.ADMIN_EMAIL_2,
-      process.env.ADMIN_EMAIL_3
-    ].filter(Boolean) as string[]
+    this.supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    this.emailService = new EmailService()
+  }
+  
+  // 🚨 NOTIFICACIONES DE FALLOS DE PAGO
+  async notifyPaymentFailure(subscriptionId: string, error: any, retryCount: number = 0): Promise<void> {
+    console.log(`🚨 Notificando fallo de pago para suscripción: ${subscriptionId}`)
     
-    this.webhookUrl = process.env.ADMIN_WEBHOOK_URL
+    try {
+      // 1. Obtener datos de la suscripción y usuario
+      const { data: subscription, error: subError } = await this.supabase
+        .from('unified_subscriptions')
+        .select(`
+          *,
+          profiles!inner(email, full_name),
+          products!inner(name)
+        `)
+        .eq('id', subscriptionId)
+        .single()
+      
+      if (subError || !subscription) {
+        console.error(`❌ Error al obtener suscripción para notificación: ${subError?.message}`)
+        return
+      }
+      
+      // 2. Registrar el fallo en la base de datos
+      await this.logPaymentFailure(subscriptionId, error, retryCount)
+      
+      // 3. Determinar nivel de criticidad
+      const severity = this.determineSeverity(retryCount, error)
+      
+      // 4. Notificar a administradores
+      await this.notifyAdministrators({
+        type: 'payment_failure',
+        severity,
+        subscriptionId,
+        userEmail: subscription.profiles.email,
+        userName: subscription.profiles.full_name,
+        productName: subscription.products.name,
+        amount: subscription.amount,
+        retryCount,
+        error: error.message || 'Error desconocido',
+        timestamp: new Date().toISOString()
+      })
+      
+      // 5. Si es crítico, enviar notificación inmediata
+      if (severity === 'critical') {
+        await this.sendImmediateAlert({
+          title: '🚨 FALLO CRÍTICO DE PAGO',
+          message: `Suscripción ${subscriptionId} ha fallado ${retryCount + 1} veces. Usuario: ${subscription.profiles.email}`,
+          subscriptionId,
+          error
+        })
+      }
+      
+      console.log(`✅ Notificación de fallo de pago enviada exitosamente`)
+      
+    } catch (notificationError) {
+      console.error(`❌ Error crítico al enviar notificación de fallo de pago:`, {
+        subscriptionId,
+        error: notificationError.message
+      })
+    }
+  }
+  
+  // 🔧 NOTIFICACIONES DE PROBLEMAS DEL SISTEMA
+  async notifySystemIssue(issue: SystemIssue): Promise<void> {
+    console.log(`🔧 Notificando problema del sistema: ${issue.type}`)
     
-    this.initializeEmailTransporter()
-  }
-
-  private initializeEmailTransporter() {
     try {
-      const nodemailer = require('nodemailer')
+      // 1. Registrar el problema
+      await this.logSystemIssue(issue)
       
-      this.emailTransporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
+      // 2. Determinar si requiere atención inmediata
+      const requiresImmediate = this.requiresImmediateAttention(issue)
+      
+      // 3. Notificar a administradores
+      await this.notifyAdministrators({
+        type: 'system_issue',
+        severity: issue.severity,
+        issueType: issue.type,
+        description: issue.description,
+        affectedComponent: issue.component,
+        timestamp: new Date().toISOString(),
+        metadata: issue.metadata
       })
+      
+      // 4. Si requiere atención inmediata, enviar alerta
+      if (requiresImmediate) {
+        await this.sendImmediateAlert({
+          title: `🔧 PROBLEMA DEL SISTEMA: ${issue.type.toUpperCase()}`,
+          message: issue.description,
+          component: issue.component,
+          severity: issue.severity
+        })
+      }
+      
+      console.log(`✅ Notificación de problema del sistema enviada`)
+      
     } catch (error) {
-      logger.error('Error inicializando transportador de email', 'NOTIFICATION', {
+      console.error(`❌ Error al notificar problema del sistema:`, {
+        issue: issue.type,
         error: error.message
       })
     }
   }
-
-  // Enviar notificación automática
-  async sendNotification(
-    notification: NotificationData,
-    channels: NotificationChannel = { email: true, database: true }
-  ): Promise<{
-    success: boolean
-    channels: {
-      email?: boolean
-      webhook?: boolean
-      database?: boolean
-    }
-    errors?: string[]
-  }> {
-    const results = {
-      success: true,
-      channels: {},
-      errors: [] as string[]
-    }
-
-    logger.info('Enviando notificación automática', 'NOTIFICATION', {
-      type: notification.type,
-      severity: notification.severity,
-      title: notification.title
-    })
-
-    // Enviar por email
-    if (channels.email && this.adminEmails.length > 0) {
-      try {
-        const emailSent = await this.sendEmailNotification(notification)
-        results.channels.email = emailSent
-        if (!emailSent) {
-          results.errors.push('Error enviando email')
-        }
-      } catch (error) {
-        results.channels.email = false
-        results.errors.push(`Email error: ${error.message}`)
-      }
-    }
-
-    // Enviar por webhook
-    if (channels.webhook && this.webhookUrl) {
-      try {
-        const webhookSent = await this.sendWebhookNotification(notification)
-        results.channels.webhook = webhookSent
-        if (!webhookSent) {
-          results.errors.push('Error enviando webhook')
-        }
-      } catch (error) {
-        results.channels.webhook = false
-        results.errors.push(`Webhook error: ${error.message}`)
-      }
-    }
-
-    // Guardar en base de datos
-    if (channels.database) {
-      try {
-        const dbSaved = await this.saveNotificationToDatabase(notification)
-        results.channels.database = dbSaved
-        if (!dbSaved) {
-          results.errors.push('Error guardando en base de datos')
-        }
-      } catch (error) {
-        results.channels.database = false
-        results.errors.push(`Database error: ${error.message}`)
-      }
-    }
-
-    results.success = results.errors.length === 0
-
-    if (!results.success) {
-      logger.error('Errores enviando notificación', 'NOTIFICATION', {
-        errors: results.errors,
-        notification: notification.title
-      })
-    }
-
-    return results
-  }
-
-  // Enviar notificación por email
-  private async sendEmailNotification(notification: NotificationData): Promise<boolean> {
-    if (!this.emailTransporter || this.adminEmails.length === 0) {
-      return false
-    }
-
+  
+  // 📊 NOTIFICACIONES DE MÉTRICAS Y ALERTAS
+  async notifyMetricAlert(metric: MetricAlert): Promise<void> {
+    console.log(`📊 Notificando alerta de métrica: ${metric.name}`)
+    
     try {
-      const subject = `🚨 ${this.getSeverityEmoji(notification.severity)} ${notification.title} - PetGourmet`
+      await this.notifyAdministrators({
+        type: 'metric_alert',
+        severity: metric.severity,
+        metricName: metric.name,
+        currentValue: metric.currentValue,
+        threshold: metric.threshold,
+        description: metric.description,
+        timestamp: new Date().toISOString()
+      })
       
-      const htmlContent = this.generateEmailHTML(notification)
-      const textContent = this.generateEmailText(notification)
-
-      for (const email of this.adminEmails) {
-        await this.emailTransporter.sendMail({
-          from: process.env.SMTP_FROM || 'sistema@petgourmet.mx',
-          to: email,
-          subject,
-          text: textContent,
-          html: htmlContent
+      if (metric.severity === 'critical') {
+        await this.sendImmediateAlert({
+          title: `📊 ALERTA CRÍTICA DE MÉTRICA: ${metric.name}`,
+          message: `${metric.description}. Valor actual: ${metric.currentValue}, Umbral: ${metric.threshold}`,
+          metric: metric.name
         })
       }
-
-      logger.info('Email de notificación enviado', 'NOTIFICATION', {
-        recipients: this.adminEmails.length,
-        type: notification.type
-      })
-
-      return true
-    } catch (error) {
-      logger.error('Error enviando email de notificación', 'NOTIFICATION', {
-        error: error.message
-      })
-      return false
-    }
-  }
-
-  // Enviar notificación por webhook (Slack, Discord, etc.)
-  private async sendWebhookNotification(notification: NotificationData): Promise<boolean> {
-    if (!this.webhookUrl) {
-      return false
-    }
-
-    try {
-      const payload = {
-        text: `${this.getSeverityEmoji(notification.severity)} ${notification.title}`,
-        attachments: [{
-          color: this.getSeverityColor(notification.severity),
-          fields: [
-            {
-              title: 'Tipo',
-              value: notification.type,
-              short: true
-            },
-            {
-              title: 'Severidad',
-              value: notification.severity.toUpperCase(),
-              short: true
-            },
-            {
-              title: 'Mensaje',
-              value: notification.message,
-              short: false
-            }
-          ],
-          footer: 'Sistema de Pagos PetGourmet',
-          ts: Math.floor(Date.now() / 1000)
-        }]
-      }
-
-      if (notification.orderId) {
-        payload.attachments[0].fields.push({
-          title: 'Orden ID',
-          value: notification.orderId.toString(),
-          short: true
-        })
-      }
-
-      if (notification.paymentId) {
-        payload.attachments[0].fields.push({
-          title: 'Payment ID',
-          value: notification.paymentId,
-          short: true
-        })
-      }
-
-      const response = await fetch(this.webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      })
-
-      if (response.ok) {
-        logger.info('Webhook de notificación enviado', 'NOTIFICATION', {
-          type: notification.type,
-          webhookUrl: this.webhookUrl
-        })
-        return true
-      } else {
-        logger.error('Error en respuesta del webhook', 'NOTIFICATION', {
-          status: response.status,
-          statusText: response.statusText
-        })
-        return false
-      }
-    } catch (error) {
-      logger.error('Error enviando webhook de notificación', 'NOTIFICATION', {
-        error: error.message
-      })
-      return false
-    }
-  }
-
-  // Guardar notificación en base de datos
-  private async saveNotificationToDatabase(notification: NotificationData): Promise<boolean> {
-    try {
-      const supabase = createServiceClient()
       
-      const { error } = await supabase
-        .from('admin_notifications')
+    } catch (error) {
+      console.error(`❌ Error al notificar alerta de métrica:`, error.message)
+    }
+  }
+  
+  // 📧 ENVÍO DE NOTIFICACIONES A ADMINISTRADORES
+  private async notifyAdministrators(notification: AdminNotification): Promise<void> {
+    try {
+      // 1. Obtener lista de administradores
+      const { data: admins, error } = await this.supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('role', 'admin')
+        .eq('notifications_enabled', true)
+      
+      if (error || !admins || admins.length === 0) {
+        console.warn(`⚠️ No se encontraron administradores para notificar`)
+        return
+      }
+      
+      // 2. Preparar contenido del email
+      const emailContent = this.formatNotificationEmail(notification)
+      
+      // 3. Enviar emails a todos los administradores
+      const emailPromises = admins.map(admin => 
+        this.emailService.sendEmail({
+          to: admin.email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          priority: notification.severity === 'critical' ? 'high' : 'normal'
+        })
+      )
+      
+      await Promise.allSettled(emailPromises)
+      
+      // 4. Registrar la notificación enviada
+      await this.logNotificationSent(notification, admins.length)
+      
+    } catch (error) {
+      console.error(`❌ Error al notificar administradores:`, error.message)
+    }
+  }
+  
+  // 🚨 ALERTAS INMEDIATAS (para casos críticos)
+  private async sendImmediateAlert(alert: ImmediateAlert): Promise<void> {
+    try {
+      // En un entorno real, aquí se integrarían servicios como:
+      // - Slack/Discord webhooks
+      // - SMS (Twilio)
+      // - Push notifications
+      // - Sistemas de monitoreo (PagerDuty, etc.)
+      
+      console.log(`🚨 ALERTA INMEDIATA:`, alert)
+      
+      // Por ahora, registrar en base de datos para seguimiento
+      await this.supabase
+        .from('immediate_alerts')
+        .insert({
+          title: alert.title,
+          message: alert.message,
+          metadata: alert,
+          created_at: new Date().toISOString()
+        })
+      
+    } catch (error) {
+      console.error(`❌ Error crítico al enviar alerta inmediata:`, error.message)
+    }
+  }
+  
+  // 📝 REGISTRO DE FALLOS DE PAGO
+  private async logPaymentFailure(subscriptionId: string, error: any, retryCount: number): Promise<void> {
+    try {
+      await this.supabase
+        .from('payment_failures')
+        .insert({
+          subscription_id: subscriptionId,
+          error_message: error.message || 'Error desconocido',
+          error_code: error.code || null,
+          retry_count: retryCount,
+          created_at: new Date().toISOString(),
+          metadata: {
+            stack: error.stack,
+            ...error
+          }
+        })
+    } catch (logError) {
+      console.error(`❌ Error al registrar fallo de pago:`, logError.message)
+    }
+  }
+  
+  // 📝 REGISTRO DE PROBLEMAS DEL SISTEMA
+  private async logSystemIssue(issue: SystemIssue): Promise<void> {
+    try {
+      await this.supabase
+        .from('system_issues')
+        .insert({
+          type: issue.type,
+          severity: issue.severity,
+          component: issue.component,
+          description: issue.description,
+          metadata: issue.metadata,
+          created_at: new Date().toISOString()
+        })
+    } catch (error) {
+      console.error(`❌ Error al registrar problema del sistema:`, error.message)
+    }
+  }
+  
+  // 📝 REGISTRO DE NOTIFICACIONES ENVIADAS
+  private async logNotificationSent(notification: AdminNotification, recipientCount: number): Promise<void> {
+    try {
+      await this.supabase
+        .from('notification_logs')
         .insert({
           type: notification.type,
           severity: notification.severity,
-          title: notification.title,
-          message: notification.message,
-          data: notification.data,
-          order_id: notification.orderId,
-          payment_id: notification.paymentId,
-          created_at: new Date().toISOString(),
-          read: false
+          recipient_count: recipientCount,
+          content: notification,
+          created_at: new Date().toISOString()
         })
-
-      if (error) {
-        logger.error('Error guardando notificación en BD', 'NOTIFICATION', {
-          error: error.message
-        })
-        return false
-      }
-
-      return true
     } catch (error) {
-      logger.error('Error accediendo a base de datos para notificación', 'NOTIFICATION', {
-        error: error.message
-      })
-      return false
+      console.error(`❌ Error al registrar notificación enviada:`, error.message)
     }
   }
-
-  // Generar HTML para email
-  private generateEmailHTML(notification: NotificationData): string {
-    const severityColor = this.getSeverityColor(notification.severity)
-    const emoji = this.getSeverityEmoji(notification.severity)
+  
+  // 🎯 DETERMINACIÓN DE SEVERIDAD
+  private determineSeverity(retryCount: number, error: any): 'low' | 'medium' | 'high' | 'critical' {
+    // Crítico: más de 3 intentos fallidos
+    if (retryCount >= 3) return 'critical'
     
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Notificación del Sistema - PetGourmet</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: ${severityColor}; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-          .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px; }
-          .footer { margin-top: 20px; font-size: 12px; color: #666; }
-          .data-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-          .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          .data-table th { background-color: #f2f2f2; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>${emoji} ${notification.title}</h1>
-            <p><strong>Severidad:</strong> ${notification.severity.toUpperCase()}</p>
-            <p><strong>Tipo:</strong> ${notification.type}</p>
-          </div>
-          <div class="content">
-            <h3>Mensaje:</h3>
-            <p>${notification.message}</p>
-            
-            ${notification.orderId ? `<p><strong>Orden ID:</strong> ${notification.orderId}</p>` : ''}
-            ${notification.paymentId ? `<p><strong>Payment ID:</strong> ${notification.paymentId}</p>` : ''}
-            
-            ${notification.data ? `
-              <h3>Datos Adicionales:</h3>
-              <pre style="background: #eee; padding: 10px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(notification.data, null, 2)}</pre>
-            ` : ''}
-            
-            <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-          <div class="footer">
-            <p>Este es un mensaje automático del sistema de pagos de PetGourmet.</p>
-            <p>Para más información, revisa el panel de administración.</p>
-          </div>
+    // Alto: errores de tarjeta o problemas de autorización
+    if (error.code === 'card_declined' || error.code === 'insufficient_funds') return 'high'
+    
+    // Medio: errores de red o temporales
+    if (error.code === 'network_error' || error.code === 'timeout') return 'medium'
+    
+    // Bajo: primer intento fallido
+    return 'low'
+  }
+  
+  // ⚡ VERIFICACIÓN DE ATENCIÓN INMEDIATA
+  private requiresImmediateAttention(issue: SystemIssue): boolean {
+    return issue.severity === 'critical' || 
+           issue.type === 'database_connection' ||
+           issue.type === 'payment_gateway_down' ||
+           issue.type === 'security_breach'
+  }
+  
+  // 📧 FORMATEO DE EMAILS DE NOTIFICACIÓN
+  private formatNotificationEmail(notification: AdminNotification): { subject: string, html: string } {
+    const severityEmoji = {
+      low: '🟢',
+      medium: '🟡', 
+      high: '🟠',
+      critical: '🔴'
+    }
+    
+    const subject = `${severityEmoji[notification.severity]} PetGourmet - ${notification.type.replace('_', ' ').toUpperCase()}`
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">
+          ${severityEmoji[notification.severity]} Notificación del Sistema PetGourmet
+        </h2>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <h3>Detalles de la Notificación:</h3>
+          <ul style="list-style: none; padding: 0;">
+            <li><strong>Tipo:</strong> ${notification.type.replace('_', ' ')}</li>
+            <li><strong>Severidad:</strong> ${notification.severity.toUpperCase()}</li>
+            <li><strong>Timestamp:</strong> ${notification.timestamp}</li>
+            ${notification.subscriptionId ? `<li><strong>Suscripción ID:</strong> ${notification.subscriptionId}</li>` : ''}
+            ${notification.userEmail ? `<li><strong>Usuario:</strong> ${notification.userEmail}</li>` : ''}
+            ${notification.error ? `<li><strong>Error:</strong> ${notification.error}</li>` : ''}
+          </ul>
         </div>
-      </body>
-      </html>
+        
+        <div style="background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">
+          <p><strong>Acción Requerida:</strong></p>
+          <p>Por favor, revise el panel de administración para más detalles y tome las acciones necesarias.</p>
+        </div>
+        
+        <hr style="margin: 30px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema de notificaciones de PetGourmet.<br>
+          Timestamp: ${new Date().toISOString()}
+        </p>
+      </div>
     `
-  }
-
-  // Generar texto plano para email
-  private generateEmailText(notification: NotificationData): string {
-    return `
-${notification.title}
-
-Severidad: ${notification.severity.toUpperCase()}
-Tipo: ${notification.type}
-
-Mensaje:
-${notification.message}
-
-${notification.orderId ? `Orden ID: ${notification.orderId}\n` : ''}${notification.paymentId ? `Payment ID: ${notification.paymentId}\n` : ''}
-Timestamp: ${new Date().toLocaleString()}
-
-${notification.data ? `Datos Adicionales:\n${JSON.stringify(notification.data, null, 2)}\n\n` : ''}---
-Este es un mensaje automático del sistema de pagos de PetGourmet.
-Para más información, revisa el panel de administración.
-    `
-  }
-
-  // Obtener emoji según severidad
-  private getSeverityEmoji(severity: string): string {
-    switch (severity) {
-      case 'critical': return '🔴'
-      case 'high': return '🟠'
-      case 'medium': return '🟡'
-      case 'low': return '🟢'
-      default: return '⚪'
-    }
-  }
-
-  // Obtener color según severidad
-  private getSeverityColor(severity: string): string {
-    switch (severity) {
-      case 'critical': return '#dc3545'
-      case 'high': return '#fd7e14'
-      case 'medium': return '#ffc107'
-      case 'low': return '#28a745'
-      default: return '#6c757d'
-    }
-  }
-
-  // Métodos de conveniencia para tipos específicos de notificaciones
-  async notifyPaymentIssue(orderId: number, paymentId?: string, details?: any): Promise<void> {
-    await this.sendNotification({
-      type: 'payment_issue',
-      severity: 'high',
-      title: 'Problema de Pago Detectado',
-      message: `Se detectó un problema con el pago de la orden ${orderId}. Requiere atención inmediata.`,
-      orderId,
-      paymentId,
-      data: details
-    })
-  }
-
-  async notifySystemHealth(healthScore: number, issues: any[]): Promise<void> {
-    const severity = healthScore < 50 ? 'critical' : healthScore < 70 ? 'high' : 'medium'
     
-    await this.sendNotification({
-      type: 'system_health',
-      severity,
-      title: 'Alerta de Salud del Sistema',
-      message: `El sistema de pagos tiene una puntuación de salud de ${healthScore}/100 con ${issues.length} problemas detectados.`,
-      data: { healthScore, issues }
-    })
-  }
-
-  async notifySyncFailure(orderId: number, error: string): Promise<void> {
-    await this.sendNotification({
-      type: 'sync_failure',
-      severity: 'medium',
-      title: 'Fallo en Sincronización Automática',
-      message: `La sincronización automática falló para la orden ${orderId}: ${error}`,
-      orderId,
-      data: { error }
-    })
-  }
-
-  async notifyWebhookError(paymentId: string, error: string): Promise<void> {
-    await this.sendNotification({
-      type: 'webhook_error',
-      severity: 'high',
-      title: 'Error en Webhook de MercadoPago',
-      message: `Error procesando webhook para pago ${paymentId}: ${error}`,
-      paymentId,
-      data: { error }
-    })
+    return { subject, html }
   }
 }
 
-// Instancia singleton
-const notificationService = new NotificationService()
+// 🔧 INTERFACES Y TIPOS
+interface SystemIssue {
+  type: 'database_connection' | 'payment_gateway_down' | 'email_service_error' | 'api_rate_limit' | 'security_breach' | 'performance_degradation'
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  component: string
+  description: string
+  metadata?: any
+}
 
-export default notificationService
-export type { NotificationData, NotificationChannel }
+interface MetricAlert {
+  name: string
+  currentValue: number
+  threshold: number
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  description: string
+}
+
+interface AdminNotification {
+  type: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  timestamp: string
+  subscriptionId?: string
+  userEmail?: string
+  userName?: string
+  productName?: string
+  amount?: number
+  retryCount?: number
+  error?: string
+  issueType?: string
+  description?: string
+  affectedComponent?: string
+  metricName?: string
+  currentValue?: number
+  threshold?: number
+  metadata?: any
+}
+
+interface ImmediateAlert {
+  title: string
+  message: string
+  subscriptionId?: string
+  component?: string
+  severity?: string
+  error?: any
+  metric?: string
+}

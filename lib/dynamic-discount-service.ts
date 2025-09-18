@@ -88,6 +88,67 @@ export class DynamicDiscountService {
   }
 
   /**
+   * Actualiza una suscripción existente con descuentos dinámicos actuales del producto
+   */
+  static async updateSubscriptionWithDynamicDiscount(
+    subscriptionId: number,
+    productId: number,
+    subscriptionType: SubscriptionType
+  ): Promise<DynamicDiscountResult | null> {
+    try {
+      const supabase = await createClient()
+      
+      // Obtener descuento dinámico actual del producto
+      const discountResult = await this.getProductSubscriptionDiscount(
+        productId,
+        subscriptionType
+      )
+
+      if (!discountResult) {
+        console.error('No se pudo calcular el descuento dinámico para el producto:', productId)
+        return null
+      }
+
+      // Actualizar la suscripción con los nuevos valores
+      const { error } = await supabase
+        .from('unified_subscriptions')
+        .update({
+          discount_percentage: discountResult.discountPercentage,
+          discounted_price: discountResult.discountedPrice,
+          base_price: discountResult.originalPrice,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', subscriptionId)
+
+      if (error) {
+        console.error('Error actualizando suscripción con descuento dinámico:', error)
+        return null
+      }
+
+      console.log(`Suscripción ${subscriptionId} actualizada con descuento dinámico: ${discountResult.discountPercentage}%`)
+      return discountResult
+    } catch (error) {
+      console.error('Error en updateSubscriptionWithDynamicDiscount:', error)
+      return null
+    }
+  }
+
+  /**
+   * Convierte la frecuencia de unified_subscriptions a SubscriptionType
+   */
+  static frequencyToSubscriptionType(frequency: string): SubscriptionType {
+    const frequencyMap: Record<string, SubscriptionType> = {
+      'weekly': 'weekly',
+      'biweekly': 'biweekly',
+      'monthly': 'monthly',
+      'quarterly': 'quarterly',
+      'annual': 'annual'
+    }
+    
+    return frequencyMap[frequency] || 'monthly'
+  }
+
+  /**
    * Crea una suscripción pendiente con descuentos dinámicos
    */
   static async createPendingSubscription(data: {

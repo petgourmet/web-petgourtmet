@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
             name,
             image,
             price,
+            weekly_discount,
             monthly_discount,
             quarterly_discount,
             annual_discount,
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
             name,
             image,
             price,
+            weekly_discount,
             monthly_discount,
             quarterly_discount,
             annual_discount,
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest) {
               name,
               image,
               price,
+              weekly_discount,
               monthly_discount,
               quarterly_discount,
               annual_discount,
@@ -103,31 +106,46 @@ export async function GET(request: NextRequest) {
       const product = subscription.products
       const frequency = getFrequencyFromType(subscription.subscription_type)
       
-      let discountAmount = 0
+      // Descuento esperado (desde producto en BD)
+      let expectedDiscount = 0
       if (product) {
         switch (frequency) {
           case 'weekly':
-            discountAmount = product.weekly_discount || 0
+            expectedDiscount = product.weekly_discount || 0
             break
           case 'monthly':
-            discountAmount = product.monthly_discount || 0
+            expectedDiscount = product.monthly_discount || 0
             break
           case 'quarterly':
-            discountAmount = product.quarterly_discount || 0
+            expectedDiscount = product.quarterly_discount || 0
             break
           case 'annual':
-            discountAmount = product.annual_discount || 0
+            expectedDiscount = product.annual_discount || 0
             break
           case 'biweekly':
-            discountAmount = product.biweekly_discount || 0
+            expectedDiscount = product.biweekly_discount || 0
             break
         }
       }
+    
+      // Descuento aplicado (si existe en el registro de suscripción), de lo contrario usar esperado
+      const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage))
+        ? subscription.discount_percentage
+        : expectedDiscount
+    
+      const basePrice = (product?.price ?? subscription.price ?? 0) as number
+      const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
       
       return {
         ...subscription,
         frequency,
-        discount_amount: discountAmount,
+        discount_amount: appliedDiscount,
+        discount_percentage: appliedDiscount,
+        base_price: basePrice,
+        discounted_price: discountedPrice,
+        expected_discount_percentage: expectedDiscount,
+        applied_discount_percentage: appliedDiscount,
+        discount_valid: appliedDiscount === expectedDiscount,
         source: 'subscriptions',
         products: product
       }
@@ -138,26 +156,34 @@ export async function GET(request: NextRequest) {
       const product = subscription.products
       const frequency = getFrequencyFromType(subscription.subscription_type)
       
-      let discountAmount = 0
+      // Descuento esperado (desde producto en BD)
+      let expectedDiscount = 0
       if (product) {
         switch (frequency) {
           case 'weekly':
-            discountAmount = product.weekly_discount || 0
+            expectedDiscount = product.weekly_discount || 0
             break
           case 'monthly':
-            discountAmount = product.monthly_discount || 0
+            expectedDiscount = product.monthly_discount || 0
             break
           case 'quarterly':
-            discountAmount = product.quarterly_discount || 0
+            expectedDiscount = product.quarterly_discount || 0
             break
           case 'annual':
-            discountAmount = product.annual_discount || 0
+            expectedDiscount = product.annual_discount || 0
             break
           case 'biweekly':
-            discountAmount = product.biweekly_discount || 0
+            expectedDiscount = product.biweekly_discount || 0
             break
         }
       }
+    
+      const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage))
+        ? subscription.discount_percentage
+        : expectedDiscount
+    
+      const basePrice = (product?.price ?? subscription.price ?? 0) as number
+      const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
       
       return {
         id: `pending_${subscription.id}`,
@@ -166,7 +192,13 @@ export async function GET(request: NextRequest) {
         status: 'pending',
         frequency,
         price: subscription.price || 0,
-        discount_amount: discountAmount,
+        discount_amount: appliedDiscount,
+        discount_percentage: appliedDiscount,
+        base_price: basePrice,
+        discounted_price: discountedPrice,
+        expected_discount_percentage: expectedDiscount,
+        applied_discount_percentage: appliedDiscount,
+        discount_valid: appliedDiscount === expectedDiscount,
         next_billing_date: null,
         created_at: subscription.created_at,
         source: 'subscriptions',
@@ -188,24 +220,35 @@ export async function GET(request: NextRequest) {
         const subscription = billing.unified_subscriptions
         const product = subscription.products
         const frequency = subscription.frequency || 'monthly'
-        let discountAmount = 0
-        
+    
+        // Descuento esperado (desde producto en BD)
+        let expectedDiscount = 0
         if (product && frequency) {
           switch (frequency) {
             case 'monthly':
-              discountAmount = product.monthly_discount || 0
+              expectedDiscount = product.monthly_discount || 0
               break
             case 'quarterly':
-              discountAmount = product.quarterly_discount || 0
+              expectedDiscount = product.quarterly_discount || 0
               break
             case 'annual':
-              discountAmount = product.annual_discount || 0
+              expectedDiscount = product.annual_discount || 0
               break
             case 'biweekly':
-              discountAmount = product.biweekly_discount || 0
+              expectedDiscount = product.biweekly_discount || 0
+              break
+            case 'weekly':
+              expectedDiscount = product.weekly_discount || 0
               break
           }
         }
+    
+        const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage))
+          ? subscription.discount_percentage
+          : expectedDiscount
+    
+        const basePrice = (product?.price ?? subscription.price ?? 0) as number
+        const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
         
         return {
           id: `billing_${subscription.id}`,
@@ -214,7 +257,13 @@ export async function GET(request: NextRequest) {
           status: 'active',
           frequency,
           price: billing.amount,
-          discount_amount: discountAmount,
+          discount_amount: appliedDiscount,
+          discount_percentage: appliedDiscount,
+          base_price: basePrice,
+          discounted_price: discountedPrice,
+          expected_discount_percentage: expectedDiscount,
+          applied_discount_percentage: appliedDiscount,
+          discount_valid: appliedDiscount === expectedDiscount,
           next_billing_date: null,
           created_at: billing.billing_date,
           last_billing_date: billing.billing_date,

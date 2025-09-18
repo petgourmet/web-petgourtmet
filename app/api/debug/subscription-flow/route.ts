@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
       // Procesar el webhook usando el servicio existente
       const webhookService = new WebhookService();
-      const result = await webhookService.processWebhook(mockWebhookPayload);
+      const result = await webhookService.processSubscriptionWebhook(mockWebhookPayload);
 
       return NextResponse.json({
         success: true,

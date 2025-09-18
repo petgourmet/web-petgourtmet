@@ -63,23 +63,8 @@ class MercadoPagoService {
   }
 
   // Crear plan de suscripción
-  async createSubscriptionPlan(planData: {
-    reason: string,
-    frequency: number,
-    frequency_type: "months" | "days",
-    repetitions?: number,
-    billing_day?: number,
-    billing_day_proportional?: boolean,
-    free_trial?: {
-      frequency: number,
-      frequency_type: "months" | "days"
-    },
-    transaction_amount: number,
-    currency_id: "MXN",
-    setup_fee?: number
-  }): Promise<any> {
+  async createSubscriptionPlan(planData: any): Promise<any> {
     const preapprovalPlan = new PreApprovalPlan(this.config)
-
     try {
       const result = await preapprovalPlan.create({ body: planData })
       return result
@@ -166,7 +151,7 @@ class MercadoPagoService {
     }
   }
 
-  // Obtener información de una suscripción
+  // NUEVO: Obtener información de una suscripción (preapproval) para extraer payer_email
   async getSubscription(subscriptionId: string): Promise<any> {
     try {
       const preapproval = new PreApproval(this.config)

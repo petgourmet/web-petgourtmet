@@ -827,6 +827,45 @@ export class WebhookService {
       // Actualizar fecha de último pago y estado en la suscripción si fue aprobado
       if (paymentData.status === 'approved' || paymentData.status === 'paid') {
         if (pendingSubscription) {
+          // VALIDACIÓN ANTI-DUPLICACIÓN: Verificar si ya existe una suscripción activa para el mismo usuario y producto
+          const { data: existingActiveSubscription, error: duplicateCheckError } = await supabase
+            .from('unified_subscriptions')
+            .select('id, status, subscription_type, product_id')
+            .eq('user_id', pendingSubscription.user_id)
+            .eq('product_id', pendingSubscription.product_id)
+            .eq('status', 'active')
+            .neq('id', pendingSubscription.id) // Excluir la suscripción actual
+            .single()
+          
+          if (existingActiveSubscription && !duplicateCheckError) {
+            logger.warn('Intento de duplicación de suscripción detectado - cancelando activación', 'SUBSCRIPTION', {
+              paymentId,
+              pendingSubscriptionId: pendingSubscription.id,
+              existingActiveSubscriptionId: existingActiveSubscription.id,
+              userId: pendingSubscription.user_id,
+              productId: pendingSubscription.product_id,
+              subscriptionType: pendingSubscription.subscription_type
+            })
+            
+            // Marcar la suscripción pendiente como duplicada en lugar de activarla
+            await supabase
+              .from('unified_subscriptions')
+              .update({
+                status: 'duplicate_cancelled',
+                updated_at: new Date().toISOString(),
+                cancellation_reason: 'Duplicate subscription detected - user already has active subscription for this product'
+              })
+              .eq('id', pendingSubscription.id)
+            
+            logger.info('Suscripción marcada como duplicada y cancelada', 'SUBSCRIPTION', {
+              paymentId,
+              cancelledSubscriptionId: pendingSubscription.id,
+              existingActiveSubscriptionId: existingActiveSubscription.id
+            })
+            
+            return true // Retornar éxito pero sin activar la suscripción duplicada
+          }
+          
           // Activar suscripción pendiente
           const nextBillingDate = await this.calculateNextBillingDate(
             pendingSubscription.subscription_type || 'monthly',
@@ -1415,37 +1454,91 @@ export class WebhookService {
 
   // Funciones de envío de correos de suscripción usando las nuevas plantillas
   private async sendSubscriptionCreatedEmail(subscriptionData: SubscriptionData, recipientEmail: string): Promise<void> {
-    const { sendSubscriptionEmail } = await import('./email-service')
+    const startTime = Date.now()
     
-    await sendSubscriptionEmail('created', {
-      customerName: recipientEmail.split('@')[0] || 'Cliente',
-      customerEmail: recipientEmail,
-      planName: subscriptionData.reason || 'Plan Pet Gourmet',
-      productName: 'Producto Pet Gourmet Premium',
-      amount: subscriptionData.auto_recurring?.transaction_amount || 0,
-      currency: 'MXN',
-      frequency: 'mensual',
-      nextPaymentDate: subscriptionData.next_payment_date,
-      subscriptionId: subscriptionData.id,
-      externalReference: subscriptionData.external_reference
-    })
+    try {
+      logger.info('Enviando email de suscripción creada', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        recipientEmail,
+        amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+        planName: subscriptionData.reason || 'Plan Pet Gourmet'
+      })
+      
+      const { sendSubscriptionEmail } = await import('./email-service')
+      
+      await sendSubscriptionEmail('created', {
+        customerName: recipientEmail.split('@')[0] || 'Cliente',
+        customerEmail: recipientEmail,
+        planName: subscriptionData.reason || 'Plan Pet Gourmet',
+        productName: 'Producto Pet Gourmet Premium',
+        amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+        currency: 'MXN',
+        frequency: 'mensual',
+        nextPaymentDate: subscriptionData.next_payment_date,
+        subscriptionId: subscriptionData.id,
+        externalReference: subscriptionData.external_reference
+      })
+      
+      const duration = Date.now() - startTime
+      logger.info('Email de suscripción creada enviado exitosamente', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        recipientEmail,
+        duration
+      })
+    } catch (error) {
+      const duration = Date.now() - startTime
+      logger.error('Error enviando email de suscripción creada', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        recipientEmail,
+        error: error.message,
+        duration
+      })
+      throw error
+    }
   }
 
   private async sendSubscriptionCancelledEmail(subscriptionData: SubscriptionData, recipientEmail: string): Promise<void> {
-    const { sendSubscriptionEmail } = await import('./email-service')
+    const startTime = Date.now()
     
-    await sendSubscriptionEmail('cancelled', {
-      customerName: recipientEmail.split('@')[0] || 'Cliente',
-      customerEmail: recipientEmail,
-      planName: subscriptionData.reason || 'Plan Pet Gourmet',
-      productName: 'Producto Pet Gourmet Premium',
-      amount: subscriptionData.auto_recurring?.transaction_amount || 0,
-      currency: 'MXN',
-      frequency: 'mensual',
-      nextPaymentDate: null,
-      subscriptionId: subscriptionData.id,
-      externalReference: subscriptionData.external_reference
-    })
+    try {
+      logger.info('Enviando email de suscripción cancelada', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        recipientEmail,
+        amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+        planName: subscriptionData.reason || 'Plan Pet Gourmet'
+      })
+      
+      const { sendSubscriptionEmail } = await import('./email-service')
+      
+      await sendSubscriptionEmail('cancelled', {
+        customerName: recipientEmail.split('@')[0] || 'Cliente',
+        customerEmail: recipientEmail,
+        planName: subscriptionData.reason || 'Plan Pet Gourmet',
+        productName: 'Producto Pet Gourmet Premium',
+        amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+        currency: 'MXN',
+        frequency: 'mensual',
+        nextPaymentDate: null,
+        subscriptionId: subscriptionData.id,
+        externalReference: subscriptionData.external_reference
+      })
+      
+      const duration = Date.now() - startTime
+      logger.info('Email de suscripción cancelada enviado exitosamente', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        recipientEmail,
+        duration
+      })
+    } catch (error) {
+      const duration = Date.now() - startTime
+      logger.error('Error enviando email de suscripción cancelada', 'SUBSCRIPTION', {
+        subscriptionId: subscriptionData.id,
+        recipientEmail,
+        error: error.message,
+        duration
+      })
+      throw error
+    }
   }
 
   // Enviar email de notificación de nueva compra a administradores
@@ -1867,10 +1960,52 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
           return
         }
         
+        // VALIDACIÓN ANTI-DUPLICACIÓN: Verificar si ya existe una suscripción activa para el mismo usuario y producto
+        const productId = pendingSub.cart_items?.[0]?.id || null
+        if (productId) {
+          const { data: existingActiveSubscription, error: duplicateCheckError } = await supabase
+            .from('unified_subscriptions')
+            .select('id, status, subscription_type, product_id')
+            .eq('user_id', userId)
+            .eq('product_id', productId)
+            .eq('status', 'active')
+            .neq('id', pendingSub.id) // Excluir la suscripción actual
+            .single()
+          
+          if (existingActiveSubscription && !duplicateCheckError) {
+            logger.warn(LogCategory.WEBHOOK, 'Intento de duplicación de suscripción detectado en preapproval - cancelando activación', {
+              subscriptionId: data.id,
+              pendingSubscriptionId: pendingSub.id,
+              existingActiveSubscriptionId: existingActiveSubscription.id,
+              userId: userId,
+              productId: productId,
+              subscriptionType: pendingSub.subscription_type
+            })
+            
+            // Marcar la suscripción pendiente como duplicada
+            await supabase
+              .from('unified_subscriptions')
+              .update({
+                status: 'duplicate_cancelled',
+                updated_at: new Date().toISOString(),
+                cancellation_reason: 'Duplicate subscription detected - user already has active subscription for this product'
+              })
+              .eq('id', pendingSub.id)
+            
+            logger.info(LogCategory.WEBHOOK, 'Suscripción marcada como duplicada y cancelada en preapproval', {
+              subscriptionId: data.id,
+              cancelledSubscriptionId: pendingSub.id,
+              existingActiveSubscriptionId: existingActiveSubscription.id
+            })
+            
+            return // Salir sin crear la suscripción duplicada
+          }
+        }
+        
         // Crear suscripción activa
         const subscriptionData = {
           user_id: userId,
-          product_id: pendingSub.cart_items?.[0]?.id || null,
+          product_id: productId,
           subscription_type: pendingSub.subscription_type,
           status: data.status === 'authorized' ? 'active' : data.status,
           mercadopago_subscription_id: data.id,

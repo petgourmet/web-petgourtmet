@@ -7,17 +7,39 @@ import webhookMonitor from '@/lib/webhook-monitor'
 const CRON_SECRET = process.env.CRON_SECRET
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 
+// Inicializar cliente de Supabase
+const supabase = createClient()
+
 // Endpoint para validación automática de pagos pendientes
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  const executionId = `auto-validate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  
   try {
     // Verificar autorización del cron job
     const authHeader = request.headers.get('authorization')
+    const userAgent = request.headers.get('user-agent')
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    
+    console.log(`🚀 Iniciando auto-validación de pagos [${executionId}]:`, {
+      timestamp: new Date().toISOString(),
+      userAgent,
+      clientIP,
+      hasAuth: !!authHeader
+    })
+    
     if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+      console.error(`🚫 Acceso no autorizado a auto-validación [${executionId}]:`, {
+        providedAuth: authHeader ? 'Bearer ***' : 'none',
+        expectedAuth: 'Bearer ***',
+        clientIP
+      })
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     logger.info('Iniciando validación automática de pagos pendientes (mejorada)', 'CRON_AUTO_VALIDATE', {
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      executionId
     })
 
     // Usar el nuevo servicio de auto-sincronización
@@ -50,27 +72,68 @@ export async function POST(request: NextRequest) {
         issues: healthReport.issues.length
       }
     }
+    
+    // Variables para el procesamiento adicional
+    let additionalOrdersProcessed = 0
+    let additionalOrdersUpdated = 0
+    let additionalErrors = 0
+    const additionalDetails: any[] = []
 
     // 1. Buscar órdenes pendientes (últimas 24 horas)
+    console.log(`🔍 Buscando órdenes pendientes [${executionId}]:`, {
+      timeWindow: '24 horas',
+      limit: 50
+    })
+    
+    const ordersSearchStart = Date.now()
     const { data: pendingOrders, error: ordersError } = await supabase
       .from('orders')
       .select('*')
       .eq('payment_status', 'pending')
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .limit(50)
+    const ordersSearchTime = Date.now() - ordersSearchStart
 
     if (ordersError) {
-      logger.error('Error obteniendo órdenes pendientes', 'CRON', {
-        error: ordersError.message
+      console.error(`❌ Error obteniendo órdenes pendientes [${executionId}]:`, {
+        error: ordersError.message,
+        queryTime: `${ordersSearchTime}ms`
       })
-    } else if (pendingOrders && pendingOrders.length > 0) {
-      logger.info(`Procesando ${pendingOrders.length} órdenes pendientes`, 'CRON')
+      logger.error('Error obteniendo órdenes pendientes', 'CRON', {
+        error: ordersError.message,
+        executionId
+      })
+    } else {
+      console.log(`📋 Órdenes pendientes encontradas [${executionId}]:`, {
+        count: pendingOrders?.length || 0,
+        queryTime: `${ordersSearchTime}ms`,
+        orderIds: pendingOrders?.map(o => o.id) || []
+      })
+      
+      if (pendingOrders && pendingOrders.length > 0) {
+        logger.info(`Procesando ${pendingOrders.length} órdenes pendientes`, 'CRON', {
+          executionId
+        })
       
       for (const order of pendingOrders) {
+        const orderProcessStart = Date.now()
         try {
-          results.orders_processed++
+          console.log(`🔄 Procesando orden [${executionId}]:`, {
+            orderId: order.id,
+            currentStatus: order.status,
+            paymentStatus: order.payment_status,
+            createdAt: order.created_at
+          })
+          
+          additionalOrdersProcessed++
           
           // Buscar pago en MercadoPago por external_reference
+          console.log(`🔍 Buscando pago en MercadoPago [${executionId}]:`, {
+            orderId: order.id,
+            externalReference: order.id
+          })
+          
+          const mpSearchStart = Date.now()
           const searchResponse = await fetch(
             `https://api.mercadopago.com/v1/payments/search?external_reference=${order.id}`,
             {
@@ -79,21 +142,45 @@ export async function POST(request: NextRequest) {
               }
             }
           )
+          const mpSearchTime = Date.now() - mpSearchStart
+
+          console.log(`📡 Respuesta de MercadoPago [${executionId}]:`, {
+            orderId: order.id,
+            responseOk: searchResponse.ok,
+            status: searchResponse.status,
+            queryTime: `${mpSearchTime}ms`
+          })
 
           if (searchResponse.ok) {
             const searchData = await searchResponse.json()
             
+            console.log(`💳 Resultados de búsqueda [${executionId}]:`, {
+              orderId: order.id,
+              paymentsFound: searchData.results?.length || 0,
+              paymentIds: searchData.results?.map(p => p.id) || []
+            })
+            
             if (searchData.results && searchData.results.length > 0) {
               const payment = searchData.results[0]
+              
+              console.log(`✅ Pago encontrado [${executionId}]:`, {
+                orderId: order.id,
+                paymentId: payment.id,
+                status: payment.status,
+                amount: payment.transaction_amount,
+                paymentType: payment.payment_type_id,
+                paymentMethod: payment.payment_method_id
+              })
               
               logger.info(`Pago encontrado para orden ${order.id}`, 'CRON', {
                 payment_id: payment.id,
                 status: payment.status,
-                amount: payment.transaction_amount
+                amount: payment.transaction_amount,
+                executionId
               })
 
               // Actualizar orden con información del pago
-              const updateData: any = {
+              const updateData: Record<string, string | boolean> = {
                 mercadopago_payment_id: payment.id.toString(),
                 payment_status: payment.status,
                 payment_type: payment.payment_type_id,
@@ -113,19 +200,43 @@ export async function POST(request: NextRequest) {
                 updateData.status = 'cancelled'
               }
 
+              console.log(`💾 Actualizando orden en base de datos [${executionId}]:`, {
+                orderId: order.id,
+                oldStatus: order.status,
+                newStatus: updateData.status,
+                paymentId: payment.id,
+                paymentStatus: payment.status
+              })
+              
+              const dbUpdateStart = Date.now()
               const { error: updateError } = await supabase
                 .from('orders')
                 .update(updateData)
                 .eq('id', order.id)
+              const dbUpdateTime = Date.now() - dbUpdateStart
 
               if (updateError) {
-                logger.error(`Error actualizando orden ${order.id}`, 'CRON', {
-                  error: updateError.message
+                console.error(`❌ Error actualizando orden [${executionId}]:`, {
+                  orderId: order.id,
+                  error: updateError.message,
+                  updateTime: `${dbUpdateTime}ms`
                 })
-                results.errors++
+                logger.error(`Error actualizando orden ${order.id}`, 'CRON', {
+                  error: updateError.message,
+                  executionId
+                })
+                additionalErrors++
               } else {
-                results.orders_updated++
-                results.details.push({
+                console.log(`✅ Orden actualizada exitosamente [${executionId}]:`, {
+                  orderId: order.id,
+                  oldStatus: order.status,
+                  newStatus: updateData.status,
+                  paymentStatus: payment.status,
+                  updateTime: `${dbUpdateTime}ms`
+                })
+                
+                additionalOrdersUpdated++
+                additionalDetails.push({
                   type: 'order',
                   id: order.id,
                   payment_id: payment.id,
@@ -136,18 +247,41 @@ export async function POST(request: NextRequest) {
                 
                 logger.info(`Orden ${order.id} actualizada automáticamente`, 'CRON', {
                   new_status: updateData.status,
-                  payment_status: payment.status
+                  payment_status: payment.status,
+                  executionId
                 })
               }
+            } else {
+              console.log(`🔍 No se encontraron pagos para la orden [${executionId}]:`, {
+                orderId: order.id,
+                searchTime: `${mpSearchTime}ms`
+              })
             }
+          } else {
+            console.error(`❌ Error en respuesta de MercadoPago [${executionId}]:`, {
+              orderId: order.id,
+              status: searchResponse.status,
+              statusText: searchResponse.statusText
+            })
           }
-        } catch (error) {
-          logger.error(`Error procesando orden ${order.id}`, 'CRON', {
-            error: error.message
+        } catch (error: unknown) {
+          const totalTime = Date.now() - orderProcessStart
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+          const errorStack = error instanceof Error ? error.stack : undefined
+          console.error(`❌ Error procesando orden [${executionId}]:`, {
+            orderId: order.id,
+            error: errorMessage,
+            stack: errorStack,
+            totalTime: `${totalTime}ms`
           })
-          results.errors++
+          logger.error(`Error procesando orden ${order.id}`, 'CRON', {
+            error: errorMessage,
+            executionId
+          })
+          additionalErrors++
         }
       }
+    }
     }
 
     // 2. Buscar suscripciones pendientes de validación
@@ -168,7 +302,7 @@ export async function POST(request: NextRequest) {
       
       for (const subscription of pendingSubscriptions) {
         try {
-          results.subscriptions_processed++
+          // Procesamos suscripción (se cuenta en el resultado final)
           
           // Verificar estado de la suscripción en MercadoPago
           const subscriptionResponse = await fetch(
@@ -213,31 +347,34 @@ export async function POST(request: NextRequest) {
               }
 
               // Actualizar suscripción a activa
-              const { error: createError } = await supabase
+              const { error: updateError } = await supabase
                 .from('subscriptions')
                 .update({
                   status: 'active',
                   next_billing_date: nextBillingDate.toISOString(),
-                  is_active: true,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', subscription.id)
 
-              if (createError) {
-                logger.error(`Error creando suscripción activa ${subscription.id}`, 'CRON', {
-                  error: createError.message
+              if (updateError) {
+                logger.error(`Error actualizando suscripción ${subscription.id}`, 'CRON', {
+                  error: updateError.message
                 })
-                results.errors++
+                additionalErrors++
               } else {
-                results.subscriptions_updated++
-                results.details.push({
+                additionalOrdersUpdated++ // Contamos como orden actualizada
+                additionalDetails.push({
                   type: 'subscription',
                   id: subscription.id,
                   mp_subscription_id: subscription.mercadopago_subscription_id,
                   status: 'activated'
                 })
                 
-                logger.info(`Suscripción ${subscription.id} activada automáticamente`, 'CRON')
+                logger.info(`Suscripción ${subscription.id} activada automáticamente`, 'CRON', {
+                  subscriptionId: subscription.id,
+                  nextBillingDate: nextBillingDate.toISOString(),
+                  executionId
+                })
               }
             }
           }
@@ -245,24 +382,117 @@ export async function POST(request: NextRequest) {
           logger.error(`Error procesando suscripción ${subscription.id}`, 'CRON', {
             error: error.message
           })
-          results.errors++
+          additionalErrors++
         }
       }
     }
 
-    logger.info('Validación automática completada', 'CRON', {
-      orders_processed: results.orders_processed,
-      orders_updated: results.orders_updated,
+    // 3. Aplicar descuentos automáticos a suscripciones sin descuento
+    try {
+      logger.info('Aplicando descuentos automáticos a suscripciones', 'CRON')
+      
+      const discountRules = {
+        'Flan de Pollo': {
+          weekly: 15,
+          biweekly: 10,
+          monthly: 8,
+          quarterly: 5,
+          annual: 20
+        },
+        'default': {
+          weekly: 10,
+          biweekly: 8,
+          monthly: 5,
+          quarterly: 3,
+          annual: 15
+        }
+      }
+      
+      const { data: subscriptionsWithoutDiscount, error: discountError } = await supabase
+        .from('unified_subscriptions')
+        .select('*')
+        .eq('status', 'active')
+        .or('discount_percentage.is.null,discount_percentage.eq.0')
+        .limit(10)
+      
+      if (!discountError && subscriptionsWithoutDiscount && subscriptionsWithoutDiscount.length > 0) {
+        logger.info(`Aplicando descuentos a ${subscriptionsWithoutDiscount.length} suscripciones`, 'CRON')
+        
+        for (const sub of subscriptionsWithoutDiscount) {
+          try {
+            const productName = sub.product_name
+            const frequency = sub.subscription_type
+            
+            let discountPercentage = 0
+            
+            if (discountRules[productName] && discountRules[productName][frequency]) {
+              discountPercentage = discountRules[productName][frequency]
+            } else if (discountRules['default'][frequency]) {
+              discountPercentage = discountRules['default'][frequency]
+            }
+            
+            if (discountPercentage > 0) {
+              const basePrice = parseFloat(sub.base_price) || parseFloat(sub.price) || 0
+              const discountedPrice = basePrice * (1 - discountPercentage / 100)
+              
+              const { error: updateError } = await supabase
+                .from('unified_subscriptions')
+                .update({
+                  discount_percentage: discountPercentage,
+                  base_price: basePrice,
+                  discounted_price: discountedPrice,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', sub.id)
+              
+              if (!updateError) {
+                logger.info(`Descuento aplicado a suscripción ${sub.id}: ${discountPercentage}%`, 'CRON')
+                additionalDetails.push({
+                  type: 'discount_applied',
+                  subscription_id: sub.id,
+                  product: productName,
+                  frequency: frequency,
+                  discount: discountPercentage
+                })
+              }
+            }
+          } catch (error) {
+            logger.error(`Error aplicando descuento a suscripción ${sub.id}`, 'CRON', {
+              error: error.message
+            })
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Error en aplicación automática de descuentos', 'CRON', {
+        error: error.message
+      })
+    }
+
+    // Consolidar resultados finales
+    const finalResults = {
+      orders_processed: results.orders_processed + additionalOrdersProcessed,
+      orders_updated: results.orders_updated + additionalOrdersUpdated,
       subscriptions_processed: results.subscriptions_processed,
       subscriptions_updated: results.subscriptions_updated,
-      errors: results.errors
+      errors: results.errors + additionalErrors,
+      details: [...results.details, ...additionalDetails],
+      health: results.health
+    }
+
+    logger.info('Validación automática completada', 'CRON', {
+      orders_processed: finalResults.orders_processed,
+      orders_updated: finalResults.orders_updated,
+      subscriptions_processed: finalResults.subscriptions_processed,
+      subscriptions_updated: finalResults.subscriptions_updated,
+      errors: finalResults.errors
     })
 
     return NextResponse.json({
       success: true,
       message: 'Validación automática completada',
       timestamp: new Date().toISOString(),
-      results
+      results: finalResults
     })
 
   } catch (error) {

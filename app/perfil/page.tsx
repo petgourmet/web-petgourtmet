@@ -1382,9 +1382,22 @@ function PerfilPageContent() {
                     }
                   }
                   
-                  // Calcular precio con descuento y monto del descuento
-                  const discountAmount = (basePrice * discountPercentage) / 100
-                  const discountedPrice = basePrice - discountAmount
+                  // Aplicar la misma lógica que subscription-orders
+                  // Calcular precio con descuento usando la lógica correcta
+                  let discountedPrice;
+                  if (subscription.discounted_price) {
+                    // Si ya existe discounted_price, usarlo
+                    discountedPrice = subscription.discounted_price;
+                  } else if (discountPercentage > 0) {
+                    // Si hay descuento pero no discounted_price, calcularlo
+                    discountedPrice = basePrice * (1 - discountPercentage / 100);
+                  } else {
+                    // Sin descuento, usar precio original
+                    discountedPrice = basePrice;
+                  }
+                  
+                  // Calcular monto del descuento para mostrar
+                  const discountAmount = basePrice - discountedPrice
                 
                   return (
                     <Card key={subscription.id} className={`hover:shadow-lg transition-all duration-300 border-l-4 ${subscription.status === 'pending' ? 'border-l-[#78b7bf]' : 'border-l-indigo-500'}`}>
