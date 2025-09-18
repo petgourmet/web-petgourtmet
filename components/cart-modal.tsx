@@ -82,7 +82,24 @@ export function CartModal() {
                     </div>
                     <div className="text-right min-w-[80px]">
                       <div className="font-medium">
-                        ${item.price.toFixed(2)} MXN
+                        {item.isSubscription && item.subscriptionDiscount && item.subscriptionDiscount > 0 ? (
+                          <div className="space-y-1">
+                            {/* Precio original tachado - calculado correctamente */}
+                            <div className="text-xs text-gray-400 line-through">
+                              ${(item.price / (1 - item.subscriptionDiscount / 100)).toFixed(2)} MXN
+                            </div>
+                            {/* Precio con descuento - item.price ya viene con descuento aplicado */}
+                            <div className="text-green-600 font-semibold">
+                              ${item.price.toFixed(2)} MXN
+                            </div>
+                            {/* Porcentaje de descuento */}
+                            <div className="text-xs text-green-600">
+                              -{item.subscriptionDiscount.toFixed(0)}% OFF
+                            </div>
+                          </div>
+                        ) : (
+                          <div>${item.price.toFixed(2)} MXN</div>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -98,6 +115,41 @@ export function CartModal() {
               </div>
 
               <div className="border-t pt-4">
+                {/* Mostrar descuentos aplicados si los hay */}
+                {(() => {
+                  const totalDiscount = cart.reduce((total, item) => {
+                    if (item.isSubscription && item.subscriptionDiscount && item.subscriptionDiscount > 0) {
+                      // Calcular el descuento basado en el precio original
+                      const originalPrice = item.price / (1 - item.subscriptionDiscount / 100)
+                      const discountAmount = (originalPrice * item.subscriptionDiscount / 100) * item.quantity
+                      return total + discountAmount
+                    }
+                    return total
+                  }, 0)
+                  
+                  const originalTotal = cart.reduce((total, item) => {
+                    if (item.isSubscription && item.subscriptionDiscount && item.subscriptionDiscount > 0) {
+                      // El precio original calculado correctamente
+                      const originalPrice = item.price / (1 - item.subscriptionDiscount / 100)
+                      return total + (originalPrice * item.quantity)
+                    }
+                    return total + (item.price * item.quantity)
+                  }, 0)
+                  
+                  return totalDiscount > 0 ? (
+                    <>
+                      <div className="flex justify-between mb-2 text-sm text-gray-500">
+                        <span>Subtotal original</span>
+                        <span>${originalTotal.toFixed(2)} MXN</span>
+                      </div>
+                      <div className="flex justify-between mb-2 text-sm text-green-600">
+                        <span>Descuento por suscripción</span>
+                        <span>-${totalDiscount.toFixed(2)} MXN</span>
+                      </div>
+                    </>
+                  ) : null
+                })()}
+                
                 <div className="flex justify-between mb-2">
                   <span>Subtotal</span>
                   <span>${calculateCartTotal().toFixed(2)} MXN</span>

@@ -144,6 +144,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const calculateCartTotal = () => {
     return cart.reduce((total, item) => {
+      // El item.price ya viene con el descuento aplicado para suscripciones
+      // No necesitamos aplicar el descuento nuevamente aquí
       return total + item.price * item.quantity
     }, 0)
   }

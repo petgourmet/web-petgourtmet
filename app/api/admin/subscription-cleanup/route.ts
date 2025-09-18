@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import MercadoPagoService from '@/lib/mercadopago-service'
-import { logger } from '@/lib/logger'
+import logger from '@/lib/logger'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

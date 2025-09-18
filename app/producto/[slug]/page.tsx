@@ -177,18 +177,22 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return
 
-    const price = selectedSize ? selectedSize.price : product.price
+    const basePrice = selectedSize ? selectedSize.price : product.price
     const sizeWeight = selectedSize ? selectedSize.weight : "Único"
+    // Calcular precio con descuento si es suscripción
+    const discount = getSubscriptionDiscount()
+    const finalPrice = basePrice * (isSubscription ? 1 - discount : 1)
 
     addToCart({
       id: product.id,
       name: product.name,
-      price,
+      price: finalPrice,
       image: product.image,
       size: sizeWeight,
       quantity,
       isSubscription,
       subscriptionType: isSubscription ? subscriptionType : undefined,
+      subscriptionDiscount: isSubscription ? (discount * 100) : undefined,
       // Incluir URLs de MercadoPago específicas del producto
       weekly_mercadopago_url: product.weekly_mercadopago_url,
       biweekly_mercadopago_url: product.biweekly_mercadopago_url,

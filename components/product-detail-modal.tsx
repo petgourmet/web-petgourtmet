@@ -90,13 +90,14 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const handleAddToCart = () => {
     if (!product) return
 
-    const price = selectedSize ? selectedSize.price : product.price || 0
     const sizeWeight = selectedSize ? selectedSize.weight : "Único"
+    // Usar calculatePrice() que ya aplica el descuento correctamente
+    const finalPrice = calculatePrice()
 
     onAddToCart({
       id: product.id,
       name: product.name,
-      price: price,
+      price: finalPrice,
       image: product.image,
       size: sizeWeight,
       quantity,
