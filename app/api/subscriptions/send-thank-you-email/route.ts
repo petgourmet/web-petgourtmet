@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer'
 
 // Crear transporter para emails usando SMTP
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || '465'),
     secure: process.env.SMTP_SECURE === 'true',
@@ -28,14 +28,16 @@ export async function POST(request: NextRequest) {
       subscription_id,
       user_email,
       user_name,
-      subscription_details
+      subscription_details,
+      send_admin_notification = false
     } = body
 
     console.log('📧 Enviando email de agradecimiento:', {
       user_id,
       subscription_id,
       user_email,
-      user_name
+      user_name,
+      send_admin_notification
     })
 
     if (!user_email || !user_name || !subscription_details) {
@@ -82,7 +84,29 @@ export async function POST(request: NextRequest) {
     }
 
     const emailResult = await transporter.sendMail(mailOptions)
-    console.log('📧 Resultado del envío:', emailResult)
+    console.log('📧 Resultado del envío al usuario:', emailResult)
+
+    // Enviar notificación a administradores si se solicita
+    let adminEmailResult = null
+    if (send_admin_notification) {
+      try {
+        const adminEmailSubject = `Nueva suscripción activada - ${user_name}`
+        const adminEmailHtml = generateAdminNotificationHtml(user_name, user_email, subscription_details)
+        
+        const adminMailOptions = {
+          from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+          to: 'contacto@petgourmet.mx',
+          subject: adminEmailSubject,
+          html: adminEmailHtml
+        }
+
+        adminEmailResult = await transporter.sendMail(adminMailOptions)
+        console.log('📧 Resultado del envío a admin:', adminEmailResult)
+      } catch (adminError) {
+        console.error('❌ Error enviando email a admin:', adminError)
+        // No fallar si el email de admin falla
+      }
+    }
 
     // Registrar el envío en la base de datos
     if (subscription_id) {
@@ -106,8 +130,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Email de agradecimiento enviado exitosamente',
-      email_id: emailResult.messageId
+      message: send_admin_notification ? 
+        'Emails enviados exitosamente (usuario y admin)' : 
+        'Email de agradecimiento enviado exitosamente',
+      email_id: emailResult.messageId,
+      admin_email_id: adminEmailResult?.messageId
     })
 
   } catch (error) {
@@ -308,4 +335,162 @@ Gracias por confiar en PetGourmet
 ---
 Este email fue enviado porque confirmaste tu suscripción en nuestro sitio web.
   `.trim()
+}
+
+function generateAdminNotificationHtml(userName: string, userEmail: string, subscriptionDetails: any): string {
+  const {
+    product_name,
+    frequency_text,
+    discounted_price,
+    next_billing_date
+  } = subscriptionDetails
+
+  return `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Nueva Suscripción Activada - PetGourmet</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f8f9fa;
+        }
+        .container {
+          background-color: white;
+          border-radius: 10px;
+          padding: 30px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          background-color: #e67e22;
+          color: white;
+          padding: 20px;
+          border-radius: 10px;
+        }
+        .logo {
+          font-size: 28px;
+          font-weight: bold;
+          margin-bottom: 10px;
+        }
+        .title {
+          font-size: 24px;
+          margin-bottom: 10px;
+        }
+        .content {
+          margin-bottom: 25px;
+        }
+        .user-details, .subscription-details {
+          background-color: #f8f9fa;
+          border-left: 4px solid #e67e22;
+          padding: 20px;
+          margin: 20px 0;
+          border-radius: 5px;
+        }
+        .detail-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 10px;
+          padding: 5px 0;
+          border-bottom: 1px solid #eee;
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: bold;
+          color: #555;
+        }
+        .detail-value {
+          color: #333;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #eee;
+          color: #666;
+          font-size: 14px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div class="logo">🐾 PetGourmet Admin</div>
+          <h1 class="title">Nueva Suscripción Activada</h1>
+        </div>
+        
+        <div class="content">
+          <p><strong>¡Se ha activado una nueva suscripción!</strong></p>
+          
+          <div class="user-details">
+            <h3 style="margin-top: 0; color: #e67e22;">Información del Cliente:</h3>
+            
+            <div class="detail-row">
+              <span class="detail-label">Nombre:</span>
+              <span class="detail-value">${userName}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Email:</span>
+              <span class="detail-value">${userEmail}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Fecha de activación:</span>
+              <span class="detail-value">${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}</span>
+            </div>
+          </div>
+          
+          <div class="subscription-details">
+            <h3 style="margin-top: 0; color: #e67e22;">Detalles de la Suscripción:</h3>
+            
+            <div class="detail-row">
+              <span class="detail-label">Plan:</span>
+              <span class="detail-value">${product_name}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Frecuencia:</span>
+              <span class="detail-value">${frequency_text}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Precio:</span>
+              <span class="detail-value">$${discounted_price} MXN</span>
+            </div>
+            
+            ${next_billing_date ? `
+            <div class="detail-row">
+              <span class="detail-label">Próximo cobro:</span>
+              <span class="detail-value">${new Date(next_billing_date).toLocaleDateString('es-ES')}</span>
+            </div>
+            ` : ''}
+          </div>
+          
+          <p><strong>Acciones recomendadas:</strong></p>
+          <ul>
+            <li>Verificar el estado de la suscripción en el panel de administración</li>
+            <li>Preparar el primer envío del producto</li>
+            <li>Contactar al cliente si es necesario para confirmar detalles de entrega</li>
+          </ul>
+        </div>
+        
+        <div class="footer">
+          <p>Notificación automática del sistema PetGourmet<br>
+          <small>Este email se envía cuando se activa una nueva suscripción.</small></p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
 }

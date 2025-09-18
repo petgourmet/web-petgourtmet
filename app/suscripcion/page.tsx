@@ -183,8 +183,6 @@ export default function SuscripcionPage() {
         throw createError
       }
 
-      // La suscripción ya fue actualizada a activa en el paso anterior
-
       console.log("Suscripción activada exitosamente:", newSubscription)
       
     } catch (error) {
@@ -193,31 +191,130 @@ export default function SuscripcionPage() {
     }
   }
 
-  const sendWelcomeEmail = async () => {
+  const activateSingleSubscriptionWithProduct = async (pendingSubscription: any) => {
+    if (!user?.id) return
+
+    try {
+      console.log('🔧 Activando suscripción con información del producto:', pendingSubscription.id)
+      
+      // Obtener información del producto si no está disponible
+      let productInfo = pendingSubscription.products
+      
+      if (!productInfo && pendingSubscription.product_id) {
+        console.log('📦 Obteniendo información del producto:', pendingSubscription.product_id)
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', pendingSubscription.product_id)
+          .single()
+        
+        if (!productError && product) {
+          productInfo = product
+          console.log('✅ Producto encontrado:', product.name)
+        }
+      }
+      
+      // Calcular próxima fecha de pago basada en el tipo de suscripción
+      const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
+      
+      // Preparar datos de actualización
+      const updateData: any = {
+        status: "active",
+        next_billing_date: nextBillingDate,
+        last_billing_date: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      // Agregar información del producto si está disponible
+      if (productInfo) {
+        updateData.product_name = productInfo.name
+        updateData.price = productInfo.price
+        
+        // Calcular precio con descuento según el tipo de suscripción
+        const discountField = getDiscountField(pendingSubscription.subscription_type)
+        if (discountField && productInfo[discountField]) {
+          const discountPercentage = productInfo[discountField]
+          updateData.discounted_price = productInfo.price * (1 - discountPercentage / 100)
+        } else {
+          updateData.discounted_price = productInfo.price
+        }
+        
+        console.log(`💰 Precio calculado: ${productInfo.price} -> ${updateData.discounted_price}`)
+      }
+      
+      // Actualizar suscripción a activa con toda la información
+      const { data: newSubscription, error: createError } = await supabase
+        .from("unified_subscriptions")
+        .update(updateData)
+        .eq("id", pendingSubscription.id)
+        .select()
+        .single()
+
+      if (createError) {
+        console.error("Error activando suscripción:", createError)
+        throw createError
+      }
+
+      console.log("✅ Suscripción activada exitosamente con información completa:", newSubscription)
+      
+    } catch (error) {
+      console.error("Error activando suscripción con producto:", error)
+      throw error
+    }
+  }
+
+  const getDiscountField = (subscriptionType: string) => {
+    switch (subscriptionType) {
+      case 'biweekly':
+        return 'biweekly_discount'
+      case 'monthly':
+        return 'monthly_discount'
+      case 'quarterly':
+        return 'quarterly_discount'
+      case 'annual':
+        return 'annual_discount'
+      default:
+        return 'monthly_discount'
+    }
+  }
+
+  const sendWelcomeEmail = async (subscriptionData?: any) => {
     if (!user?.email) return
 
     try {
+      // Preparar detalles de la suscripción para el email
+      const subscriptionDetails = subscriptionData || {
+        product_name: 'Plan Pet Gourmet',
+        frequency_text: 'Mensual',
+        discounted_price: '0.00',
+        next_billing_date: null
+      }
+
       const response = await fetch('/api/subscriptions/send-thank-you-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: user.email,
-          name: user.user_metadata?.full_name || user.email
+          user_id: user.id,
+          subscription_id: subscriptionData?.id,
+          user_email: user.email,
+          user_name: user.user_metadata?.full_name || user.email,
+          subscription_details: subscriptionDetails,
+          send_admin_notification: true // Enviar también a administradores
         })
       })
 
       const result = await response.json()
       
       if (response.ok) {
-        console.log("Email de bienvenida enviado exitosamente")
+        console.log("✅ Emails de bienvenida enviados exitosamente (usuario y admin)")
       } else {
-        console.error("Error enviando email de bienvenida:", result.error)
+        console.error("❌ Error enviando emails de bienvenida:", result.error)
       }
       
     } catch (error) {
-      console.error("Error enviando email de bienvenida:", error)
+      console.error("❌ Error enviando emails de bienvenida:", error)
     }
   }
 
@@ -226,54 +323,73 @@ export default function SuscripcionPage() {
 
     try {
       setIsProcessing(true)
+      console.log('🔍 Activando suscripción con external_reference:', externalReference)
       
-      // Buscar suscripción pendiente por external_reference
+      // Buscar suscripción pendiente por external_reference con información del producto
       const { data: pendingSubscriptions, error: pendingError } = await supabase
         .from("unified_subscriptions")
-        .select("*")
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price,
+            monthly_discount,
+            quarterly_discount,
+            annual_discount,
+            biweekly_discount
+          )
+        `)
         .eq("external_reference", externalReference)
-        .eq("user_id", user.id)
         .eq("status", "pending")
-        .not('mercadopago_subscription_id', 'is', null)
 
-      if (pendingError || !pendingSubscriptions || pendingSubscriptions.length === 0) {
-        console.log("No se encontraron suscripciones pendientes")
+      if (pendingError) {
+        console.error("Error buscando suscripción:", pendingError)
+        loadUserSubscriptions()
+        return
+      }
+
+      if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
+        console.log("❌ No se encontraron suscripciones pendientes con external_reference:", externalReference)
+        
+        // Buscar cualquier suscripción pendiente del usuario para activar
+        const { data: userPendingSubscriptions } = await supabase
+          .from("unified_subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "pending")
+          .order('created_at', { ascending: false })
+          .limit(1)
+        
+        if (userPendingSubscriptions && userPendingSubscriptions.length > 0) {
+          console.log('✅ Encontrada suscripción pendiente del usuario, activando...')
+          const subscription = userPendingSubscriptions[0]
+          await activateSingleSubscriptionWithProduct(subscription)
+          await updateUserProfile()
+          await sendWelcomeEmail(subscription)
+          
+          toast({
+            title: "¡Suscripción activada!",
+            description: "Tu suscripción ha sido activada exitosamente",
+          })
+        }
+        
         loadUserSubscriptions()
         return
       }
 
       const pendingSubscription = pendingSubscriptions[0]
+      console.log('✅ Suscripción encontrada:', pendingSubscription)
       
-      // Calcular próxima fecha de pago basada en el tipo de suscripción
-      const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
+      // Activar la suscripción con información del producto
+      await activateSingleSubscriptionWithProduct(pendingSubscription)
       
-      // Actualizar suscripción a activa
-      const { data: newSubscription, error: createError } = await supabase
-        .from("unified_subscriptions")
-        .update({
-          status: "active",
-          next_billing_date: nextBillingDate,
-          last_billing_date: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", pendingSubscription.id)
-        .select()
-        .single()
-
-      if (createError) {
-        console.error("Error creando suscripción activa:", createError)
-        toast({
-          title: "Error",
-          description: "No se pudo activar la suscripción",
-          variant: "destructive",
-        })
-        return
-      }
-
-      // La suscripción ya fue actualizada a activa
-
       // Actualizar perfil del usuario
       await updateUserProfile()
+      
+      // Enviar email de bienvenida con datos de la suscripción
+      await sendWelcomeEmail(pendingSubscription)
       
       // Mostrar mensaje de éxito
       toast({
@@ -283,6 +399,9 @@ export default function SuscripcionPage() {
       
       // Cargar suscripciones actualizadas
       loadUserSubscriptions()
+      
+      // Limpiar URL
+      window.history.replaceState({}, document.title, window.location.pathname)
       
     } catch (error) {
       console.error("Error activando suscripción:", error)

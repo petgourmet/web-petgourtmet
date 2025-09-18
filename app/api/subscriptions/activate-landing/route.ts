@@ -1,239 +1,216 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/service';
-import { EmailService } from '@/lib/email-service';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import logger from '@/lib/logger'
 
-const emailService = new EmailService();
-
+/**
+ * Endpoint para activar suscripción inmediatamente desde la página de aterrizaje de MercadoPago
+ * Se ejecuta cuando MercadoPago redirige con status=approved
+ */
 export async function POST(request: NextRequest) {
+  let operation_id = null
+  
   try {
-    const { external_reference, user_id } = await request.json();
+    const requestData = await request.json()
+    operation_id = requestData.operation_id || `activate-landing-${Date.now()}`
+    
+    logger.info('🎯 Iniciando activación desde landing de MercadoPago', {
+      operation_id,
+      data: requestData
+    })
 
-    if (!external_reference && !user_id) {
+    const {
+      external_reference,
+      collection_id,
+      payment_id,
+      payment_type,
+      preference_id,
+      site_id,
+      status,
+      collection_status
+    } = requestData
+
+    // Validar parámetros requeridos
+    if (!external_reference) {
       return NextResponse.json(
-        { error: 'Se requiere external_reference o user_id' },
+        { error: 'external_reference es requerido' },
         { status: 400 }
-      );
+      )
     }
 
-    const supabase = createServiceClient();
+    // Verificar que el pago fue aprobado
+    const isApproved = status === 'approved' || collection_status === 'approved'
+    if (!isApproved) {
+      return NextResponse.json(
+        { error: `Pago no aprobado. Estado: ${status || collection_status}` },
+        { status: 400 }
+      )
+    }
 
-    // Buscar suscripción pendiente
-    let query = supabase
+    const supabase = createClient()
+
+    // Buscar la suscripción por external_reference
+    const { data: subscription, error: subscriptionError } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('status', 'pending');
-
-    if (external_reference) {
-      query = query.eq('external_reference', external_reference);
-    } else if (user_id) {
-      query = query.eq('user_id', user_id);
-    }
-
-    const { data: pendingSubscriptions, error: fetchError } = await query;
-
-    if (fetchError) {
-      console.error('Error al buscar suscripción pendiente:', fetchError);
-      return NextResponse.json(
-        { error: 'Error al buscar suscripción' },
-        { status: 500 }
-      );
-    }
-
-    if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
-      return NextResponse.json(
-        { error: 'No se encontró suscripción pendiente' },
-        { status: 404 }
-      );
-    }
-
-    const pendingSubscription = pendingSubscriptions[0];
-
-    // Verificar si ya existe una suscripción activa para este usuario
-    const { data: existingSubscription } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', pendingSubscription.user_id)
-      .eq('status', 'active')
-      .single();
-
-    if (existingSubscription) {
-      return NextResponse.json(
-        { message: 'El usuario ya tiene una suscripción activa', subscription: existingSubscription },
-        { status: 200 }
-      );
-    }
-
-    // Obtener información del usuario
-    const { data: user, error: userError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', pendingSubscription.user_id)
-      .single();
-
-    if (userError || !user) {
-      console.error('Error al obtener usuario:', userError);
-      return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Extraer datos del carrito
-    const cartItems = Array.isArray(pendingSubscription.cart_items) 
-      ? pendingSubscription.cart_items 
-      : JSON.parse(pendingSubscription.cart_items || '[]');
-    
-    const firstItem = cartItems[0] || {};
-    const basePrice = firstItem.price || 0;
-    const discountPercentage = firstItem.subscription_discount || 0;
-    const discountedPrice = firstItem.final_price || (basePrice * (1 - discountPercentage / 100));
-    
-    // Crear suscripción activa
-    const subscriptionData = {
-      user_id: pendingSubscription.user_id,
-      product_id: firstItem.id || null,
-      product_name: firstItem.name || 'Producto de suscripción',
-      product_image: firstItem.image || null,
-      subscription_type: pendingSubscription.subscription_type,
-      status: 'active',
-      quantity: firstItem.quantity || 1,
-      size: firstItem.size || null,
-      discount_percentage: discountPercentage,
-      base_price: basePrice,
-      discounted_price: discountedPrice,
-      start_date: new Date().toISOString(),
-      next_billing_date: getNextBillingDate(pendingSubscription.subscription_type),
-      external_reference: pendingSubscription.external_reference,
-      mercadopago_subscription_id: pendingSubscription.mercadopago_subscription_id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    const { data: newSubscription, error: subscriptionError } = await supabase
-      .from('subscriptions')
-      .insert(subscriptionData)
-      .select()
-      .single();
+      .eq('external_reference', external_reference)
+      .maybeSingle()
 
     if (subscriptionError) {
-      console.error('Error al crear suscripción:', subscriptionError);
+      logger.error('❌ Error buscando suscripción:', {
+        operation_id,
+        error: subscriptionError,
+        external_reference
+      })
       return NextResponse.json(
-        { error: 'Error al activar suscripción' },
+        { error: 'Error al buscar la suscripción' },
         { status: 500 }
-      );
+      )
     }
 
-    // Actualizar suscripción pendiente a completada
+    if (!subscription) {
+      logger.error('❌ Suscripción no encontrada:', {
+        operation_id,
+        external_reference
+      })
+      return NextResponse.json(
+        { error: 'Suscripción no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    logger.info('📋 Suscripción encontrada:', {
+      operation_id,
+      subscription_id: subscription.id,
+      current_status: subscription.status,
+      external_reference
+    })
+
+    // Si ya está activa, no hacer nada
+    if (subscription.status === 'active') {
+      logger.info('✅ Suscripción ya está activa:', {
+        operation_id,
+        subscription_id: subscription.id
+      })
+      return NextResponse.json({
+        success: true,
+        message: 'Suscripción ya está activa',
+        subscription: {
+          id: subscription.id,
+          product_name: subscription.product_name,
+          subscription_type: subscription.subscription_type,
+          discounted_price: subscription.discounted_price,
+          status: subscription.status
+        }
+      })
+    }
+
+    // Actualizar la suscripción a activa con los datos del pago
+    const updateData: any = {
+      status: 'active',
+      payment_status: 'approved',
+      activated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // Agregar información del pago si está disponible
+    if (collection_id) updateData.mercadopago_payment_id = collection_id
+    if (payment_id) updateData.payment_id = payment_id
+    if (payment_type) updateData.payment_method = payment_type
+    if (preference_id) updateData.preference_id = preference_id
+
+    const { data: updatedSubscription, error: updateError } = await supabase
+      .from('subscriptions')
+      .update(updateData)
+      .eq('id', subscription.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      logger.error('❌ Error actualizando suscripción:', {
+        operation_id,
+        error: updateError,
+        subscription_id: subscription.id
+      })
+      return NextResponse.json(
+        { error: 'Error al activar la suscripción' },
+        { status: 500 }
+      )
+    }
+
+    logger.info('🎉 Suscripción activada exitosamente:', {
+      operation_id,
+      subscription_id: updatedSubscription.id,
+      previous_status: subscription.status,
+      new_status: updatedSubscription.status,
+      payment_details: {
+        collection_id,
+        payment_id,
+        payment_type
+      }
+    })
+
+    // Calcular próxima fecha de pago
+    let nextBillingDate = new Date()
+    switch (updatedSubscription.subscription_type) {
+      case 'weekly':
+        nextBillingDate.setDate(nextBillingDate.getDate() + 7)
+        break
+      case 'biweekly':
+        nextBillingDate.setDate(nextBillingDate.getDate() + 14)
+        break
+      case 'monthly':
+        nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
+        break
+      case 'quarterly':
+        nextBillingDate.setMonth(nextBillingDate.getMonth() + 3)
+        break
+      case 'annual':
+        nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1)
+        break
+      default:
+        nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
+    }
+
+    // Actualizar próxima fecha de pago
     await supabase
       .from('subscriptions')
-      .update({ 
-        status: 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', pendingSubscription.id);
-
-    // Actualizar perfil del usuario
-    await supabase
-      .from('profiles')
-      .update({ 
-        has_active_subscription: true,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', pendingSubscription.user_id);
-
-    // Enviar correos de agradecimiento y notificación
-    try {
-      console.log('Enviando correo de agradecimiento a:', user.email);
-      
-      // Calcular fechas
-      const startDate = new Date().toLocaleDateString('es-MX');
-      const nextBillingDate = new Date(subscriptionData.next_billing_date).toLocaleDateString('es-MX');
-      
-      const emailData = {
-        user_name: user.full_name || user.email,
-        user_email: user.email,
-        subscription_type: pendingSubscription.subscription_type,
-        product_name: firstItem.name || 'Producto de suscripción',
-        product_image: firstItem.image,
-        quantity: firstItem.quantity || 1,
-        size: firstItem.size,
-        base_price: basePrice,
-        discounted_price: discountPercentage > 0 ? discountedPrice : undefined,
-        discount_percentage: discountPercentage > 0 ? discountPercentage : undefined,
-        start_date: startDate,
-        next_billing_date: nextBillingDate,
-        external_reference: pendingSubscription.external_reference,
-        cart_items: cartItems
-      };
-      
-      // Enviar correo al cliente
-      await emailService.sendThankYouEmail(emailData);
-      
-      // Enviar correo a administradores
-      await emailService.sendAdminNotificationEmail(emailData);
-      
-      console.log('Correos enviados exitosamente');
-    } catch (emailError) {
-      console.error('Error al enviar correos:', emailError);
-      // No fallar la activación por errores de correo
-    }
+      .update({ next_billing_date: nextBillingDate.toISOString() })
+      .eq('id', updatedSubscription.id)
 
     return NextResponse.json({
+      success: true,
       message: 'Suscripción activada exitosamente',
-      subscription: newSubscription,
-      user: {
-        name: user.full_name || user.email,
-        email: user.email
+      subscription: {
+        id: updatedSubscription.id,
+        product_name: updatedSubscription.product_name,
+        subscription_type: updatedSubscription.subscription_type,
+        discounted_price: updatedSubscription.discounted_price,
+        status: updatedSubscription.status,
+        activated_at: updatedSubscription.activated_at,
+        next_billing_date: nextBillingDate.toISOString()
+      },
+      payment_details: {
+        collection_id,
+        payment_id,
+        payment_type,
+        preference_id,
+        site_id
       }
-    });
+    })
 
   } catch (error) {
-    console.error('Error en activación de suscripción:', error);
+    logger.error('❌ Error en activación desde landing:', {
+      operation_id,
+      error: error instanceof Error ? error.message : 'Error desconocido',
+      stack: error instanceof Error ? error.stack : undefined
+    })
+
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: 'Error interno del servidor',
+        operation_id 
+      },
       { status: 500 }
-    );
+    )
   }
-}
-
-function getNextBillingDate(subscriptionType: string): string {
-  const now = new Date();
-  
-  switch (subscriptionType) {
-    case 'weekly':
-      now.setDate(now.getDate() + 7);
-      break;
-    case 'biweekly':
-      now.setDate(now.getDate() + 14);
-      break;
-    case 'monthly':
-      now.setMonth(now.getMonth() + 1);
-      break;
-    case 'quarterly':
-      now.setMonth(now.getMonth() + 3);
-      break;
-    case 'semiannual':
-      now.setMonth(now.getMonth() + 6);
-      break;
-    case 'annual':
-      now.setFullYear(now.getFullYear() + 1);
-      break;
-    default:
-      now.setMonth(now.getMonth() + 1);
-  }
-  
-  return now.toISOString();
-}
-
-function getSubscriptionTypeName(type: string): string {
-  const typeNames: { [key: string]: string } = {
-    'weekly': 'Semanal',
-    'biweekly': 'Quincenal',
-    'monthly': 'Mensual',
-    'quarterly': 'Trimestral', 
-    'semiannual': 'Semestral',
-    'annual': 'Anual'
-  };
-  
-  return typeNames[type] || type;
 }
