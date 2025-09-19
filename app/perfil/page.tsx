@@ -16,6 +16,19 @@ import RealtimeStatus from "@/components/realtime-status"
 
 import { fetchOptimizedOrders, fetchOptimizedSubscriptions, invalidateUserCache } from "@/lib/query-optimizations"
 import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
+import { SubscriptionCard } from '@/components/shared/SubscriptionCard'
+import { 
+  getBasePrice,
+  getOriginalPrice,
+  getDiscountedPrice,
+  getDiscountAmount,
+  getDiscountPercentage,
+  getShippingCost,
+  getTotalPrice,
+  formatPrice as formatPriceHelper,
+  formatDate as formatDateHelper,
+  getNextPaymentDate
+} from '@/utils/subscription-calculations'
 import { 
   User, 
   Package,
@@ -128,6 +141,10 @@ function formatCurrency(amount: number) {
   }).format(amount)
 }
 
+function formatPrice(amount: number) {
+  return formatCurrency(amount)
+}
+
 function formatDate(dateString: string) {
   const date = new Date(dateString)
   return new Intl.DateTimeFormat("es-CO", {
@@ -163,6 +180,7 @@ function getOrderItems(order: Order): OrderItem[] {
 function PerfilPageContent() {
   const { user, loading } = useClientAuth()
   const searchParams = useSearchParams()
+  const supabase = createClient()
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
@@ -178,6 +196,66 @@ function PerfilPageContent() {
   const [maxReconnectAttempts] = useState(5)
   const [isReconnecting, setIsReconnecting] = useState(false)
 
+  // Función para procesar URLs de imágenes
+  const processImageUrl = (imageUrl: string | null | undefined): string => {
+    console.log('🖼️ [PERFIL] processImageUrl llamada con:', imageUrl, 'tipo:', typeof imageUrl)
+    
+    if (!imageUrl || imageUrl.trim() === '') {
+      console.log('🖼️ [PERFIL] URL vacía o null, devolviendo placeholder')
+      return "/placeholder.svg"
+    }
+    
+    // Si ya es una URL completa válida, devolverla tal como está
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+      console.log('🖼️ [PERFIL] URL completa detectada:', imageUrl)
+      return imageUrl
+    }
+    
+    // Si es una ruta absoluta local, devolverla tal como está
+    if (imageUrl.startsWith("/")) {
+      console.log('🖼️ [PERFIL] Ruta absoluta local detectada:', imageUrl)
+      return imageUrl
+    }
+    
+    // Si es una ruta relativa en el bucket de Supabase, construir la URL completa
+    try {
+      console.log('🖼️ [PERFIL] Procesando ruta relativa de Supabase:', imageUrl)
+      
+      // Limpiar la ruta de imagen (remover barras iniciales si las hay)
+      let cleanImagePath = imageUrl.replace(/^\/+/, '').trim()
+      console.log('🖼️ [PERFIL] Ruta limpia:', cleanImagePath)
+      
+      // Validar que la ruta no esté vacía después de limpiar
+      if (!cleanImagePath) {
+        console.warn('🖼️ [PERFIL] Ruta de imagen vacía después de limpiar:', imageUrl)
+        return "/placeholder.svg"
+      }
+      
+      // Si la ruta no tiene extensión, agregar .jpg por defecto
+      if (!cleanImagePath.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+        console.log('🖼️ [PERFIL] Agregando extensión .jpg a:', cleanImagePath)
+        cleanImagePath += '.jpg'
+      }
+      
+      console.log('🖼️ [PERFIL] Ruta final para Supabase:', cleanImagePath)
+      
+      // Construir la URL pública usando la configuración de Supabase
+      const { data } = supabase.storage.from("products").getPublicUrl(cleanImagePath)
+      
+      // Verificar que la URL se construyó correctamente
+      if (data?.publicUrl) {
+        console.log('🖼️ [PERFIL] URL de imagen generada exitosamente:', data.publicUrl, 'para imagen original:', imageUrl)
+        return data.publicUrl
+      } else {
+        console.warn('🖼️ [PERFIL] URL de imagen no válida generada:', data?.publicUrl, 'para imagen:', imageUrl)
+        return "/placeholder.svg"
+      }
+    } catch (error) {
+      console.error('🖼️ [PERFIL] Error al obtener URL de imagen:', error, 'para imagen:', imageUrl)
+      return "/placeholder.svg"
+    }
+  }
+
   // Manejar parámetro de verificación
   useEffect(() => {
     const verified = searchParams.get('verified')
@@ -191,7 +269,7 @@ function PerfilPageContent() {
   }, [searchParams])
 
   useEffect(() => {
-    console.log('🔍 PerfilPage useEffect - loading:', loading, 'user:', !!user, 'user.id:', user?.id)
+    console.log('🔄 PerfilPage useEffect - loading:', loading, 'user:', !!user, 'user.id:', user?.id)
     
     if (!loading && user) {
       console.log('✅ Condiciones cumplidas, inicializando datos...')
@@ -222,7 +300,7 @@ function PerfilPageContent() {
     }
 
     const handleOffline = () => {
-      console.log('🚫 Conexión de red perdida')
+      console.log('📶 Conexión de red perdida')
       setRealtimeStatus('disconnected')
       cleanupRealtimeSubscriptions()
       toast.error('Sin conexión a internet. Los datos pueden no estar actualizados.')
@@ -258,7 +336,7 @@ function PerfilPageContent() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('🔄 Cambio en órdenes:', payload)
+          console.log('📦 Cambio en órdenes:', payload)
           setLastSyncTime(new Date())
           fetchOrders() // Recargar órdenes cuando hay cambios
         }
@@ -271,7 +349,7 @@ function PerfilPageContent() {
           table: 'order_items'
         },
         (payload) => {
-          console.log('🔄 Cambio en items de órdenes:', payload)
+          console.log('📦 Cambio en items de órdenes:', payload)
           setLastSyncTime(new Date())
           fetchOrders() // Recargar órdenes cuando hay cambios en items
         }
@@ -304,7 +382,7 @@ function PerfilPageContent() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('🔄 Cambio en suscripciones:', payload)
+          console.log('📦 Cambio en suscripciones:', payload)
           setLastSyncTime(new Date())
           fetchSubscriptions() // Recargar suscripciones cuando hay cambios
         }
@@ -337,7 +415,7 @@ function PerfilPageContent() {
           filter: `id=eq.${user.id}`
         },
         (payload) => {
-          console.log('🔄 Cambio en perfil:', payload)
+          console.log('👤 Cambio en perfil:', payload)
           setLastSyncTime(new Date())
           fetchUserProfile() // Recargar perfil cuando hay cambios
         }
@@ -720,8 +798,6 @@ function PerfilPageContent() {
     setProfile(prev => prev ? { ...prev, [field]: value } : null)
   }
 
-
-
   const formatPrice = (price: number | null | undefined) => {
     // Manejar valores null, undefined o NaN
     if (price == null || isNaN(Number(price))) {
@@ -1050,9 +1126,9 @@ function PerfilPageContent() {
                                   'bg-gray-100 text-gray-800 border-gray-200'
                                 }`}
                               >
-                                {order.payment_status === 'approved' ? '✓ Pagado' : 
+                                {order.payment_status === 'approved' ? '✅ Pagado' : 
                                  order.payment_status === 'pending' ? '⏳ Pendiente' :
-                                 order.payment_status === 'rejected' ? '✗ Rechazado' :
+                                 order.payment_status === 'rejected' ? '❌ Rechazado' :
                                  order.payment_status === 'in_process' ? '🔄 En Proceso' :
                                  order.payment_status === 'cancelled' ? '❌ Cancelado' :
                                  order.payment_status === 'refunded' ? '💰 Reembolsado' :
@@ -1260,7 +1336,7 @@ function PerfilPageContent() {
                              const price = item.unit_price || item.price || 0
                              return sum + (quantity * price)
                            }, 0)
-                           const shipping = 0 // Asumiendo envío gratuito por defecto
+                           const shipping = subtotal >= 1000 ? 0 : 100 // Envío gratis si subtotal >= $1000, sino $100
                            const discount = 0 // Asumiendo sin descuento por defecto
                            
                            return (
@@ -1282,7 +1358,7 @@ function PerfilPageContent() {
                                <div className="border-t pt-3">
                                  <div className="flex justify-between text-lg font-bold">
                                    <span>Total:</span>
-                                   <span className="text-indigo-600">{formatCurrency(order.total)}</span>
+                                   <span className="text-indigo-600">{formatCurrency(subtotal + shipping - discount)}</span>
                                  </div>
                                </div>
                              </>
@@ -1318,383 +1394,61 @@ function PerfilPageContent() {
               <div className="space-y-4">
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    🔄 Productos Suscritos ({subscriptions.length})
+                    📦 Productos Suscritos ({subscriptions.length})
                   </h3>
                   <p className="text-gray-600 text-sm">
                     Gestiona tus suscripciones activas y próximos envíos
                   </p>
                 </div>
-                {subscriptions.map((subscription) => {
-                  // Extraer datos del metadata si existe
-                  const metadata = subscription.metadata || {}
-                  const originalCartItems = metadata.original_cart_items || []
-                  const firstCartItem = originalCartItems[0] || {}
-                  
-                  // Determinar datos del producto
-                  const product = subscription.product || subscription.products
-                  const productName = subscription.product_name || firstCartItem.product_name || product?.name || 'Producto no encontrado'
-                  const productImage = subscription.product_image || product?.image
-                  const size = subscription.size || firstCartItem.size
-                  const quantity = subscription.quantity || firstCartItem.quantity || 1
-                  
-                  // Determinar frecuencia
-                  const subscriptionType = subscription.subscription_type || firstCartItem.subscriptionType || 'monthly'
-                  const frequencyType = subscription.frequency_type || 'weeks'
-                  const frequencyValue = subscription.frequency || 1
-                  
-                  let frequencyDisplay = 'Mensual'
-                  if (subscriptionType === 'weekly' || (frequencyType === 'weeks' && frequencyValue === 1)) {
-                    frequencyDisplay = 'Semanal'
-                  } else if (subscriptionType === 'biweekly' || (frequencyType === 'weeks' && frequencyValue === 2)) {
-                    frequencyDisplay = 'Quincenal'
-                  } else if (subscriptionType === 'monthly' || (frequencyType === 'months' && frequencyValue === 1)) {
-                    frequencyDisplay = 'Mensual'
-                  } else if (subscriptionType === 'quarterly' || (frequencyType === 'months' && frequencyValue === 3)) {
-                    frequencyDisplay = 'Trimestral'
-                  } else if (subscriptionType === 'annual' || (frequencyType === 'months' && frequencyValue === 12)) {
-                    frequencyDisplay = 'Anual'
-                  }
-                  
-                  // Precios - Calcular descuento correcto según producto y frecuencia
-                  const basePrice = subscription.base_price || subscription.transaction_amount || firstCartItem?.price || product?.price || 0
-                  
-                  // Obtener el porcentaje de descuento correcto según la frecuencia
-                  let discountPercentage = 0
-                  if (product) {
-                    switch (subscriptionType) {
-                      case 'weekly':
-                        discountPercentage = product.weekly_discount || 0
-                        break
-                      case 'biweekly':
-                        discountPercentage = product.biweekly_discount || 0
-                        break
-                      case 'monthly':
-                        discountPercentage = product.monthly_discount || 0
-                        break
-                      case 'quarterly':
-                        discountPercentage = product.quarterly_discount || 0
-                        break
-                      case 'annual':
-                        discountPercentage = product.annual_discount || 0
-                        break
-                      default:
-                        discountPercentage = 0
-                    }
-                  }
-                  
-                  // Aplicar la misma lógica que subscription-orders
-                  // Calcular precio con descuento usando la lógica correcta
-                  let discountedPrice;
-                  if (subscription.discounted_price) {
-                    // Si ya existe discounted_price, usarlo
-                    discountedPrice = subscription.discounted_price;
-                  } else if (discountPercentage > 0) {
-                    // Si hay descuento pero no discounted_price, calcularlo
-                    discountedPrice = basePrice * (1 - discountPercentage / 100);
-                  } else {
-                    // Sin descuento, usar precio original
-                    discountedPrice = basePrice;
-                  }
-                  
-                  // Calcular monto del descuento para mostrar
-                  const discountAmount = basePrice - discountedPrice
-                
-                  return (
-                    <Card key={subscription.id} className={`hover:shadow-lg transition-all duration-300 border-l-4 ${subscription.status === 'pending' ? 'border-l-[#78b7bf]' : 'border-l-indigo-500'}`}>
-                      <CardContent className="p-0">
-                        {/* Header de la suscripción */}
-                        <div className={`p-4 border-b border-gray-100 ${subscription.status === 'pending' ? 'bg-gradient-to-r from-[#e6f3f4] to-[#f0f7f8]' : 'bg-gradient-to-r from-indigo-50 to-purple-50'}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${subscription.status === 'pending' ? 'bg-[#d1e9eb]' : 'bg-indigo-100'}`}>
-                                <Calendar className={`h-5 w-5 ${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`} />
-                              </div>
-                              <div>
-                                <h3 className="font-bold text-lg text-gray-900">
-                                  Suscripción #{subscription.id}
-                                </h3>
-                                <p className="text-sm text-gray-600">
-                                  Creada el {formatDate(subscription.created_at)}
-                                </p>
-                                {subscription.mercadopago_subscription_id && (
-                                  <p className="text-xs text-blue-600 font-mono">
-                                    MP ID: {subscription.mercadopago_subscription_id}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Badge 
-                              variant={subscription.status === 'active' ? 'default' : 
-                                      subscription.status === 'pending' ? 'secondary' :
-                                      subscription.status === 'cancelled' ? 'destructive' : 'secondary'}
-                              className="text-sm px-3 py-1"
-                            >
-                              {subscription.status === 'cancelled' ? '❌ Cancelada' :
-                               subscription.status === 'active' ? '✅ Activa' : 
-                               subscription.status === 'pending' ? '⏳ Pendiente' :
-                               subscription.status === 'paused' ? '⏸️ Pausada' :
-                               '⏳ Inactiva'}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        {/* Contenido principal */}
-                        <div className="p-6">
-                          <div className="flex flex-col lg:flex-row gap-6">
-                            {/* Imagen del producto */}
-                            <div className="flex-shrink-0">
-                              {productImage ? (
-                                <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 shadow-sm">
-                                  <img
-                                    src={productImage}
-                                    alt={productName}
-                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-200 rounded-xl flex items-center justify-center border-2 border-gray-200">
-                                  <Package className="w-10 h-10 text-indigo-600" />
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Información del producto */}
-                            <div className="flex-1 space-y-4">
-                              <div>
-                                <h4 className="font-bold text-xl text-gray-900 mb-2">
-                                  {productName}
-                                </h4>
-                                {product?.description && (
-                                  <p className="text-gray-600 text-sm mb-3">
-                                    {product.description}
-                                  </p>
-                                )}
-                                
-                                {/* Información adicional de la suscripción */}
-                                <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                                  {subscription.start_date && (
-                                    <div>
-                                      <span className="text-gray-500">Fecha de inicio:</span>
-                                      <p className="font-medium">{formatDate(subscription.start_date)}</p>
-                                    </div>
-                                  )}
-
-                                </div>
-                                
-                                {/* Badges de información */}
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                  <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-blue-50 text-blue-700 border-blue-200'}>
-                                    🔄 {frequencyDisplay}
-                                  </Badge>
-                                  
-                                  {size && (
-                                    <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-purple-50 text-purple-700 border-purple-200'}>
-                                      📦 {size}
-                                    </Badge>
-                                  )}
-                                  
-                                  {quantity && quantity > 1 && (
-                                    <Badge variant="outline" className={subscription.status === 'pending' ? 'bg-[#e6f3f4] text-[#4a7c7f] border-[#78b7bf]' : 'bg-green-50 text-green-700 border-green-200'}>
-                                      ✖️ {quantity} unidades
-                                    </Badge>
-                                  )}
-                                  
-                                  {discountPercentage > 0 && (
-                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                      💰 {discountPercentage}% descuento
-                                    </Badge>
-                                  )}
-                                </div>
-                                
-                                {/* Información de fechas y facturación */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {/* Próximo pago */}
-                                  <div className={subscription.status === 'pending' ? 'bg-[#e6f3f4] p-4 rounded-lg border border-[#78b7bf]' : 'bg-blue-50 p-4 rounded-lg border border-blue-200'}>
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <div className={subscription.status === 'pending' ? 'p-2 bg-[#d1e9eb] rounded-full' : 'p-2 bg-blue-100 rounded-full'}>
-                                        <Calendar className={subscription.status === 'pending' ? 'h-4 w-4 text-[#4a7c7f]' : 'h-4 w-4 text-blue-600'} />
-                                      </div>
-                                      <div>
-                                        <h5 className={subscription.status === 'pending' ? 'font-semibold text-[#4a7c7f]' : 'font-semibold text-blue-900'}>Próximo Pago</h5>
-                                        <p className={subscription.status === 'pending' ? 'text-sm text-[#4a7c7f]' : 'text-sm text-blue-700'}>
-                                          {subscription.next_billing_date ? formatDate(subscription.next_billing_date) : 'No programado'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    {subscription.next_billing_date && (
-                                      <div className={subscription.status === 'pending' ? 'text-xs text-[#4a7c7f] bg-[#d1e9eb] px-2 py-1 rounded-md inline-block' : 'text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-md inline-block'}>
-                                        📅 En {Math.ceil((new Date(subscription.next_billing_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} días
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Último pago */}
-                                  {subscription.last_billing_date ? (
-                                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                                      <div className="flex items-center gap-3 mb-2">
-                                        <div className="p-2 bg-green-100 rounded-full">
-                                          <Receipt className="h-4 w-4 text-green-600" />
-                                        </div>
-                                        <div>
-                                          <h5 className="font-semibold text-green-900">Último Pago</h5>
-                                          <p className="text-sm text-green-700">
-                                            {formatDate(subscription.last_billing_date)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-md inline-block">
-                                        ✅ Procesado exitosamente
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                      <div className="flex items-center gap-3 mb-2">
-                                        <div className="p-2 bg-gray-100 rounded-full">
-                                          <Receipt className="h-4 w-4 text-gray-500" />
-                                        </div>
-                                        <div>
-                                          <h5 className="font-semibold text-gray-700">Primer Pago</h5>
-                                          <p className="text-sm text-gray-600">
-                                            Fecha de inscripción: {formatDate(subscription.created_at)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md inline-block">
-                                        📅 Inscrito el {formatDate(subscription.created_at)}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                {/* Información adicional */}
-                                {subscription.status === 'cancelled' && subscription.cancelled_at && (
-                                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                                    <div className="flex items-center gap-2 text-red-700 mb-2">
-                                      <span className="text-sm font-medium">❌ Suscripción cancelada el {formatDate(subscription.cancelled_at)}</span>
-                                    </div>
-                                    {subscription.reason && (
-                                      <div className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
-                                        Motivo: {subscription.reason}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                                
-                                {/* Información de procesamiento manual */}
-                                {metadata.processed_manually && (
-                                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                                    <div className="flex items-center gap-2 text-blue-700">
-                                      <span className="text-sm font-medium">🔧 Procesada manualmente</span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Sección de precio y acciones */}
-                            <div className="lg:w-80 flex-shrink-0">
-                              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-4">
-                                {/* Precio */}
-                                <div className="text-center">
-                                  {/* Detalles de precio */}
-                                  <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
-                                    <h4 className="font-semibold text-gray-800 mb-3">Detalles de Precio</h4>
-                                    <div className="space-y-2 text-sm">
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">Precio original:</span>
-                                        <span className="font-medium">{formatPrice(basePrice)}</span>
-                                      </div>
-                                      {discountPercentage > 0 && (
-                                        <div className="flex justify-between text-green-600">
-                                          <span>Descuento suscripción ({discountPercentage}%):</span>
-                                          <span className="font-medium">-{formatPrice(discountAmount)}</span>
-                                        </div>
-                                      )}
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">Precio con descuento:</span>
-                                        <span className="font-medium text-green-700">{formatPrice(discountedPrice)}</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">Envío:</span>
-                                        <span className="font-medium">
-                                          {discountedPrice >= 1000 ? (
-                                            <span className="text-green-600">GRATIS</span>
-                                          ) : (
-                                            formatPrice(100)
-                                          )}
-                                        </span>
-                                      </div>
-                                      <div className="border-t border-gray-200 pt-2 mt-2">
-                                        <div className="flex justify-between font-semibold text-lg">
-                                          <span className="text-gray-800">Total final:</span>
-                                          <span className={`${subscription.status === 'pending' ? 'text-[#4a7c7f]' : 'text-indigo-600'}`}>
-                                            {formatPrice(discountedPrice >= 1000 ? discountedPrice : discountedPrice + 100)}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {discountAmount > 0 && (
-                                    <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium mb-3">
-                                      💰 Ahorras {formatPrice(discountAmount)} en el producto
-                                    </div>
-                                  )}
-                                  
-                                  <p className="text-sm text-gray-600 mt-2">
-                                    cada {frequencyDisplay.toLowerCase()}
-                                  </p>
-                                  
-                                  {subscription.currency_id && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      Moneda: {subscription.currency_id}
-                                    </p>
-                                  )}
-                                </div>
-                                
-                                {/* Botones de acción */}
-                                <div className="space-y-3">
-                                  {/* Si no hay primer pago, mostrar solo mensaje de estado */}
-                                  {!subscription.last_billing_date && subscription.status === 'pending' ? (
-                                    <div className="px-4 py-3 rounded-lg text-center font-medium" style={{backgroundColor: '#e6f3f4', color: '#4a7c7f'}}>
-                          ⏳ Suscripción Pendiente
-                        </div>
-                                  ) : subscription.status === 'active' ? (
-                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
-                                      <div className="flex items-center justify-center gap-2 mb-2">
-                                        <span className="text-blue-600">📞</span>
-                                        <span className="font-medium text-blue-800">Gestión de Suscripción</span>
-                                      </div>
-                                      <p className="text-sm text-blue-700 mb-2">
-                                        Para pausar o cancelar tu suscripción, contáctanos:
-                                      </p>
-                                      <div className="text-xs text-blue-600 space-y-1">
-                                        <div>📧 contacto@petgourmet.com</div>
-                                        <div>📱 WhatsApp: +52 55 6126 9681</div>
-                                      </div>
-                                    </div>
-                                  ) : subscription.status === 'cancelled' ? (
-                                    <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg text-center font-medium">
-                                      ❌ Suscripción Cancelada
-                                    </div>
-                                  ) : subscription.status === 'paused' ? (
-                                    <div className="bg-yellow-100 text-yellow-800 px-4 py-3 rounded-lg text-center font-medium">
-                                      ⏸️ Suscripción Pausada
-                                    </div>
-                                  ) : (
-                                    <div className="bg-gray-100 text-gray-800 px-4 py-3 rounded-lg text-center font-medium">
-                                      ⏳ Suscripción Pendiente
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+                {subscriptions.map((subscription) => (
+                  <SubscriptionCard
+                    key={subscription.id}
+                    subscription={subscription}
+                    formatPrice={formatPriceHelper}
+                    formatDate={formatDateHelper}
+                    getStatusBadge={(sub) => {
+                      const status = sub.status?.toLowerCase()
+                      if (status === 'active') {
+                        return <Badge className="bg-green-100 text-green-800">Activa</Badge>
+                      } else if (status === 'cancelled') {
+                        return <Badge className="bg-red-100 text-red-800">Cancelada</Badge>
+                      } else if (status === 'paused') {
+                        return <Badge className="bg-yellow-100 text-yellow-800">Pausada</Badge>
+                      }
+                      return <Badge variant="outline">{status || 'Desconocido'}</Badge>
+                    }}
+                    getFrequencyLabel={(sub) => {
+                      // Determinar frecuencia basada en los datos de la suscripción
+                      const metadata = sub.metadata || {}
+                      const originalCartItems = metadata.original_cart_items || []
+                      const firstCartItem = originalCartItems[0] || {}
+                      const subscriptionType = sub.subscription_type || firstCartItem.subscriptionType || 'monthly'
+                      const frequencyType = sub.frequency_type || 'weeks'
+                      const frequencyValue = sub.frequency || 1
+                      
+                      if (subscriptionType === 'weekly' || (frequencyType === 'weeks' && frequencyValue === 1)) {
+                        return 'Semanal'
+                      } else if (subscriptionType === 'biweekly' || (frequencyType === 'weeks' && frequencyValue === 2)) {
+                        return 'Quincenal'
+                      } else if (subscriptionType === 'monthly' || (frequencyType === 'months' && frequencyValue === 1)) {
+                        return 'Mensual'
+                      } else if (subscriptionType === 'quarterly' || (frequencyType === 'months' && frequencyValue === 3)) {
+                        return 'Trimestral'
+                      } else if (subscriptionType === 'annual' || (frequencyType === 'months' && frequencyValue === 12)) {
+                        return 'Anual'
+                      }
+                      return 'Mensual'
+                    }}
+                    getDiscountPercentage={getDiscountPercentage}
+                    getOriginalPrice={getOriginalPrice}
+                    getDiscountAmount={getDiscountAmount}
+                    getDiscountedPrice={getDiscountedPrice}
+                    getShippingCost={getShippingCost}
+                    getTotalPrice={getTotalPrice}
+                    getNextPaymentDate={(sub) => sub.next_billing_date ? new Date(sub.next_billing_date) : null}
+                    processImageUrl={processImageUrl}
+                  />
+                ))}
               </div>
             )}
           </div>

@@ -11,6 +11,19 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { invalidateSubscriptionsCache } from '@/lib/query-optimizations'
 import SubscriptionValidator from "@/components/subscription-validator"
+import {
+  getBasePrice,
+  getOriginalPrice,
+  getDiscountedPrice,
+  getDiscountAmount,
+  getDiscountPercentage,
+  getNextPaymentDate,
+  getShippingCost,
+  getTotalPrice,
+  formatPrice,
+  formatDate,
+  type SubscriptionData
+} from "@/utils/subscription-calculations"
 import { 
   Calendar, 
   DollarSign, 
@@ -29,6 +42,7 @@ import {
   Activity,
   Trash2
 } from "lucide-react"
+import { SubscriptionCard } from "@/components/shared/SubscriptionCard"
 
 interface AdminSubscription {
   id: string
@@ -469,23 +483,58 @@ export default function AdminSubscriptionOrdersPage() {
     })
   }
 
-  const formatPrice = (price: number | null | undefined) => {
-    // Manejar valores undefined, null o NaN
-    if (price === null || price === undefined || isNaN(price)) {
-      return '$0.00'
+  // formatPrice ahora se importa desde @/utils/subscription-calculations
+
+  // Función para procesar URLs de imágenes
+  const processImageUrl = (imageUrl: string | null | undefined): string => {
+    if (!imageUrl || imageUrl.trim() === '') {
+      return "/placeholder.svg"
     }
     
-    // Asegurar que el precio sea un número válido
-    const validPrice = typeof price === 'number' ? price : parseFloat(String(price))
-    if (isNaN(validPrice)) {
-      return '$0.00'
+    // Si ya es una URL completa válida, devolverla tal como está
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+      return imageUrl
     }
     
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(validPrice)
+    // Si es una ruta absoluta local, devolverla tal como está
+    if (imageUrl.startsWith("/")) {
+      return imageUrl
+    }
+    
+    // Si es una ruta relativa en el bucket de Supabase, construir la URL completa
+    try {
+      // Limpiar la ruta de imagen (remover barras iniciales si las hay)
+      let cleanImagePath = imageUrl.replace(/^\/+/, '').trim()
+      
+      // Validar que la ruta no esté vacía después de limpiar
+      if (!cleanImagePath) {
+        console.warn('Ruta de imagen vacía después de limpiar:', imageUrl)
+        return "/placeholder.svg"
+      }
+      
+      // Si la ruta no tiene extensión, agregar .jpg por defecto
+      if (!cleanImagePath.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+        cleanImagePath += '.jpg'
+      }
+      
+      // Construir la URL pública usando la configuración de Supabase
+      const { data } = supabase.storage.from("products").getPublicUrl(cleanImagePath)
+      
+      // Verificar que la URL se construyó correctamente
+      if (data?.publicUrl) {
+        console.debug('URL de imagen generada:', data.publicUrl, 'para imagen original:', imageUrl)
+        return data.publicUrl
+      } else {
+        console.warn('URL de imagen no válida generada:', data?.publicUrl, 'para imagen:', imageUrl)
+        return "/placeholder.svg"
+      }
+    } catch (error) {
+      console.error("Error al obtener URL de imagen:", error, 'para imagen:', imageUrl)
+      return "/placeholder.svg"
+    }
   }
+
+  // Las funciones de cálculo ahora se importan desde @/utils/subscription-calculations
 
   const getStatusBadge = (subscription: AdminSubscription) => {
     if (subscription.status === 'cancelled') {
@@ -808,283 +857,22 @@ export default function AdminSubscriptionOrdersPage() {
           </Card>
         ) : (
           filteredSubscriptions.map((subscription) => (
-            <Card key={subscription.id}>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Información Principal */}
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      {(subscription.product?.image || subscription.product_image) && (
-                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                          <img
-                            src={subscription.product?.image || subscription.product_image}
-                            alt={subscription.product?.name || subscription.product_name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg text-gray-900 truncate">
-                          {subscription.product?.name || subscription.product_name || 'Producto no encontrado'}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <User className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {subscription.user_profile?.full_name || 'Usuario no encontrado'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {subscription.user_profile?.email}
-                        </p>
-                        {/* ID de suscripción y MercadoPago */}
-                        <div className="flex flex-col gap-1 mt-2">
-                          <p className="text-xs text-gray-400 font-mono">
-                            ID: {String(subscription.id).slice(0, 8)}...
-                          </p>
-                          {subscription.mercadopago_subscription_id && (
-                            <p className="text-xs text-blue-600 font-mono">
-                              MP: {subscription.mercadopago_subscription_id}
-                            </p>
-                          )}
-                          {subscription.user_profile?.phone && (
-                            <p className="text-xs text-gray-500">
-                              📱 {subscription.user_profile.phone}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      {getStatusBadge(subscription)}
-                      <Badge variant="outline">
-                        {getFrequencyLabel(subscription)}
-                      </Badge>
-                      {subscription.size && (
-                        <Badge variant="outline">
-                          {subscription.size}
-                        </Badge>
-                      )}
-                      {subscription.quantity > 1 && (
-                        <Badge variant="outline" className="bg-purple-100 text-purple-800">
-                          Qty: {subscription.quantity}
-                        </Badge>
-                      )}
-                      {subscription.discount_percentage > 0 && (
-                        <Badge variant="outline" className="bg-green-100 text-green-800">
-                          -{subscription.discount_percentage}%
-                        </Badge>
-                      )}
-                      {subscription.metadata?.processed_manually && (
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                          🔧 Manual
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Información de Suscripción */}
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Precio</p>
-                        <div className="flex flex-col">
-                          <div className="space-y-1">
-                            {/* Precio original del producto */}
-                            {subscription.discount_percentage > 0 && (
-                              <div className="flex justify-between text-xs">
-                                <span>Precio original:</span>
-                                <span className="line-through text-gray-500">
-                                  {formatPrice((() => {
-                                    // Si existe discounted_price, calcular el precio original basado en él
-                                    if (subscription.discounted_price && subscription.discount_percentage) {
-                                      return subscription.discounted_price / (1 - subscription.discount_percentage / 100);
-                                    }
-                                    // Si no existe discounted_price, usar la lógica original
-                                    return subscription.base_price || 
-                                      subscription.transaction_amount || 
-                                      subscription.price || 
-                                      subscription.products?.price || 
-                                      0;
-                                  })())}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* Descuento aplicado */}
-                            {subscription.discount_percentage > 0 && (
-                              <div className="flex justify-between text-xs">
-                                <span className="text-green-600">Descuento ({subscription.discount_percentage}%):</span>
-                                <span className="text-green-600">
-                                  -{formatPrice((() => {
-                                    // Si existe discounted_price, calcular el precio original basado en él
-                                    if (subscription.discounted_price && subscription.discount_percentage) {
-                                      const originalPrice = subscription.discounted_price / (1 - subscription.discount_percentage / 100);
-                                      const discountAmount = originalPrice * (subscription.discount_percentage / 100);
-                                      return discountAmount;
-                                    }
-                                    // Si no existe discounted_price, usar la lógica original
-                                    const originalPrice = subscription.base_price || 
-                                      subscription.transaction_amount || 
-                                      subscription.price || 
-                                      subscription.products?.price || 
-                                      0;
-                                    const discountAmount = originalPrice * (subscription.discount_percentage / 100);
-                                    return discountAmount;
-                                  })())}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* Precio del producto con descuento */}
-                            <div className="flex justify-between text-xs">
-                              <span>Producto:</span>
-                              <span className={subscription.discount_percentage > 0 ? "text-green-600 font-medium" : ""}>
-                                {formatPrice((() => {
-                                  // Si ya existe discounted_price, usarlo
-                                  if (subscription.discounted_price) {
-                                    return subscription.discounted_price;
-                                  }
-                                  
-                                  // Si hay descuento pero no discounted_price, calcularlo
-                                  if (subscription.discount_percentage > 0) {
-                                    const originalPrice = subscription.base_price || 
-                                      subscription.transaction_amount || 
-                                      subscription.price || 
-                                      subscription.products?.price || 
-                                      0;
-                                    return originalPrice * (1 - subscription.discount_percentage / 100);
-                                  }
-                                  
-                                  // Sin descuento, usar precio original
-                                  return subscription.base_price || 
-                                    subscription.transaction_amount || 
-                                    subscription.price || 
-                                    subscription.products?.price || 
-                                    0;
-                                })())}
-                              </span>
-                            </div>
-                            
-                            {/* Envío calculado sobre precio con descuento */}
-                            <div className="flex justify-between text-xs">
-                              <span>Envío:</span>
-                              <span>
-                                {(() => {
-                                  // Calcular precio con descuento para determinar envío
-                                  let finalPrice;
-                                  if (subscription.discounted_price) {
-                                    finalPrice = subscription.discounted_price;
-                                  } else if (subscription.discount_percentage > 0) {
-                                    const originalPrice = subscription.base_price || 
-                                      subscription.transaction_amount || 
-                                      subscription.price || 
-                                      subscription.products?.price || 
-                                      0;
-                                    finalPrice = originalPrice * (1 - subscription.discount_percentage / 100);
-                                  } else {
-                                    finalPrice = subscription.base_price || 
-                                      subscription.transaction_amount || 
-                                      subscription.price || 
-                                      subscription.products?.price || 
-                                      0;
-                                  }
-                                  
-                                  return finalPrice >= 1000 ? (
-                                    <span className="text-green-600">GRATIS</span>
-                                  ) : (
-                                    formatPrice(100)
-                                  );
-                                })()}
-                              </span>
-                            </div>
-                            
-                            <div className="border-t pt-1">
-                              <div className="flex justify-between font-semibold">
-                                <span>Total:</span>
-                                <span>{formatPrice((() => {
-                                  // Calcular precio con descuento para el total
-                                  let productPrice;
-                                  if (subscription.discounted_price) {
-                                    productPrice = subscription.discounted_price;
-                                  } else if (subscription.discount_percentage > 0) {
-                                    const originalPrice = subscription.base_price || 
-                                      subscription.transaction_amount || 
-                                      subscription.price || 
-                                      subscription.products?.price || 
-                                      0;
-                                    productPrice = originalPrice * (1 - subscription.discount_percentage / 100);
-                                  } else {
-                                    productPrice = subscription.base_price || 
-                                      subscription.transaction_amount || 
-                                      subscription.price || 
-                                      subscription.products?.price || 
-                                      0;
-                                  }
-                                  
-                                  return productPrice >= 1000 ? productPrice : productPrice + 100;
-                                })())}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Creada</p>
-                        <p>{formatDate(subscription.created_at)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Próximo cobro</p>
-                        <p className="font-medium">
-                          {subscription.next_billing_date 
-                            ? formatDate(subscription.next_billing_date)
-                            : "No programado"
-                          }
-                        </p>
-                      </div>
-                      {subscription.start_date && (
-                        <div>
-                          <p className="text-gray-500">Fecha inicio</p>
-                          <p>{formatDate(subscription.start_date)}</p>
-                        </div>
-                      )}
-
-                      {subscription.status === 'cancelled' && subscription.cancelled_at && (
-                        <div>
-                          <p className="text-gray-500">Cancelada</p>
-                          <div className="flex flex-col">
-                            <p className="text-red-600">{formatDate(subscription.cancelled_at)}</p>
-                            {subscription.reason && (
-                              <p className="text-xs text-red-500 mt-1">
-                                Motivo: {subscription.reason}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Información adicional del metadata */}
-                    {subscription.metadata?.processed_manually && (
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 text-blue-700">
-                          <Shield className="h-4 w-4" />
-                          <span className="text-sm font-medium">Procesada manualmente</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {subscription.currency_id && subscription.currency_id !== 'MXN' && (
-                      <div className="bg-yellow-50 p-2 rounded border border-yellow-200">
-                        <p className="text-xs text-yellow-700">
-                          Moneda: {subscription.currency_id}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <SubscriptionCard
+              key={subscription.id}
+              subscription={subscription}
+              formatPrice={formatPrice}
+              formatDate={formatDate}
+              getStatusBadge={getStatusBadge}
+              getFrequencyLabel={getFrequencyLabel}
+              getDiscountPercentage={getDiscountPercentage}
+              getOriginalPrice={getOriginalPrice}
+              getDiscountAmount={getDiscountAmount}
+              getDiscountedPrice={getDiscountedPrice}
+              getShippingCost={getShippingCost}
+              getTotalPrice={getTotalPrice}
+              getNextPaymentDate={getNextPaymentDate}
+              processImageUrl={processImageUrl}
+            />
           ))
         )}
       </div>

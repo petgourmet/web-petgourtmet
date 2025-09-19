@@ -288,24 +288,35 @@ export async function fetchOptimizedSubscriptions(
     const processedSubscriptions = subscriptions.map(sub => {
       const product = sub.products
       const frequency = sub.frequency || 'monthly'
-      let discountAmount = 0
+      let expectedDiscount = 0
       
       if (product && frequency) {
         switch (frequency) {
+          case 'weekly':
+            expectedDiscount = product.weekly_discount || 0
+            break
           case 'monthly':
-            discountAmount = product.monthly_discount || 0
+            expectedDiscount = product.monthly_discount || 0
             break
           case 'quarterly':
-            discountAmount = product.quarterly_discount || 0
+            expectedDiscount = product.quarterly_discount || 0
             break
           case 'annual':
-            discountAmount = product.annual_discount || 0
+            expectedDiscount = product.annual_discount || 0
             break
           case 'biweekly':
-            discountAmount = product.biweekly_discount || 0
+            expectedDiscount = product.biweekly_discount || 0
             break
         }
       }
+      
+      // Descuento aplicado (si existe en el registro de suscripción), de lo contrario usar esperado
+      const appliedDiscount = (typeof sub.discount_percentage === 'number' && !Number.isNaN(sub.discount_percentage))
+        ? sub.discount_percentage
+        : expectedDiscount
+      
+      const basePrice = (product?.price ?? sub.price ?? 0) as number
+      const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
       
       // Estandarizar estado - priorizar el status de la base de datos
       let standardizedStatus = sub.status || 'inactive'
@@ -322,7 +333,13 @@ export async function fetchOptimizedSubscriptions(
         ...sub,
         status: standardizedStatus,
         frequency,
-        discount_amount: discountAmount,
+        discount_amount: appliedDiscount,
+        discount_percentage: appliedDiscount,
+        base_price: basePrice,
+        discounted_price: discountedPrice,
+        expected_discount_percentage: expectedDiscount,
+        applied_discount_percentage: appliedDiscount,
+        discount_valid: appliedDiscount === expectedDiscount,
         source: 'subscriptions'
       }
     })
@@ -341,24 +358,35 @@ export async function fetchOptimizedSubscriptions(
         const subscription = billing.subscriptions
         const product = subscription.products
         const frequency = subscription.frequency || 'monthly'
-        let discountAmount = 0
+        let expectedDiscount = 0
         
         if (product && frequency) {
           switch (frequency) {
+            case 'weekly':
+              expectedDiscount = product.weekly_discount || 0
+              break
             case 'monthly':
-              discountAmount = product.monthly_discount || 0
+              expectedDiscount = product.monthly_discount || 0
               break
             case 'quarterly':
-              discountAmount = product.quarterly_discount || 0
+              expectedDiscount = product.quarterly_discount || 0
               break
             case 'annual':
-              discountAmount = product.annual_discount || 0
+              expectedDiscount = product.annual_discount || 0
               break
             case 'biweekly':
-              discountAmount = product.biweekly_discount || 0
+              expectedDiscount = product.biweekly_discount || 0
               break
           }
         }
+        
+        // Descuento aplicado (si existe en el registro de suscripción), de lo contrario usar esperado
+        const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage))
+          ? subscription.discount_percentage
+          : expectedDiscount
+        
+        const basePrice = (product?.price ?? billing.amount ?? 0) as number
+        const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
         
         return {
           id: `billing_${subscription.id}`,
@@ -367,10 +395,16 @@ export async function fetchOptimizedSubscriptions(
           status: 'active', // Si tiene pagos aprobados, considerarla activa
           frequency,
           price: billing.amount,
-          discount_amount: discountAmount,
+          discount_amount: appliedDiscount,
+          discount_percentage: appliedDiscount,
+          base_price: basePrice,
+          discounted_price: discountedPrice,
+          expected_discount_percentage: expectedDiscount,
+          applied_discount_percentage: appliedDiscount,
+          discount_valid: appliedDiscount === expectedDiscount,
           next_billing_date: null, // Se puede calcular basado en la frecuencia
-          created_at: billing.billing_date,
-          last_billing_date: billing.billing_date,
+          created_at: billing.transaction_date,
+          last_billing_date: billing.transaction_date,
           source: 'billing_history',
           products: product,
           billing_info: {
@@ -644,7 +678,7 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
           )
         `)
         .eq('status', 'approved')
-        .order('billing_date', { ascending: false })
+        .order('transaction_date', { ascending: false })
     ])
     
     if (subscriptionsResult.error) {
@@ -737,8 +771,8 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
           price: billing.amount,
           discount_amount: discountAmount,
           next_billing_date: null,
-          created_at: billing.billing_date,
-          last_billing_date: billing.billing_date,
+          created_at: billing.transaction_date,
+          last_billing_date: billing.transaction_date,
           source: 'billing_history',
           products: product,
           billing_info: {

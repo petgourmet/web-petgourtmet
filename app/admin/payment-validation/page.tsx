@@ -126,7 +126,7 @@ export default function PaymentValidationPage() {
         customer_name: payment.subscriptions?.user_profile?.full_name || 'Sin nombre',
         product_name: payment.subscriptions?.products?.name || 'Producto de suscripción',
         payment_method: payment.payment_method || 'Desconocido',
-        created_at: payment.billing_date || payment.created_at,
+        created_at: payment.transaction_date || payment.created_at,
         validated_at: payment.updated_at,
         last_validation: payment.updated_at,
         type: 'subscription' as const

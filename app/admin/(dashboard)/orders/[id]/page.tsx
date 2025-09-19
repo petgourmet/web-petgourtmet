@@ -602,14 +602,12 @@ export default function OrderDetailPage() {
                         </td>
                         <td className="p-2 text-right">{formatCurrency(order.subtotal || 0)}</td>
                       </tr>
-                      {order.shipping_cost > 0 && (
-                        <tr>
-                          <td colSpan={3} className="p-2 text-right font-medium">
-                            Envío
-                          </td>
-                          <td className="p-2 text-right">{formatCurrency(order.shipping_cost || 0)}</td>
-                        </tr>
-                      )}
+                      <tr>
+                        <td colSpan={3} className="p-2 text-right font-medium">
+                          Envío
+                        </td>
+                        <td className="p-2 text-right">{formatCurrency(order.shipping_cost || 0)}</td>
+                      </tr>
                       {order.discount > 0 && (
                         <tr>
                           <td colSpan={3} className="p-2 text-right font-medium">
@@ -620,9 +618,9 @@ export default function OrderDetailPage() {
                       )}
                       <tr className="border-t">
                         <td colSpan={3} className="p-2 text-right font-bold">
-                          Total
+                          Total con Envío
                         </td>
-                        <td className="p-2 text-right font-bold">{formatCurrency(order.total || 0)}</td>
+                        <td className="p-2 text-right font-bold">{formatCurrency((order.subtotal || 0) + (order.shipping_cost || 0) - (order.discount || 0))}</td>
                       </tr>
                     </tfoot>
                   </table>

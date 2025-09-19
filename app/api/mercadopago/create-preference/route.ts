@@ -136,6 +136,8 @@ export async function POST(request: Request) {
       status: 'pending',
       payment_status: 'pending',
       total: total,
+      subtotal: subtotal, // Agregar el subtotal
+      shipping_cost: shipping, // Agregar el costo de envío
       user_id: null, // Se puede actualizar si hay usuario autenticado
       customer_name: `${customerData.firstName} ${customerData.lastName}`,
       customer_email: customerData.email, // Guardar el email del cliente

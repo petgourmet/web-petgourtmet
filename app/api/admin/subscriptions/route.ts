@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           )
         `)
         .eq('status', 'approved')
-        .order('billing_date', { ascending: false })
+        .order('transaction_date', { ascending: false })
     ])
     
     if (userSubscriptionsResult.error) {
@@ -265,8 +265,8 @@ export async function GET(request: NextRequest) {
           applied_discount_percentage: appliedDiscount,
           discount_valid: appliedDiscount === expectedDiscount,
           next_billing_date: null,
-          created_at: billing.billing_date,
-          last_billing_date: billing.billing_date,
+          created_at: billing.transaction_date,
+          last_billing_date: billing.transaction_date,
           source: 'billing_history',
           products: product,
           billing_info: {

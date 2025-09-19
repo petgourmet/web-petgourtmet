@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       status: payment.status || 'pending',
       mercadopago_status: payment.payment_details?.status || payment.status,
       payment_method: payment.payment_method || 'subscription',
-      created_at: payment.billing_date || payment.created_at,
+      created_at: payment.transaction_date || payment.created_at,
       type: 'subscription',
       product_name: payment.subscriptions?.products?.name || 'Suscripción'
     }))

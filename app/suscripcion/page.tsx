@@ -69,7 +69,18 @@ export default function SuscripcionPage() {
       
       const { data: subscriptions, error } = await supabase
         .from("unified_subscriptions")
-        .select("*")
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price,
+            monthly_discount,
+            quarterly_discount,
+            annual_discount
+          )
+        `)
         .eq("user_id", user.id)
         .eq("status", "active")
         .order("created_at", { ascending: false })
@@ -84,7 +95,13 @@ export default function SuscripcionPage() {
         return
       }
 
-      setSubscriptions(subscriptions || [])
+      // Mapear las suscripciones para incluir la imagen del producto
+      const mappedSubscriptions = (subscriptions || []).map(sub => ({
+        ...sub,
+        product_image: sub.products?.image || sub.product_image
+      }))
+
+      setSubscriptions(mappedSubscriptions)
       
       // Si el usuario tiene suscripciones activas, actualizar su perfil
       if (subscriptions && subscriptions.length > 0) {
