@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Users, Package, ShoppingBag, FileText } from "lucide-react"
+import { Users, Package, ShoppingBag, FileText, RefreshCw } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import SystemStatus from "@/components/admin/SystemStatus"
 
@@ -12,6 +12,7 @@ interface StatsType {
   totalBlogs: number | null
   totalProducts: number | null
   totalOrders: number | null
+  activeSubscriptions: number | null
 }
 
 const DashboardPage = () => {
@@ -20,6 +21,7 @@ const DashboardPage = () => {
     totalBlogs: null,
     totalProducts: null,
     totalOrders: null,
+    activeSubscriptions: null,
   })
   const [loading, setLoading] = useState(true)
 
@@ -78,6 +80,19 @@ const DashboardPage = () => {
       } else {
         setStats((prev) => ({ ...prev, totalOrders: totalOrders || 0 }))
       }
+
+      // Obtener el número total de suscripciones activas
+      const { count: activeSubscriptions, error: subscriptionsError } = await supabase
+        .from("unified_subscriptions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active")
+
+      if (subscriptionsError) {
+        console.error("Error al cargar suscripciones:", subscriptionsError)
+        setStats((prev) => ({ ...prev, activeSubscriptions: null }))
+      } else {
+        setStats((prev) => ({ ...prev, activeSubscriptions: activeSubscriptions || 0 }))
+      }
     } finally {
       setLoading(false)
     }
@@ -92,7 +107,7 @@ const DashboardPage = () => {
         <SystemStatus />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {/* Tarjeta de Usuarios */}
         <Card className="shadow-md hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
@@ -162,6 +177,24 @@ const DashboardPage = () => {
               <div className="text-3xl font-bold text-[#7BBDC5]">{stats.totalProducts || 0}</div>
             )}
             <p className="text-sm text-gray-500 mt-1">Productos disponibles</p>
+          </CardContent>
+        </Card>
+
+        {/* Tarjeta de Suscripciones Activas */}
+        <Card className="shadow-md hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-medium text-gray-700 flex items-center">
+              <RefreshCw className="mr-2 h-5 w-5 text-[#7BBDC5]" />
+              Suscripciones
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-12 w-24" />
+            ) : (
+              <div className="text-3xl font-bold text-[#7BBDC5]">{stats.activeSubscriptions || 0}</div>
+            )}
+            <p className="text-sm text-gray-500 mt-1">Suscripciones activas</p>
           </CardContent>
         </Card>
       </div>

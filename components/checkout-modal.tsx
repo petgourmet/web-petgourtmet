@@ -414,9 +414,16 @@ export function CheckoutModal() {
       const subscriptionType = getSubscriptionType()
 
       // Generar un external reference único para MercadoPago
-      // Para suscripciones, agregar prefijo 'subscription_' para que el webhook las detecte
+      // Para suscripciones, usar formato PG-SUB-timestamp-userId-planId que espera el webhook
       const baseReference = `${orderNumber}_${Date.now()}`
-      const externalReference = hasSubscriptionItems ? `subscription_${baseReference}` : baseReference
+      let externalReference = baseReference
+      
+      if (hasSubscriptionItems && user) {
+        const timestamp = Date.now()
+        const userId = user.id
+        const planId = cart.find(item => item.isSubscription)?.id || 'unknown'
+        externalReference = `PG-SUB-${timestamp}-${userId}-${planId}`
+      }
 
       // Si hay suscripciones, redirigir al enlace de suscripción de Mercado Pago
       if (hasSubscriptionItems && subscriptionType && !isTestMode) {
@@ -474,6 +481,43 @@ export function CheckoutModal() {
           const discountedPrice = basePrice * (1 - discount)
           const transactionAmount = discountedPrice * subscriptionItem.quantity
 
+          // Calcular frequency y frequency_type basado en subscription_type
+          let frequency = 1
+          let frequency_type = 'months'
+          
+          switch (subscriptionType) {
+            case 'monthly':
+              frequency = 1
+              frequency_type = 'months'
+              break
+            case 'quarterly':
+              frequency = 3
+              frequency_type = 'months'
+              break
+            case 'annual':
+              frequency = 12
+              frequency_type = 'months'
+              break
+            case 'biweekly':
+              frequency = 2
+              frequency_type = 'weeks'
+              break
+            default:
+              frequency = 1
+              frequency_type = 'months'
+          }
+
+          const currentDate = new Date()
+          const startDate = currentDate.toISOString()
+          
+          // Calcular next_billing_date basado en frequency
+          const nextBillingDate = new Date(currentDate)
+          if (frequency_type === 'months') {
+            nextBillingDate.setMonth(nextBillingDate.getMonth() + frequency)
+          } else if (frequency_type === 'weeks') {
+            nextBillingDate.setDate(nextBillingDate.getDate() + (frequency * 7))
+          }
+
           const subscriptionData = {
             user_id: user.id,
             product_id: subscriptionItem.id,
@@ -488,7 +532,50 @@ export function CheckoutModal() {
             transaction_amount: transactionAmount,
             size: subscriptionItem.size || 'Standard',
             quantity: subscriptionItem.quantity,
+            frequency: frequency,
+            frequency_type: frequency_type,
+            currency_id: 'MXN',
+            start_date: startDate,
+            next_billing_date: nextBillingDate.toISOString(),
+            back_url: `${window.location.origin}/suscripcion`,
+            reason: `Suscripción ${subscriptionType} - ${subscriptionItem.name} (${subscriptionItem.size || 'Standard'})`,
+            version: 1,
+            collector_id: null, // Se asignará desde MercadoPago
+            charges_made: 0, // Inicializar en 0
+            application_id: null, // Se asignará desde MercadoPago
+            preapproval_plan_id: null, // Se asignará si se usa plan
+            init_point: null, // Se asignará desde MercadoPago
+            end_date: null, // Suscripción sin fecha de fin por defecto
+            mercadopago_subscription_id: null, // Se asignará desde webhook
+            mercadopago_plan_id: null, // Se asignará si se usa plan
+            last_billing_date: null, // Se actualizará con el primer pago
+            cancelled_at: null,
+            paused_at: null,
+            resumed_at: null,
+            expired_at: null,
+            suspended_at: null,
+            last_sync_at: null,
             processed_at: new Date().toISOString(),
+            free_trial: null, // Sin trial por defecto
+            notes: `Suscripción creada desde checkout - ${subscriptionType}`,
+            metadata: {
+              subscription_type: subscriptionType,
+              product_category: subscriptionItem.category || 'pet-food',
+              discount_applied: discountPercentage > 0,
+              original_price: basePrice,
+              final_price: discountedPrice,
+              size: subscriptionItem.size || 'Standard',
+              created_from: 'checkout_modal',
+              user_agent: navigator.userAgent,
+              timestamp: currentDate.toISOString(),
+              billing_cycle: `${frequency} ${frequency_type}`,
+              product_details: {
+                id: subscriptionItem.id,
+                name: subscriptionItem.name,
+                image: subscriptionItem.image,
+                category: subscriptionItem.category || 'pet-food'
+              }
+            },
             customer_data: {
               firstName: customerInfo.firstName,
               lastName: customerInfo.lastName,

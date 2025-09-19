@@ -1,9 +1,5 @@
-/**
- * Script para limpiar suscripciones duplicadas
- * Este script identifica y cancela suscripciones duplicadas pendientes
- */
-
 const { createClient } = require('@supabase/supabase-js')
+require('dotenv').config()
 
 // Configuración de Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -17,108 +13,133 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 async function cleanDuplicateSubscriptions() {
-  console.log('🔍 Iniciando limpieza de suscripciones duplicadas...')
-  
   try {
-    // 1. Buscar todas las suscripciones agrupadas por usuario y producto
+    console.log('🔍 Buscando suscripciones duplicadas...')
+    
+    // Obtener todas las suscripciones activas y pendientes
     const { data: subscriptions, error } = await supabase
       .from('unified_subscriptions')
-      .select('id, user_id, product_id, status, created_at, mercadopago_subscription_id')
-      .in('status', ['pending', 'active'])
+      .select('*')
+      .in('status', ['active', 'pending'])
       .order('created_at', { ascending: true })
     
     if (error) {
-      throw error
+      console.error('❌ Error obteniendo suscripciones:', error)
+      return
     }
     
-    console.log(`📊 Encontradas ${subscriptions.length} suscripciones activas/pendientes`)
+    console.log(`📊 Total de suscripciones encontradas: ${subscriptions.length}`)
     
-    // 2. Agrupar por usuario y producto
-    const groupedSubscriptions = {}
+    // Agrupar por user_id y product_id
+    const groupedByUser = {}
+    const duplicatesToRemove = []
     
     subscriptions.forEach(sub => {
-      const key = `${sub.user_id}-${sub.product_id}`
-      if (!groupedSubscriptions[key]) {
-        groupedSubscriptions[key] = []
+      const key = `${sub.user_id}_${sub.product_id || 'no_product'}`
+      
+      if (!groupedByUser[key]) {
+        groupedByUser[key] = []
       }
-      groupedSubscriptions[key].push(sub)
+      groupedByUser[key].push(sub)
     })
     
-    let duplicatesFound = 0
-    let duplicatesCancelled = 0
-    
-    // 3. Procesar cada grupo
-    for (const [key, subs] of Object.entries(groupedSubscriptions)) {
-      if (subs.length > 1) {
-        duplicatesFound += subs.length - 1
-        console.log(`\n🔍 Duplicados encontrados para ${key}:`, subs.length)
+    // Identificar duplicados
+    Object.keys(groupedByUser).forEach(key => {
+      const userSubs = groupedByUser[key]
+      
+      if (userSubs.length > 1) {
+        console.log(`\n🔍 Usuario con ${userSubs.length} suscripciones duplicadas:`, key)
         
-        // Ordenar por prioridad: active > pending, y por fecha de creación
-        subs.sort((a, b) => {
-          // Priorizar activas sobre pendientes
-          if (a.status === 'active' && b.status === 'pending') return -1
-          if (a.status === 'pending' && b.status === 'active') return 1
-          
-          // Si tienen el mismo estado, priorizar la más antigua
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        // Ordenar por prioridad: active > pending, y por fecha más reciente
+        userSubs.sort((a, b) => {
+          if (a.status === 'active' && b.status !== 'active') return -1
+          if (b.status === 'active' && a.status !== 'active') return 1
+          return new Date(b.created_at) - new Date(a.created_at)
         })
         
-        const keepSubscription = subs[0]
-        const duplicatesToCancel = subs.slice(1)
+        // Mantener la primera (más prioritaria), marcar el resto para eliminación
+        const toKeep = userSubs[0]
+        const toRemove = userSubs.slice(1)
         
-        console.log(`✅ Mantener: ${keepSubscription.id} (${keepSubscription.status})`)
+        console.log(`  ✅ Mantener: ID ${toKeep.id} (${toKeep.status}) - ${toKeep.created_at}`)
         
-        // Cancelar duplicados
-        for (const duplicate of duplicatesToCancel) {
-          console.log(`❌ Cancelar: ${duplicate.id} (${duplicate.status})`)
-          
-          const { error: updateError } = await supabase
-            .from('unified_subscriptions')
-            .update({
-              status: 'duplicate_cancelled',
-              updated_at: new Date().toISOString(),
-              cancellation_reason: 'Duplicate subscription detected during cleanup - user already has subscription for this product'
-            })
-            .eq('id', duplicate.id)
-          
-          if (updateError) {
-            console.error(`❌ Error cancelando ${duplicate.id}:`, updateError.message)
-          } else {
-            duplicatesCancelled++
-            console.log(`✅ Cancelada suscripción duplicada: ${duplicate.id}`)
-          }
-        }
+        toRemove.forEach(sub => {
+          console.log(`  ❌ Eliminar: ID ${sub.id} (${sub.status}) - ${sub.created_at}`)
+          duplicatesToRemove.push(sub.id)
+        })
       }
+    })
+    
+    if (duplicatesToRemove.length === 0) {
+      console.log('\n✅ No se encontraron suscripciones duplicadas')
+      return
     }
     
-    console.log(`\n📊 Resumen de limpieza:`)
-    console.log(`   - Duplicados encontrados: ${duplicatesFound}`)
-    console.log(`   - Duplicados cancelados: ${duplicatesCancelled}`)
-    console.log(`   - Errores: ${duplicatesFound - duplicatesCancelled}`)
+    console.log(`\n🗑️  Total de duplicados a eliminar: ${duplicatesToRemove.length}`)
     
-    if (duplicatesCancelled > 0) {
-      console.log('\n✅ Limpieza completada exitosamente')
+    // Confirmar antes de eliminar
+    const readline = require('readline')
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    })
+    
+    const answer = await new Promise(resolve => {
+      rl.question('¿Deseas proceder con la eliminación? (y/N): ', resolve)
+    })
+    rl.close()
+    
+    if (answer.toLowerCase() !== 'y' && answer.toLowerCase() !== 'yes') {
+      console.log('❌ Operación cancelada')
+      return
+    }
+    
+    // Eliminar duplicados
+    console.log('\n🗑️  Eliminando suscripciones duplicadas...')
+    
+    const { error: deleteError } = await supabase
+      .from('unified_subscriptions')
+      .delete()
+      .in('id', duplicatesToRemove)
+    
+    if (deleteError) {
+      console.error('❌ Error eliminando duplicados:', deleteError)
+      return
+    }
+    
+    console.log(`✅ Se eliminaron ${duplicatesToRemove.length} suscripciones duplicadas`)
+    
+    // Verificar suscripción específica mencionada
+    const specificRef = 'dff577706d8644b6ab5bbbab1c3acfcf'
+    const { data: specificSub } = await supabase
+      .from('unified_subscriptions')
+      .select('*')
+      .eq('external_reference', specificRef)
+      .single()
+    
+    if (specificSub) {
+      console.log(`\n🔍 Suscripción específica (${specificRef}):`, {
+        id: specificSub.id,
+        status: specificSub.status,
+        user_id: specificSub.user_id,
+        created_at: specificSub.created_at
+      })
     } else {
-      console.log('\n✨ No se encontraron duplicados para limpiar')
+      console.log(`\n❌ No se encontró la suscripción específica: ${specificRef}`)
     }
     
   } catch (error) {
-    console.error('❌ Error durante la limpieza:', error.message)
-    process.exit(1)
+    console.error('❌ Error en el proceso:', error)
   }
 }
 
 // Ejecutar el script
-if (require.main === module) {
-  cleanDuplicateSubscriptions()
-    .then(() => {
-      console.log('\n🎉 Script completado')
-      process.exit(0)
-    })
-    .catch((error) => {
-      console.error('❌ Error fatal:', error)
-      process.exit(1)
-    })
-}
-
-module.exports = { cleanDuplicateSubscriptions }
+cleanDuplicateSubscriptions()
+  .then(() => {
+    console.log('\n✅ Proceso completado')
+    process.exit(0)
+  })
+  .catch(error => {
+    console.error('❌ Error fatal:', error)
+    process.exit(1)
+  })
