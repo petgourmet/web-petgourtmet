@@ -32,7 +32,8 @@ import { ProductStructuredData } from "@/components/product-structured-data"
 export default function ProductDetailPage() {
   const { slug } = useParams()
   const searchParams = useSearchParams()
-  const productId = searchParams.get("id")
+  // Usar el slug del parámetro de ruta en lugar del ID de query params
+  const productSlug = Array.isArray(slug) ? slug[0] : slug
 
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,15 +63,15 @@ export default function ProductDetailPage() {
       }
 
       try {
-        if (!productId) {
-          throw new Error("ID de producto no proporcionado")
+        if (!productSlug) {
+          throw new Error("Slug de producto no proporcionado")
         }
 
-        // Cargar datos del producto
+        // Cargar datos del producto por slug
         const { data: productData, error: productError } = await supabase
           .from("products")
           .select("*, categories(name)")
-          .eq("id", productId)
+          .eq("slug", productSlug)
           .single()
 
         if (productError) {
@@ -78,8 +79,8 @@ export default function ProductDetailPage() {
         }
 
         if (!productData) {
-          console.error("Producto no encontrado, ID:", productId)
-          setError(`Producto con ID ${productId} no encontrado`)
+          console.error("Producto no encontrado, slug:", productSlug)
+          setError(`Producto con slug ${productSlug} no encontrado`)
           setLoading(false)
           return
         }
@@ -88,19 +89,19 @@ export default function ProductDetailPage() {
         const { data: featuresData } = await supabase
           .from("product_features")
           .select("name, color")
-          .eq("product_id", productId)
+          .eq("product_id", productData.id)
 
         // Cargar tamaños/precios del producto
         const { data: sizesData } = await supabase
           .from("product_sizes")
           .select("weight, price")
-          .eq("product_id", productId)
+          .eq("product_id", productData.id)
 
         // Cargar galería de imágenes
         const { data: galleryData } = await supabase
           .from("product_images")
           .select("url, alt")
-          .eq("product_id", productId)
+          .eq("product_id", productData.id)
 
         // Construir la URL completa de la imagen
         let imageUrl = productData.image
@@ -172,7 +173,7 @@ export default function ProductDetailPage() {
     }
 
     loadProductDetails()
-  }, [productId])
+  }, [productSlug])
 
   const handleAddToCart = () => {
     if (!product) return

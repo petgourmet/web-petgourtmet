@@ -1,30 +1,47 @@
--- Otorgar permisos para la tabla unified_subscriptions
--- Permitir acceso a usuarios anónimos y autenticados
-
--- Otorgar permisos básicos de lectura al rol anon
-GRANT SELECT ON unified_subscriptions TO anon;
-
--- Otorgar todos los privilegios al rol authenticated
-GRANT ALL PRIVILEGES ON unified_subscriptions TO authenticated;
-
--- Crear políticas RLS para permitir acceso apropiado
-
--- Política para usuarios autenticados: pueden ver y modificar sus propias suscripciones
-CREATE POLICY "Users can manage their own subscriptions" ON unified_subscriptions
-    FOR ALL USING (auth.uid() = user_id);
-
--- Política para permitir inserción de suscripciones sin user_id (para casos especiales)
-CREATE POLICY "Allow insert for system operations" ON unified_subscriptions
-    FOR INSERT WITH CHECK (true);
-
--- Política para permitir lectura de suscripciones públicas (sin user_id)
-CREATE POLICY "Allow read public subscriptions" ON unified_subscriptions
-    FOR SELECT USING (user_id IS NULL OR auth.uid() = user_id);
+-- Migración para corregir permisos de unified_subscriptions
+-- Fecha: 2025-01-19
+-- Descripción: Otorgar permisos necesarios para insertar y consultar suscripciones
 
 -- Verificar permisos actuales
 SELECT grantee, table_name, privilege_type 
 FROM information_schema.role_table_grants 
 WHERE table_schema = 'public' 
-  AND table_name = 'unified_subscriptions'
-  AND grantee IN ('anon', 'authenticated') 
+AND table_name = 'unified_subscriptions'
+AND grantee IN ('anon', 'authenticated') 
 ORDER BY table_name, grantee;
+
+-- Otorgar permisos básicos de lectura al rol anon
+GRANT SELECT ON unified_subscriptions TO anon;
+
+-- Otorgar permisos completos al rol authenticated
+GRANT ALL PRIVILEGES ON unified_subscriptions TO authenticated;
+
+-- Otorgar permisos en la secuencia para el campo id
+GRANT USAGE, SELECT ON SEQUENCE unified_subscriptions_id_seq TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE unified_subscriptions_id_seq TO anon;
+
+-- Crear política RLS para permitir que los usuarios autenticados puedan insertar sus propias suscripciones
+CREATE POLICY "Users can insert their own subscriptions" ON unified_subscriptions
+    FOR INSERT WITH CHECK (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+-- Crear política RLS para permitir que los usuarios autenticados puedan ver sus propias suscripciones
+CREATE POLICY "Users can view their own subscriptions" ON unified_subscriptions
+    FOR SELECT USING (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+-- Crear política RLS para permitir que los usuarios autenticados puedan actualizar sus propias suscripciones
+CREATE POLICY "Users can update their own subscriptions" ON unified_subscriptions
+    FOR UPDATE USING (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+-- Verificar que los permisos se aplicaron correctamente
+SELECT grantee, table_name, privilege_type 
+FROM information_schema.role_table_grants 
+WHERE table_schema = 'public' 
+AND table_name = 'unified_subscriptions'
+AND grantee IN ('anon', 'authenticated') 
+ORDER BY table_name, grantee;
+
+-- Mostrar las políticas RLS creadas
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies 
+WHERE schemaname = 'public' 
+AND tablename = 'unified_subscriptions';

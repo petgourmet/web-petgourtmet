@@ -821,6 +821,57 @@ function PerfilPageContent() {
     })
   }
 
+  // Funciones de cálculo de precios para suscripciones
+  const getOriginalPrice = (subscription: Subscription): number => {
+    // Usar base_price si está disponible, sino usar transaction_amount
+    return subscription.base_price || subscription.transaction_amount || subscription.price || 0
+  }
+
+  const getDiscountPercentage = (subscription: Subscription): number => {
+    return subscription.discount_percentage || 0
+  }
+
+  const getDiscountAmount = (subscription: Subscription): number => {
+    const originalPrice = getOriginalPrice(subscription)
+    const discountPercentage = getDiscountPercentage(subscription)
+    return (originalPrice * discountPercentage) / 100
+  }
+
+  const getDiscountedPrice = (subscription: Subscription): number => {
+    // Usar discounted_price si está disponible, sino calcular
+    if (subscription.discounted_price) {
+      return subscription.discounted_price
+    }
+    const originalPrice = getOriginalPrice(subscription)
+    const discountAmount = getDiscountAmount(subscription)
+    return originalPrice - discountAmount
+  }
+
+  const getShippingCost = (subscription: Subscription): number => {
+    // Envío gratis para suscripciones o basado en el monto
+    const discountedPrice = getDiscountedPrice(subscription)
+    return discountedPrice >= 1000 ? 0 : 100
+  }
+
+  const getTotalPrice = (subscription: Subscription): number => {
+    // Usar transaction_amount si está disponible, sino calcular
+    if (subscription.transaction_amount) {
+      return subscription.transaction_amount
+    }
+    const discountedPrice = getDiscountedPrice(subscription)
+    const shippingCost = getShippingCost(subscription)
+    return discountedPrice + shippingCost
+  }
+
+  // Funciones helper para formateo
+  const formatPriceHelper = (price: number | null | undefined) => {
+    return formatPrice(price)
+  }
+
+  const formatDateHelper = (dateString: string) => {
+    return formatDate(dateString)
+  }
+
   if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 flex items-center justify-center">
