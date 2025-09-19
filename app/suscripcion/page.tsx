@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Calendar, Package, CreditCard, ArrowLeft } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
+import logger, { LogCategory } from '@/lib/logger'
 
 interface UserSubscription {
   id: number
@@ -46,16 +47,44 @@ export default function SuscripcionPage() {
       
       console.log('URL params:', { preapprovalId, externalReference, status })
       
-      if (preapprovalId) {
+      logger.info(LogCategory.SUBSCRIPTION, 'Usuario llegó a página de suscripción', {
+        userId: user.id,
+        hasPreapprovalId: !!preapprovalId,
+        hasExternalReference: !!externalReference,
+        status: status || 'no-status',
+        userAgent: navigator.userAgent
+      })
+      
+      // Si viene con status=approved, activar automáticamente
+      if (status === 'approved' && externalReference) {
+        logger.info(LogCategory.SUBSCRIPTION, 'Status approved detectado, activando automáticamente', {
+          userId: user.id,
+          externalReference,
+          status
+        })
+        console.log('Status approved detectado, activando suscripción automáticamente')
+        activatePendingSubscription(externalReference)
+      } else if (preapprovalId) {
         // Prioridad 1: Validar suscripción usando preapproval_id
+        logger.info(LogCategory.SUBSCRIPTION, 'Procesando preapproval_id', {
+          userId: user.id,
+          preapprovalId
+        })
         console.log('Procesando preapproval_id:', preapprovalId)
         validatePreapprovalSubscription(preapprovalId)
-      } else if (externalReference && status === 'approved') {
+      } else if (externalReference) {
         // Prioridad 2: Activar suscripción pendiente por external_reference
+        logger.info(LogCategory.SUBSCRIPTION, 'Procesando external_reference', {
+          userId: user.id,
+          externalReference
+        })
         console.log('Procesando external_reference:', externalReference)
         activatePendingSubscription(externalReference)
       } else {
         // Activar automáticamente suscripciones pendientes del usuario
+        logger.info(LogCategory.SUBSCRIPTION, 'Activando suscripciones pendientes del usuario', {
+          userId: user.id
+        })
         activateUserPendingSubscriptions()
       }
     }
@@ -140,10 +169,88 @@ export default function SuscripcionPage() {
         return
       }
 
+      logger.info(LogCategory.SUBSCRIPTION, 'Suscripciones pendientes encontradas', {
+        userId: user.id,
+        pendingCount: pendingSubscriptions.length,
+        subscriptionIds: pendingSubscriptions.map(s => s.id)
+      })
+      
       console.log(`Encontradas ${pendingSubscriptions.length} suscripciones pendientes`)
       
-      // Activar cada suscripción pendiente
+      // VALIDACIÓN ANTI-DUPLICACIÓN: Filtrar suscripciones que ya están activas
+      const validPendingSubscriptions = []
+      
       for (const pendingSubscription of pendingSubscriptions) {
+        // Verificar si ya existe una suscripción activa con el mismo external_reference
+        if (pendingSubscription.external_reference) {
+          const { data: existingActive } = await supabase
+            .from("unified_subscriptions")
+            .select("*")
+            .eq("external_reference", pendingSubscription.external_reference)
+            .eq("status", "active")
+          
+          if (existingActive && existingActive.length > 0) {
+            logger.warn(LogCategory.SUBSCRIPTION, 'DUPLICACIÓN EVITADA: Suscripción ya activa por external_reference', {
+              userId: user.id,
+              externalReference: pendingSubscription.external_reference,
+              existingActiveId: existingActive[0].id,
+              pendingId: pendingSubscription.id
+            })
+            console.log('⚠️ DUPLICACIÓN EVITADA: Ya existe suscripción activa con external_reference:', pendingSubscription.external_reference)
+            continue
+          }
+        }
+        
+        // Verificar si ya existe una suscripción activa para el mismo producto
+        if (pendingSubscription.product_id) {
+          const { data: existingProductActive } = await supabase
+            .from("unified_subscriptions")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("product_id", pendingSubscription.product_id)
+            .eq("status", "active")
+          
+          if (existingProductActive && existingProductActive.length > 0) {
+            logger.warn(LogCategory.SUBSCRIPTION, 'DUPLICACIÓN EVITADA: Usuario ya tiene suscripción activa para producto', {
+              userId: user.id,
+              productId: pendingSubscription.product_id,
+              existingActiveId: existingProductActive[0].id,
+              pendingId: pendingSubscription.id
+            })
+            console.log('⚠️ DUPLICACIÓN EVITADA: Usuario ya tiene suscripción activa para producto:', pendingSubscription.product_id)
+            continue
+          }
+        }
+        
+        validPendingSubscriptions.push(pendingSubscription)
+      }
+      
+      if (validPendingSubscriptions.length === 0) {
+        logger.info(LogCategory.SUBSCRIPTION, 'Todas las suscripciones ya están activas', {
+          userId: user.id,
+          totalPending: pendingSubscriptions.length,
+          validPending: 0
+        })
+        console.log('✅ Todas las suscripciones ya están activas, no hay duplicaciones que procesar')
+        toast({
+          title: "Suscripciones ya activas",
+          description: "Todas tus suscripciones ya están activas y funcionando correctamente",
+        })
+        loadUserSubscriptions()
+        return
+      }
+      
+      logger.info(LogCategory.SUBSCRIPTION, 'Procesando suscripciones válidas sin duplicados', {
+        userId: user.id,
+        totalPending: pendingSubscriptions.length,
+        validPending: validPendingSubscriptions.length,
+        validSubscriptionIds: validPendingSubscriptions.map(s => s.id)
+      })
+      
+      console.log(`Procesando ${validPendingSubscriptions.length} suscripciones válidas (sin duplicados)`)
+      
+      // Activar cada suscripción pendiente válida
+      for (const pendingSubscription of validPendingSubscriptions) {
         await activateSingleSubscription(pendingSubscription)
       }
       
@@ -156,7 +263,7 @@ export default function SuscripcionPage() {
       // Mostrar mensaje de éxito
       toast({
         title: "¡Bienvenido a Pet Gourmet!",
-        description: `Se ${pendingSubscriptions.length === 1 ? 'ha activado tu suscripción' : 'han activado ' + pendingSubscriptions.length + ' suscripciones'} exitosamente`,
+        description: `Se ${validPendingSubscriptions.length === 1 ? 'ha activado tu suscripción' : 'han activado ' + validPendingSubscriptions.length + ' suscripciones'} exitosamente`,
       })
       
       // Cargar suscripciones actualizadas
@@ -234,30 +341,90 @@ export default function SuscripcionPage() {
       // Calcular próxima fecha de pago basada en el tipo de suscripción
       const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
       
-      // Preparar datos de actualización
+      // Preparar datos de actualización con TODOS los campos obligatorios
       const updateData: any = {
         status: "active",
         next_billing_date: nextBillingDate,
         last_billing_date: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        processed_at: new Date().toISOString()
       }
       
-      // Agregar información del producto si está disponible
-      if (productInfo) {
-        updateData.product_name = productInfo.name
-        updateData.price = productInfo.price
-        
-        // Calcular precio con descuento según el tipo de suscripción
-        const discountField = getDiscountField(pendingSubscription.subscription_type)
-        if (discountField && productInfo[discountField]) {
-          const discountPercentage = productInfo[discountField]
-          updateData.discounted_price = productInfo.price * (1 - discountPercentage / 100)
-        } else {
-          updateData.discounted_price = productInfo.price
+      // Validar y llenar campos obligatorios desde cart_items o producto
+      if (pendingSubscription.cart_items) {
+        try {
+          const cartItems = typeof pendingSubscription.cart_items === 'string' 
+            ? JSON.parse(pendingSubscription.cart_items) 
+            : pendingSubscription.cart_items
+          
+          if (cartItems && cartItems.length > 0) {
+            const item = cartItems[0] // Primer item del carrito
+            updateData.product_name = item.name || productInfo?.name || 'Producto Pet Gourmet'
+            updateData.product_image = item.image || productInfo?.image || ''
+            updateData.base_price = item.price || productInfo?.price || 0
+            updateData.size = item.size || 'Estándar'
+            updateData.product_id = item.id || pendingSubscription.product_id
+          }
+        } catch (e) {
+          console.warn('Error parseando cart_items:', e)
         }
-        
-        console.log(`💰 Precio calculado: ${productInfo.price} -> ${updateData.discounted_price}`)
       }
+      
+      // Fallback a información del producto si cart_items no está disponible
+      if (productInfo && !updateData.product_name) {
+        updateData.product_name = productInfo.name || 'Producto Pet Gourmet'
+        updateData.product_image = productInfo.image || ''
+        updateData.base_price = productInfo.price || 0
+        updateData.product_id = productInfo.id || pendingSubscription.product_id
+      }
+      
+      // Calcular precio con descuento según el tipo de suscripción
+      const basePrice = updateData.base_price || 0
+      const discountField = getDiscountField(pendingSubscription.subscription_type)
+      let discountPercentage = 0
+      
+      if (discountField && productInfo?.[discountField]) {
+        discountPercentage = productInfo[discountField]
+        updateData.discounted_price = basePrice * (1 - discountPercentage / 100)
+      } else {
+        updateData.discounted_price = basePrice
+      }
+      
+      updateData.discount_percentage = discountPercentage
+      updateData.transaction_amount = updateData.discounted_price
+      
+      // Validar campos obligatorios
+      const requiredFields = ['product_name', 'product_id', 'transaction_amount', 'base_price', 'discounted_price']
+      const missingFields = requiredFields.filter(field => !updateData[field])
+      
+      if (missingFields.length > 0) {
+        logger.warn(LogCategory.SUBSCRIPTION, 'Campos obligatorios faltantes en activación', {
+          userId: user.id,
+          subscriptionId: pendingSubscription.id,
+          missingFields,
+          providedFields: Object.keys(updateData),
+          externalReference: pendingSubscription.external_reference
+        })
+        console.error('❌ Campos obligatorios faltantes:', missingFields)
+        // Llenar con valores por defecto para evitar errores
+        if (!updateData.product_name) updateData.product_name = 'Producto Pet Gourmet'
+        if (!updateData.product_id) updateData.product_id = pendingSubscription.product_id
+        if (!updateData.transaction_amount) updateData.transaction_amount = 0
+        if (!updateData.base_price) updateData.base_price = 0
+        if (!updateData.discounted_price) updateData.discounted_price = 0
+      }
+      
+      // Agregar customer_data si está disponible
+      if (pendingSubscription.customer_data) {
+        updateData.customer_data = pendingSubscription.customer_data
+      }
+      
+      // CRÍTICO: Preservar cart_items original
+      if (pendingSubscription.cart_items) {
+        updateData.cart_items = pendingSubscription.cart_items
+      }
+      
+      console.log('💰 Datos de actualización completos:', updateData)
       
       // Actualizar suscripción a activa con toda la información
       const { data: newSubscription, error: createError } = await supabase
@@ -268,14 +435,37 @@ export default function SuscripcionPage() {
         .single()
 
       if (createError) {
-        console.error("Error activando suscripción:", createError)
+        logger.error(LogCategory.SUBSCRIPTION, 'Error actualizando suscripción a activa', createError.message, {
+          userId: user.id,
+          subscriptionId: pendingSubscription.id,
+          externalReference: pendingSubscription.external_reference,
+          errorCode: createError.code,
+          errorDetails: createError.details,
+          updateData: {
+            productName: updateData.product_name,
+            productId: updateData.product_id,
+            transactionAmount: updateData.transaction_amount
+          }
+        })
+        console.error("❌ ERROR: Error actualizando suscripción:", createError)
         throw createError
       }
 
-      console.log("✅ Suscripción activada exitosamente con información completa:", newSubscription)
+      logger.info(LogCategory.SUBSCRIPTION, 'Suscripción activada exitosamente con todos los campos', {
+        userId: user.id,
+        subscriptionId: newSubscription.id,
+        productName: newSubscription.product_name,
+        productId: newSubscription.product_id,
+        transactionAmount: newSubscription.transaction_amount,
+        subscriptionType: newSubscription.subscription_type,
+        externalReference: newSubscription.external_reference
+      })
+      
+      console.log("✅ ÉXITO: Suscripción activada con todos los campos:", newSubscription)
+      return newSubscription
       
     } catch (error) {
-      console.error("Error activando suscripción con producto:", error)
+      console.error("❌ ERROR: Error en activateSingleSubscriptionWithProduct:", error)
       throw error
     }
   }
@@ -338,9 +528,40 @@ export default function SuscripcionPage() {
   const activatePendingSubscription = async (externalReference: string) => {
     if (!user?.id) return
 
+    // IDEMPOTENCIA: Evitar múltiples ejecuciones simultáneas
+    if (isProcessing) {
+      console.log('🔄 IDEMPOTENCIA: Ya hay un proceso de activación en curso, evitando ejecución duplicada')
+      return
+    }
+
     try {
       setIsProcessing(true)
       console.log('🔍 Activando suscripción con external_reference:', externalReference)
+      
+      // IDEMPOTENCIA: Verificar si ya existe una suscripción activa con este external_reference
+      const { data: existingActiveSubscriptions, error: activeError } = await supabase
+        .from("unified_subscriptions")
+        .select("*")
+        .eq("external_reference", externalReference)
+        .eq("status", "active")
+
+      if (activeError) {
+        console.error("Error verificando suscripciones activas:", activeError)
+        loadUserSubscriptions()
+        return
+      }
+
+      // Si ya existe una suscripción activa, no procesar duplicado
+      if (existingActiveSubscriptions && existingActiveSubscriptions.length > 0) {
+        console.log('✅ IDEMPOTENCIA: Ya existe una suscripción activa con external_reference:', externalReference)
+        toast({
+          title: "Suscripción ya activa",
+          description: "Tu suscripción ya está activa y funcionando correctamente",
+        })
+        loadUserSubscriptions()
+        window.history.replaceState({}, document.title, window.location.pathname)
+        return
+      }
       
       // Buscar suscripción pendiente por external_reference con información del producto
       const { data: pendingSubscriptions, error: pendingError } = await supabase
@@ -370,7 +591,7 @@ export default function SuscripcionPage() {
       if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
         console.log("❌ No se encontraron suscripciones pendientes con external_reference:", externalReference)
         
-        // Buscar cualquier suscripción pendiente del usuario para activar
+        // Buscar cualquier suscripción pendiente del usuario para activar (con validación anti-duplicación)
         const { data: userPendingSubscriptions } = await supabase
           .from("unified_subscriptions")
           .select("*")
@@ -380,16 +601,33 @@ export default function SuscripcionPage() {
           .limit(1)
         
         if (userPendingSubscriptions && userPendingSubscriptions.length > 0) {
-          console.log('✅ Encontrada suscripción pendiente del usuario, activando...')
           const subscription = userPendingSubscriptions[0]
-          await activateSingleSubscriptionWithProduct(subscription)
-          await updateUserProfile()
-          await sendWelcomeEmail(subscription)
           
-          toast({
-            title: "¡Suscripción activada!",
-            description: "Tu suscripción ha sido activada exitosamente",
-          })
+          // Verificar que no exista ya una suscripción activa para este usuario con el mismo producto
+          const { data: existingUserActive } = await supabase
+            .from("unified_subscriptions")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("product_id", subscription.product_id)
+            .eq("status", "active")
+          
+          if (!existingUserActive || existingUserActive.length === 0) {
+            console.log('✅ Encontrada suscripción pendiente del usuario, activando...')
+            await activateSingleSubscriptionWithProduct(subscription)
+            await updateUserProfile()
+            await sendWelcomeEmail(subscription)
+            
+            toast({
+              title: "¡Suscripción activada!",
+              description: "Tu suscripción ha sido activada exitosamente",
+            })
+          } else {
+            console.log('✅ IDEMPOTENCIA: Usuario ya tiene suscripción activa para este producto')
+            toast({
+              title: "Suscripción ya activa",
+              description: "Ya tienes una suscripción activa para este producto",
+            })
+          }
         }
         
         loadUserSubscriptions()
@@ -398,6 +636,29 @@ export default function SuscripcionPage() {
 
       const pendingSubscription = pendingSubscriptions[0]
       console.log('✅ Suscripción encontrada:', pendingSubscription)
+      
+      // IDEMPOTENCIA: Verificar que no exista duplicación por producto
+      if (pendingSubscription.product_id) {
+        const { data: existingProductActive } = await supabase
+          .from("unified_subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("product_id", pendingSubscription.product_id)
+          .eq("status", "active")
+        
+        if (existingProductActive && existingProductActive.length > 0) {
+          console.log('✅ IDEMPOTENCIA: Usuario ya tiene suscripción activa para producto:', pendingSubscription.product_id)
+          toast({
+            title: "Suscripción ya activa",
+            description: "Ya tienes una suscripción activa para este producto",
+          })
+          loadUserSubscriptions()
+          window.history.replaceState({}, document.title, window.location.pathname)
+          return
+        }
+      }
+      
+      console.log("🚀 PROCESANDO: Activando suscripción pendiente:", pendingSubscription)
       
       // Activar la suscripción con información del producto
       await activateSingleSubscriptionWithProduct(pendingSubscription)
@@ -421,7 +682,7 @@ export default function SuscripcionPage() {
       window.history.replaceState({}, document.title, window.location.pathname)
       
     } catch (error) {
-      console.error("Error activando suscripción:", error)
+      console.error("❌ ERROR: Error activando suscripción:", error)
       toast({
         title: "Error",
         description: "No se pudo activar la suscripción",

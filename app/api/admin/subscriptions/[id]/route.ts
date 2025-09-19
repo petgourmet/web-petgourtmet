@@ -55,7 +55,7 @@ export async function PATCH(
     }
 
     const { data: updatedSubscription, error } = await supabaseAdmin
-      .from("subscriptions")
+      .from("unified_subscriptions")
       .update(updateData)
       .eq("id", subscriptionId)
       .select()

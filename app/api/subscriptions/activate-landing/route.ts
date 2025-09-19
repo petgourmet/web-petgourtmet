@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Buscar la suscripción por external_reference
     const { data: subscription, error: subscriptionError } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .select('*')
       .eq('external_reference', external_reference)
       .maybeSingle()
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     if (preference_id) updateData.preference_id = preference_id
 
     const { data: updatedSubscription, error: updateError } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .update(updateData)
       .eq('id', subscription.id)
       .select()
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     // Actualizar próxima fecha de pago
     await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .update({ next_billing_date: nextBillingDate.toISOString() })
       .eq('id', updatedSubscription.id)
 

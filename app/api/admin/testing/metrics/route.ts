@@ -16,7 +16,7 @@ export async function GET() {
     
     // Obtener métricas de suscripciones
     const { data: subscriptions, error: subscriptionsError } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .select('status, created_at')
     
     if (subscriptionsError) {

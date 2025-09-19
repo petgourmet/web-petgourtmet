@@ -43,7 +43,7 @@ export async function GET(
         if (formData.frequency && formData.frequency !== "none") {
           // Buscar suscripción relacionada si existe
           const { data: subscription } = await supabaseAdmin
-            .from("subscriptions")
+            .from("unified_subscriptions")
             .select(`
               *,
               products (
@@ -75,7 +75,7 @@ export async function GET(
         const shippingData = JSON.parse(order.shipping_address)
         if (shippingData.frequency && shippingData.frequency !== "none") {
           const { data: subscription } = await supabaseAdmin
-            .from("subscriptions")
+            .from("unified_subscriptions")
             .select(`
               *,
               products (

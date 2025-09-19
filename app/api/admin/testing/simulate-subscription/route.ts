@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     
     // Insertar suscripción en la base de datos
     const { error: subscriptionError } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .insert(testSubscription)
     
     if (subscriptionError) {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       try {
         // Actualizar suscripción como activa
         const { error: updateSubError } = await supabase
-          .from('subscriptions')
+          .from('unified_subscriptions')
           .update({
             status: 'active',
             payment_status: 'paid',

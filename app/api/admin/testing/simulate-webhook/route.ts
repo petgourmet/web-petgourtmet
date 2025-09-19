@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       const subscriptionReference = webhookData.external_reference
       
       await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .upsert({
           reference: subscriptionReference,
           user_id: user.id,

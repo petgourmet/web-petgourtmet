@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Buscar suscripciones pendientes de validación
     const { data: pendingSubscriptions, error: subscriptionsError } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .select('*')
       .eq('status', 'pending')
       .not('mercadopago_subscription_id', 'is', null)
@@ -348,7 +348,7 @@ export async function POST(request: NextRequest) {
 
               // Actualizar suscripción a activa
               const { error: updateError } = await supabase
-                .from('subscriptions')
+                .from('unified_subscriptions')
                 .update({
                   status: 'active',
                   next_billing_date: nextBillingDate.toISOString(),

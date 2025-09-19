@@ -153,7 +153,7 @@ async function checkSubscriptionStatus(supabase: any, external_reference?: strin
     // Buscar suscripción pendiente
     if (external_reference) {
       const { data: pendingData } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('external_reference', external_reference)
         .eq('status', 'pending')
@@ -169,7 +169,7 @@ async function checkSubscriptionStatus(supabase: any, external_reference?: strin
     // Buscar suscripción activa del usuario
     if (user_id) {
       const { data: activeData } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('user_id', user_id)
         .eq('status', 'active')

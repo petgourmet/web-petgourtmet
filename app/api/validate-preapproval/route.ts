@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Buscar suscripción pendiente que coincida con el preapproval_id
     const { data: pendingSubscriptions, error: pendingError } = await supabase
-      .from("subscriptions")
+      .from("unified_subscriptions")
       .select("*")
       .eq("user_id", user_id)
       .eq("status", "pending")
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Actualizar suscripción pendiente a activa
     const { data: newSubscription, error: createError } = await supabase
-      .from("subscriptions")
+      .from("unified_subscriptions")
       .update({
         status: "active",
         external_reference: subscriptionInfo.external_reference || preapproval_id,

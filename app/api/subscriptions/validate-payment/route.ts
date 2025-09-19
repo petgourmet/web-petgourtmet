@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // 1. Buscar suscripción en la base de datos local
     if (external_reference) {
       const { data: localSubscription, error: localError } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('external_reference', external_reference)
         .eq('user_id', user_id)
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // 2. Si no se encuentra localmente, buscar por preapproval_id
     if (!subscription && preapproval_id) {
       const { data: preapprovalSubscription, error: preapprovalError } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('mercadopago_subscription_id', preapproval_id)
         .eq('user_id', user_id)
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
 
         if (Object.keys(updateData).length > 1) { // Más que solo updated_at
           await supabase
-            .from('subscriptions')
+            .from('unified_subscriptions')
             .update(updateData)
             .eq('id', subscription.id)
         }

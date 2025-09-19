@@ -1226,21 +1226,36 @@ export class WebhookService {
         }
 
         // Actualizar suscripción pendiente a activa en unified_subscriptions
+        // CRÍTICO: Preservar TODOS los campos importantes
+        const updateData: any = {
+          status: 'active',
+          next_billing_date: nextBillingDate,
+          mercadopago_subscription_id: subscriptionData.id,
+          external_reference: subscriptionData.external_reference || subscriptionData.id,
+          frequency: this.getFrequencyFromType(pendingSubscription.subscription_type || 'monthly'),
+          frequency_type: this.getFrequencyTypeFromType(pendingSubscription.subscription_type || 'monthly'),
+          start_date: new Date().toISOString(),
+          currency_id: 'MXN',
+          transaction_amount: pendingSubscription.discounted_price || pendingSubscription.base_price,
+          metadata: metadata,
+          updated_at: new Date().toISOString(),
+          processed_at: new Date().toISOString()
+        }
+        
+        // Preservar campos críticos si existen
+        if (pendingSubscription.product_name) updateData.product_name = pendingSubscription.product_name
+        if (pendingSubscription.product_image) updateData.product_image = pendingSubscription.product_image
+        if (pendingSubscription.base_price) updateData.base_price = pendingSubscription.base_price
+        if (pendingSubscription.discounted_price) updateData.discounted_price = pendingSubscription.discounted_price
+        if (pendingSubscription.discount_percentage) updateData.discount_percentage = pendingSubscription.discount_percentage
+        if (pendingSubscription.size) updateData.size = pendingSubscription.size
+        if (pendingSubscription.product_id) updateData.product_id = pendingSubscription.product_id
+        if (pendingSubscription.cart_items) updateData.cart_items = pendingSubscription.cart_items
+        if (pendingSubscription.customer_data) updateData.customer_data = pendingSubscription.customer_data
+        
         const { data: activeSubscription, error: activeError } = await supabase
           .from('unified_subscriptions')
-          .update({
-            status: 'active',
-            next_billing_date: nextBillingDate,
-            mercadopago_subscription_id: subscriptionData.id,
-            external_reference: subscriptionData.external_reference || subscriptionData.id,
-            frequency: this.getFrequencyFromType(pendingSubscription.subscription_type || 'monthly'),
-            frequency_type: this.getFrequencyTypeFromType(pendingSubscription.subscription_type || 'monthly'),
-            start_date: new Date().toISOString(),
-            currency_id: 'MXN',
-            transaction_amount: pendingSubscription.discounted_price || pendingSubscription.base_price,
-            metadata: metadata,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', pendingSubscription.id)
           .select()
           .single()
@@ -1392,6 +1407,10 @@ export class WebhookService {
         // Solo considerar 'authorized' y 'active' como estados activos
         if (subscriptionData.status === 'authorized' || subscriptionData.status === 'active') {
           updateData.status = 'active'
+          // CRÍTICO: Cuando se activa, asegurar que processed_at esté establecido
+          if (!subscription.processed_at) {
+            updateData.processed_at = new Date().toISOString()
+          }
         } else if (subscriptionData.status === 'paused') {
           updateData.status = 'paused'
         } else if (subscriptionData.status === 'cancelled') {
@@ -1399,6 +1418,18 @@ export class WebhookService {
         } else {
           // Para otros estados, mantener el estado actual pero actualizar el timestamp
           updateData.status = subscriptionData.status
+        }
+        
+        // CRÍTICO: Preservar campos importantes si no existen en la suscripción actual
+        // Esto es especialmente importante para suscripciones que se crearon sin todos los campos
+        if (!subscription.product_name && subscriptionData.product_name) {
+          updateData.product_name = subscriptionData.product_name
+        }
+        if (!subscription.product_image && subscriptionData.product_image) {
+          updateData.product_image = subscriptionData.product_image
+        }
+        if (!subscription.transaction_amount && subscriptionData.transaction_amount) {
+          updateData.transaction_amount = subscriptionData.transaction_amount
         }
 
         const { error } = await supabase
@@ -2089,34 +2120,36 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
           }
         }
         
-        // Crear suscripción activa
-        const subscriptionData = {
-          user_id: userId,
-          product_id: productId,
-          subscription_type: pendingSub.subscription_type,
+        // ACTUALIZAR suscripción pendiente existente (NO crear nueva)
+        const updateData = {
           status: data.status === 'authorized' ? 'active' : data.status,
           mercadopago_subscription_id: data.id,
           external_reference: data.external_reference,
           payer_email: data.payer_email,
           next_billing_date: data.next_payment_date,
           is_active: data.status === 'authorized',
-          created_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }
         
-        const { error: insertError } = await supabase
-          .from('unified_subscriptions')
-          .insert(subscriptionData)
+        // CRÍTICO: Preservar campos de producto existentes si ya están en la suscripción pendiente
+        if (pendingSub.product_name) updateData.product_name = pendingSub.product_name
+        if (pendingSub.product_image) updateData.product_image = pendingSub.product_image
+        if (pendingSub.base_price) updateData.base_price = pendingSub.base_price
+        if (pendingSub.discounted_price) updateData.discounted_price = pendingSub.discounted_price
+        if (pendingSub.discount_percentage) updateData.discount_percentage = pendingSub.discount_percentage
+        if (pendingSub.size) updateData.size = pendingSub.size
+        if (pendingSub.product_id) updateData.product_id = pendingSub.product_id
+        if (pendingSub.cart_items) updateData.cart_items = pendingSub.cart_items
+        if (pendingSub.customer_data) updateData.customer_data = pendingSub.customer_data
+        if (pendingSub.transaction_amount) updateData.transaction_amount = pendingSub.transaction_amount
         
-        if (!insertError) {
-          // Marcar suscripción como procesada
-          await supabase
-            .from('unified_subscriptions')
-            .update({
-              status: 'active',
-              processed_at: new Date().toISOString(),
-              mercadopago_subscription_id: data.id
-            })
-            .eq('id', pendingSub.id)
+        const { error: updateError } = await supabase
+          .from('unified_subscriptions')
+          .update(updateData)
+          .eq('id', pendingSub.id)
+        
+        if (!updateError) {
           
           // Actualizar perfil del usuario con suscripción activa
           if (data.status === 'authorized') {
@@ -2129,15 +2162,17 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
               .eq('id', userId)
           }
           
-          logger.info(LogCategory.WEBHOOK, 'Suscripción activada exitosamente', {
+          logger.info(LogCategory.WEBHOOK, 'Suscripción pendiente actualizada a activa exitosamente', {
             subscriptionId: data.id,
+            pendingSubscriptionId: pendingSub.id,
             userId: userId,
             status: data.status
           })
         } else {
-          logger.error(LogCategory.WEBHOOK, 'Error creando suscripción activa', insertError.message, {
-            error: insertError.message,
-            subscriptionData
+          logger.error(LogCategory.WEBHOOK, 'Error actualizando suscripción pendiente a activa', updateError.message, {
+            error: updateError.message,
+            pendingSubscriptionId: pendingSub.id,
+            updateData
           })
         }
       } else if (extractedUserId) {
@@ -2158,11 +2193,18 @@ async function handleSubscriptionPreapproval(data: any, supabase: any): Promise<
           payer_email: data.payer_email,
           next_billing_date: data.next_payment_date,
           is_active: data.status === 'authorized',
-          created_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          // CRÍTICO: Agregar customer_data básico
+          customer_data: {
+            email: data.payer_email,
+            processed_via: 'webhook_preapproval',
+            mercadopago_subscription_id: data.id
+          }
         }
         
         const { error: insertError } = await supabase
-          .from('subscriptions')
+          .from('unified_subscriptions')
           .insert(subscriptionData)
         
         if (!insertError && data.status === 'authorized') {
@@ -2230,14 +2272,49 @@ async function handleSubscriptionPayment(data: any, supabase: any): Promise<void
       const nextBillingDate = new Date()
       nextBillingDate.setMonth(nextBillingDate.getMonth() + 1) // Asumir mensual por defecto
       
-      await supabase
-        .from('subscriptions')
-        .update({
+      // CRÍTICO: Obtener la suscripción actual para preservar campos existentes
+      const { data: currentSub, error: fetchError } = await supabase
+        .from('unified_subscriptions')
+        .select('*')
+        .eq('mercadopago_subscription_id', data.preapproval_id)
+        .single()
+      
+      if (!fetchError && currentSub) {
+        const updateData = {
           last_billing_date: data.date_created || new Date().toISOString(),
           next_billing_date: nextBillingDate.toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('mercadopago_subscription_id', data.preapproval_id)
+          updated_at: new Date().toISOString(),
+          processed_at: new Date().toISOString()
+        }
+        
+        // CRÍTICO: Preservar todos los campos de producto existentes
+        if (currentSub.product_name) updateData.product_name = currentSub.product_name
+        if (currentSub.product_image) updateData.product_image = currentSub.product_image
+        if (currentSub.base_price) updateData.base_price = currentSub.base_price
+        if (currentSub.discounted_price) updateData.discounted_price = currentSub.discounted_price
+        if (currentSub.discount_percentage) updateData.discount_percentage = currentSub.discount_percentage
+        if (currentSub.size) updateData.size = currentSub.size
+        if (currentSub.product_id) updateData.product_id = currentSub.product_id
+        if (currentSub.cart_items) updateData.cart_items = currentSub.cart_items
+        if (currentSub.customer_data) updateData.customer_data = currentSub.customer_data
+        if (currentSub.transaction_amount) updateData.transaction_amount = currentSub.transaction_amount
+        
+        await supabase
+          .from('unified_subscriptions')
+          .update(updateData)
+          .eq('mercadopago_subscription_id', data.preapproval_id)
+      } else {
+        // Fallback si no se puede obtener la suscripción actual
+        await supabase
+          .from('unified_subscriptions')
+          .update({
+            last_billing_date: data.date_created || new Date().toISOString(),
+            next_billing_date: nextBillingDate.toISOString(),
+            updated_at: new Date().toISOString(),
+            processed_at: new Date().toISOString()
+          })
+          .eq('mercadopago_subscription_id', data.preapproval_id)
+      }
     }
     
     logger.info(LogCategory.WEBHOOK, 'Pago de suscripción procesado', {

@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
     } else if (subscriptionId) {
       // Verificar suscripción
       const { data: subscription, error: subError } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('mercadopago_subscription_id', subscriptionId)
         .single();
@@ -362,7 +362,7 @@ export async function GET(request: NextRequest) {
     } else if (type === 'subscriptions') {
       // Obtener suscripciones activas
       const { data: subscriptions, error } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false })

@@ -6,6 +6,7 @@ import MercadoPagoService from '@/lib/mercadopago-service'
 import MercadoPagoServiceMock from '@/lib/mercadopago-service-mock'
 import { createClient } from '@/lib/supabase/server'
 import DynamicDiscountService, { SubscriptionType } from '@/lib/dynamic-discount-service'
+import logger, { LogCategory } from '@/lib/logger'
 
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -24,6 +25,16 @@ const mercadoPagoService = USE_MOCK
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    
+    logger.info(LogCategory.SUBSCRIPTION, 'Iniciando creación de suscripción sin plan', {
+      hasPayerEmail: !!body.payer_email,
+      hasReason: !!body.reason,
+      hasExternalReference: !!body.external_reference,
+      hasBackUrl: !!body.back_url,
+      hasAutoRecurring: !!body.auto_recurring,
+      requestOrigin: request.headers.get('origin') || 'unknown'
+    })
+    
     const supabase = await createClient()
     
     const {
@@ -52,6 +63,9 @@ export async function POST(request: NextRequest) {
 
     // Validaciones requeridas para suscripciones sin plan según documentación
     if (!payer_email) {
+      logger.warn(LogCategory.SUBSCRIPTION, 'payer_email faltante en creación de suscripción', {
+        externalReference: external_reference || 'no-reference'
+      })
       return NextResponse.json(
         { error: 'payer_email es requerido' },
         { status: 400 }
@@ -59,6 +73,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (!reason) {
+      logger.warn(LogCategory.SUBSCRIPTION, 'reason faltante en creación de suscripción', {
+        externalReference: external_reference || 'no-reference'
+      })
       return NextResponse.json(
         { error: 'reason es requerido para suscripciones sin plan asociado' },
         { status: 400 }
@@ -66,6 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!external_reference) {
+      logger.warn(LogCategory.SUBSCRIPTION, 'external_reference faltante en creación de suscripción', {})
       return NextResponse.json(
         { error: 'external_reference es requerido para suscripciones sin plan asociado' },
         { status: 400 }
@@ -73,6 +91,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (!back_url) {
+      logger.warn(LogCategory.SUBSCRIPTION, 'back_url faltante en creación de suscripción', {
+        externalReference: external_reference
+      })
       return NextResponse.json(
         { error: 'back_url es requerido para suscripciones sin plan asociado' },
         { status: 400 }
@@ -80,6 +101,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (!auto_recurring) {
+      logger.warn(LogCategory.SUBSCRIPTION, 'auto_recurring faltante en creación de suscripción', {
+        externalReference: external_reference
+      })
       return NextResponse.json(
         { error: 'auto_recurring es requerido para suscripciones sin plan' },
         { status: 400 }
@@ -88,6 +112,13 @@ export async function POST(request: NextRequest) {
 
     // Validar campos de auto_recurring
     if (!auto_recurring.frequency || !auto_recurring.frequency_type || !auto_recurring.transaction_amount) {
+      logger.warn(LogCategory.SUBSCRIPTION, 'Datos de auto_recurring incompletos', {
+        hasFrequency: !!auto_recurring.frequency,
+        hasFrequencyType: !!auto_recurring.frequency_type,
+        hasTransactionAmount: !!auto_recurring.transaction_amount,
+        externalReference: external_reference
+      })
+      
       return NextResponse.json(
         { error: 'auto_recurring debe incluir frequency, frequency_type y transaction_amount' },
         { status: 400 }
@@ -116,63 +147,215 @@ export async function POST(request: NextRequest) {
       subscriptionData.card_token_id = card_token_id
     }
 
+    logger.info(LogCategory.SUBSCRIPTION, 'Datos de suscripción preparados para MercadoPago', {
+      externalReference: external_reference,
+      payerEmail: payer_email,
+      reason: reason,
+      frequency: auto_recurring.frequency,
+      frequencyType: auto_recurring.frequency_type,
+      transactionAmount: auto_recurring.transaction_amount,
+      backUrl: back_url
+    })
+    
     console.log('📤 Datos enviados a MercadoPago:', JSON.stringify(subscriptionData, null, 2))
 
     // Crear la suscripción en MercadoPago
     const result = await mercadoPagoService.createSubscription(subscriptionData)
 
+    logger.info(LogCategory.SUBSCRIPTION, 'Suscripción creada exitosamente en MercadoPago', {
+      subscriptionId: result.id,
+      status: result.status,
+      externalReference: external_reference,
+      payerEmail: payer_email,
+      transactionAmount: auto_recurring.transaction_amount,
+      hasInitPoint: !!result.init_point
+    })
+    
     console.log('✅ Suscripción creada en MercadoPago:', {
       id: result.id,
       status: result.status,
       init_point: result.init_point
     })
 
-    // Crear suscripción pendiente con descuentos dinámicos si hay user_id y product_id
-    if (user_id && product_id && subscription_type) {
-      try {
-        // Convertir subscription_type a SubscriptionType si es necesario
-        let subscriptionTypeEnum: SubscriptionType
+    // Guardar o actualizar suscripción en unified_subscriptions
+    try {
+      const supabase = await createClient()
+      let existingSubscription = null
+      
+      // Buscar suscripción existente si hay user_id y external_reference
+      if (user_id && external_reference) {
+        const { data, error: findError } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('external_reference', external_reference)
+          .eq('user_id', user_id)
+          .eq('status', 'pending')
+          .single()
         
-        // Mapear tipos de suscripción comunes
-        if (subscription_type.includes('week')) {
-          subscriptionTypeEnum = subscription_type.includes('2') ? 'biweekly' : 'weekly'
-        } else if (subscription_type.includes('month')) {
-          if (subscription_type.includes('3')) {
-            subscriptionTypeEnum = 'quarterly'
-          } else if (subscription_type.includes('12')) {
-            subscriptionTypeEnum = 'annual'
-          } else {
-            subscriptionTypeEnum = 'monthly'
-          }
-        } else {
-          // Fallback basado en auto_recurring
-          subscriptionTypeEnum = DynamicDiscountService.planFrequencyToSubscriptionType(
-            auto_recurring.frequency,
-            auto_recurring.frequency_type
-          )
+        if (data && !findError) {
+          existingSubscription = data
         }
-
-        const { pendingSubscription, discountResult } = await DynamicDiscountService.createPendingSubscription({
-          userId: user_id,
-          productId: product_id,
-          subscriptionType: subscriptionTypeEnum,
-          externalReference: result.external_reference,
-          mercadopagoSubscriptionId: result.id,
-          quantity: quantity,
-          planId: plan_id
-        })
-
-        console.log('💾 Suscripción pendiente creada con descuentos dinámicos:', {
-          id: pendingSubscription.id,
-          originalPrice: discountResult.originalPrice,
-          discountPercentage: discountResult.discountPercentage,
-          discountedPrice: discountResult.discountedPrice
-        })
-
-      } catch (dbError) {
-        console.error('⚠️ Error creando suscripción pendiente:', dbError)
-        // No fallar la respuesta si hay error en BD, pero loggearlo
       }
+
+      if (existingSubscription) {
+        // ACTUALIZAR suscripción existente
+          // Preparar datos de actualización con campos esenciales
+          const updateData: any = {
+            mercadopago_subscription_id: result.id,
+            updated_at: new Date().toISOString(),
+            processed_at: new Date().toISOString()
+          }
+
+          // Agregar customer_data si se proporciona payer_email
+          if (payer_email) {
+            updateData.customer_data = {
+              email: payer_email,
+              processed_via: 'create-without-plan',
+              mercadopago_subscription_id: result.id
+            }
+          }
+
+          // Agregar cart_items si hay información del producto
+          if (product_id) {
+            // Obtener información del producto para cart_items
+            const { data: productData, error: productError } = await supabase
+              .from('products')
+              .select('*')
+              .eq('id', product_id)
+              .single()
+
+            if (productData && !productError) {
+              updateData.cart_items = [{
+                product_id: productData.id,
+                product_name: productData.name,
+                quantity: quantity || 1,
+                price: productData.price,
+                size: productData.size || 'Standard',
+                isSubscription: true,
+                subscriptionType: subscription_type || 'monthly'
+              }]
+              
+              // Agregar campos del producto si no existen
+              if (!existingSubscription.product_name) {
+                updateData.product_name = productData.name
+              }
+              if (!existingSubscription.product_image) {
+                updateData.product_image = productData.image
+              }
+              if (!existingSubscription.size) {
+                updateData.size = productData.size || 'Standard'
+              }
+            }
+          }
+
+          // Actualizar la suscripción existente con todos los campos
+          const { error: updateError } = await supabase
+            .from('unified_subscriptions')
+            .update(updateData)
+            .eq('id', existingSubscription.id)
+
+          if (updateError) {
+            logger.error(LogCategory.SUBSCRIPTION, 'Error actualizando suscripción con ID de MercadoPago', updateError.message, {
+              externalReference: external_reference,
+              mercadopagoSubscriptionId: result.id,
+              errorCode: updateError.code,
+              errorDetails: updateError.details
+            })
+            console.error('⚠️ Error actualizando suscripción existente:', updateError)
+          } else {
+            logger.info(LogCategory.SUBSCRIPTION, 'Suscripción actualizada exitosamente con ID de MercadoPago', {
+              externalReference: external_reference,
+              mercadopagoSubscriptionId: result.id
+            })
+            console.log('✅ Suscripción existente actualizada con mercadopago_subscription_id:', result.id)
+          }
+      } else {
+        // CREAR nueva suscripción si no existe una previa
+        console.log('📝 Creando nueva suscripción en unified_subscriptions')
+        
+        // Preparar datos para nueva suscripción
+        const newSubscriptionData: any = {
+          external_reference: external_reference,
+          mercadopago_subscription_id: result.id,
+          status: result.status || 'pending',
+          subscription_type: subscription_type || 'monthly',
+          frequency: auto_recurring.frequency,
+          frequency_type: auto_recurring.frequency_type,
+          transaction_amount: auto_recurring.transaction_amount,
+          currency_id: auto_recurring.currency_id || 'MXN',
+          processed_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        // Agregar user_id si se proporciona
+        if (user_id) {
+          newSubscriptionData.user_id = user_id
+        }
+        
+        // Agregar customer_data
+        if (payer_email) {
+          newSubscriptionData.customer_data = {
+            email: payer_email,
+            processed_via: 'create-without-plan',
+            mercadopago_subscription_id: result.id
+          }
+        }
+        
+        // Agregar información del producto si está disponible
+        if (product_id) {
+          const { data: productData, error: productError } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', product_id)
+            .single()
+          
+          if (productData && !productError) {
+            newSubscriptionData.product_id = productData.id
+            newSubscriptionData.product_name = productData.name
+            newSubscriptionData.product_image = productData.image
+            newSubscriptionData.size = productData.size || 'Standard'
+            newSubscriptionData.base_price = productData.price
+            newSubscriptionData.discounted_price = productData.price // Por defecto igual al precio base
+            newSubscriptionData.discount_percentage = 0
+            
+            newSubscriptionData.cart_items = [{
+              product_id: productData.id,
+              product_name: productData.name,
+              quantity: quantity || 1,
+              price: productData.price,
+              size: productData.size || 'Standard',
+              isSubscription: true,
+              subscriptionType: subscription_type || 'monthly'
+            }]
+          }
+        }
+        
+        // Crear la nueva suscripción
+        const { error: insertError } = await supabase
+          .from('unified_subscriptions')
+          .insert([newSubscriptionData])
+        
+        if (insertError) {
+          logger.error(LogCategory.SUBSCRIPTION, 'Error creando nueva suscripción en unified_subscriptions', insertError.message, {
+            externalReference: external_reference,
+            mercadopagoSubscriptionId: result.id,
+            errorCode: insertError.code,
+            errorDetails: insertError.details
+          })
+          console.error('⚠️ Error creando nueva suscripción:', insertError)
+        } else {
+          logger.info(LogCategory.SUBSCRIPTION, 'Nueva suscripción creada exitosamente en unified_subscriptions', {
+            externalReference: external_reference,
+            mercadopagoSubscriptionId: result.id
+          })
+          console.log('✅ Nueva suscripción creada en unified_subscriptions')
+        }
+      }
+      
+    } catch (dbError) {
+      console.error('⚠️ Error en operaciones de base de datos:', dbError)
+      // No fallar la respuesta si hay error en BD, pero loggearlo
     }
 
     // Respuesta exitosa
@@ -200,6 +383,12 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    logger.error(LogCategory.SUBSCRIPTION, 'Error crítico creando suscripción sin plan', error.message, {
+      errorStack: error.stack,
+      errorName: error.name,
+      requestOrigin: request.headers.get('origin') || 'unknown'
+    })
+    
     console.error('❌ Error creando suscripción sin plan:', error)
     
     // Manejar errores específicos de MercadoPago

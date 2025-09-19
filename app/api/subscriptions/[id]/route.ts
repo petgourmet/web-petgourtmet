@@ -23,7 +23,7 @@ export async function GET(
 
     // Obtener suscripción específica
     const { data: subscription, error } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .select(`
         *,
         products:product_id (

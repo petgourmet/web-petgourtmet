@@ -87,7 +87,7 @@ async function getSystemMetrics(supabase: any) {
 
     // Obtener suscripciones activas
     const { data: subscriptionsData, error: subscriptionsError } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .select('id')
       .eq('status', 'active')
     

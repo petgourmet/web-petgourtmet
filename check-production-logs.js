@@ -1,4 +1,37 @@
-const { getRecentErrors, getLogStats, getWebhookLogs } = require('./lib/logger');
+const logger = require('./lib/logger.ts').default;
+
+// Funciones auxiliares para obtener datos del logger
+function getLogStats() {
+  const logs = logger.getLogs();
+  const stats = {
+    total: logs.length,
+    recentErrors: logs.filter(log => log.level === 'error' && 
+      new Date(log.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length,
+    byLevel: {},
+    byCategory: {}
+  };
+  
+  logs.forEach(log => {
+    stats.byLevel[log.level] = (stats.byLevel[log.level] || 0) + 1;
+    stats.byCategory[log.category] = (stats.byCategory[log.category] || 0) + 1;
+  });
+  
+  return stats;
+}
+
+function getRecentErrors(limit = 20) {
+  return logger.getLogs()
+    .filter(log => log.level === 'error')
+    .slice(-limit)
+    .reverse();
+}
+
+function getWebhookLogs(limit = 10) {
+  return logger.getLogs()
+    .filter(log => log.category === 'webhook')
+    .slice(-limit)
+    .reverse();
+}
 
 console.log('=== VERIFICACIÓN DE LOGS DE PRODUCCIÓN ===\n');
 

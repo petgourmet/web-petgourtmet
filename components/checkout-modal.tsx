@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { supabase } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
+import logger, { LogCategory } from '@/lib/logger'
 
 export function CheckoutModal() {
   const { cart, calculateCartTotal, setShowCheckout, clearCart, showCheckout } = useCart()
@@ -429,18 +430,65 @@ export function CheckoutModal() {
 
         // Validar que solo haya una suscripción en el carrito
         const subscriptionItems = cart.filter(item => item.isSubscription)
+        logger.info(LogCategory.SUBSCRIPTION, 'Validando carrito de suscripción', {
+          totalItems: cart.length,
+          subscriptionItems: subscriptionItems.length,
+          userId: user.id,
+          externalReference
+        })
+        
         if (subscriptionItems.length > 1) {
+          logger.warn(LogCategory.SUBSCRIPTION, 'Múltiples suscripciones detectadas en carrito', {
+            subscriptionCount: subscriptionItems.length,
+            userId: user.id
+          })
           setError("Solo puedes procesar una suscripción por vez. Por favor, mantén solo un producto de suscripción en tu carrito.")
           return
         }
 
-        // Crear registro de suscripción en la base de datos
+        // Crear registro de suscripción en la base de datos con todos los campos obligatorios
         try {
+          const subscriptionItem = cart.find(item => item.isSubscription)
+          if (!subscriptionItem) {
+            logger.error(LogCategory.SUBSCRIPTION, 'No se encontró producto de suscripción en carrito', {
+              cartItems: cart.length,
+              userId: user.id,
+              externalReference
+            })
+            setError("No se encontró producto de suscripción en el carrito")
+            return
+          }
+          
+          logger.info(LogCategory.SUBSCRIPTION, 'Producto de suscripción encontrado', {
+            productId: subscriptionItem.id,
+            productName: subscriptionItem.name,
+            subscriptionType,
+            userId: user.id,
+            externalReference
+          })
+
+          // Calcular precio con descuento
+          const discount = getProductSubscriptionDiscount(subscriptionItem, subscriptionType)
+          const basePrice = subscriptionItem.price
+          const discountPercentage = discount * 100
+          const discountedPrice = basePrice * (1 - discount)
+          const transactionAmount = discountedPrice * subscriptionItem.quantity
+
           const subscriptionData = {
             user_id: user.id,
+            product_id: subscriptionItem.id,
+            product_name: subscriptionItem.name,
+            product_image: subscriptionItem.image,
             subscription_type: subscriptionType,
             status: 'pending',
             external_reference: externalReference,
+            base_price: basePrice,
+            discounted_price: discountedPrice,
+            discount_percentage: discountPercentage,
+            transaction_amount: transactionAmount,
+            size: subscriptionItem.size || 'Standard',
+            quantity: subscriptionItem.quantity,
+            processed_at: new Date().toISOString(),
             customer_data: {
               firstName: customerInfo.firstName,
               lastName: customerInfo.lastName,
@@ -459,6 +507,18 @@ export function CheckoutModal() {
             }))
           }
 
+          logger.info(LogCategory.SUBSCRIPTION, 'Creando registro de suscripción pendiente', {
+            userId: user.id,
+            productId: subscriptionItem.id,
+            productName: subscriptionItem.name,
+            subscriptionType,
+            externalReference,
+            transactionAmount,
+            basePrice,
+            discountedPrice,
+            discountPercentage
+          })
+          
           console.log('Guardando suscripción pendiente:', subscriptionData)
 
           // Guardar información de suscripción pendiente y esperar confirmación
@@ -468,6 +528,20 @@ export function CheckoutModal() {
             .select()
 
           if (subscriptionError) {
+            logger.error(LogCategory.SUBSCRIPTION, 'Error guardando suscripción pendiente', subscriptionError.message, {
+              userId: user.id,
+              externalReference,
+              errorCode: subscriptionError.code,
+              errorDetails: subscriptionError.details,
+              errorHint: subscriptionError.hint,
+              subscriptionData: {
+                productId: subscriptionItem.id,
+                productName: subscriptionItem.name,
+                subscriptionType,
+                transactionAmount
+              }
+            })
+            
             console.error('Error al guardar suscripción pendiente:', {
               message: subscriptionError.message,
               code: subscriptionError.code,
@@ -498,6 +572,16 @@ export function CheckoutModal() {
             return
           }
 
+          logger.info(LogCategory.SUBSCRIPTION, 'Suscripción pendiente guardada exitosamente', {
+            subscriptionId: insertedData?.[0]?.id,
+            userId: user.id,
+            externalReference,
+            productId: subscriptionItem.id,
+            productName: subscriptionItem.name,
+            subscriptionType,
+            transactionAmount
+          })
+          
           console.log('✅ Suscripción pendiente guardada exitosamente:', insertedData)
 
           // Mostrar mensaje de confirmación
@@ -518,11 +602,29 @@ export function CheckoutModal() {
           const subscriptionLink = getSubscriptionLink(subscriptionType)
           const finalLink = `${subscriptionLink}&external_reference=${externalReference}&back_url=${encodeURIComponent(window.location.origin + '/suscripcion')}`
           
+          logger.info(LogCategory.SUBSCRIPTION, 'Redirigiendo a MercadoPago para suscripción', {
+            userId: user.id,
+            externalReference,
+            subscriptionType,
+            redirectUrl: finalLink,
+            productId: subscriptionItem.id,
+            transactionAmount
+          })
+          
           console.log('Redirigiendo a:', finalLink)
           window.location.href = finalLink
 
           return
         } catch (error) {
+          logger.error(LogCategory.SUBSCRIPTION, 'Error crítico procesando suscripción', error?.message || 'Error desconocido', {
+            userId: user.id,
+            externalReference,
+            subscriptionType,
+            errorStack: error?.stack,
+            errorName: error?.name,
+            cartItems: cart.length
+          })
+          
           console.error('Error al procesar suscripción:', {
             message: error?.message || 'Error desconocido',
             stack: error?.stack,

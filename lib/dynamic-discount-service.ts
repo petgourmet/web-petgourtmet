@@ -159,9 +159,23 @@ export class DynamicDiscountService {
     mercadopagoSubscriptionId?: string
     quantity?: number
     planId?: string
+    customerData?: any
+    cartItems?: any[]
+    size?: string
   }) {
     try {
       const supabase = await createClient()
+      
+      // CRÍTICO: Obtener información completa del producto
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('id, name, image, price, weekly_discount, biweekly_discount, monthly_discount, quarterly_discount, annual_discount')
+        .eq('id', data.productId)
+        .single()
+
+      if (productError || !product) {
+        throw new Error(`No se pudo obtener información del producto: ${productError?.message}`)
+      }
       
       // Obtener descuento dinámico del producto
       const discountResult = await this.getProductSubscriptionDiscount(
@@ -173,7 +187,7 @@ export class DynamicDiscountService {
         throw new Error('No se pudo calcular el descuento dinámico para el producto')
       }
 
-      // Crear registro en unified_subscriptions
+      // CRÍTICO: Crear registro en unified_subscriptions con TODOS los campos necesarios
       const { data: pendingSubscription, error } = await supabase
         .from('unified_subscriptions')
         .insert({
@@ -182,12 +196,36 @@ export class DynamicDiscountService {
           subscription_type: data.subscriptionType,
           external_reference: data.externalReference,
           mercadopago_subscription_id: data.mercadopagoSubscriptionId,
-          discounted_price: discountResult.discountedPrice,
+          // CRÍTICO: Campos de producto
+          product_name: product.name,
+          product_image: product.image,
+          // CRÍTICO: Campos de precio
           base_price: discountResult.originalPrice,
+          discounted_price: discountResult.discountedPrice,
           discount_percentage: discountResult.discountPercentage,
+          transaction_amount: discountResult.discountedPrice,
+          // CRÍTICO: Campos adicionales
+          size: data.size,
           quantity: data.quantity || 1,
           plan_id: data.planId,
+          // CRÍTICO: Datos del cliente y carrito
+          customer_data: data.customerData || {
+            created_via: 'dynamic_discount_service',
+            subscription_type: data.subscriptionType,
+            product_id: data.productId
+          },
+          cart_items: data.cartItems || [{
+            id: data.productId,
+            name: product.name,
+            image: product.image,
+            price: discountResult.originalPrice,
+            discounted_price: discountResult.discountedPrice,
+            quantity: data.quantity || 1,
+            size: data.size
+          }],
+          // CRÍTICO: Timestamps
           status: 'pending',
+          processed_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -201,7 +239,8 @@ export class DynamicDiscountService {
 
       return {
         pendingSubscription,
-        discountResult
+        discountResult,
+        product
       }
     } catch (error) {
       console.error('Error en createPendingSubscription:', error)

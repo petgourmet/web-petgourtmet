@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     if (user_id) {
       try {
         const { data: subscription, error: dbError } = await supabase
-          .from('subscriptions')
+          .from('unified_subscriptions')
           .insert({
             user_id,
             mercadopago_subscription_id: result.id,
