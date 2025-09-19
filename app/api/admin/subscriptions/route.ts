@@ -9,28 +9,9 @@ export async function GET(request: NextRequest) {
     // Usar cliente de servicio que bypassa RLS completamente
     const serviceClient = createServiceClient()
     
-    // Consulta optimizada para obtener todas las suscripciones
-    const [userSubscriptionsResult, pendingSubscriptionsResult, billingHistoryResult] = await Promise.all([
-      // Todas las suscripciones (activas, canceladas, etc.) - SIN FILTRO DE USUARIO
-      serviceClient
-        .from('unified_subscriptions')
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            image,
-            price,
-            weekly_discount,
-            monthly_discount,
-            quarterly_discount,
-            annual_discount,
-            biweekly_discount
-          )
-        `)
-        .order('created_at', { ascending: false }),
-      
-      // Suscripciones pendientes - SIN FILTRO DE USUARIO
+    // Consulta optimizada para obtener todas las suscripciones (una sola consulta)
+    const [subscriptionsResult, billingHistoryResult] = await Promise.all([
+      // Todas las suscripciones (activas, canceladas, pendientes, etc.) - SIN FILTRO DE USUARIO
       serviceClient
         .from('unified_subscriptions')
         .select(`
@@ -73,21 +54,17 @@ export async function GET(request: NextRequest) {
         .order('transaction_date', { ascending: false })
     ])
     
-    if (userSubscriptionsResult.error) {
-      console.error('Error fetching user subscriptions (admin):', userSubscriptionsResult.error)
-    }
-    if (pendingSubscriptionsResult.error) {
-      console.error('Error fetching pending subscriptions (admin):', pendingSubscriptionsResult.error)
+    if (subscriptionsResult.error) {
+      console.error('Error fetching subscriptions (admin):', subscriptionsResult.error)
     }
     if (billingHistoryResult.error) {
       console.error('Error fetching billing history (admin):', billingHistoryResult.error)
     }
     
-    const userSubscriptions = userSubscriptionsResult.data || []
-    const pendingSubscriptions = pendingSubscriptionsResult.data || []
+    const allSubscriptions = subscriptionsResult.data || []
     const billingHistory = billingHistoryResult.data || []
     
-    console.log(`📊 Admin data loaded: ${userSubscriptions.length} user subs, ${pendingSubscriptions.length} pending, ${billingHistory.length} billing records`)
+    console.log(`📊 Admin data loaded: ${allSubscriptions.length} subscriptions, ${billingHistory.length} billing records`)
     
     // Función auxiliar para obtener frecuencia
     function getFrequencyFromType(subscriptionType: string): string {
@@ -101,8 +78,8 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Procesar suscripciones activas
-    const processedActiveSubscriptions = userSubscriptions.map(subscription => {
+    // Procesar todas las suscripciones (sin duplicación)
+    const processedSubscriptions = allSubscriptions.map(subscription => {
       const product = subscription.products
       const frequency = getFrequencyFromType(subscription.subscription_type)
       
@@ -151,66 +128,11 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    // Procesar suscripciones pendientes
-    const processedPendingSubscriptions = pendingSubscriptions.map(subscription => {
-      const product = subscription.products
-      const frequency = getFrequencyFromType(subscription.subscription_type)
-      
-      // Descuento esperado (desde producto en BD)
-      let expectedDiscount = 0
-      if (product) {
-        switch (frequency) {
-          case 'weekly':
-            expectedDiscount = product.weekly_discount || 0
-            break
-          case 'monthly':
-            expectedDiscount = product.monthly_discount || 0
-            break
-          case 'quarterly':
-            expectedDiscount = product.quarterly_discount || 0
-            break
-          case 'annual':
-            expectedDiscount = product.annual_discount || 0
-            break
-          case 'biweekly':
-            expectedDiscount = product.biweekly_discount || 0
-            break
-        }
-      }
-    
-      const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage))
-        ? subscription.discount_percentage
-        : expectedDiscount
-    
-      const basePrice = (product?.price ?? subscription.price ?? 0) as number
-      const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
-      
-      return {
-        id: `pending_${subscription.id}`,
-        user_id: subscription.user_id,
-        product_id: subscription.product_id,
-        status: 'pending',
-        frequency,
-        price: subscription.price || 0,
-        discount_amount: appliedDiscount,
-        discount_percentage: appliedDiscount,
-        base_price: basePrice,
-        discounted_price: discountedPrice,
-        expected_discount_percentage: expectedDiscount,
-        applied_discount_percentage: appliedDiscount,
-        discount_valid: appliedDiscount === expectedDiscount,
-        next_billing_date: null,
-        created_at: subscription.created_at,
-        source: 'subscriptions',
-        products: product
-      }
-    })
-    
     // Procesar suscripciones del historial de facturación
     const processedBillingSubscriptions = billingHistory
       .filter(billing => {
         // Solo incluir si no existe ya en subscriptions
-        const existsInActive = userSubscriptions.some(sub => 
+        const existsInActive = allSubscriptions.some(sub => 
           sub.id === billing.unified_subscriptions?.id ||
           sub.mercadopago_subscription_id === billing.unified_subscriptions?.mercadopago_subscription_id
         )
@@ -279,13 +201,12 @@ export async function GET(request: NextRequest) {
       })
     
     // Combinar y deduplicar
-    const allSubscriptions = [
-      ...processedActiveSubscriptions, 
-      ...processedPendingSubscriptions,
+    const combinedSubscriptions = [
+      ...processedSubscriptions,
       ...processedBillingSubscriptions
     ]
     
-    const uniqueSubscriptions = allSubscriptions.filter((sub, index, self) =>
+    const uniqueSubscriptions = combinedSubscriptions.filter((sub, index, self) =>
       index === self.findIndex(s => s.id === sub.id)
     )
     
