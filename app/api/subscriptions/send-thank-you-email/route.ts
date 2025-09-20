@@ -285,7 +285,7 @@ function generateThankYouEmailHtml(userName: string, subscriptionDetails: any): 
           <p>Tu mascota recibirá los mejores productos gourmet directamente en tu puerta. Nos aseguraremos de que cada entrega sea una experiencia especial.</p>
           
           <div style="text-align: center;">
-            <a href="https://petgourmet.com/suscripcion" class="cta-button">Administrar mi suscripción</a>
+            <a href="https://petgourmet.mx/perfil" class="cta-button">Administrar mi suscripción</a>
           </div>
           
           <p><strong>¿Tienes alguna pregunta?</strong><br>
@@ -325,7 +325,7 @@ ${next_billing_date ? `- Próximo cobro: ${new Date(next_billing_date).toLocaleD
 
 Tu mascota recibirá los mejores productos gourmet directamente en tu puerta. Nos aseguraremos de que cada entrega sea una experiencia especial.
 
-Puedes administrar tu suscripción en cualquier momento visitando: https://petgourmet.com/suscripcion
+Puedes administrar tu suscripción en cualquier momento visitando: https://petgourmet.mx/perfil
 
 ¿Tienes alguna pregunta?
 No dudes en contactarnos en cualquier momento. Estamos aquí para ayudarte.

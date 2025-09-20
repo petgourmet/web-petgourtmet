@@ -458,27 +458,128 @@ export default function SuscripcionPage() {
       updateData.discount_percentage = discountPercentage
       updateData.transaction_amount = pendingSubscription.transaction_amount || updateData.discounted_price
       
-      // Validar campos obligatorios
+      // NUEVA LÓGICA: Recuperar precios faltantes desde múltiples fuentes
+      console.log('💰 DIAGNÓSTICO DE PRECIOS - Estado actual:', {
+        base_price: updateData.base_price,
+        discounted_price: updateData.discounted_price,
+        transaction_amount: updateData.transaction_amount,
+        pendingSubscription_base_price: pendingSubscription.base_price,
+        pendingSubscription_discounted_price: pendingSubscription.discounted_price,
+        pendingSubscription_transaction_amount: pendingSubscription.transaction_amount
+      })
+
+      // Recuperar precios faltantes desde fuentes alternativas
+      if (!updateData.base_price || updateData.base_price === 0) {
+        console.log('🔍 RECUPERANDO base_price desde fuentes alternativas...')
+        
+        // Fuente 1: Desde pendingSubscription
+        if (pendingSubscription.base_price && pendingSubscription.base_price > 0) {
+          updateData.base_price = pendingSubscription.base_price
+          console.log('✅ base_price recuperado desde pendingSubscription:', updateData.base_price)
+        }
+        // Fuente 2: Desde productInfo
+        else if (productInfo?.price && productInfo.price > 0) {
+          updateData.base_price = productInfo.price
+          console.log('✅ base_price recuperado desde productInfo:', updateData.base_price)
+        }
+        // Fuente 3: Desde cart_items parseado
+        else if (pendingSubscription.cart_items) {
+          try {
+            const cartItems = typeof pendingSubscription.cart_items === 'string' 
+              ? JSON.parse(pendingSubscription.cart_items) 
+              : pendingSubscription.cart_items
+            if (cartItems && cartItems.length > 0 && cartItems[0].price > 0) {
+              updateData.base_price = cartItems[0].price
+              console.log('✅ base_price recuperado desde cart_items:', updateData.base_price)
+            }
+          } catch (e) {
+            console.warn('⚠️ Error parseando cart_items para base_price:', e)
+          }
+        }
+      }
+
+      if (!updateData.discounted_price || updateData.discounted_price === 0) {
+        console.log('🔍 RECUPERANDO discounted_price desde fuentes alternativas...')
+        
+        // Fuente 1: Desde pendingSubscription
+        if (pendingSubscription.discounted_price && pendingSubscription.discounted_price > 0) {
+          updateData.discounted_price = pendingSubscription.discounted_price
+          console.log('✅ discounted_price recuperado desde pendingSubscription:', updateData.discounted_price)
+        }
+        // Fuente 2: Recalcular desde base_price si tenemos descuento
+        else if (updateData.base_price > 0 && discountPercentage > 0) {
+          updateData.discounted_price = updateData.base_price * (1 - discountPercentage / 100)
+          console.log('✅ discounted_price recalculado desde base_price y descuento:', updateData.discounted_price)
+        }
+        // Fuente 3: Usar base_price si no hay descuento
+        else if (updateData.base_price > 0) {
+          updateData.discounted_price = updateData.base_price
+          console.log('✅ discounted_price igualado a base_price (sin descuento):', updateData.discounted_price)
+        }
+      }
+
+      if (!updateData.transaction_amount || updateData.transaction_amount === 0) {
+        console.log('🔍 RECUPERANDO transaction_amount desde fuentes alternativas...')
+        
+        // Fuente 1: Desde pendingSubscription
+        if (pendingSubscription.transaction_amount && pendingSubscription.transaction_amount > 0) {
+          updateData.transaction_amount = pendingSubscription.transaction_amount
+          console.log('✅ transaction_amount recuperado desde pendingSubscription:', updateData.transaction_amount)
+        }
+        // Fuente 2: Usar discounted_price
+        else if (updateData.discounted_price > 0) {
+          updateData.transaction_amount = updateData.discounted_price
+          console.log('✅ transaction_amount igualado a discounted_price:', updateData.transaction_amount)
+        }
+        // Fuente 3: Usar base_price como último recurso
+        else if (updateData.base_price > 0) {
+          updateData.transaction_amount = updateData.base_price
+          console.log('✅ transaction_amount igualado a base_price como último recurso:', updateData.transaction_amount)
+        }
+      }
+
+      // Validar campos obligatorios DESPUÉS de intentar recuperarlos
       const requiredFields = ['product_name', 'product_id', 'transaction_amount', 'base_price', 'discounted_price', 'user_id']
-      const missingFields = requiredFields.filter(field => !updateData[field])
+      const missingFields = requiredFields.filter(field => !updateData[field] || (typeof updateData[field] === 'number' && updateData[field] === 0))
       
       if (missingFields.length > 0) {
-        logger.warn(LogCategory.SUBSCRIPTION, 'Campos obligatorios faltantes en activación', {
+        logger.error(LogCategory.SUBSCRIPTION, 'CRÍTICO: Campos obligatorios aún faltantes después de recuperación', {
           userId: user.id,
           subscriptionId: pendingSubscription.id,
           missingFields,
           providedFields: Object.keys(updateData),
-          externalReference: pendingSubscription.external_reference
+          externalReference: pendingSubscription.external_reference,
+          finalPrices: {
+            base_price: updateData.base_price,
+            discounted_price: updateData.discounted_price,
+            transaction_amount: updateData.transaction_amount
+          }
         })
-        console.error('❌ Campos obligatorios faltantes:', missingFields)
-        // Llenar con valores por defecto para evitar errores
+        console.error('❌ CRÍTICO: Campos obligatorios aún faltantes después de recuperación:', missingFields)
+        
+        // Solo llenar campos no-precio con valores por defecto
         if (!updateData.product_name) updateData.product_name = 'Producto Pet Gourmet'
         if (!updateData.product_id) updateData.product_id = pendingSubscription.product_id
-        if (!updateData.transaction_amount) updateData.transaction_amount = 0
-        if (!updateData.base_price) updateData.base_price = 0
-        if (!updateData.discounted_price) updateData.discounted_price = 0
         if (!updateData.user_id) updateData.user_id = user.id
+        
+        // Para precios, lanzar error si no se pudieron recuperar
+        if (!updateData.transaction_amount || updateData.transaction_amount === 0) {
+          throw new Error(`CRÍTICO: No se pudo recuperar transaction_amount para suscripción ${pendingSubscription.id}`)
+        }
+        if (!updateData.base_price || updateData.base_price === 0) {
+          throw new Error(`CRÍTICO: No se pudo recuperar base_price para suscripción ${pendingSubscription.id}`)
+        }
+        if (!updateData.discounted_price || updateData.discounted_price === 0) {
+          throw new Error(`CRÍTICO: No se pudo recuperar discounted_price para suscripción ${pendingSubscription.id}`)
+        }
       }
+
+      console.log('💰 PRECIOS FINALES RECUPERADOS:', {
+        base_price: updateData.base_price,
+        discounted_price: updateData.discounted_price,
+        transaction_amount: updateData.transaction_amount,
+        discount_percentage: updateData.discount_percentage
+      })
       
       // Agregar customer_data si está disponible
       if (pendingSubscription.customer_data) {
@@ -598,59 +699,52 @@ export default function SuscripcionPage() {
     }
   }
 
-  // Nueva función específica para manejar status=approved
+  // Función simplificada para manejar status=approved
   const activateApprovedSubscription = async (urlParams: URLSearchParams) => {
     const externalReference = urlParams.get('external_reference');
-    const collectionId = urlParams.get('collection_id');
-    const paymentId = urlParams.get('payment_id');
-    const preferenceId = urlParams.get('preference_id');
     
-    console.log('🔍 Parámetros completos recibidos:', {
-      externalReference,
-      collectionId,
-      paymentId,
-      preferenceId
-    });
+    console.info('🚀 ACTIVANDO SUSCRIPCIÓN APROBADA:', externalReference);
     
-    if (!user?.id) return
+    if (!user?.id || !externalReference) {
+      console.error('❌ Faltan datos requeridos:', { userId: user?.id, externalReference });
+      return;
+    }
 
     // IDEMPOTENCIA: Evitar múltiples ejecuciones simultáneas
     if (isProcessing) {
-      console.log('🔄 IDEMPOTENCIA: Ya hay un proceso de activación en curso, evitando ejecución duplicada')
-      return
+      console.log('🔄 Proceso ya en curso, evitando duplicación');
+      return;
     }
 
     try {
-      setIsProcessing(true)
-      console.log('🚀 EMERGENCIA: Status=approved detectado, procesando external_reference:', externalReference)
+      setIsProcessing(true);
       
-      // PASO 1: Verificar si ya existe una suscripción activa con este external_reference
-      const { data: existingActiveSubscriptions, error: activeError } = await supabase
+      // PASO 1: Verificar si ya existe una suscripción activa
+      const { data: existingActive, error: activeError } = await supabase
         .from("unified_subscriptions")
         .select("*")
-        .eq("external_reference", externalReference)
+        .eq("user_id", user.id)
         .eq("status", "active")
+        .or(`external_reference.eq.${externalReference},mercadopago_subscription_id.eq.${externalReference}`);
 
       if (activeError) {
-        console.error("Error verificando suscripciones activas:", activeError)
-        loadUserSubscriptions()
-        return
+        console.error("Error verificando suscripciones activas:", activeError);
+        return;
       }
 
-      // Si ya existe una suscripción activa, no procesar duplicado
-      if (existingActiveSubscriptions && existingActiveSubscriptions.length > 0) {
-        console.log('✅ IDEMPOTENCIA: Ya existe una suscripción activa con external_reference:', externalReference)
+      if (existingActive && existingActive.length > 0) {
+        console.log('✅ Ya existe una suscripción activa');
         toast({
           title: "Suscripción ya activa",
-          description: "Tu suscripción ya está activa y funcionando correctamente",
-        })
-        loadUserSubscriptions()
-        window.history.replaceState({}, document.title, window.location.pathname)
-        return
+          description: "Tu suscripción ya está funcionando correctamente",
+        });
+        loadUserSubscriptions();
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
       }
 
-      // PASO 2: Buscar TODOS los registros con este external_reference (activos y pendientes)
-      const { data: allSubscriptions, error: allError } = await supabase
+      // PASO 2: Buscar el registro pendiente correcto
+      const { data: pendingSubscriptions, error: pendingError } = await supabase
         .from("unified_subscriptions")
         .select(`
           *,
@@ -665,208 +759,128 @@ export default function SuscripcionPage() {
             biweekly_discount
           )
         `)
-        .eq("external_reference", externalReference)
         .eq("user_id", user.id)
-        .order('created_at', { ascending: true })
+        .eq("status", "pending")
+        .or(`external_reference.eq.${externalReference},external_reference.ilike.%${user.id}%`)
+        .order('created_at', { ascending: false });
 
-      if (allError) {
-        console.error("Error buscando todas las suscripciones:", allError)
-        loadUserSubscriptions()
-        return
+      if (pendingError) {
+        console.error("Error buscando suscripciones pendientes:", pendingError);
+        return;
       }
 
-      if (!allSubscriptions || allSubscriptions.length === 0) {
-        console.log("❌ No se encontraron suscripciones con external_reference:", externalReference)
-        
-        // Buscar por collection_id o payment_id como alternativa
-        let alternativeSubscriptions = null;
-        if (collectionId || paymentId) {
-          console.log('🔍 Buscando por collection_id o payment_id como alternativa...');
-          
-          const { data: altSubs, error: altError } = await supabase
-            .from("unified_subscriptions")
-            .select(`
-              *,
-              products (
-                id,
-                name,
-                image,
-                price,
-                monthly_discount,
-                quarterly_discount,
-                annual_discount,
-                biweekly_discount
-              )
-            `)
-            .eq("user_id", user.id)
-            .or(`collection_id.eq.${collectionId},payment_id.eq.${paymentId}`)
-            .order('created_at', { ascending: false })
-            .limit(5);
-            
-          if (!altError && altSubs && altSubs.length > 0) {
-            console.log('✅ Encontradas suscripciones alternativas:', altSubs.length);
-            alternativeSubscriptions = altSubs;
-          }
-        }
-        
-        if (!alternativeSubscriptions || alternativeSubscriptions.length === 0) {
-          toast({
-            title: "Error",
-            description: "No se encontró la suscripción para activar",
-            variant: "destructive",
-          })
-          loadUserSubscriptions()
-          return
-        } else {
-          // Usar las suscripciones encontradas por collection_id/payment_id
-          allSubscriptions = alternativeSubscriptions;
-          console.log('🔄 Usando suscripciones encontradas por collection_id/payment_id');
-        }
+      if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
+        console.error("❌ No se encontró suscripción pendiente para activar");
+        toast({
+          title: "Error",
+          description: "No se encontró la suscripción para activar",
+          variant: "destructive"
+        });
+        return;
       }
 
-      console.log(`📋 Encontrados ${allSubscriptions.length} registros con external_reference:`, externalReference)
-      
-      // PASO 3: Analizar y limpiar duplicados
-      console.log('📊 Analizando registros encontrados:', allSubscriptions.length)
-      
-      // Separar registros por completitud de datos
-      const completeSubscriptions = allSubscriptions.filter(sub => 
+      // PASO 3: Encontrar el registro más completo
+      const completeSubscription = pendingSubscriptions.find(sub => 
         sub.product_name && 
         sub.base_price && 
+        parseFloat(sub.base_price) > 0 &&
         sub.customer_data && 
-        sub.customer_data.email &&
         sub.product_id &&
-        sub.user_id && // CRÍTICO: Verificar user_id
-        sub.transaction_amount &&
         sub.cart_items
-      )
-      
-      const incompleteSubscriptions = allSubscriptions.filter(sub => 
-        !sub.product_name || 
-        !sub.base_price || 
-        !sub.customer_data || 
-        !sub.customer_data.email ||
-        !sub.product_id ||
-        !sub.user_id || // CRÍTICO: Incluir user_id en validación
-        !sub.transaction_amount ||
-        !sub.cart_items
-      )
-      
-      console.log('📊 Análisis detallado de completitud:', {
-        total: allSubscriptions.length,
-        completos: completeSubscriptions.length,
-        incompletos: incompleteSubscriptions.length,
-        detalles: allSubscriptions.map(sub => ({
-          id: sub.id,
-          status: sub.status,
-          user_id: !!sub.user_id,
-          product_name: !!sub.product_name,
-          transaction_amount: !!sub.transaction_amount,
-          customer_data: !!sub.customer_data,
-          cart_items: !!sub.cart_items,
-          discount_percentage: sub.discount_percentage,
-          created_at: sub.created_at
-        }))
-      })
-      
-      // PASO 4: Eliminar duplicados incompletos si hay registros completos
-      if (completeSubscriptions.length > 0 && incompleteSubscriptions.length > 0) {
-        console.log('🗑️ Eliminando registros incompletos duplicados:', incompleteSubscriptions.length)
-        const idsToDelete = incompleteSubscriptions.map(sub => sub.id)
-        
+      ) || pendingSubscriptions[0]; // Usar el más reciente si no hay completos
+
+      console.log('📋 Registro seleccionado para activar:', {
+        id: completeSubscription.id,
+        product_name: completeSubscription.product_name,
+        base_price: completeSubscription.base_price,
+        external_reference: completeSubscription.external_reference
+      });
+
+      // PASO 4: Eliminar registros duplicados/incompletos del mismo usuario
+      const otherSubscriptions = pendingSubscriptions.filter(sub => sub.id !== completeSubscription.id);
+      if (otherSubscriptions.length > 0) {
+        console.log('🗑️ Eliminando registros duplicados:', otherSubscriptions.length);
         const { error: deleteError } = await supabase
           .from('unified_subscriptions')
           .delete()
-          .in('id', idsToDelete)
+          .in('id', otherSubscriptions.map(sub => sub.id));
         
         if (deleteError) {
-          console.error('❌ Error eliminando duplicados:', deleteError)
+          console.error('❌ Error eliminando duplicados:', deleteError);
         } else {
-          console.log('✅ Duplicados incompletos eliminados exitosamente')
-        }
-      }
-      
-      // PASO 5: Si hay múltiples registros completos, mantener solo el más reciente
-      let targetSubscription = completeSubscriptions.length > 0 
-        ? completeSubscriptions[0] 
-        : allSubscriptions[0]
-      
-      if (completeSubscriptions.length > 1) {
-        console.log('🗑️ Eliminando registros completos duplicados:', completeSubscriptions.length - 1)
-        const duplicateIds = completeSubscriptions.slice(1).map(sub => sub.id)
-        
-        const { error: deleteDuplicatesError } = await supabase
-          .from('unified_subscriptions')
-          .delete()
-          .in('id', duplicateIds)
-        
-        if (deleteDuplicatesError) {
-          console.error('❌ Error eliminando duplicados completos:', deleteDuplicatesError)
-        } else {
-          console.log('✅ Duplicados completos eliminados exitosamente')
+          console.log('✅ Duplicados eliminados exitosamente');
         }
       }
 
-      console.log('🎯 Suscripción objetivo seleccionada:', {
-        id: targetSubscription.id,
-        status: targetSubscription.status,
-        hasProductName: !!targetSubscription.product_name,
-        hasCustomerData: !!targetSubscription.customer_data,
-        hasProductId: !!targetSubscription.product_id
-      })
+      // PASO 5: Activar la suscripción seleccionada
+      const updateData = {
+        status: 'active',
+        mercadopago_subscription_id: externalReference,
+        processed_at: new Date().toISOString(),
+        last_billing_date: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-      // PASO 6: Verificar si ya está activa (doble verificación)
-      if (targetSubscription.status === 'active') {
-        console.log('✅ La suscripción ya está activa')
+      const { error: updateError } = await supabase
+        .from('unified_subscriptions')
+        .update(updateData)
+        .eq('id', completeSubscription.id);
+
+      if (updateError) {
+        console.error('❌ Error activando suscripción:', updateError);
         toast({
-          title: "Suscripción ya activa",
-          description: "Tu suscripción ya está activa y funcionando correctamente",
-        })
-        loadUserSubscriptions()
-        return
+          title: "Error",
+          description: "No se pudo activar la suscripción",
+          variant: "destructive"
+        });
+        return;
       }
 
-      // PASO 7: Actualizar con datos de MercadoPago si están disponibles
-      if (collectionId || paymentId || preferenceId) {
-        console.log('💳 Actualizando con datos de MercadoPago...');
-        const mpUpdateData: any = {};
-        if (collectionId) mpUpdateData.collection_id = collectionId;
-        if (paymentId) mpUpdateData.payment_id = paymentId;
-        if (preferenceId) mpUpdateData.preference_id = preferenceId;
-        if (externalReference) mpUpdateData.external_reference = externalReference;
-        
-        const { error: mpUpdateError } = await supabase
-          .from("unified_subscriptions")
-          .update(mpUpdateData)
-          .eq("id", targetSubscription.id);
+      console.log('✅ Suscripción activada exitosamente:', completeSubscription.id);
+      
+      // Actualizar perfil del usuario si es necesario
+      if (completeSubscription.customer_data) {
+        try {
+          const customerData = typeof completeSubscription.customer_data === 'string' 
+            ? JSON.parse(completeSubscription.customer_data) 
+            : completeSubscription.customer_data;
           
-        if (mpUpdateError) {
-          console.error('❌ Error actualizando datos de MercadoPago:', mpUpdateError);
-        } else {
-          console.log('✅ Datos de MercadoPago actualizados exitosamente');
+          if (customerData.phone || customerData.address) {
+            await updateUserProfile({
+              phone: customerData.phone,
+              address: customerData.address
+            });
+          }
+        } catch (error) {
+          console.error('Error actualizando perfil:', error);
         }
       }
-      
-      // PASO 8: Activar el registro completo
-      await activateSingleSubscriptionWithProduct(targetSubscription)
-      
-      // PASO 9: Actualizar perfil del usuario
-      await updateUserProfile()
-      
-      // PASO 10: Enviar email de bienvenida
-      await sendWelcomeEmail(targetSubscription)
-      
-      // PASO 11: Mostrar mensaje de éxito
+
+      // Enviar email de bienvenida
+      if (completeSubscription.customer_data) {
+        try {
+          const customerData = typeof completeSubscription.customer_data === 'string' 
+            ? JSON.parse(completeSubscription.customer_data) 
+            : completeSubscription.customer_data;
+          
+          await sendWelcomeEmail({
+            email: customerData.email,
+            firstName: customerData.firstName,
+            productName: completeSubscription.product_name,
+            subscriptionType: completeSubscription.subscription_type
+          });
+        } catch (error) {
+          console.error('Error enviando email:', error);
+        }
+      }
+
       toast({
-        title: "¡Suscripción activada!",
-        description: "Tu suscripción ha sido activada exitosamente",
-      })
-      
-      // PASO 12: Cargar suscripciones actualizadas
-      loadUserSubscriptions()
-      
-      // PASO 13: Limpiar URL
-      window.history.replaceState({}, document.title, window.location.pathname)
+        title: "¡Suscripción Activada!",
+        description: `Tu suscripción a ${completeSubscription.product_name} está activa`,
+      });
+
+      loadUserSubscriptions();
+      window.history.replaceState({}, document.title, window.location.pathname);
       
     } catch (error) {
       console.error("❌ ERROR CRÍTICO: Error activando suscripción approved:", error)
