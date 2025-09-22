@@ -618,7 +618,7 @@ export function CheckoutModal() {
             .select()
 
           if (subscriptionError) {
-            logger.error(LogCategory.SUBSCRIPTION, 'Error guardando suscripción pendiente', subscriptionError.message, {
+            logger.error(LogCategory.SUBSCRIPTION, 'Error guardando suscripción pendiente', subscriptionError, {
               userId: user.id,
               externalReference,
               errorCode: subscriptionError.code,
@@ -706,7 +706,7 @@ export function CheckoutModal() {
 
           return
         } catch (error) {
-          logger.error(LogCategory.SUBSCRIPTION, 'Error crítico procesando suscripción', error?.message || 'Error desconocido', {
+          logger.error(LogCategory.SUBSCRIPTION, 'Error crítico procesando suscripción', error, {
             userId: user.id,
             externalReference,
             subscriptionType,
