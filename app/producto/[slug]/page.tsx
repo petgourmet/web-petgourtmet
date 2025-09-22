@@ -85,6 +85,14 @@ export default function ProductDetailPage() {
           return
         }
 
+        // Verificar si el producto tiene stock disponible
+        if (productData.stock === 0) {
+          console.error("Producto sin stock, slug:", productSlug)
+          setError(`Este producto no está disponible actualmente`)
+          setLoading(false)
+          return
+        }
+
         // Cargar características del producto
         const { data: featuresData } = await supabase
           .from("product_features")

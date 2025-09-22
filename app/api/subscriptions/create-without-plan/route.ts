@@ -189,34 +189,47 @@ export async function POST(request: NextRequest) {
           .select('*')
           .eq('external_reference', external_reference)
           .eq('user_id', user_id)
-          .eq('status', 'pending')
           .single()
         
         if (data && !findError) {
           existingSubscription = data
+          console.log('🔍 Suscripción existente encontrada:', {
+            id: data.id,
+            status: data.status,
+            external_reference: data.external_reference,
+            mercadopago_subscription_id: data.mercadopago_subscription_id
+          })
+        } else {
+          console.log('❌ No se encontró suscripción existente para:', {
+            external_reference,
+            user_id,
+            error: findError?.message
+          })
         }
       }
 
       if (existingSubscription) {
-        // ACTUALIZAR suscripción existente
-          // Preparar datos de actualización con campos esenciales
-          const updateData: any = {
-            mercadopago_subscription_id: result.id,
-            updated_at: new Date().toISOString(),
-            processed_at: new Date().toISOString()
-          }
+        // ACTUALIZAR suscripción existente - PRESERVAR TODOS LOS DATOS EXISTENTES
+        console.log('🔄 Actualizando suscripción existente ID:', existingSubscription.id)
+        
+        // Preparar datos de actualización - SOLO agregar campos faltantes
+        const updateData: any = {
+          mercadopago_subscription_id: result.id,
+          updated_at: new Date().toISOString(),
+          processed_at: new Date().toISOString()
+        }
 
-          // Agregar customer_data si se proporciona payer_email
-          if (payer_email) {
-            updateData.customer_data = {
-              email: payer_email,
-              processed_via: 'create-without-plan',
-              mercadopago_subscription_id: result.id
-            }
+        // PRESERVAR customer_data existente, solo agregar si no existe
+        if (payer_email && !existingSubscription.customer_data) {
+          updateData.customer_data = {
+            email: payer_email,
+            processed_via: 'create-without-plan',
+            mercadopago_subscription_id: result.id
           }
+        }
 
-          // Agregar cart_items si hay información del producto
-          if (product_id) {
+          // PRESERVAR cart_items existentes, solo agregar si no existen
+          if (product_id && !existingSubscription.cart_items) {
             // Obtener información del producto para cart_items
             const { data: productData, error: productError } = await supabase
               .from('products')
@@ -235,7 +248,7 @@ export async function POST(request: NextRequest) {
                 subscriptionType: subscription_type || 'monthly'
               }]
               
-              // Agregar campos del producto si no existen
+              // Agregar campos del producto SOLO si no existen
               if (!existingSubscription.product_name) {
                 updateData.product_name = productData.name
               }

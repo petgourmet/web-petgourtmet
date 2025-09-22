@@ -817,36 +817,62 @@ export class WebhookService {
     }
   }
 
-  // Actualizar suscripción local (mantener para compatibilidad)
+  // Actualizar suscripción local buscando por external_reference para evitar duplicados
   private async updateLocalSubscription(subscriptionData: SubscriptionData, supabase: any): Promise<void> {
     try {
-      const { error } = await supabase
+      // Primero buscar registro existente por external_reference
+      const { data: existingSubscription, error: searchError } = await supabase
         .from('unified_subscriptions')
-        .upsert({
-          mercadopago_subscription_id: subscriptionData.id,
-          status: subscriptionData.status === 'authorized' ? 'active' : subscriptionData.status,
-          payer_email: subscriptionData.payer_email,
-          external_reference: subscriptionData.external_reference,
-          next_billing_date: subscriptionData.next_payment_date,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'mercadopago_subscription_id'
-        })
+        .select('*')
+        .eq('external_reference', subscriptionData.external_reference)
+        .single()
 
-      if (error) {
-        logger.error('Error actualizando suscripción local', 'SUBSCRIPTION', {
-          subscriptionId: subscriptionData.id,
-          error: error.message
+      if (searchError && searchError.code !== 'PGRST116') {
+        logger.error('Error buscando suscripción existente', 'SUBSCRIPTION', {
+          externalReference: subscriptionData.external_reference,
+          error: searchError.message
         })
+        return
+      }
+
+      if (existingSubscription) {
+        // Actualizar registro existente
+        const { error: updateError } = await supabase
+          .from('unified_subscriptions')
+          .update({
+            mercadopago_subscription_id: subscriptionData.id,
+            status: subscriptionData.status === 'authorized' ? 'active' : subscriptionData.status,
+            payer_email: subscriptionData.payer_email,
+            next_billing_date: subscriptionData.next_payment_date,
+            updated_at: new Date().toISOString(),
+            last_sync_at: new Date().toISOString()
+          })
+          .eq('id', existingSubscription.id)
+
+        if (updateError) {
+          logger.error('Error actualizando suscripción existente', 'SUBSCRIPTION', {
+            subscriptionId: existingSubscription.id,
+            externalReference: subscriptionData.external_reference,
+            error: updateError.message
+          })
+        } else {
+          logger.info('Suscripción existente actualizada exitosamente', 'SUBSCRIPTION', {
+            subscriptionId: existingSubscription.id,
+            mercadopagoId: subscriptionData.id,
+            externalReference: subscriptionData.external_reference,
+            status: subscriptionData.status
+          })
+        }
       } else {
-        logger.info('Suscripción local actualizada', 'SUBSCRIPTION', {
-          subscriptionId: subscriptionData.id,
-          status: subscriptionData.status
+        logger.warn('No se encontró suscripción existente para actualizar', 'SUBSCRIPTION', {
+          externalReference: subscriptionData.external_reference,
+          mercadopagoId: subscriptionData.id
         })
       }
     } catch (error: any) {
       logger.error('Error en updateLocalSubscription', 'SUBSCRIPTION', {
-        subscriptionId: subscriptionData.id,
+        externalReference: subscriptionData.external_reference,
+        mercadopagoId: subscriptionData.id,
         error: error.message
       })
     }

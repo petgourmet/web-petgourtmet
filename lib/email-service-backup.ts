@@ -386,13 +386,13 @@ ${data.planDescription}</p>
               <p><strong>📋 Información importante:</strong></p>
               <ul>
                 <li>Tu suscripción se renovará automáticamente según la frecuencia seleccionada</li>
-                <li>Puedes gestionar tu suscripción desde tu <a href="https://petgourmet.mx/perfil">perfil</a></li>
+                <li>Puedes gestionar tu suscripción desde tu <a href="https://petgourmet.mx/suscripcion">perfil</a></li>
                 <li>Recibirás notificaciones antes de cada cobro</li>
               </ul>
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="https://petgourmet.mx/perfil" style="background: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver mi suscripción</a>
+              <a href="https://petgourmet.mx/suscripcion" style="background: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver mi suscripción</a>
             </div>
             
             <p style="color: #666; font-size: 12px; text-align: center;">
@@ -468,7 +468,7 @@ ${data.planDescription}</p>
               <p><strong>📋 Tu suscripción:</strong></p>
               <ul>
                 <li>Sigue activa y renovándose automáticamente</li>
-                <li>Puedes gestionar tu suscripción desde tu <a href="https://petgourmet.mx/perfil">perfil</a></li>
+                <li>Puedes gestionar tu suscripción desde tu <a href="https://petgourmet.mx/suscripcion">perfil</a></li>
                 <li>Recibirás tu próximo envío según la frecuencia seleccionada</li>
               </ul>
             </div>
@@ -817,13 +817,13 @@ class EmailService {
                 <ul>
                   <li>Tu suscripción se renovará automáticamente según el plan seleccionado</li>
                   <li>Recibirás notificaciones antes de cada cobro</li>
-                  <li>Puedes gestionar tu suscripción desde tu <a href="https://petgourmet.mx/perfil">perfil</a></li>
+                  <li>Puedes gestionar tu suscripción desde tu <a href="https://petgourmet.mx/suscripcion">perfil</a></li>
                   <li>Si tienes dudas, nuestro equipo está aquí para ayudarte</li>
                 </ul>
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://petgourmet.mx/perfil" style="background: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-right: 10px;">Ver mi perfil</a>
+                <a href="https://petgourmet.mx/suscripcion" style="background: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-right: 10px;">Ver mi suscripción</a>
                 <a href="https://petgourmet.mx/contacto" style="background: #6c757d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Contactar soporte</a>
               </div>
               

@@ -59,7 +59,7 @@ class MercadoPagoServiceMock {
       collector_id: 987654321,
       external_reference: subscriptionData.external_reference || `mock-ref-${Date.now()}`,
       reason: subscriptionData.reason || 'Mock subscription',
-      back_url: subscriptionData.back_url || 'https://petgourmet.mx/perfil/suscripciones',
+      back_url: subscriptionData.back_url || 'https://petgourmet.mx/suscripcion',
       init_point: `https://sandbox.mercadopago.com.mx/subscriptions/checkout?preapproval_id=mock-subscription-${Date.now()}`,
       auto_recurring: subscriptionData.auto_recurring,
       payer_id: null,

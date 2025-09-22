@@ -171,6 +171,9 @@ export function ProductCategoryLoader({
           productsQuery = productsQuery.eq("category_id", categoryId)
         }
 
+        // Filtrar solo productos con stock mayor a 0
+        productsQuery = productsQuery.gt('stock', 0)
+
         const { data: productsData, error: productsError } = await productsQuery.order("created_at", {
           ascending: false,
         })

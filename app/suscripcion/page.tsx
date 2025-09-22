@@ -725,7 +725,7 @@ export default function SuscripcionPage() {
         .select("*")
         .eq("user_id", user.id)
         .eq("status", "active")
-        .or(`external_reference.eq.${externalReference},mercadopago_subscription_id.eq.${externalReference}`);
+        .eq("external_reference", externalReference);
 
       if (activeError) {
         console.error("Error verificando suscripciones activas:", activeError);
@@ -743,7 +743,7 @@ export default function SuscripcionPage() {
         return;
       }
 
-      // PASO 2: Buscar el registro pendiente correcto
+      // PASO 2: Buscar el registro pendiente por external_reference
       const { data: pendingSubscriptions, error: pendingError } = await supabase
         .from("unified_subscriptions")
         .select(`
@@ -761,7 +761,7 @@ export default function SuscripcionPage() {
         `)
         .eq("user_id", user.id)
         .eq("status", "pending")
-        .or(`external_reference.eq.${externalReference},external_reference.ilike.%${user.id}%`)
+        .eq("external_reference", externalReference)
         .order('created_at', { ascending: false });
 
       if (pendingError) {
@@ -813,13 +813,18 @@ export default function SuscripcionPage() {
       }
 
       // PASO 5: Activar la suscripción seleccionada
-      const updateData = {
+      // CORREGIDO: Solo actualizar mercadopago_subscription_id si no existe
+      const updateData: any = {
         status: 'active',
-        mercadopago_subscription_id: externalReference,
         processed_at: new Date().toISOString(),
         last_billing_date: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+
+      // Solo actualizar mercadopago_subscription_id si no existe o está vacío
+      if (!completeSubscription.mercadopago_subscription_id) {
+        updateData.mercadopago_subscription_id = externalReference;
+      }
 
       const { error: updateError } = await supabase
         .from('unified_subscriptions')
@@ -1124,26 +1129,50 @@ export default function SuscripcionPage() {
 
     try {
       setIsProcessing(true)
-      console.log('Validando preapproval_id:', preapprovalId, 'para usuario:', user.id)
+      console.log('🔍 Validando preapproval_id:', preapprovalId, 'para usuario:', user.id)
       
-      // Primero verificar si ya existe una suscripción con este preapproval_id
+      // PASO 1: Verificar si ya existe una suscripción activa con este preapproval_id
+      const { data: existingActive, error: activeError } = await supabase
+        .from('unified_subscriptions')
+        .select('*')
+        .eq('mercadopago_subscription_id', preapprovalId)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle()
+
+      if (activeError) {
+        console.error('❌ Error verificando suscripción activa:', activeError)
+      }
+
+      if (existingActive) {
+        console.log('✅ Suscripción ya está activa:', existingActive.id)
+        loadUserSubscriptions()
+        window.history.replaceState({}, document.title, window.location.pathname)
+        toast({
+          title: "Suscripción ya activa",
+          description: "Tu suscripción ya está activa y funcionando",
+        })
+        return
+      }
+
+      // PASO 2: Verificar si existe suscripción pending - NO CREAR DUPLICADOS
       const { data: existingPending, error: pendingError } = await supabase
         .from('unified_subscriptions')
         .select('*')
         .eq('mercadopago_subscription_id', preapprovalId)
         .eq('user_id', user.id)
-        .single()
+        .eq('status', 'pending')
 
-      if (existingPending && existingPending.status === 'active') {
-        console.log('Suscripción ya activa, cargando suscripciones activas')
-        loadUserSubscriptions()
-        window.history.replaceState({}, document.title, window.location.pathname)
-        return
+      if (pendingError) {
+        console.error('❌ Error verificando suscripción pending:', pendingError)
       }
 
-      // Si no existe suscripción, crear una nueva entrada
-      if (!existingPending) {
-        console.log('Creando suscripción para preapproval_id:', preapprovalId)
+      // Si ya existe pending, NO crear otra
+      if (existingPending && existingPending.length > 0) {
+        console.log('📋 Ya existe suscripción pending:', existingPending[0].id, '- NO creando duplicado')
+      } else {
+        // Solo crear si NO existe ninguna suscripción con este preapproval_id
+        console.log('➕ Creando nueva suscripción pending para preapproval_id:', preapprovalId)
         const { error: insertError } = await supabase
           .from('unified_subscriptions')
           .insert({
@@ -1151,19 +1180,20 @@ export default function SuscripcionPage() {
             mercadopago_subscription_id: preapprovalId,
             external_reference: preapprovalId,
             status: 'pending',
-            subscription_type: 'monthly', // Default, se actualizará con webhook
+            subscription_type: 'monthly', // Default, se actualizará con datos reales
             product_name: 'Producto Pet Gourmet',
-            discounted_price: 0,
-            frequency: '1',
+            discounted_price: '0',
+            frequency: 1,
             frequency_type: 'months',
+            currency_id: 'MXN',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
 
         if (insertError) {
-          console.error('Error creando suscripción:', insertError)
+          console.error('❌ Error creando suscripción:', insertError)
         } else {
-          console.log('Suscripción creada exitosamente')
+          console.log('✅ Suscripción pending creada exitosamente')
         }
       }
       

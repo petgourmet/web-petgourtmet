@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import logger from '@/lib/logger'
+import { createServiceClient } from '@/lib/supabase/server'
+// import logger, { LogCategory } from '@/lib/logger'
 
 /**
  * Endpoint para activar suscripción inmediatamente desde la página de aterrizaje de MercadoPago
@@ -13,9 +13,11 @@ export async function POST(request: NextRequest) {
     const requestData = await request.json()
     operation_id = requestData.operation_id || `activate-landing-${Date.now()}`
     
-    logger.info('🎯 Iniciando activación desde landing de MercadoPago', {
+    console.log('🎯 Iniciando activación desde landing de MercadoPago', {
       operation_id,
-      data: requestData
+      external_reference: requestData.external_reference,
+      collection_status: requestData.collection_status,
+      payment_id: requestData.payment_id
     })
 
     const {
@@ -46,19 +48,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createClient()
+    const supabase = createServiceClient()
 
-    // Buscar la suscripción por external_reference
-    const { data: subscription, error: subscriptionError } = await supabase
+    // Buscar TODAS las suscripciones por external_reference para manejar duplicados
+    const { data: subscriptions, error: subscriptionError } = await supabase
       .from('unified_subscriptions')
       .select('*')
       .eq('external_reference', external_reference)
-      .maybeSingle()
+      .order('created_at', { ascending: true })
 
     if (subscriptionError) {
-      logger.error('❌ Error buscando suscripción:', {
+      console.error('❌ Error buscando suscripción', subscriptionError.message || subscriptionError, {
         operation_id,
-        error: subscriptionError,
         external_reference
       })
       return NextResponse.json(
@@ -67,8 +68,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!subscription) {
-      logger.error('❌ Suscripción no encontrada:', {
+    if (!subscriptions || subscriptions.length === 0) {
+      console.error('❌ Suscripción no encontrada', {
         operation_id,
         external_reference
       })
@@ -78,7 +79,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info('📋 Suscripción encontrada:', {
+    // Manejar duplicados: seleccionar la suscripción más completa
+    let subscription = subscriptions[0]
+    if (subscriptions.length > 1) {
+      console.warn('⚠️ Múltiples suscripciones encontradas, seleccionando la más completa', {
+         operation_id,
+         external_reference,
+         count: subscriptions.length,
+         subscription_ids: subscriptions.map(s => ({ id: s.id, status: s.status, has_customer_data: !!s.customer_data }))
+       })
+      
+      // Seleccionar la suscripción con más datos completos
+      subscription = subscriptions.reduce((best, current) => {
+        const bestScore = getCompletenessScore(best)
+        const currentScore = getCompletenessScore(current)
+        return currentScore > bestScore ? current : best
+      })
+      
+      console.log('✅ Suscripción seleccionada', {
+         operation_id,
+         selected_id: subscription.id,
+         selected_status: subscription.status,
+         completeness_score: getCompletenessScore(subscription)
+       })
+    }
+
+    console.log('📋 Suscripción encontrada', {
       operation_id,
       subscription_id: subscription.id,
       current_status: subscription.status,
@@ -87,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Si ya está activa, no hacer nada
     if (subscription.status === 'active') {
-      logger.info('✅ Suscripción ya está activa:', {
+      console.log('✅ Suscripción ya está activa', {
         operation_id,
         subscription_id: subscription.id
       })
@@ -105,31 +131,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Actualizar la suscripción a activa con los datos del pago
-    const updateData: any = {
-      status: 'active',
-      payment_status: 'approved',
+    const paymentMetadata = {
       activated_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      collection_id: collection_id || null,
+      payment_id: payment_id || null,
+      payment_type: payment_type || null,
+      preference_id: preference_id || null
     }
 
-    // Agregar información del pago si está disponible
-    if (collection_id) updateData.mercadopago_payment_id = collection_id
-    if (payment_id) updateData.payment_id = payment_id
-    if (payment_type) updateData.payment_method = payment_type
-    if (preference_id) updateData.preference_id = preference_id
+    const updateData: any = {
+      status: 'active',
+      processed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      metadata: paymentMetadata
+    }
 
-    const { data: updatedSubscription, error: updateError } = await supabase
+    const { data: updatedSubscriptions, error: updateError } = await supabase
       .from('unified_subscriptions')
       .update(updateData)
       .eq('id', subscription.id)
       .select()
-      .single()
 
-    if (updateError) {
-      logger.error('❌ Error actualizando suscripción:', {
+    if (updateError || !updatedSubscriptions || updatedSubscriptions.length === 0) {
+      console.error('❌ Error actualizando suscripción', updateError?.message || updateError || 'No se encontró la suscripción', {
         operation_id,
-        error: updateError,
-        subscription_id: subscription.id
+        subscription_id: subscription.id,
+        updated_count: updatedSubscriptions?.length || 0
       })
       return NextResponse.json(
         { error: 'Error al activar la suscripción' },
@@ -137,7 +164,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info('🎉 Suscripción activada exitosamente:', {
+    const updatedSubscription = updatedSubscriptions[0]
+
+    console.log('🎉 Suscripción activada exitosamente', {
       operation_id,
       subscription_id: updatedSubscription.id,
       previous_status: subscription.status,
@@ -199,9 +228,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('❌ Error en activación desde landing:', {
+    console.error('❌ Error en activación desde landing', error instanceof Error ? error.message : String(error), {
       operation_id,
-      error: error instanceof Error ? error.message : 'Error desconocido',
       stack: error instanceof Error ? error.stack : undefined
     })
 
@@ -213,4 +241,40 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Calcula un puntaje de completitud para una suscripción
+ * Prioriza suscripciones con más datos completos
+ */
+function getCompletenessScore(subscription: any): number {
+  let score = 0
+  
+  // Datos básicos del producto
+  if (subscription.product_name) score += 10
+  if (subscription.product_id) score += 10
+  if (subscription.product_image) score += 5
+  
+  // Datos del cliente
+  if (subscription.customer_data) score += 20
+  
+  // Datos del carrito
+  if (subscription.cart_items) score += 15
+  
+  // Precios
+  if (subscription.base_price) score += 10
+  if (subscription.discounted_price) score += 10
+  
+  // Metadatos
+  if (subscription.metadata && subscription.metadata !== '{}') score += 10
+  
+  // Fechas importantes
+  if (subscription.processed_at) score += 5
+  if (subscription.next_billing_date) score += 5
+  
+  // Notas y razón
+  if (subscription.notes) score += 3
+  if (subscription.reason) score += 3
+  
+  return score
 }

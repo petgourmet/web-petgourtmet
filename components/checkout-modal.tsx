@@ -608,10 +608,13 @@ export function CheckoutModal() {
           
           console.log('Guardando suscripción pendiente:', subscriptionData)
 
-          // Guardar información de suscripción pendiente y esperar confirmación
+          // Guardar información de suscripción pendiente usando upsert para evitar duplicados
           const { data: insertedData, error: subscriptionError } = await supabase
             .from('unified_subscriptions')
-            .insert(subscriptionData)
+            .upsert(subscriptionData, {
+              onConflict: 'user_id,external_reference',
+              ignoreDuplicates: false
+            })
             .select()
 
           if (subscriptionError) {

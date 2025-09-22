@@ -100,6 +100,7 @@ export default function ProductosPage() {
             *,
             categories(name)
           `)
+          .gt('stock', 0)
           .order("created_at", { ascending: false })
 
         // Ignoramos el error de API key si podemos continuar
