@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import logger, { LogCategory } from '@/lib/logger';
+import { logger, LogCategory } from '@/lib/logger';
 
 interface HealthCheck {
   service: string;
@@ -305,7 +305,10 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     const totalTime = Date.now() - startTime;
-    logger.error(LogCategory.SYSTEM, 'Error en health check', error);
+    logger.error(LogCategory.SYSTEM, 'Error en health check', undefined, {
+      error: error instanceof Error ? error.message : String(error),
+      totalTime
+    });
 
     const errorResponse: HealthResponse = {
       status: 'unhealthy',

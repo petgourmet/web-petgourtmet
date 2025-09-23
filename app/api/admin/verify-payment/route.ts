@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
-import logger, { LogCategory } from '@/lib/logger';
+import { logger, LogCategory } from '@/lib/logger';
 
 interface PaymentVerificationRequest {
   orderId?: string;
@@ -47,7 +47,9 @@ async function verifyAdminAccess(): Promise<boolean> {
 
     return profile.role === 'admin';
   } catch (error) {
-    logger.error(LogCategory.AUTH, 'Error verificando acceso admin', error);
+    logger.error(LogCategory.AUTH, 'Error verificando acceso admin', undefined, {
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }
@@ -75,7 +77,10 @@ async function getMercadoPagoPayment(paymentId: string) {
 
     return await response.json();
   } catch (error) {
-    logger.error(LogCategory.PAYMENT, 'Error obteniendo pago de MercadoPago', { paymentId, error });
+    logger.error(LogCategory.PAYMENT, 'Error obteniendo pago de MercadoPago', undefined, { 
+      paymentId, 
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -103,7 +108,10 @@ async function getMercadoPagoSubscription(subscriptionId: string) {
 
     return await response.json();
   } catch (error) {
-    logger.error(LogCategory.SUBSCRIPTION, 'Error obteniendo suscripción de MercadoPago', { subscriptionId, error });
+    logger.error(LogCategory.SUBSCRIPTION, 'Error obteniendo suscripción de MercadoPago', undefined, { 
+      subscriptionId, 
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -312,7 +320,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
 
   } catch (error) {
-    logger.error(LogCategory.PAYMENT, 'Error en verificación manual de pago', error);
+    logger.error(LogCategory.PAYMENT, 'Error en verificación manual de pago', undefined, {
+      error: error instanceof Error ? error.message : String(error)
+    });
     
     const errorResponse: PaymentVerificationResponse = {
       success: false,
@@ -385,7 +395,9 @@ export async function GET(request: NextRequest) {
     }
 
   } catch (error) {
-    logger.error(LogCategory.PAYMENT, 'Error obteniendo lista de verificación', error);
+    logger.error(LogCategory.PAYMENT, 'Error obteniendo lista de verificación', undefined, {
+      error: error instanceof Error ? error.message : String(error)
+    });
     
     return NextResponse.json(
       {

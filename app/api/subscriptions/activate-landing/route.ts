@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 // import logger, { LogCategory } from '@/lib/logger'
+import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
+import { enhancedIdempotencyService } from '@/lib/enhanced-idempotency-service'
 
 /**
  * Endpoint para activar suscripción inmediatamente desde la página de aterrizaje de MercadoPago
@@ -38,6 +40,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    
+    if (!payment_id) {
+      return NextResponse.json(
+        { error: 'payment_id es requerido' },
+        { status: 400 }
+      )
+    }
+    
+    // Generar clave de idempotencia para la activación
+    const idempotencyKey = subscriptionDeduplicationService.generateIdempotencyKey(
+      external_reference,
+      payment_id,
+      'activation'
+    )
 
     // Verificar que el pago fue aprobado
     const isApproved = status === 'approved' || collection_status === 'approved'
@@ -48,36 +64,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServiceClient()
+    // Usar servicio de idempotencia para la activación
+    const result = await enhancedIdempotencyService.executeSubscriptionWithIdempotency(
+      idempotencyKey,
+      async () => {
+        const supabase = createServiceClient()
+        
+        // Buscar TODAS las suscripciones por external_reference para manejar duplicados
+        const { data: subscriptions, error: subscriptionError } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('external_reference', external_reference)
+          .order('created_at', { ascending: true })
 
-    // Buscar TODAS las suscripciones por external_reference para manejar duplicados
-    const { data: subscriptions, error: subscriptionError } = await supabase
-      .from('unified_subscriptions')
-      .select('*')
-      .eq('external_reference', external_reference)
-      .order('created_at', { ascending: true })
+        if (subscriptionError) {
+          throw new Error(`Error buscando suscripción: ${subscriptionError.message || subscriptionError}`)
+        }
 
-    if (subscriptionError) {
-      console.error('❌ Error buscando suscripción', subscriptionError.message || subscriptionError, {
-        operation_id,
-        external_reference
+        if (!subscriptions || subscriptions.length === 0) {
+          throw new Error(`Suscripción no encontrada con external_reference: ${external_reference}`)
+        }
+        
+        return { supabase, subscriptions }
+      },
+      {
+        timeoutMs: 30000,
+        maxRetries: 3
+      }
+    )
+    
+    // Manejar resultado desde caché o nueva ejecución
+    if (result.fromCache) {
+      console.log('✅ Activación de suscripción obtenida desde caché de idempotencia')
+      return NextResponse.json({
+        success: true,
+        message: 'Suscripción ya activada (desde caché)',
+        ...result.result,
+        fromCache: true
       })
-      return NextResponse.json(
-        { error: 'Error al buscar la suscripción' },
-        { status: 500 }
-      )
     }
-
-    if (!subscriptions || subscriptions.length === 0) {
-      console.error('❌ Suscripción no encontrada', {
-        operation_id,
-        external_reference
-      })
-      return NextResponse.json(
-        { error: 'Suscripción no encontrada' },
-        { status: 404 }
-      )
-    }
+    
+    const { supabase, subscriptions } = result.result
 
     // Manejar duplicados: seleccionar la suscripción más completa
     let subscription = subscriptions[0]

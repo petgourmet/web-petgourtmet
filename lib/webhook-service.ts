@@ -5,6 +5,7 @@ import logger, { LogCategory } from '@/lib/logger'
 import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 import webhookMonitor from '@/lib/webhook-monitor'
 import autoSyncService from '@/lib/auto-sync-service'
+import { idempotencyService, IdempotencyService } from '@/lib/idempotency-service'
 
 // Tipos para webhooks de MercadoPago
 interface WebhookPayload {
@@ -622,17 +623,114 @@ export class WebhookService {
     }
   }
 
-  // FUNCIÓN ELIMINADA - Activación se maneja en /suscripcion por URL
-  // Esta función se mantiene solo para casos edge extremos
+  // FUNCIÓN MEJORADA - Activación robusta con idempotencia para casos edge
   private async activateSubscriptionByReference(externalReference: string, webhookData: any, supabase: any): Promise<void> {
-    logger.info('Activación por webhook - CASO EDGE', 'SUBSCRIPTION', {
+    logger.info('Activación por webhook - CASO EDGE con idempotencia robusta', 'SUBSCRIPTION', {
       externalReference,
       subscriptionId: webhookData.id,
-      note: 'Flujo principal debe manejarse por URL redirect en /suscripcion'
+      note: 'Procesamiento robusto para casos donde el usuario no llegue a /suscripcion'
     })
     
-    // NO HACER NADA - Solo logging para casos edge
-    // El flujo principal se maneja cuando el usuario llega a /suscripcion
+    if (!externalReference) {
+      logger.warn('External reference no disponible para activación', 'SUBSCRIPTION', { webhookData })
+      return
+    }
+
+    // IDEMPOTENCIA ROBUSTA: Usar servicio de idempotencia con locks distribuidos
+    const idempotencyKey = idempotencyService.generateWebhookKey(externalReference, webhookData.id)
+    
+    try {
+      const result = await idempotencyService.executeWithIdempotency(
+        idempotencyKey,
+        async () => {
+          // Buscar suscripción pendiente por external_reference
+          const { data: pendingSubscriptions, error: searchError } = await supabase
+            .from('unified_subscriptions')
+            .select('*')
+            .eq('external_reference', externalReference)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+          
+          if (searchError) {
+            logger.error('Error buscando suscripción pendiente en webhook', 'SUBSCRIPTION', {
+              externalReference,
+              error: searchError.message
+            })
+            throw new Error(`Error buscando suscripción: ${searchError.message}`)
+          }
+          
+          if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
+            logger.info('No se encontró suscripción pendiente para activar desde webhook', 'SUBSCRIPTION', {
+              externalReference
+            })
+            return { success: false, reason: 'no_pending_subscription' }
+          }
+          
+          // Verificar que no exista ya una suscripción activa
+          const { data: activeSubscriptions } = await supabase
+            .from('unified_subscriptions')
+            .select('*')
+            .eq('external_reference', externalReference)
+            .eq('status', 'active')
+          
+          if (activeSubscriptions && activeSubscriptions.length > 0) {
+            logger.info('Suscripción ya está activa - idempotencia', 'SUBSCRIPTION', {
+              externalReference,
+              activeSubscriptionId: activeSubscriptions[0].id
+            })
+            return { success: true, reason: 'already_active', subscriptionId: activeSubscriptions[0].id }
+          }
+          
+          // Activar la suscripción más reciente
+          const subscriptionToActivate = pendingSubscriptions[0]
+          
+          const { error: updateError } = await supabase
+            .from('unified_subscriptions')
+            .update({
+              status: 'active',
+              processed_at: new Date().toISOString(),
+              last_billing_date: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              mercadopago_subscription_id: webhookData.id
+            })
+            .eq('id', subscriptionToActivate.id)
+          
+          if (updateError) {
+            logger.error('Error activando suscripción desde webhook', 'SUBSCRIPTION', {
+              subscriptionId: subscriptionToActivate.id,
+              error: updateError.message
+            })
+            throw new Error(`Error activando suscripción: ${updateError.message}`)
+          }
+          
+          // Enviar email de confirmación
+          await this.sendSubscriptionConfirmationEmail(subscriptionToActivate, supabase)
+          
+          logger.info('Suscripción activada exitosamente desde webhook', 'SUBSCRIPTION', {
+            subscriptionId: subscriptionToActivate.id,
+            externalReference,
+            webhookId: webhookData.id
+          })
+          
+          return { success: true, subscriptionId: subscriptionToActivate.id }
+        },
+        300000 // 5 minutos de timeout
+      )
+      
+      if (result.fromCache) {
+        logger.info('Resultado de activación obtenido desde caché de idempotencia', 'SUBSCRIPTION', {
+          externalReference,
+          webhookId: webhookData.id
+        })
+      }
+      
+    } catch (error: any) {
+      logger.error('Error en activación robusta desde webhook', 'SUBSCRIPTION', {
+        externalReference,
+        webhookId: webhookData.id,
+        error: error.message
+      })
+    }
   }
 
   // FUNCIÓN PARA ENVIAR EMAIL DE CONFIRMACIÓN DE SUSCRIPCIÓN

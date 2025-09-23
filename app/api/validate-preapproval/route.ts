@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase/client"
 import MercadoPagoService from "@/lib/mercadopago-service"
+import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
+import { enhancedIdempotencyService } from '@/lib/enhanced-idempotency-service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,27 +14,59 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    
+    // Generar clave de idempotencia para la validación
+    const idempotencyKey = subscriptionDeduplicationService.generateIdempotencyKey(
+      preapproval_id,
+      user_id,
+      'validation'
+    )
 
-    // Inicializar servicio de MercadoPago
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Token de MercadoPago no configurado" },
-        { status: 500 }
-      )
+    // Usar servicio de idempotencia para la validación
+    const result = await enhancedIdempotencyService.executeSubscriptionWithIdempotency(
+      idempotencyKey,
+      async () => {
+        // Inicializar servicio de MercadoPago
+        const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
+        if (!accessToken) {
+          throw new Error("Token de MercadoPago no configurado")
+        }
+
+        const mpService = new MercadoPagoService(accessToken)
+
+        // Obtener información de la suscripción desde MercadoPago
+        const subscriptionInfo = await mpService.getSubscription(preapproval_id)
+
+        if (!subscriptionInfo || subscriptionInfo.status !== "authorized") {
+          throw new Error("Suscripción no encontrada o no autorizada")
+        }
+        
+        console.log('📋 Información de suscripción obtenida:', {
+          id: subscriptionInfo.id,
+          status: subscriptionInfo.status,
+          external_reference: subscriptionInfo.external_reference
+        })
+        
+        return { subscriptionInfo }
+      },
+      {
+        timeoutMs: 30000,
+        maxRetries: 3
+      }
+    )
+    
+    // Manejar resultado desde caché o nueva ejecución
+    if (result.fromCache) {
+      console.log('✅ Validación de suscripción obtenida desde caché de idempotencia')
+      return NextResponse.json({
+        success: true,
+        message: 'Suscripción ya validada (desde caché)',
+        ...result.result,
+        fromCache: true
+      })
     }
-
-    const mpService = new MercadoPagoService(accessToken)
-
-    // Obtener información de la suscripción desde MercadoPago
-    const subscriptionInfo = await mpService.getSubscription(preapproval_id)
-
-    if (!subscriptionInfo || subscriptionInfo.status !== "authorized") {
-      return NextResponse.json(
-        { error: "Suscripción no encontrada o no autorizada" },
-        { status: 404 }
-      )
-    }
+    
+    const { subscriptionInfo } = result.result
 
     // PASO 1: Buscar suscripción por external_reference (prioridad)
     const externalReference = subscriptionInfo.external_reference || preapproval_id

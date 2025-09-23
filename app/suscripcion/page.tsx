@@ -10,19 +10,46 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Calendar, Package, CreditCard, ArrowLeft } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
-import logger, { LogCategory } from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
+import { idempotencyService, IdempotencyService } from '@/lib/idempotency-service'
+
+interface Product {
+  id: number
+  name: string
+  image: string
+  price: number
+  [key: string]: any
+}
 
 interface UserSubscription {
   id: number
+  user_id: string
   product_name: string
   subscription_type: string
   status: string
-  next_billing_date: string
-  discounted_price: number
-  frequency: string
-  frequency_type: string
-  product_image?: string
+  external_reference: string | null
+  mercadopago_subscription_id: string | null
+  transaction_amount: number | null
+  base_price: number | null
+  discounted_price: number | null
+  product_image: string | null
+  frequency: number | null
+  frequency_type: string | null
+  next_billing_date: string | null
+  last_billing_date: string | null
+  product_id: number | null
+  customer_data: any
+  cart_items: any[]
+  created_at: string
+  updated_at: string
+  processed_at: string | null
   size?: string
+  products?: {
+    id: number
+    name: string
+    image: string
+    price: number
+  } | null
 }
 
 export default function SuscripcionPage() {
@@ -160,6 +187,7 @@ export default function SuscripcionPage() {
         .eq("user_id", user.id)
         .eq("status", "active")
         .order("created_at", { ascending: false })
+        .returns<UserSubscription[]>()
 
       if (error) {
         console.error("Error al cargar suscripciones:", error)
@@ -206,6 +234,7 @@ export default function SuscripcionPage() {
         .eq("user_id", user.id)
         .eq("status", "pending")
         .not('mercadopago_subscription_id', 'is', null)
+        .returns<UserSubscription[]>()
 
       if (pendingError) {
         console.error("Error buscando suscripciones pendientes:", pendingError)
@@ -225,10 +254,10 @@ export default function SuscripcionPage() {
         subscriptionIds: pendingSubscriptions.map(s => s.id)
       })
       
-      console.log(`Encontradas ${pendingSubscriptions.length} suscripciones pendientes`)
+      console.log(`Encontradas ${pendingSubscriptions?.length || 0} suscripciones pendientes`)
       
       // VALIDACIÓN ANTI-DUPLICACIÓN: Filtrar suscripciones que ya están activas
-      const validPendingSubscriptions = []
+      const validPendingSubscriptions: UserSubscription[] = []
       
       for (const pendingSubscription of pendingSubscriptions) {
         // Verificar si ya existe una suscripción activa con el mismo external_reference
@@ -238,6 +267,7 @@ export default function SuscripcionPage() {
             .select("*")
             .eq("external_reference", pendingSubscription.external_reference)
             .eq("status", "active")
+            .returns<UserSubscription[]>()
           
           if (existingActive && existingActive.length > 0) {
             logger.warn(LogCategory.SUBSCRIPTION, 'DUPLICACIÓN EVITADA: Suscripción ya activa por external_reference', {
@@ -259,6 +289,7 @@ export default function SuscripcionPage() {
             .eq("user_id", user.id)
             .eq("product_id", pendingSubscription.product_id)
             .eq("status", "active")
+            .returns<UserSubscription[]>()
           
           if (existingProductActive && existingProductActive.length > 0) {
             logger.warn(LogCategory.SUBSCRIPTION, 'DUPLICACIÓN EVITADA: Usuario ya tiene suscripción activa para producto', {
@@ -340,8 +371,8 @@ export default function SuscripcionPage() {
       const nextBillingDate = calculateNextBillingDate(pendingSubscription.subscription_type)
       
       // Actualizar suscripción a activa
-      const { data: newSubscription, error: createError } = await supabase
-        .from("unified_subscriptions")
+      const { data: newSubscription, error: createError } = await (supabase
+        .from("unified_subscriptions") as any)
         .update({
           status: "active",
           next_billing_date: nextBillingDate,
@@ -380,7 +411,7 @@ export default function SuscripcionPage() {
           .from('products')
           .select('*')
           .eq('id', pendingSubscription.product_id)
-          .single()
+          .single<Product>()
         
         if (!productError && product) {
           productInfo = product
@@ -543,7 +574,7 @@ export default function SuscripcionPage() {
       const missingFields = requiredFields.filter(field => !updateData[field] || (typeof updateData[field] === 'number' && updateData[field] === 0))
       
       if (missingFields.length > 0) {
-        logger.error(LogCategory.SUBSCRIPTION, 'CRÍTICO: Campos obligatorios aún faltantes después de recuperación', {
+        logger.error(LogCategory.SUBSCRIPTION, 'CRÍTICO: Campos obligatorios aún faltantes después de recuperación', undefined, {
           userId: user.id,
           subscriptionId: pendingSubscription.id,
           missingFields,
@@ -601,8 +632,8 @@ export default function SuscripcionPage() {
       })
       
       // Actualizar suscripción a activa con toda la información
-      const { data: newSubscription, error: createError } = await supabase
-        .from("unified_subscriptions")
+      const { data: newSubscription, error: createError } = await (supabase
+        .from("unified_subscriptions") as any)
         .update(updateData)
         .eq("id", pendingSubscription.id)
         .select()
@@ -699,7 +730,7 @@ export default function SuscripcionPage() {
     }
   }
 
-  // Función simplificada para manejar status=approved
+  // Función simplificada para manejar status=approved con idempotencia robusta
   const activateApprovedSubscription = async (urlParams: URLSearchParams) => {
     const externalReference = urlParams.get('external_reference');
     
@@ -710,14 +741,14 @@ export default function SuscripcionPage() {
       return;
     }
 
-    // IDEMPOTENCIA: Evitar múltiples ejecuciones simultáneas
-    if (isProcessing) {
-      console.log('🔄 Proceso ya en curso, evitando duplicación');
-      return;
-    }
-
+    // IDEMPOTENCIA ROBUSTA: Usar servicio de idempotencia con locks distribuidos
+    const idempotencyKey = IdempotencyService.generateSubscriptionKey(user.id, externalReference, 'activate');
+    
     try {
-      setIsProcessing(true);
+      const result = await idempotencyService.executeWithIdempotency(
+        idempotencyKey,
+        async () => {
+          setIsProcessing(true);
       
       // PASO 1: Verificar si ya existe una suscripción activa
       const { data: existingActive, error: activeError } = await supabase
@@ -780,14 +811,14 @@ export default function SuscripcionPage() {
       }
 
       // PASO 3: Encontrar el registro más completo
-      const completeSubscription = pendingSubscriptions.find(sub => 
+      const completeSubscription: UserSubscription = (pendingSubscriptions as UserSubscription[]).find((sub: UserSubscription) => 
         sub.product_name && 
         sub.base_price && 
-        parseFloat(sub.base_price) > 0 &&
+        parseFloat(sub.base_price as any) > 0 &&
         sub.customer_data && 
         sub.product_id &&
         sub.cart_items
-      ) || pendingSubscriptions[0]; // Usar el más reciente si no hay completos
+      ) || (pendingSubscriptions as UserSubscription[])[0]; // Usar el más reciente si no hay completos
 
       console.log('📋 Registro seleccionado para activar:', {
         id: completeSubscription.id,
@@ -797,7 +828,7 @@ export default function SuscripcionPage() {
       });
 
       // PASO 4: Eliminar registros duplicados/incompletos del mismo usuario
-      const otherSubscriptions = pendingSubscriptions.filter(sub => sub.id !== completeSubscription.id);
+      const otherSubscriptions: UserSubscription[] = (pendingSubscriptions as UserSubscription[]).filter((sub: UserSubscription) => sub.id !== completeSubscription.id);
       if (otherSubscriptions.length > 0) {
         console.log('🗑️ Eliminando registros duplicados:', otherSubscriptions.length);
         const { error: deleteError } = await supabase
@@ -826,8 +857,8 @@ export default function SuscripcionPage() {
         updateData.mercadopago_subscription_id = externalReference;
       }
 
-      const { error: updateError } = await supabase
-        .from('unified_subscriptions')
+      const { error: updateError } = await (supabase
+        .from('unified_subscriptions') as any)
         .update(updateData)
         .eq('id', completeSubscription.id);
 
@@ -879,13 +910,27 @@ export default function SuscripcionPage() {
         }
       }
 
-      toast({
-        title: "¡Suscripción Activada!",
-        description: `Tu suscripción a ${completeSubscription.product_name} está activa`,
-      });
+          toast({
+            title: "¡Suscripción Activada!",
+            description: `Tu suscripción a ${completeSubscription.product_name} está activa`,
+          });
 
-      loadUserSubscriptions();
-      window.history.replaceState({}, document.title, window.location.pathname);
+          loadUserSubscriptions();
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          return { success: true, subscriptionId: completeSubscription.id };
+        },
+        300000 // 5 minutos de timeout
+      );
+      
+      if (result.fromCache) {
+        console.log('✅ Resultado obtenido desde caché de idempotencia');
+        toast({
+          title: "Suscripción ya procesada",
+          description: "Tu suscripción ya fue activada anteriormente",
+        });
+        loadUserSubscriptions();
+      }
       
     } catch (error) {
       console.error("❌ ERROR CRÍTICO: Error activando suscripción approved:", error)
@@ -943,6 +988,7 @@ export default function SuscripcionPage() {
         .select('*')
         .eq('external_reference', externalReference)
         .order('created_at', { ascending: false })
+        .returns<UserSubscription[]>()
       
       if (allSubscriptions && allSubscriptions.length > 1) {
         console.log('🗑️ Encontrados múltiples registros, limpiando duplicados:', allSubscriptions.length)
@@ -1129,7 +1175,20 @@ export default function SuscripcionPage() {
 
     try {
       setIsProcessing(true)
+      
+      // Obtener external_reference de los parámetros URL si existe
+      const urlParams = new URLSearchParams(window.location.search)
+      const externalReference = urlParams.get('external_reference')
+      
       console.log('🔍 Validando preapproval_id:', preapprovalId, 'para usuario:', user.id)
+      console.log('🔍 External reference desde URL:', externalReference)
+      
+      logger.info(LogCategory.SUBSCRIPTION, 'Iniciando validación de preapproval', {
+        userId: user.id,
+        preapprovalId,
+        externalReference,
+        timestamp: new Date().toISOString()
+      })
       
       // PASO 1: Verificar si ya existe una suscripción activa con este preapproval_id
       const { data: existingActive, error: activeError } = await supabase
@@ -1142,10 +1201,19 @@ export default function SuscripcionPage() {
 
       if (activeError) {
         console.error('❌ Error verificando suscripción activa:', activeError)
+        logger.error(LogCategory.SUBSCRIPTION, 'Error verificando suscripción activa', activeError.message, {
+          userId: user.id,
+          preapprovalId
+        })
       }
 
       if (existingActive) {
         console.log('✅ Suscripción ya está activa:', existingActive.id)
+        logger.info(LogCategory.SUBSCRIPTION, 'Suscripción ya activa encontrada', {
+          userId: user.id,
+          subscriptionId: existingActive.id,
+          preapprovalId
+        })
         loadUserSubscriptions()
         window.history.replaceState({}, document.title, window.location.pathname)
         toast({
@@ -1155,45 +1223,122 @@ export default function SuscripcionPage() {
         return
       }
 
-      // PASO 2: Verificar si existe suscripción pending - NO CREAR DUPLICADOS
-      const { data: existingPending, error: pendingError } = await supabase
+      // PASO 2: Verificar si existe suscripción TANTO por preapproval_id COMO por external_reference
+      let existingQuery = supabase
         .from('unified_subscriptions')
         .select('*')
-        .eq('mercadopago_subscription_id', preapprovalId)
         .eq('user_id', user.id)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'processing'])
 
-      if (pendingError) {
-        console.error('❌ Error verificando suscripción pending:', pendingError)
+      // Buscar por AMBOS campos para evitar duplicados
+      if (externalReference && externalReference !== preapprovalId) {
+        existingQuery = existingQuery.or(`mercadopago_subscription_id.eq.${preapprovalId},external_reference.eq.${externalReference}`)
+      } else {
+        existingQuery = existingQuery.eq('mercadopago_subscription_id', preapprovalId)
       }
 
-      // Si ya existe pending, NO crear otra
-      if (existingPending && existingPending.length > 0) {
-        console.log('📋 Ya existe suscripción pending:', existingPending[0].id, '- NO creando duplicado')
+      const { data: existingSubscriptions, error: pendingError } = await existingQuery
+
+      if (pendingError) {
+        console.error('❌ Error verificando suscripciones existentes:', pendingError)
+        logger.error(LogCategory.SUBSCRIPTION, 'Error verificando suscripciones existentes', pendingError.message, {
+          userId: user.id,
+          preapprovalId,
+          externalReference
+        })
+      }
+
+      // Si ya existe alguna suscripción relacionada, actualizarla en lugar de crear una nueva
+      if (existingSubscriptions && existingSubscriptions.length > 0) {
+        const existingSubscription = existingSubscriptions[0]
+        console.log('� Suscripción existente encontrada:', existingSubscription.id, '- Actualizando en lugar de crear duplicado')
+        
+        logger.info(LogCategory.SUBSCRIPTION, 'Suscripción existente encontrada, actualizando', {
+          userId: user.id,
+          existingSubscriptionId: existingSubscription.id,
+          currentExternalReference: existingSubscription.external_reference,
+          newExternalReference: externalReference,
+          preapprovalId
+        })
+
+        // Actualizar el registro existente con la información de MercadoPago
+        const updateData: any = {
+          mercadopago_subscription_id: preapprovalId,
+          updated_at: new Date().toISOString()
+        }
+
+        // Si tenemos external_reference de la URL y es diferente, usarlo
+        if (externalReference && externalReference !== existingSubscription.external_reference) {
+          updateData.external_reference = externalReference
+        }
+
+        const { error: updateError } = await (supabase
+          .from('unified_subscriptions') as any)
+          .update(updateData)
+          .eq('id', existingSubscription.id)
+
+        if (updateError) {
+          console.error('❌ Error actualizando suscripción existente:', updateError)
+          logger.error(LogCategory.SUBSCRIPTION, 'Error actualizando suscripción existente', updateError.message, {
+            userId: user.id,
+            subscriptionId: existingSubscription.id,
+            preapprovalId
+          })
+        } else {
+          console.log('✅ Suscripción existente actualizada exitosamente')
+          logger.info(LogCategory.SUBSCRIPTION, 'Suscripción actualizada exitosamente', {
+            userId: user.id,
+            subscriptionId: existingSubscription.id,
+            preapprovalId,
+            externalReference
+          })
+        }
       } else {
-        // Solo crear si NO existe ninguna suscripción con este preapproval_id
+        // Solo crear si NO existe ninguna suscripción relacionada
         console.log('➕ Creando nueva suscripción pending para preapproval_id:', preapprovalId)
+        
+        logger.info(LogCategory.SUBSCRIPTION, 'Creando nueva suscripción pending', {
+          userId: user.id,
+          preapprovalId,
+          externalReference,
+          reason: 'No se encontró suscripción existente'
+        })
+
+        const newSubscriptionData = {
+          user_id: user.id,
+          mercadopago_subscription_id: preapprovalId,
+          external_reference: externalReference || preapprovalId, // ✅ Usar external_reference de URL si existe
+          status: 'pending',
+          subscription_type: 'monthly', // Default, se actualizará con datos reales
+          product_name: 'Producto Pet Gourmet',
+          discounted_price: '0',
+          frequency: 1,
+          frequency_type: 'months',
+          currency_id: 'MXN',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+
         const { error: insertError } = await supabase
           .from('unified_subscriptions')
-          .insert({
-            user_id: user.id,
-            mercadopago_subscription_id: preapprovalId,
-            external_reference: preapprovalId,
-            status: 'pending',
-            subscription_type: 'monthly', // Default, se actualizará con datos reales
-            product_name: 'Producto Pet Gourmet',
-            discounted_price: '0',
-            frequency: 1,
-            frequency_type: 'months',
-            currency_id: 'MXN',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
+          .insert(newSubscriptionData)
 
         if (insertError) {
           console.error('❌ Error creando suscripción:', insertError)
+          logger.error(LogCategory.SUBSCRIPTION, 'Error creando nueva suscripción', insertError.message, {
+            userId: user.id,
+            preapprovalId,
+            externalReference,
+            errorCode: insertError.code,
+            errorDetails: insertError.details
+          })
         } else {
           console.log('✅ Suscripción pending creada exitosamente')
+          logger.info(LogCategory.SUBSCRIPTION, 'Nueva suscripción pending creada exitosamente', {
+            userId: user.id,
+            preapprovalId,
+            externalReference: newSubscriptionData.external_reference
+          })
         }
       }
       

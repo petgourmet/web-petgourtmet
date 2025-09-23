@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { v4 as uuidv4 } from 'uuid'
+import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
+import { enhancedIdempotencyService } from '@/lib/enhanced-idempotency-service'
+
+// Función auxiliar para calcular próxima fecha de facturación
+function getNextBillingDate(frequency: string): string {
+  const now = new Date()
+  switch (frequency) {
+    case 'monthly':
+      now.setMonth(now.getMonth() + 1)
+      break
+    case 'yearly':
+      now.setFullYear(now.getFullYear() + 1)
+      break
+    default:
+      now.setMonth(now.getMonth() + 1)
+  }
+  return now.toISOString()
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,147 +27,243 @@ export async function POST(request: NextRequest) {
       planId = 'test-plan', 
       amount = 2500, 
       userEmail = 'test@petgourmet.com',
-      frequency = 'monthly'
+      frequency = 'monthly',
+      userId = 'test-user-id'
     } = body
     
-    const supabase = createClient()
-    
-    // Crear suscripción de prueba
-    const subscriptionId = uuidv4()
-    const testSubscription = {
-      id: subscriptionId,
-      user_email: userEmail,
-      plan_id: planId,
-      plan_name: 'Plan de Prueba',
-      amount: amount,
-      frequency: frequency,
-      status: 'pending',
-      payment_status: 'pending',
-      payment_method: 'mercadopago',
-      next_billing_date: getNextBillingDate(frequency),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-    
-    // Insertar suscripción en la base de datos
-    const { error: subscriptionError } = await supabase
-      .from('unified_subscriptions')
-      .insert(testSubscription)
-    
-    if (subscriptionError) {
-      console.error('Error creating test subscription:', subscriptionError)
+    // Generar external_reference determinística
+    console.log('🔄 Generando external_reference con datos:', { userId, planId, amount, email: userEmail, frequency })
+    let finalExternalReference: string
+    try {
+      finalExternalReference = subscriptionDeduplicationService.generateDeterministicReference(
+        {
+          userId,
+          planId,
+          amount,
+          additionalData: { email: userEmail, frequency }
+        }
+      )
+      console.log('🔗 External reference generada:', finalExternalReference)
+    } catch (error) {
+      console.error('❌ Error generando external_reference:', error)
       return NextResponse.json(
-        { error: 'Error al crear suscripción de prueba', details: subscriptionError.message },
+        { error: 'Error generando referencia externa', details: error instanceof Error ? error.message : String(error) },
         { status: 500 }
       )
     }
     
-    // Crear orden inicial para la suscripción
-    const orderId = uuidv4()
-    const testOrder = {
-      id: orderId,
-      user_email: userEmail,
-      subscription_id: subscriptionId,
-      total_amount: amount,
-      status: 'pending',
-      payment_status: 'pending',
-      payment_method: 'mercadopago',
-      items: [
-        {
-          subscription_id: subscriptionId,
-          name: `Suscripción ${frequency === 'monthly' ? 'Mensual' : 'Anual'} - Plan de Prueba`,
-          price: amount,
-          quantity: 1
-        }
-      ],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    // Validar duplicados antes de crear
+    const duplicateCheck = await subscriptionDeduplicationService.validateBeforeCreate({
+      userId,
+      planId,
+      amount,
+      additionalData: { email: userEmail, frequency }
+    })
+    
+    if (!duplicateCheck.isValid) {
+      console.log('🚫 Validación fallida:', duplicateCheck.reason)
+      return NextResponse.json(
+        { 
+          error: 'Validación de suscripción fallida', 
+          reason: duplicateCheck.reason,
+          existing: duplicateCheck.existingSubscription
+        }, 
+        { status: 409 }
+      )
     }
     
-    const { error: orderError } = await supabase
+    const supabase = createServiceClient()
+    
+    // Generar clave de idempotencia
+    const subscriptionData = {
+      userId,
+      planId,
+      amount,
+      additionalData: { email: userEmail, frequency }
+    }
+    console.log('🔑 Generando clave de idempotencia con datos:', subscriptionData)
+    console.log('🔑 finalExternalReference antes de generar clave:', finalExternalReference)
+    const idempotencyKey = subscriptionDeduplicationService.generateIdempotencyKey(subscriptionData)
+    console.log('🔑 Clave de idempotencia generada:', idempotencyKey)
+    
+    // Usar servicio de idempotencia para crear la suscripción
+    const result = await enhancedIdempotencyService.executeSubscriptionWithIdempotency(
+      async (externalRef) => {
+        // Crear cliente de Supabase dentro de la función
+        const supabaseClient = createServiceClient()
+        
+        // Crear suscripción de prueba
+        const testSubscription = {
+          user_id: null, // Permitir null para pruebas
+          external_reference: finalExternalReference,
+          subscription_type: 'monthly', // Valor fijo válido
+          status: 'pending',
+          transaction_amount: amount,
+          currency_id: 'MXN',
+          next_billing_date: getNextBillingDate(frequency),
+          customer_data: {
+            email: userEmail,
+            plan_id: planId,
+            test_user_id: userId // Guardar el userId de prueba en customer_data
+          },
+          metadata: {
+            plan_name: 'Plan de Prueba',
+            payment_method: 'mercadopago'
+          }
+        }
+        
+        console.log('📝 Datos de suscripción a insertar:', testSubscription)
+        
+        // Insertar suscripción en la base de datos
+        const { data: insertedData, error: subscriptionError } = await supabaseClient
+          .from('unified_subscriptions')
+          .insert(testSubscription)
+          .select()
+          .single()
+        
+        if (subscriptionError) {
+          throw new Error(`Error creando suscripción de prueba: ${subscriptionError.message}`)
+        }
+        
+        return { subscriptionId: insertedData.id, insertedData }
+      },
+      {
+        key: idempotencyKey,
+        ttlSeconds: 300,
+        maxRetries: 3,
+        enablePreValidation: true,
+        subscriptionData
+      }
+    )
+    
+    // Manejar resultado desde caché o nueva ejecución
+    if (result.fromCache) {
+      console.log('✅ Suscripción de prueba obtenida desde caché de idempotencia')
+      return NextResponse.json({
+        success: true,
+        message: 'Suscripción de prueba ya existe (desde caché)',
+        ...result.result,
+        fromCache: true
+      })
+    }
+
+    console.log('📊 Resultado del servicio de idempotencia:', result)
+    if (!result.success || !result.data) {
+      throw new Error(`El servicio de idempotencia falló: ${result.error || 'Resultado inválido'}`)
+    }
+
+    const { subscriptionId, insertedData } = result.data
+    
+    // Crear orden asociada
+    const testOrder = {
+      user_id: null, // Permitir null para pruebas
+      external_reference: finalExternalReference,
+      total: amount,
+      status: 'pending',
+      payment_method: 'mercadopago',
+      customer_email: userEmail,
+      is_subscription: true
+    }
+    
+    const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert(testOrder)
+      .select()
+      .single()
     
     if (orderError) {
-      console.error('Error creating subscription order:', orderError)
+      console.error('Error creando orden de prueba:', orderError)
       return NextResponse.json(
-        { error: 'Error al crear orden de suscripción', details: orderError.message },
+        { error: 'Error creando orden de prueba' },
         { status: 500 }
       )
     }
     
-    // Simular activación de suscripción después de 3 segundos
+    const orderId = orderData.id
+    
+    // Simular activación después de 3 segundos
     setTimeout(async () => {
       try {
-        // Actualizar suscripción como activa
-        const { error: updateSubError } = await supabase
+        console.log(`🔄 Iniciando simulación de activación para suscripción ${subscriptionId}`, {
+          external_reference: finalExternalReference,
+          user_email: userEmail
+        })
+        
+        // Actualizar suscripción a activa
+        const supabaseService = createServiceClient()
+        const { error: updateError } = await supabaseService
           .from('unified_subscriptions')
           .update({
             status: 'active',
-            payment_status: 'paid',
-            payment_id: `test_sub_payment_${Date.now()}`,
-            updated_at: new Date().toISOString()
+            mercadopago_subscription_id: `test_preapproval_${subscriptionId.toString().slice(0, 8)}`
           })
           .eq('id', subscriptionId)
         
-        if (updateSubError) {
-          console.error('Error updating test subscription:', updateSubError)
-        }
-        
-        // Actualizar orden como pagada
-        const { error: updateOrderError } = await supabase
-          .from('orders')
-          .update({
-            status: 'confirmed',
-            payment_status: 'paid',
-            payment_id: `test_sub_payment_${Date.now()}`,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', orderId)
-        
-        if (updateOrderError) {
-          console.error('Error updating subscription order:', updateOrderError)
+        if (updateError) {
+          console.error('❌ Error activando suscripción de prueba:', updateError)
+          return
         }
         
         // Registrar webhook simulado
-        await supabase
+        const { error: webhookError } = await supabaseService
           .from('webhook_logs')
           .insert({
-            event_type: 'subscription.authorized',
-            payment_id: `test_sub_payment_${Date.now()}`,
-            subscription_id: subscriptionId,
-            order_id: orderId,
-            status: 'processed',
-            raw_data: {
-              action: 'subscription.authorized',
-              api_version: 'v1',
-              data: {
-                id: `test_sub_payment_${Date.now()}`,
-                preapproval_id: subscriptionId
-              },
-              date_created: new Date().toISOString(),
-              id: Date.now(),
-              live_mode: false,
-              type: 'subscription',
-              user_id: 'test_user'
+            webhook_type: 'subscription',
+            webhook_data: {
+              subscription_id: subscriptionId,
+              external_reference: finalExternalReference,
+              status: 'active',
+              payment_status: 'approved',
+              simulated: true,
+              user_email: userEmail,
+              event_type: 'subscription.activated'
             },
-            created_at: new Date().toISOString()
+            status: 'processed',
+            processed_at: new Date().toISOString()
           })
+        
+        if (webhookError) {
+          console.error('❌ Error registrando webhook simulado:', webhookError)
+        }
+        
+        console.log(`✅ Suscripción de prueba activada automáticamente`, {
+          subscription_id: subscriptionId,
+          external_reference: finalExternalReference,
+          user_email: userEmail
+        })
       } catch (error) {
-        console.error('Error in simulated subscription webhook:', error)
+        console.error('❌ Error en simulación de activación:', error)
       }
     }, 3000)
     
     return NextResponse.json({
       success: true,
-      message: 'Suscripción de prueba creada exitosamente',
-      subscriptionId,
-      orderId,
-      amount,
-      frequency,
-      userEmail,
-      nextBillingDate: testSubscription.next_billing_date,
-      note: 'La suscripción se activará automáticamente en 3 segundos'
+      message: 'Suscripción de prueba creada exitosamente con lógica de deduplicación',
+      subscription: {
+        id: subscriptionId,
+        external_reference: finalExternalReference,
+        user_id: userId,
+        user_email: userEmail,
+        plan_id: planId,
+        amount: amount,
+        frequency: frequency,
+        status: 'pending',
+        next_billing_date: getNextBillingDate(frequency),
+        idempotency_key: idempotencyKey
+      },
+      order: {
+        id: orderId,
+        subscription_id: subscriptionId,
+        external_reference: finalExternalReference,
+        amount: amount,
+        status: 'pending'
+      },
+      deduplication_info: {
+        external_reference_generated: true,
+        duplicate_check_passed: true,
+        idempotency_enabled: true
+      },
+      note: 'La suscripción se activará automáticamente en 3 segundos. Incluye protección contra duplicados e idempotencia.'
     })
     
   } catch (error) {
@@ -159,14 +273,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-function getNextBillingDate(frequency: string): string {
-  const now = new Date()
-  if (frequency === 'monthly') {
-    now.setMonth(now.getMonth() + 1)
-  } else if (frequency === 'yearly') {
-    now.setFullYear(now.getFullYear() + 1)
-  }
-  return now.toISOString()
 }

@@ -225,27 +225,6 @@ class Logger {
   }
 }
 
-// Instancia singleton
-const logger = Logger.getInstance();
-
-export default logger;
-
-// Exportar también métodos específicos para facilitar el uso
-export const {
-  debug,
-  info,
-  warn,
-  error,
-  webhookReceived,
-  webhookProcessed,
-  paymentStatusChanged,
-  subscriptionEvent,
-  orderStatusChanged,
-  systemError,
-  getLogs,
-  getRecentErrors,
-  getWebhookLogs,
-  getPaymentLogs,
-  getOrderLogs,
-  getLogStats
-} = logger;
+// Exportar la instancia singleton
+export const logger = Logger.getInstance();
+export default Logger;

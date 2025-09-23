@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import logger, { LogCategory } from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
