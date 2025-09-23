@@ -765,14 +765,14 @@ export function CheckoutModal() {
             userId: user.id,
             externalReference,
             tableName: 'unified_subscriptions',
-            conflictColumns: 'user_id,external_reference'
+            conflictColumns: 'user_id,product_id,external_reference'
           })
 
           // Guardar información de suscripción pendiente usando upsert para evitar duplicados
           const { data: insertedData, error: subscriptionError } = await supabase
             .from('unified_subscriptions')
             .upsert(subscriptionData as any, {
-              onConflict: 'user_id,external_reference',
+              onConflict: 'user_id,product_id,external_reference',
               ignoreDuplicates: false
             })
             .select()
