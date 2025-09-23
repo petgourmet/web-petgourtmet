@@ -158,11 +158,16 @@ export class SubscriptionDeduplicationService {
       }
 
       // Verificar suscripciones activas del usuario para el mismo plan
+      logger.info('Buscando suscripciones activas', 'DEDUPLICATION', {
+        userId,
+        planId,
+        searchBy: 'product_id'
+      })
       const { data: activeSubs, error: activeError } = await this.supabase
         .from('unified_subscriptions')
         .select('*')
         .eq('user_id', userId)
-        .eq('subscription_type', planId)
+        .eq('product_id', planId)
         .in('status', ['active', 'pending', 'processing'])
         .limit(5)
 
@@ -196,11 +201,17 @@ export class SubscriptionDeduplicationService {
 
       // Verificar suscripciones recientes (últimos 5 minutos) para detectar posibles duplicados
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      logger.info('Buscando suscripciones recientes', 'DEDUPLICATION', {
+        userId,
+        planId,
+        searchBy: 'product_id',
+        since: fiveMinutesAgo
+      })
       const { data: recentSubs, error: recentError } = await this.supabase
         .from('unified_subscriptions')
         .select('*')
         .eq('user_id', userId)
-        .eq('subscription_type', planId)
+        .eq('product_id', planId)
         .gte('created_at', fiveMinutesAgo)
         .limit(3)
 

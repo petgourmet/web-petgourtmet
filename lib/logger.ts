@@ -78,8 +78,12 @@ class Logger {
                        entry.level === LogLevel.WARN ? console.warn :
                        console.log;
       
-      logMethod(`[${entry.timestamp}] [${entry.category.toUpperCase()}] ${entry.message}`, 
-                entry.data ? entry.data : '');
+      // Para errores, mostrar el error real si existe, sino mostrar data
+      const logData = entry.level === LogLevel.ERROR && entry.error ? 
+                      entry.error : 
+                      (entry.data ? entry.data : '');
+      
+      logMethod(`[${entry.timestamp}] [${entry.category.toUpperCase()}] ${entry.message}`, logData);
     }
 
     // En producción, podrías enviar logs críticos a un servicio externo
@@ -113,10 +117,23 @@ class Logger {
     this.addLog(entry);
   }
 
-  error(category: LogCategory, message: string, error?: Error | string, data?: any, metadata?: any) {
+  error(category: LogCategory, message: string, error?: Error | string | any, data?: any, metadata?: any) {
+    let errorMessage: string | undefined;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      // Manejar errores de Supabase y otros objetos de error
+      errorMessage = String(error.message);
+    } else if (error) {
+      errorMessage = JSON.stringify(error);
+    }
+    
     const entry = this.createLogEntry(LogLevel.ERROR, category, message, data, {
       ...metadata,
-      error: error instanceof Error ? error.message : error
+      error: errorMessage
     });
     this.addLog(entry);
   }

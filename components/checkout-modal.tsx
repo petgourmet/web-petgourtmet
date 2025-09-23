@@ -535,6 +535,9 @@ export function CheckoutModal() {
       const baseReference = `${orderNumber}_${Date.now()}`
       let externalReference = baseReference
       
+      // Variable para controlar si se debe continuar con el procesamiento
+      let shouldContinueProcessing = true
+      
       if (hasSubscriptionItems && user) {
         const userId = user.id
         const planId = String(cart.find(item => item.isSubscription)?.id || 'unknown')
@@ -547,6 +550,14 @@ export function CheckoutModal() {
           amount: subscriptionItem?.price,
           currency: 'MXN',
           additionalData: { subscriptionType: subscriptionType || 'monthly' }
+        })
+        
+        logger.info(LogCategory.SUBSCRIPTION, 'Resultado de validación de deduplicación', {
+          userId,
+          planId,
+          isValid: validationResult.isValid,
+          reason: validationResult.reason,
+          existingSubscriptionStatus: validationResult.existingSubscription?.status
         })
         
         if (!validationResult.isValid) {
@@ -567,8 +578,36 @@ export function CheckoutModal() {
             })
             externalReference = validationResult.existingSubscription.external_reference
           } else {
-            // Para suscripciones activas o otros casos, mostrar error
+            // Para suscripciones activas o otros casos, mostrar advertencia y detener procesamiento
+            logger.warn(LogCategory.SUBSCRIPTION, 'Suscripción duplicada detectada - procesamiento detenido', validationResult.reason, {
+              userId,
+              planId,
+              existingSubscriptionId: validationResult.existingSubscription?.id,
+              existingSubscriptionStatus: validationResult.existingSubscription?.status,
+              action: 'STOPPING_EXECUTION_IMMEDIATELY'
+            })
+            
+            // Mostrar error al usuario
             setError(validationResult.reason)
+            
+            // Mostrar toast de error
+            toast({
+              title: "Suscripción existente",
+              description: validationResult.reason,
+              variant: "destructive"
+            })
+            
+            // Detener procesamiento inmediatamente
+            shouldContinueProcessing = false
+            
+            // Log adicional para confirmar detención
+            logger.info(LogCategory.SUBSCRIPTION, 'EJECUCIÓN DETENIDA: No se procesará la suscripción duplicada', {
+              userId,
+              planId,
+              shouldContinueProcessing: false
+            })
+            
+            // Salir inmediatamente de la función
             return
           }
         } else {
@@ -576,6 +615,24 @@ export function CheckoutModal() {
           externalReference = validationResult.externalReference || generateDeterministicReference(userId, planId, subscriptionType || 'monthly')
         }
       }
+      
+      // Verificación adicional de seguridad antes de continuar
+      if (!shouldContinueProcessing) {
+        logger.error(LogCategory.SUBSCRIPTION, 'VERIFICACIÓN DE SEGURIDAD: Procesamiento detenido por validación fallida', undefined, {
+          shouldContinueProcessing,
+          userId: user?.id,
+          hasSubscriptionItems,
+          subscriptionType
+        })
+        return
+      }
+      
+      // Log de confirmación de que se continuará con el procesamiento
+      logger.info(LogCategory.SUBSCRIPTION, 'VALIDACIÓN EXITOSA: Continuando con procesamiento de suscripción', {
+        userId: user?.id,
+        shouldContinueProcessing,
+        externalReference
+      })
 
       // Si hay suscripciones, redirigir al enlace de suscripción de Mercado Pago
       if (hasSubscriptionItems && subscriptionType && !isTestMode) {
@@ -788,7 +845,7 @@ export function CheckoutModal() {
           }
 
           if (subscriptionError) {
-            logger.error(LogCategory.SUBSCRIPTION, 'Error guardando suscripción pendiente', getErrorMessage(subscriptionError), {
+            logger.error(LogCategory.SUBSCRIPTION, 'Error guardando suscripción pendiente', subscriptionError, {
               userId: user.id,
               externalReference,
               errorCode: subscriptionError.code,
