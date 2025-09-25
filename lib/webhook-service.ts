@@ -6,6 +6,9 @@ import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 import webhookMonitor from '@/lib/webhook-monitor'
 import autoSyncService from '@/lib/auto-sync-service'
 import { idempotencyService, IdempotencyService } from '@/lib/idempotency-service'
+import { AdvancedIdempotencyService } from '@/lib/services/advanced-idempotency.service'
+import { NewSyncService } from '@/lib/services/subscription-sync.service'
+import { databaseLocksService } from '@/lib/services/database-locks.service'
 
 // Tipos para webhooks de MercadoPago
 interface WebhookPayload {
@@ -69,6 +72,8 @@ export class WebhookService {
   private mercadoPagoToken: string
   private webhookSecret: string
   private emailTransporter: any
+  private advancedIdempotencyService: AdvancedIdempotencyService
+  private syncService: NewSyncService
 
   constructor() {
     this.mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
@@ -84,6 +89,8 @@ export class WebhookService {
       hasSecret: !!this.webhookSecret 
     })
     this.initializeEmailTransporter()
+    this.advancedIdempotencyService = AdvancedIdempotencyService.getInstance()
+    this.syncService = NewSyncService.getInstance()
   }
 
   private initializeEmailTransporter() {
@@ -190,6 +197,62 @@ export class WebhookService {
     }
   }
 
+  // Obtener datos de suscripción desde MercadoPago
+  async getSubscriptionData(subscriptionId: string): Promise<SubscriptionData | null> {
+    const startTime = Date.now()
+    
+    try {
+      logger.info('Obteniendo datos de suscripción desde MercadoPago', 'SUBSCRIPTION', {
+        subscriptionId
+      })
+      
+      const response = await fetch(`https://api.mercadopago.com/preapproval/${subscriptionId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.mercadoPagoToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        logger.error('Error obteniendo datos de suscripción', 'SUBSCRIPTION', {
+          subscriptionId,
+          status: response.status,
+          statusText: response.statusText
+        })
+        return null
+      }
+      
+      const data = await response.json()
+      
+      logger.info('Datos de suscripción obtenidos exitosamente', 'SUBSCRIPTION', {
+        subscriptionId,
+        status: data.status,
+        payerEmail: data.payer_email,
+        externalReference: data.external_reference,
+        duration: Date.now() - startTime
+      })
+      
+      return {
+        id: data.id,
+        status: data.status,
+        reason: data.reason || '',
+        payer_email: data.payer_email,
+        external_reference: data.external_reference,
+        next_payment_date: data.next_payment_date,
+        auto_recurring: data.auto_recurring
+      }
+      
+    } catch (error: any) {
+      logger.error('Error obteniendo datos de suscripción', 'SUBSCRIPTION', {
+        subscriptionId,
+        error: error.message,
+        duration: Date.now() - startTime
+      })
+      return null
+    }
+  }
+  
   // Obtener datos de pago desde MercadoPago
   async getPaymentData(paymentId: string): Promise<PaymentData | null> {
     const startTime = Date.now()
@@ -411,41 +474,100 @@ export class WebhookService {
     }
   }
 
-  // WEBHOOK SIMPLIFICADO: Solo para casos edge - flujo principal es por URL
+  // WEBHOOK MEJORADO: Activación inmediata de suscripciones con retry logic
   async processSubscriptionWebhook(webhookData: WebhookPayload): Promise<boolean> {
     const startTime = Date.now()
     const subscriptionId = webhookData.data.id
     
     try {
-      logger.info('Webhook de suscripción recibido - solo casos edge', 'WEBHOOK', {
+      logger.info('🔔 Webhook de suscripción recibido - procesamiento inmediato', 'WEBHOOK', {
         subscriptionId,
         type: webhookData.type,
         action: webhookData.action,
-        liveMode: webhookData.live_mode,
-        note: 'Flujo principal manejado por URL redirect'
+        liveMode: webhookData.live_mode
       })
       
-      // SOLO LOGGING - El flujo principal se maneja por URL en /suscripcion
-      // Este webhook solo sirve para casos edge donde el usuario no llegue a la página
+      await this.initializeSupabase()
+      
+      // Obtener datos de la suscripción desde MercadoPago
+      const subscriptionData = await this.getSubscriptionData(subscriptionId)
+      
+      if (!subscriptionData) {
+        logger.warn('No se pudieron obtener datos de suscripción', 'WEBHOOK', {
+          subscriptionId,
+          action: webhookData.action
+        })
+        return true // No fallar por datos no disponibles
+      }
+      
+      // Procesar según la acción del webhook
+      let processed = false
+      
+      switch (webhookData.action) {
+        case 'created':
+        case 'updated':
+          if (subscriptionData.status === 'authorized') {
+            logger.info('🎉 Suscripción autorizada - activando inmediatamente', 'WEBHOOK', {
+              subscriptionId,
+              externalReference: subscriptionData.external_reference,
+              payerEmail: subscriptionData.payer_email
+            })
+            processed = await this.activateSubscriptionFromWebhook(subscriptionData)
+          } else {
+            logger.info('📋 Suscripción en estado no autorizado', 'WEBHOOK', {
+              subscriptionId,
+              status: subscriptionData.status,
+              reason: subscriptionData.reason
+            })
+            processed = true // No es error, solo no está lista
+          }
+          break
+          
+        case 'payment.created':
+        case 'payment.updated':
+          logger.info('💳 Pago de suscripción procesado', 'WEBHOOK', {
+            subscriptionId,
+            action: webhookData.action
+          })
+          processed = true // Los pagos recurrentes no requieren activación
+          break
+          
+        default:
+          logger.info('ℹ️ Acción de webhook no manejada', 'WEBHOOK', {
+            subscriptionId,
+            action: webhookData.action
+          })
+          processed = true
+      }
       
       const duration = Date.now() - startTime
-      logger.info('Webhook de suscripción registrado - sin procesamiento', 'WEBHOOK', {
+      logger.info('✅ Webhook de suscripción procesado', 'WEBHOOK', {
         subscriptionId,
         action: webhookData.action,
-        duration,
-        reason: 'Flujo principal por URL redirect'
+        processed,
+        duration
       })
       
-      return true
+      return processed
 
     } catch (error: any) {
       const duration = Date.now() - startTime
-      logger.error('Error en webhook de suscripción', 'WEBHOOK', {
+      logger.error('❌ Error en webhook de suscripción', 'WEBHOOK', {
         subscriptionId,
         action: webhookData.action,
         error: error.message,
         duration
       })
+      
+      // Implementar retry logic para errores temporales
+      if (this.isRetryableError(error)) {
+        logger.info('🔄 Error temporal - webhook será reintentado por MercadoPago', 'WEBHOOK', {
+          subscriptionId,
+          errorType: 'retryable'
+        })
+        return false // Hacer que MercadoPago reintente
+      }
+      
       return false
     }
   }
@@ -623,12 +745,12 @@ export class WebhookService {
     }
   }
 
-  // FUNCIÓN MEJORADA - Activación robusta con idempotencia para casos edge
+  // FUNCIÓN MEJORADA - Activación robusta con locks de base de datos y servicios avanzados
   private async activateSubscriptionByReference(externalReference: string, webhookData: any, supabase: any): Promise<void> {
-    logger.info('Activación por webhook - CASO EDGE con idempotencia robusta', 'SUBSCRIPTION', {
+    logger.info('🚀 Activación por webhook con locks de BD y servicios avanzados', 'SUBSCRIPTION', {
       externalReference,
       subscriptionId: webhookData.id,
-      note: 'Procesamiento robusto para casos donde el usuario no llegue a /suscripcion'
+      note: 'Procesamiento robusto con prevención de condiciones de carrera'
     })
     
     if (!externalReference) {
@@ -636,100 +758,192 @@ export class WebhookService {
       return
     }
 
-    // IDEMPOTENCIA ROBUSTA: Usar servicio de idempotencia con locks distribuidos
-    const idempotencyKey = idempotencyService.generateWebhookKey(externalReference, webhookData.id)
+    const lockKey = `subscription_activation_${externalReference}`
+    let lockAcquired = false
     
     try {
-      const result = await idempotencyService.executeWithIdempotency(
-        idempotencyKey,
-        async () => {
-          // Buscar suscripción pendiente por external_reference
-          const { data: pendingSubscriptions, error: searchError } = await supabase
-            .from('unified_subscriptions')
-            .select('*')
-            .eq('external_reference', externalReference)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-          
-          if (searchError) {
-            logger.error('Error buscando suscripción pendiente en webhook', 'SUBSCRIPTION', {
-              externalReference,
-              error: searchError.message
-            })
-            throw new Error(`Error buscando suscripción: ${searchError.message}`)
-          }
-          
-          if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
-            logger.info('No se encontró suscripción pendiente para activar desde webhook', 'SUBSCRIPTION', {
-              externalReference
-            })
-            return { success: false, reason: 'no_pending_subscription' }
-          }
-          
-          // Verificar que no exista ya una suscripción activa
-          const { data: activeSubscriptions } = await supabase
-            .from('unified_subscriptions')
-            .select('*')
-            .eq('external_reference', externalReference)
-            .eq('status', 'active')
-          
-          if (activeSubscriptions && activeSubscriptions.length > 0) {
-            logger.info('Suscripción ya está activa - idempotencia', 'SUBSCRIPTION', {
-              externalReference,
-              activeSubscriptionId: activeSubscriptions[0].id
-            })
-            return { success: true, reason: 'already_active', subscriptionId: activeSubscriptions[0].id }
-          }
-          
-          // Activar la suscripción más reciente
-          const subscriptionToActivate = pendingSubscriptions[0]
-          
-          const { error: updateError } = await supabase
-            .from('unified_subscriptions')
-            .update({
-              status: 'active',
-              processed_at: new Date().toISOString(),
-              last_billing_date: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              mercadopago_subscription_id: webhookData.id
-            })
-            .eq('id', subscriptionToActivate.id)
-          
-          if (updateError) {
-            logger.error('Error activando suscripción desde webhook', 'SUBSCRIPTION', {
-              subscriptionId: subscriptionToActivate.id,
-              error: updateError.message
-            })
-            throw new Error(`Error activando suscripción: ${updateError.message}`)
-          }
-          
-          // Enviar email de confirmación
-          await this.sendSubscriptionConfirmationEmail(subscriptionToActivate, supabase)
-          
-          logger.info('Suscripción activada exitosamente desde webhook', 'SUBSCRIPTION', {
-            subscriptionId: subscriptionToActivate.id,
-            externalReference,
-            webhookId: webhookData.id
-          })
-          
-          return { success: true, subscriptionId: subscriptionToActivate.id }
-        },
-        300000 // 5 minutos de timeout
-      )
+      // PASO 1: Adquirir lock de base de datos para prevenir condiciones de carrera
+      const lockResult = await databaseLocksService.acquireLock(lockKey, {
+        ttlSeconds: 300, // 5 minutos
+        maxRetries: 3,
+        retryDelayMs: 1000
+      })
       
-      if (result.fromCache) {
-        logger.info('Resultado de activación obtenido desde caché de idempotencia', 'SUBSCRIPTION', {
+      if (!lockResult.success) {
+        logger.error('❌ No se pudo adquirir lock para activación de suscripción', 'SUBSCRIPTION', {
           externalReference,
-          webhookId: webhookData.id
+          lockKey,
+          error: lockResult.error
         })
+        return
       }
       
+      lockAcquired = true
+      logger.info('🔒 Lock adquirido para activación de suscripción', 'SUBSCRIPTION', {
+        externalReference,
+        lockId: lockResult.lockId
+      })
+
+      // PASO 2: Verificar duplicados con idempotencia avanzada
+      const isDuplicate = await this.advancedIdempotencyService.checkDuplicate({
+        external_reference: externalReference,
+        user_id: webhookData.payer?.id,
+        product_id: webhookData.auto_recurring?.transaction_amount,
+        payer_email: webhookData.payer?.email
+      })
+      
+      if (isDuplicate) {
+        logger.info('✅ Suscripción ya procesada - idempotencia avanzada', 'SUBSCRIPTION', {
+          externalReference
+        })
+        return
+      }
+
+      // PASO 3: Buscar suscripción usando el servicio de sincronización
+      const subscription = await this.syncService.findSubscriptionByReference(externalReference)
+      
+      if (!subscription) {
+        // PASO 4: Buscar por criterios alternativos
+        const alternativeSubscription = await this.syncService.findSubscriptionByAlternativeCriteria({
+          userId: webhookData.payer?.id,
+          payerEmail: webhookData.payer?.email,
+          collectionId: webhookData.collection?.id,
+          paymentId: webhookData.id,
+          preferenceId: webhookData.preference_id
+        })
+        
+        if (!alternativeSubscription) {
+          logger.warn('⚠️ No se encontró suscripción para activar desde webhook', 'SUBSCRIPTION', {
+            externalReference,
+            webhookData: {
+              id: webhookData.id,
+              payerId: webhookData.payer?.id,
+              payerEmail: webhookData.payer?.email
+            }
+          })
+          return
+        }
+        
+        // Usar la suscripción encontrada por criterios alternativos
+        await this.processSubscriptionActivation(alternativeSubscription, webhookData, supabase)
+        return
+      }
+
+      // PASO 5: Procesar activación de suscripción encontrada
+      await this.processSubscriptionActivation(subscription, webhookData, supabase)
+      
+      // PASO 6: Almacenar resultado en idempotencia avanzada
+      await this.advancedIdempotencyService.storeResult({
+        external_reference: externalReference,
+        user_id: subscription.user_id,
+        product_id: subscription.product_id,
+        payer_email: subscription.customer_data?.email
+      }, {
+        success: true,
+        subscriptionId: subscription.id,
+        activatedAt: new Date().toISOString(),
+        source: 'webhook'
+      })
+      
     } catch (error: any) {
-      logger.error('Error en activación robusta desde webhook', 'SUBSCRIPTION', {
+      logger.error('❌ Error crítico en activación desde webhook', 'SUBSCRIPTION', {
         externalReference,
         webhookId: webhookData.id,
+        error: error.message,
+        stack: error.stack
+      })
+      
+      // Almacenar error en idempotencia
+      try {
+        await this.advancedIdempotencyService.storeResult({
+          external_reference: externalReference,
+          user_id: webhookData.payer?.id,
+          product_id: null,
+          payer_email: webhookData.payer?.email
+        }, {
+          success: false,
+          error: error.message,
+          source: 'webhook'
+        })
+      } catch (storeError: any) {
+        logger.error('Error almacenando resultado de error', 'SUBSCRIPTION', {
+          error: storeError.message
+        })
+      }
+    } finally {
+      // PASO 7: Liberar lock
+      if (lockAcquired) {
+        await databaseLocksService.releaseLock(lockKey)
+        logger.info('🔓 Lock liberado para activación de suscripción', 'SUBSCRIPTION', {
+          externalReference,
+          lockKey
+        })
+      }
+    }
+  }
+
+  // Nueva función para procesar la activación de suscripción
+  private async processSubscriptionActivation(subscription: any, webhookData: any, supabase: any): Promise<void> {
+    try {
+      // Verificar si ya está activa
+      if (subscription.status === 'active') {
+        logger.info('✅ Suscripción ya está activa', 'SUBSCRIPTION', {
+          subscriptionId: subscription.id,
+          externalReference: subscription.external_reference
+        })
+        return
+      }
+
+      // Actualizar suscripción usando el servicio de sincronización
+      const updatedSubscription = await this.syncService.updateSubscriptionWithMercadoPagoData(
+        subscription,
+        {
+          id: webhookData.id,
+          status: 'authorized',
+          payer: webhookData.payer,
+          auto_recurring: webhookData.auto_recurring,
+          external_reference: webhookData.external_reference || subscription.external_reference
+        }
+      )
+      
+      if (!updatedSubscription) {
+        throw new Error('No se pudo actualizar la suscripción')
+      }
+      
+      // Enviar email de confirmación
+      await this.sendSubscriptionConfirmationEmail(updatedSubscription, supabase)
+      
+      // Registrar evento de sincronización
+      await this.syncService.logSyncEvent({
+        subscription_id: updatedSubscription.id,
+        event_type: 'webhook_activation',
+        source_data: webhookData,
+        result_data: updatedSubscription,
+        success: true
+      })
+      
+      logger.info('✅ Suscripción activada exitosamente desde webhook', 'SUBSCRIPTION', {
+        subscriptionId: updatedSubscription.id,
+        externalReference: updatedSubscription.external_reference,
+        webhookId: webhookData.id
+      })
+      
+    } catch (error: any) {
+      logger.error('❌ Error procesando activación de suscripción', 'SUBSCRIPTION', {
+        subscriptionId: subscription.id,
         error: error.message
       })
+      
+      // Registrar evento de error
+      await this.syncService.logSyncEvent({
+        subscription_id: subscription.id,
+        event_type: 'webhook_activation_error',
+        source_data: webhookData,
+        result_data: { error: error.message },
+        success: false
+      })
+      
+      throw error
     }
   }
 
@@ -913,6 +1127,200 @@ export class WebhookService {
         error: error.message
       })
     }
+  }
+
+  // Activar suscripción desde webhook usando el servicio de idempotencia avanzado
+  private async activateSubscriptionFromWebhook(subscriptionData: SubscriptionData): Promise<boolean> {
+    const startTime = Date.now()
+    
+    try {
+      const { enhancedIdempotencyService } = await import('@/lib/enhanced-idempotency-service')
+      const { subscriptionSyncService } = await import('@/lib/subscription-sync-service')
+      
+      if (!subscriptionData.external_reference) {
+        logger.error('Suscripción sin external_reference - no se puede activar', 'WEBHOOK_ACTIVATION', {
+          subscriptionId: subscriptionData.id,
+          payerEmail: subscriptionData.payer_email
+        })
+        return false
+      }
+      
+      // Usar el servicio de idempotencia para evitar duplicados
+      const idempotencyKey = `webhook_activation:${subscriptionData.external_reference}`
+      
+      const result = await enhancedIdempotencyService.executeWithIdempotency(
+        idempotencyKey,
+        async () => {
+          logger.info('🚀 Iniciando activación de suscripción desde webhook', 'WEBHOOK_ACTIVATION', {
+            externalReference: subscriptionData.external_reference,
+            payerEmail: subscriptionData.payer_email,
+            subscriptionId: subscriptionData.id
+          })
+          
+          // Buscar suscripción pendiente por external_reference
+          const { data: pendingSubscriptions, error: searchError } = await this.supabase
+            .from('unified_subscriptions')
+            .select('*')
+            .eq('external_reference', subscriptionData.external_reference)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(1)
+          
+          if (searchError) {
+            logger.error('Error buscando suscripción pendiente', 'WEBHOOK_ACTIVATION', {
+              externalReference: subscriptionData.external_reference,
+              error: searchError.message
+            })
+            throw new Error(`Error buscando suscripción: ${searchError.message}`)
+          }
+          
+          let targetSubscription = pendingSubscriptions?.[0]
+          
+          // Si no se encuentra por external_reference, usar criterios alternativos
+          if (!targetSubscription) {
+            logger.info('Suscripción no encontrada por external_reference - buscando por criterios alternativos', 'WEBHOOK_ACTIVATION', {
+              externalReference: subscriptionData.external_reference,
+              payerEmail: subscriptionData.payer_email
+            })
+            
+            targetSubscription = await subscriptionSyncService.findPendingSubscriptionByAlternativeCriteria({
+              payerEmail: subscriptionData.payer_email,
+              externalReference: subscriptionData.external_reference
+            })
+          }
+          
+          if (!targetSubscription) {
+            logger.warn('No se encontró suscripción pendiente para activar', 'WEBHOOK_ACTIVATION', {
+              externalReference: subscriptionData.external_reference,
+              payerEmail: subscriptionData.payer_email
+            })
+            return { success: false, reason: 'Suscripción no encontrada' }
+          }
+          
+          // Verificar que no esté ya activa
+          if (targetSubscription.status === 'active') {
+            logger.info('Suscripción ya está activa - omitiendo activación', 'WEBHOOK_ACTIVATION', {
+              subscriptionId: targetSubscription.id,
+              externalReference: subscriptionData.external_reference
+            })
+            return { success: true, reason: 'Ya activa', subscriptionId: targetSubscription.id }
+          }
+          
+          // Calcular próxima fecha de facturación
+          const nextBillingDate = new Date()
+          nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
+          
+          // Activar la suscripción
+          const { error: updateError } = await this.supabase
+            .from('unified_subscriptions')
+            .update({
+              status: 'active',
+              mercadopago_subscription_id: subscriptionData.id,
+              payer_email: subscriptionData.payer_email,
+              next_billing_date: subscriptionData.next_payment_date || nextBillingDate.toISOString(),
+              activated_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              last_sync_at: new Date().toISOString(),
+              activation_source: 'webhook'
+            })
+            .eq('id', targetSubscription.id)
+          
+          if (updateError) {
+            logger.error('Error activando suscripción', 'WEBHOOK_ACTIVATION', {
+              subscriptionId: targetSubscription.id,
+              error: updateError.message
+            })
+            throw new Error(`Error activando suscripción: ${updateError.message}`)
+          }
+          
+          logger.info('✅ Suscripción activada exitosamente desde webhook', 'WEBHOOK_ACTIVATION', {
+            subscriptionId: targetSubscription.id,
+            externalReference: subscriptionData.external_reference,
+            payerEmail: subscriptionData.payer_email,
+            mercadopagoId: subscriptionData.id
+          })
+          
+          // Enviar emails de confirmación
+          await this.sendSubscriptionConfirmationEmails(targetSubscription)
+          
+          return { 
+            success: true, 
+            subscriptionId: targetSubscription.id,
+            reason: 'Activada exitosamente'
+          }
+        },
+        {
+          lockTimeout: 30000, // 30 segundos
+          resultTtl: 300000   // 5 minutos
+        }
+      )
+      
+      const duration = Date.now() - startTime
+      
+      if (result.success) {
+        logger.info('🎉 Activación de suscripción completada desde webhook', 'WEBHOOK_ACTIVATION', {
+          externalReference: subscriptionData.external_reference,
+          subscriptionId: result.data?.subscriptionId,
+          duration,
+          fromCache: result.fromCache
+        })
+        return true
+      } else {
+        logger.error('❌ Fallo en activación de suscripción desde webhook', 'WEBHOOK_ACTIVATION', {
+          externalReference: subscriptionData.external_reference,
+          error: result.error,
+          duration
+        })
+        return false
+      }
+      
+    } catch (error: any) {
+      const duration = Date.now() - startTime
+      logger.error('❌ Error crítico en activación desde webhook', 'WEBHOOK_ACTIVATION', {
+        externalReference: subscriptionData.external_reference,
+        error: error.message,
+        duration
+      })
+      return false
+    }
+  }
+  
+  // Determinar si un error es reintentable
+  private isRetryableError(error: any): boolean {
+    // Errores de red o temporales que MercadoPago puede reintentar
+    const retryableErrors = [
+      'ECONNRESET',
+      'ECONNREFUSED', 
+      'ETIMEDOUT',
+      'ENOTFOUND',
+      'EAI_AGAIN'
+    ]
+    
+    // Códigos de estado HTTP que indican errores temporales
+    const retryableStatusCodes = [408, 429, 500, 502, 503, 504]
+    
+    // Verificar código de error de red
+    if (error.code && retryableErrors.includes(error.code)) {
+      return true
+    }
+    
+    // Verificar código de estado HTTP
+    if (error.status && retryableStatusCodes.includes(error.status)) {
+      return true
+    }
+    
+    // Verificar mensajes de error específicos
+    const errorMessage = error.message?.toLowerCase() || ''
+    const retryableMessages = [
+      'timeout',
+      'connection',
+      'network',
+      'temporary',
+      'rate limit',
+      'service unavailable'
+    ]
+    
+    return retryableMessages.some(msg => errorMessage.includes(msg))
   }
 
   // Actualizar suscripción local buscando por external_reference para evitar duplicados

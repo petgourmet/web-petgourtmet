@@ -12,6 +12,12 @@ import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { logger, LogCategory } from '@/lib/logger'
 import { idempotencyService, IdempotencyService } from '@/lib/idempotency-service'
+import { SubscriptionSyncService } from '@/lib/subscription-sync-service'
+import { runSubscriptionDiagnostics, applyAutomaticFixes, generateUserReport } from '@/utils/subscription-diagnostics'
+import { EnhancedIdempotencyService } from '@/lib/enhanced-idempotency-service'
+import { SubscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
+import { AdvancedIdempotencyService } from '@/lib/services/advanced-idempotency.service'
+import { SubscriptionSyncService as NewSyncService } from '@/lib/services/subscription-sync.service'
 
 interface Product {
   id: number
@@ -102,66 +108,249 @@ export default function SuscripcionPage() {
         userAgent: navigator.userAgent
       })
       
-      // Si viene con status=approved O collection_status=approved, marcar como aprobado y activar automáticamente
-      if ((status === 'approved' || collectionStatus === 'approved') && externalReference) {
-        logger.info(LogCategory.SUBSCRIPTION, 'Status approved detectado, activando automáticamente', {
+      // Procesamiento optimizado de parámetros URL con prevención de duplicados
+      if (hasValidMercadoPagoParams(urlParams)) {
+        logger.info('MercadoPago callback detected - processing with enhanced idempotency', 'SUBSCRIPTION_ACTIVATION', {
           userId: user.id,
           externalReference,
           status,
           collectionStatus,
           collectionId,
-          paymentId
-        })
-        console.log('✅ Status APPROVED detectado - Activando suscripción automáticamente')
-        console.log('📊 Datos completos para activación:', {
-          externalReference,
-          collectionId,
           paymentId,
-          userId: user.id
+          hasAllRequiredParams: !!(externalReference && (collectionId || paymentId))
         })
+        
         setIsApproved(true)
-        activateApprovedSubscription(urlParams).then(() => {
-          // Cargar suscripciones después de la activación
-          loadUserSubscriptions()
-        })
-      } else if (collectionId && paymentId && externalReference) {
-        // Prioridad 1: Procesar pago con collection_id (flujo de pago único)
-        logger.info(LogCategory.SUBSCRIPTION, 'Procesando pago con collection_id', {
-          userId: user.id,
-          collectionId,
-          paymentId,
-          externalReference
-        })
-        console.log('💳 Procesando pago único con collection_id:', collectionId)
-        activateApprovedSubscription(urlParams).then(() => {
+        processOptimizedSubscriptionActivation(urlParams).then(() => {
           loadUserSubscriptions()
         })
       } else if (preapprovalId) {
-        // Prioridad 2: Validar suscripción usando preapproval_id
-        logger.info(LogCategory.SUBSCRIPTION, 'Procesando preapproval_id', {
+        // Validar suscripción usando preapproval_id
+        logger.info('Processing preapproval_id', 'SUBSCRIPTION_VALIDATION', {
           userId: user.id,
           preapprovalId
         })
-        console.log('🔄 Validando preapproval:', preapprovalId)
         validatePreapprovalSubscription(preapprovalId)
       } else if (externalReference) {
-        // Prioridad 3: Activar suscripción pendiente por external_reference
-        logger.info(LogCategory.SUBSCRIPTION, 'Procesando external_reference', {
+        // Activar suscripción pendiente por external_reference
+        logger.info('Processing standalone external_reference', 'SUBSCRIPTION_ACTIVATION', {
           userId: user.id,
           externalReference
         })
-        console.log('🔄 Activando suscripción pendiente:', externalReference)
         activatePendingSubscription(externalReference)
       } else {
-        // Activar automáticamente suscripciones pendientes del usuario
-        logger.info(LogCategory.SUBSCRIPTION, 'Activando suscripciones pendientes del usuario', {
+        // Cargar suscripciones normalmente
+        logger.info('Loading user subscriptions normally', 'SUBSCRIPTION_LOAD', {
           userId: user.id
         })
-        console.log('🔄 Buscando suscripciones pendientes del usuario')
-        activateUserPendingSubscriptions()
+        loadUserSubscriptions()
       }
     }
   }, [user, loading, router])
+
+  // Función para validar si los parámetros de MercadoPago son válidos
+  const hasValidMercadoPagoParams = (urlParams: URLSearchParams): boolean => {
+    const externalReference = urlParams.get('external_reference')
+    const status = urlParams.get('status')
+    const collectionStatus = urlParams.get('collection_status')
+    const collectionId = urlParams.get('collection_id')
+    const paymentId = urlParams.get('payment_id')
+    
+    // Debe tener external_reference y al menos uno de los indicadores de éxito
+    return !!(externalReference && (
+      status === 'approved' || 
+      collectionStatus === 'approved' || 
+      (collectionId && paymentId)
+    ))
+  }
+
+  // Función optimizada para procesar activación de suscripción con servicios avanzados
+  const processOptimizedSubscriptionActivation = async (urlParams: URLSearchParams) => {
+    const startTime = Date.now()
+    const externalReference = urlParams.get('external_reference')
+    const collectionId = urlParams.get('collection_id')
+    const paymentId = urlParams.get('payment_id')
+    const status = urlParams.get('status')
+    const collectionStatus = urlParams.get('collection_status')
+    const preferenceId = urlParams.get('preference_id')
+    const paymentType = urlParams.get('payment_type')
+    
+    if (!user?.id || !externalReference) {
+      logger.error('Missing required data for subscription activation', 'SUBSCRIPTION_ACTIVATION', {
+        userId: user?.id,
+        externalReference,
+        hasUser: !!user,
+        hasExternalRef: !!externalReference
+      })
+      return
+    }
+
+    // Usar el nuevo servicio de idempotencia avanzado
+    const advancedIdempotencyService = AdvancedIdempotencyService.getInstance()
+    const newSyncService = NewSyncService.getInstance()
+    
+    try {
+      setIsProcessing(true)
+      
+      // PASO 1: Adquirir lock para prevenir condiciones de carrera
+      const lockKey = `subscription_activation:${user.id}:${externalReference}`
+      const lockAcquired = await advancedIdempotencyService.acquireLock(lockKey, 300) // 5 minutos
+      
+      if (!lockAcquired) {
+        logger.warn('Could not acquire lock - another process is handling this subscription', 'SUBSCRIPTION_ACTIVATION', {
+          userId: user.id,
+          externalReference,
+          lockKey
+        })
+        toast({
+          title: "Procesando...",
+          description: "Tu suscripción se está procesando. Por favor espera.",
+        })
+        return
+      }
+      
+      try {
+        // PASO 2: Verificar duplicados usando múltiples criterios
+        const duplicateCheck = await advancedIdempotencyService.checkForDuplicates({
+          external_reference: externalReference,
+          user_id: user.id,
+          product_id: null, // Se determinará después
+          payer_email: user.email || ''
+        })
+        
+        if (duplicateCheck.isDuplicate) {
+          logger.info('Duplicate subscription detected - returning existing', 'SUBSCRIPTION_ACTIVATION', {
+            userId: user.id,
+            externalReference,
+            existingSubscriptionId: duplicateCheck.existingSubscription?.id,
+            duplicateReason: duplicateCheck.reason
+          })
+          
+          if (duplicateCheck.existingSubscription?.status === 'active') {
+            toast({
+              title: "Suscripción ya activa",
+              description: "Tu suscripción ya está funcionando correctamente",
+            })
+            return
+          }
+        }
+        
+        // PASO 3: Buscar suscripción usando el servicio de sincronización mejorado
+        let targetSubscription = await newSyncService.findSubscriptionByExternalReference(externalReference)
+        
+        // PASO 4: Si no se encuentra, usar criterios alternativos
+        if (!targetSubscription) {
+          logger.info('Subscription not found by external_reference - trying alternative criteria', 'SUBSCRIPTION_ACTIVATION', {
+            userId: user.id,
+            externalReference,
+            collectionId,
+            paymentId,
+            preferenceId
+          })
+          
+          const alternativeCriteria = {
+            userId: user.id,
+            productId: null,
+            payerEmail: user.email || '',
+            collectionId: collectionId || undefined,
+            paymentId: paymentId || undefined,
+            preferenceId: preferenceId || undefined
+          }
+          
+          targetSubscription = await newSyncService.findSubscriptionByAlternativeCriteria(alternativeCriteria)
+        }
+        
+        if (!targetSubscription) {
+          logger.error('No subscription found for activation', 'SUBSCRIPTION_ACTIVATION', {
+            userId: user.id,
+            externalReference,
+            collectionId,
+            paymentId,
+            preferenceId
+          })
+          throw new Error('No se encontró suscripción para activar')
+        }
+        
+        // PASO 5: Verificar que no esté ya activa
+        if (targetSubscription.status === 'active') {
+          logger.info('Subscription already active', 'SUBSCRIPTION_ACTIVATION', {
+            subscriptionId: targetSubscription.id,
+            externalReference
+          })
+          toast({
+            title: "Suscripción ya activa",
+            description: "Tu suscripción ya está funcionando correctamente",
+          })
+          return
+        }
+        
+        // PASO 6: Activar suscripción usando el servicio de sincronización
+        const mercadoPagoData = {
+          collection_id: collectionId,
+          payment_id: paymentId,
+          status: status,
+          collection_status: collectionStatus,
+          payment_type: paymentType,
+          external_reference: externalReference,
+          preference_id: preferenceId
+        }
+        
+        const activationResult = await newSyncService.updateSubscriptionFromMercadoPago(
+          targetSubscription.id,
+          mercadoPagoData
+        )
+        
+        if (!activationResult.success) {
+          throw new Error(activationResult.error || 'Error activating subscription')
+        }
+        
+        // PASO 7: Almacenar resultado en idempotencia
+        await advancedIdempotencyService.storeResult(lockKey, {
+          success: true,
+          subscriptionId: targetSubscription.id,
+          productName: targetSubscription.product_name,
+          activatedAt: new Date().toISOString()
+        })
+        
+        logger.info('✅ Subscription activated successfully with advanced services', 'SUBSCRIPTION_ACTIVATION', {
+          subscriptionId: targetSubscription.id,
+          externalReference,
+          userId: user.id,
+          productName: targetSubscription.product_name,
+          duration: Date.now() - startTime
+        })
+        
+        toast({
+          title: "¡Suscripción Activada!",
+          description: `Tu suscripción a ${targetSubscription.product_name || 'Pet Gourmet'} está activa`,
+        })
+        
+        // Limpiar URL
+        window.history.replaceState({}, document.title, window.location.pathname)
+        
+      } finally {
+        // PASO 8: Liberar lock
+        await advancedIdempotencyService.releaseLock(lockKey)
+      }
+
+    } catch (error: any) {
+      const duration = Date.now() - startTime
+      logger.error('❌ Critical error in subscription activation', 'SUBSCRIPTION_ACTIVATION', {
+        userId: user.id,
+        externalReference,
+        error: error.message,
+        duration
+      })
+
+      toast({
+        title: "Error crítico",
+        description: "Ocurrió un error inesperado. Contacta soporte.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   const loadUserSubscriptions = async () => {
     if (!user?.id) return
@@ -226,6 +415,36 @@ export default function SuscripcionPage() {
 
     try {
       setIsProcessing(true)
+      
+      // DIAGNÓSTICO AUTOMÁTICO: Ejecutar diagnóstico antes de procesar
+      console.log('🔍 Ejecutando diagnóstico automático de suscripciones...')
+      try {
+        const diagnosticResult = await runSubscriptionDiagnostics(user.id)
+        
+        if (diagnosticResult.issues.length > 0) {
+          console.log('⚠️ Problemas detectados en diagnóstico:', diagnosticResult.issues.length)
+          
+          // Aplicar correcciones automáticas si es posible
+          const fixResult = await applyAutomaticFixes(user.id, diagnosticResult.issues)
+          
+          if (fixResult.fixesApplied > 0) {
+            console.log('✅ Correcciones automáticas aplicadas:', fixResult.fixesApplied)
+            logger.info(LogCategory.SUBSCRIPTION, 'Correcciones automáticas aplicadas', {
+              userId: user.id,
+              fixesApplied: fixResult.fixesApplied,
+              issuesResolved: fixResult.issuesResolved
+            })
+          }
+        } else {
+          console.log('✅ No se detectaron problemas en el diagnóstico')
+        }
+      } catch (diagnosticError) {
+        console.warn('⚠️ Error en diagnóstico automático (continuando con el flujo normal):', diagnosticError)
+        logger.warn(LogCategory.SUBSCRIPTION, 'Error en diagnóstico automático', {
+          userId: user.id,
+          error: diagnosticError
+        })
+      }
       
       // Buscar todas las suscripciones pendientes del usuario
       const { data: pendingSubscriptions, error: pendingError } = await supabase
@@ -736,6 +955,36 @@ export default function SuscripcionPage() {
     
     console.info('🚀 ACTIVANDO SUSCRIPCIÓN APROBADA:', externalReference);
     
+    // Log detallado de parámetros de MercadoPago
+    const allParams = Object.fromEntries(urlParams.entries());
+    console.log('📋 Parámetros completos de MercadoPago:', {
+      external_reference: externalReference,
+      collection_id: urlParams.get('collection_id'),
+      payment_id: urlParams.get('payment_id'),
+      status: urlParams.get('status'),
+      collection_status: urlParams.get('collection_status'),
+      preference_id: urlParams.get('preference_id'),
+      payment_type: urlParams.get('payment_type'),
+      site_id: urlParams.get('site_id'),
+      user_id: user?.id,
+      user_email: user?.email,
+      timestamp: new Date().toISOString(),
+      all_params: allParams
+    });
+    
+    // Log estructurado para el sistema de logging
+    logger.info('MercadoPago subscription callback received', {
+      category: LogCategory.SUBSCRIPTION,
+      external_reference: externalReference,
+      collection_id: urlParams.get('collection_id'),
+      payment_id: urlParams.get('payment_id'),
+      status: urlParams.get('status'),
+      collection_status: urlParams.get('collection_status'),
+      user_id: user?.id,
+      user_email: user?.email,
+      url_params: allParams
+    });
+    
     if (!user?.id || !externalReference) {
       console.error('❌ Faltan datos requeridos:', { userId: user?.id, externalReference });
       return;
@@ -801,7 +1050,112 @@ export default function SuscripcionPage() {
       }
 
       if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
-        console.error("❌ No se encontró suscripción pendiente para activar");
+        console.warn("⚠️ No se encontró suscripción pendiente por external_reference, intentando sincronización alternativa");
+        
+        // PASO 2.1: Intentar buscar por criterios alternativos
+        const mercadoPagoParams = SubscriptionSyncService.extractUserInfoFromMercadoPagoParams(urlParams);
+        
+        const alternativeMatch = await SubscriptionSyncService.findPendingSubscriptionByAlternativeCriteria({
+          user_id: user.id,
+          external_reference: externalReference,
+          collection_id: mercadoPagoParams.collection_id,
+          payment_id: mercadoPagoParams.payment_id,
+          created_date: new Date().toISOString() // Buscar en las últimas 24 horas
+        });
+        
+        if (alternativeMatch) {
+          console.log('✅ Suscripción encontrada por criterios alternativos:', {
+            subscriptionId: alternativeMatch.id,
+            originalExternalRef: alternativeMatch.external_reference,
+            mercadoPagoExternalRef: externalReference,
+            matchCriteria: alternativeMatch.match_criteria
+          });
+          
+          // Actualizar la suscripción con los datos de MercadoPago
+          const updateSuccess = await SubscriptionSyncService.updateSubscriptionWithMercadoPagoData(
+            alternativeMatch.id,
+            {
+              external_reference: externalReference,
+              collection_id: mercadoPagoParams.collection_id,
+              payment_id: mercadoPagoParams.payment_id,
+              status: 'active',
+              mercadopago_subscription_id: externalReference
+            }
+          );
+          
+          if (updateSuccess) {
+            // Recargar la suscripción actualizada
+            const { data: updatedSubscription, error: reloadError } = await supabase
+              .from("unified_subscriptions")
+              .select(`
+                *,
+                products (
+                  id,
+                  name,
+                  image,
+                  price,
+                  monthly_discount,
+                  quarterly_discount,
+                  annual_discount,
+                  biweekly_discount
+                )
+              `)
+              .eq("id", alternativeMatch.id)
+              .single();
+            
+            if (!reloadError && updatedSubscription) {
+              console.log('✅ Suscripción sincronizada y activada exitosamente');
+              
+              // Actualizar perfil del usuario si es necesario
+              if (updatedSubscription.customer_data) {
+                try {
+                  const customerData = typeof updatedSubscription.customer_data === 'string' 
+                    ? JSON.parse(updatedSubscription.customer_data) 
+                    : updatedSubscription.customer_data;
+                  
+                  if (customerData.phone || customerData.address) {
+                    await updateUserProfile({
+                      phone: customerData.phone,
+                      address: customerData.address
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error actualizando perfil:', error);
+                }
+              }
+              
+              // Enviar email de bienvenida
+              if (updatedSubscription.customer_data) {
+                try {
+                  const customerData = typeof updatedSubscription.customer_data === 'string' 
+                    ? JSON.parse(updatedSubscription.customer_data) 
+                    : updatedSubscription.customer_data;
+                  
+                  await sendWelcomeEmail({
+                    email: customerData.email,
+                    firstName: customerData.firstName,
+                    productName: updatedSubscription.product_name,
+                    subscriptionType: updatedSubscription.subscription_type
+                  });
+                } catch (error) {
+                  console.error('Error enviando email:', error);
+                }
+              }
+              
+              toast({
+                title: "¡Suscripción Activada!",
+                description: `Tu suscripción a ${updatedSubscription.product_name} está activa (sincronizada)`,
+              });
+              
+              loadUserSubscriptions();
+              window.history.replaceState({}, document.title, window.location.pathname);
+              
+              return { success: true, subscriptionId: updatedSubscription.id, synced: true };
+            }
+          }
+        }
+        
+        console.error("❌ No se encontró suscripción pendiente para activar ni por criterios alternativos");
         toast({
           title: "Error",
           description: "No se encontró la suscripción para activar",
