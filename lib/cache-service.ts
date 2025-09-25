@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase/client'
 
 // 🔧 INTERFACES Y TIPOS
 interface Product {
@@ -60,10 +60,7 @@ export class CacheService {
   private readonly MAX_CACHE_SIZE = 1000
   
   constructor() {
-    this.supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    this.supabase = supabase
     
     // Limpiar cache expirado cada 10 minutos
     setInterval(() => this.cleanExpiredEntries(), 10 * 60 * 1000)

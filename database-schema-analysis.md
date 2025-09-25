@@ -4,6 +4,85 @@
 
 ## 🗂️ Inventario Completo de Tablas
 
+### 🆕 **NUEVAS TABLAS - SISTEMA DE IDEMPOTENCIA**
+
+### 1. **idempotency_locks** 🔒
+**Estado**: ✅ **ACTIVAMENTE UTILIZADA** | **Registros**: Variable
+
+| Columna | Tipo | Nulo | Default | Descripción |
+|---------|------|------|---------|-------------|
+| id | uuid | NO | gen_random_uuid() | ID único del lock |
+| key | text | NO | NULL | Clave única para identificar la operación idempotente |
+| lock_id | text | NO | NULL | Identificador único del lock para liberación segura |
+| acquired_at | timestamp with time zone | YES | now() | Fecha de adquisición del lock |
+| expires_at | timestamp with time zone | NO | NULL | Fecha de expiración del lock |
+| released_at | timestamp with time zone | YES | NULL | Fecha de liberación del lock |
+| operation_id | text | YES | NULL | ID de la operación asociada para trazabilidad |
+| metadata | jsonb | YES | '{}'::jsonb | Información adicional sobre el lock |
+
+**Índices**:
+- PRIMARY KEY (id)
+- UNIQUE INDEX idx_idempotency_locks_key_active ON (key) WHERE released_at IS NULL
+- INDEX idx_idempotency_locks_expires_at ON (expires_at)
+- INDEX idx_idempotency_locks_operation_id ON (operation_id)
+
+**RLS**: ✅ Habilitado
+**Permisos**: service_role (ALL), authenticated (SELECT, INSERT, UPDATE)
+
+**Uso en código**: **CRÍTICA PARA IDEMPOTENCIA** - Referencias en:
+- `lib/database-lock-manager.ts`
+- `lib/unified-idempotency.service.ts`
+- `__tests__/unified-idempotency.test.ts`
+
+---
+
+### 2. **operation_logs** 📝
+**Estado**: ✅ **ACTIVAMENTE UTILIZADA** | **Registros**: Variable
+
+| Columna | Tipo | Nulo | Default | Descripción |
+|---------|------|------|---------|-------------|
+| id | uuid | NO | gen_random_uuid() | ID único del log |
+| operation_id | text | NO | NULL | Identificador único de la operación para agrupar logs |
+| operation_type | text | NO | NULL | Tipo de operación (idempotency_start, validation, etc.) |
+| level | text | NO | NULL | Nivel de log (debug, info, warn, error) |
+| message | text | NO | NULL | Mensaje del log |
+| details | jsonb | YES | '{}'::jsonb | Información detallada de la operación en formato JSON |
+| created_at | timestamp with time zone | YES | now() | Fecha de creación |
+| subscription_id | uuid | YES | NULL | ID de suscripción relacionada |
+| user_id | uuid | YES | NULL | ID de usuario relacionado |
+| external_reference | text | YES | NULL | Referencia externa de MercadoPago para correlación |
+| execution_time_ms | integer | YES | NULL | Tiempo de ejecución en milisegundos |
+| memory_usage_mb | numeric | YES | NULL | Uso de memoria en MB |
+| stack_trace | text | YES | NULL | Stack trace en caso de errores |
+| request_id | text | YES | NULL | ID de la petición HTTP |
+| session_id | text | YES | NULL | ID de la sesión |
+
+**Índices**:
+- PRIMARY KEY (id)
+- INDEX idx_operation_logs_operation_id ON (operation_id)
+- INDEX idx_operation_logs_level ON (level)
+- INDEX idx_operation_logs_created_at ON (created_at)
+- INDEX idx_operation_logs_subscription_id ON (subscription_id)
+- INDEX idx_operation_logs_user_id ON (user_id)
+- INDEX idx_operation_logs_external_reference ON (external_reference)
+
+**Constraints**:
+- CHECK (level = ANY (ARRAY['debug'::text, 'info'::text, 'warn'::text, 'error'::text]))
+- CHECK (execution_time_ms >= 0)
+- CHECK (memory_usage_mb >= 0::numeric)
+
+**RLS**: ✅ Habilitado
+**Permisos**: service_role (ALL), authenticated (SELECT, INSERT)
+
+**Uso en código**: **CRÍTICA PARA LOGGING** - Referencias en:
+- `lib/detailed-logger.ts`
+- `lib/unified-idempotency.service.ts`
+- `__tests__/unified-idempotency.test.ts`
+
+---
+
+## 📊 **TABLAS PRINCIPALES DEL SISTEMA**
+
 ### 1. **products** 📦
 **Estado**: ✅ **ACTIVAMENTE UTILIZADA** | **Registros**: 41
 
@@ -96,7 +175,7 @@
 - `app/admin/(dashboard)/users/`
 
 ---
-
+b
 ### 4. **unified_subscriptions** 🔄
 **Estado**: ✅ **ACTIVAMENTE UTILIZADA** | **Registros**: 2
 
