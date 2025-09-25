@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import logger from '@/lib/logger'
 
 export interface LockOptions {
@@ -31,7 +31,7 @@ export class DatabaseLocksService {
 
   private async initializeSupabase() {
     if (!this.supabase) {
-      this.supabase = await createClient()
+      this.supabase = createServiceClient()
     }
     return this.supabase
   }

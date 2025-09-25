@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
 import logger, { LogCategory } from '@/lib/logger'
@@ -110,7 +110,7 @@ export class WebhookService {
 
   async initializeSupabase() {
     if (!this.supabase) {
-      this.supabase = await createClient()
+      this.supabase = createServiceClient()
     }
     return this.supabase
   }

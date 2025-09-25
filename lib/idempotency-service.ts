@@ -3,7 +3,7 @@
  * Previene procesamiento duplicado usando locks distribuidos en base de datos
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { createServiceClient } from '@/lib/supabase/service'
 import { logger } from '@/lib/logger'
 
 export interface IdempotencyOptions {
@@ -22,7 +22,7 @@ export interface IdempotencyResult<T> {
 
 export class IdempotencyService {
   private static instance: IdempotencyService
-  private supabase = createClient()
+  private supabase = createServiceClient()
 
   static getInstance(): IdempotencyService {
     if (!IdempotencyService.instance) {

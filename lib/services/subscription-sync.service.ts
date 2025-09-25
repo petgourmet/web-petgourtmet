@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
 import { advancedIdempotencyService } from './advanced-idempotency.service';
 
 interface SyncCriteria {
@@ -31,10 +31,7 @@ export class SubscriptionSyncService {
   private supabase: any;
 
   private constructor() {
-    this.supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    this.supabase = createServiceClient();
   }
 
   static getInstance(): SubscriptionSyncService {

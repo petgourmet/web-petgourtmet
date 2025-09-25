@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import logger, { LogCategory } from '@/lib/logger'
 
 /**
@@ -17,7 +17,7 @@ export class PaymentSyncService {
   }
 
   async initializeSupabase() {
-    this.supabase = createClient()
+    this.supabase = createServiceClient()
   }
 
   /**

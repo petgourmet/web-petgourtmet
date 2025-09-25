@@ -1,5 +1,5 @@
 // lib/subscription-integrity-checker.ts
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export interface IntegrityCheckResult {
   user_id: string;
@@ -43,7 +43,7 @@ export class SubscriptionIntegrityChecker {
   private supabase: any;
 
   constructor() {
-    this.supabase = createClient();
+    this.supabase = createServiceClient();
   }
 
   /**
