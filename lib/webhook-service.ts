@@ -195,8 +195,8 @@ export class WebhookService {
     const startTime = Date.now()
     
     try {
-      // Si es un ID de prueba, crear datos simulados
-      if (paymentId.includes('test_') || paymentId.includes('payment_test_') || /^test_payment_\d+$/.test(paymentId)) {
+      // Si es un ID de prueba o ID genérico de webhook de prueba, crear datos simulados
+      if (paymentId.includes('test_') || paymentId.includes('payment_test_') || /^test_payment_\d+$/.test(paymentId) || paymentId === '123456') {
         logger.info('Generando datos de pago simulados para prueba', 'PAYMENT', { paymentId })
         
         return {
