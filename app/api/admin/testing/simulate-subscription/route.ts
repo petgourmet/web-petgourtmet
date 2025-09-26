@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { v4 as uuidv4 } from 'uuid'
 import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
-import { enhancedIdempotencyService } from '@/lib/enhanced-idempotency-service'
+import { createEnhancedIdempotencyServiceServer } from '@/lib/enhanced-idempotency-service.server'
 
 // Función auxiliar para calcular próxima fecha de facturación
 function getNextBillingDate(frequency: string): string {
@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
     console.log('🔑 Clave de idempotencia generada:', idempotencyKey)
     
     // Usar servicio de idempotencia para crear la suscripción
-    const result = await enhancedIdempotencyService.executeSubscriptionWithIdempotency(
+    const idempotencyService = createEnhancedIdempotencyServiceServer()
+    const result = await idempotencyService.executeSubscriptionWithIdempotency(
       async (externalRef) => {
         // Crear cliente de Supabase dentro de la función
         const supabaseClient = createServiceClient()

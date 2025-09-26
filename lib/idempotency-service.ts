@@ -348,5 +348,7 @@ export class IdempotencyService {
   }
 }
 
-// Exportar instancia singleton
-export const idempotencyService = IdempotencyService.getInstance()
+// Factory function para crear instancias
+export function createIdempotencyService(): IdempotencyService {
+  return IdempotencyService.getInstance();
+}

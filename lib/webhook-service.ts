@@ -5,7 +5,7 @@ import { logger, LogCategory } from '@/lib/logger'
 import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 import webhookMonitor from '@/lib/webhook-monitor'
 import autoSyncService from '@/lib/auto-sync-service'
-import { idempotencyService, IdempotencyService } from '@/lib/idempotency-service'
+import { createIdempotencyService, IdempotencyService } from '@/lib/idempotency-service'
 
 // Tipos para webhooks de MercadoPago
 interface WebhookPayload {
@@ -956,6 +956,7 @@ export class WebhookService {
     }
 
     // IDEMPOTENCIA ROBUSTA: Usar servicio de idempotencia con locks distribuidos
+    const idempotencyService = createIdempotencyService()
     const idempotencyKey = idempotencyService.generateWebhookKey(externalReference, webhookData.id)
     
     try {

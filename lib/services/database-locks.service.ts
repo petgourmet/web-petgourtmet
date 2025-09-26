@@ -419,6 +419,9 @@ export class DatabaseLocksService {
   }
 }
 
-// Exportar instancia singleton
-export const databaseLocksService = DatabaseLocksService.getInstance()
-export default databaseLocksService
+// Factory function para crear instancias
+export function createDatabaseLocksService(): DatabaseLocksService {
+  return DatabaseLocksService.getInstance();
+}
+
+export default createDatabaseLocksService

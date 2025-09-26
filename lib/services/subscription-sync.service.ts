@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service';
-import { advancedIdempotencyService } from './advanced-idempotency.service';
+import { createAdvancedIdempotencyService } from './advanced-idempotency.service';
 
 interface SyncCriteria {
   externalReference?: string;
@@ -445,5 +445,7 @@ export class SubscriptionSyncService {
   }
 }
 
-// Instancia singleton
-export const subscriptionSyncService = SubscriptionSyncService.getInstance();
+// Factory function para crear instancias
+export function createSubscriptionSyncService(): SubscriptionSyncService {
+  return SubscriptionSyncService.getInstance();
+}

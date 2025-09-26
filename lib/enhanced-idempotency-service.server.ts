@@ -1,9 +1,10 @@
 /**
- * Servicio de Idempotencia Mejorado
+ * Servicio de Idempotencia Mejorado - Versión Servidor
  * Integra deduplicación de suscripciones con idempotencia robusta
+ * Usa createServiceClient() para operaciones del servidor
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { createServiceClient } from '@/lib/supabase/service'
 import { logger } from '@/lib/logger'
 import { subscriptionDeduplicationService, SubscriptionData, ValidationResult } from './subscription-deduplication-service'
 
@@ -40,9 +41,9 @@ export interface IdempotencyResult {
   created_at: string
 }
 
-export class EnhancedIdempotencyService {
-  private static instance: EnhancedIdempotencyService
-  private supabase = createClient()
+export class EnhancedIdempotencyServiceServer {
+  private static instance: EnhancedIdempotencyServiceServer
+  private supabase = createServiceClient()
   private processId: string
 
   constructor() {
@@ -50,11 +51,11 @@ export class EnhancedIdempotencyService {
     this.processId = `proc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
-  static getInstance(): EnhancedIdempotencyService {
-    if (!EnhancedIdempotencyService.instance) {
-      EnhancedIdempotencyService.instance = new EnhancedIdempotencyService()
+  static getInstance(): EnhancedIdempotencyServiceServer {
+    if (!EnhancedIdempotencyServiceServer.instance) {
+      EnhancedIdempotencyServiceServer.instance = new EnhancedIdempotencyServiceServer()
     }
-    return EnhancedIdempotencyService.instance
+    return EnhancedIdempotencyServiceServer.instance
   }
 
   /**
@@ -74,7 +75,7 @@ export class EnhancedIdempotencyService {
       subscriptionData
     } = options
 
-    logger.info('Iniciando operación de suscripción con idempotencia', 'ENHANCED_IDEMPOTENCY', {
+    logger.info('Iniciando operación de suscripción con idempotencia (servidor)', 'ENHANCED_IDEMPOTENCY', {
       key,
       ttlSeconds,
       maxRetries,
@@ -198,8 +199,6 @@ export class EnhancedIdempotencyService {
       logger.info('Operación completada exitosamente', 'ENHANCED_IDEMPOTENCY', {
         key,
         externalReference,
-        hasResult: !!result,
-        processingTimeMs: Date.now() - startTime,
         processId: this.processId
       })
       
@@ -215,7 +214,6 @@ export class EnhancedIdempotencyService {
     } catch (error: any) {
       logger.error('Error ejecutando operación', 'ENHANCED_IDEMPOTENCY', {
         key,
-        externalReference,
         error: error.message,
         processId: this.processId
       })
@@ -236,85 +234,81 @@ export class EnhancedIdempotencyService {
   }
 
   /**
-   * Adquiere un lock con reintentos y backoff exponencial
+   * Intenta adquirir un lock con reintentos
    */
   private async acquireLockWithRetries(
-    key: string,
-    ttlSeconds: number,
-    maxRetries: number,
+    key: string, 
+    ttlSeconds: number, 
+    maxRetries: number, 
     retryDelayMs: number
   ): Promise<{ acquired: boolean; error?: string }> {
     
-    // Primer intento
-    const firstAttempt = await this.acquireLock(key, ttlSeconds)
-    if (firstAttempt) {
-      return { acquired: true }
-    }
-
-    // Reintentos con backoff exponencial
-    for (let retry = 0; retry < maxRetries; retry++) {
-      const delay = retryDelayMs * Math.pow(2, retry) // Backoff exponencial
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const lockResult = await this.acquireLock(key, ttlSeconds)
       
-      logger.info('Lock no disponible, esperando antes de reintentar', 'ENHANCED_IDEMPOTENCY', {
-        key,
-        retry: retry + 1,
-        maxRetries,
-        delayMs: delay,
-        processId: this.processId
-      })
-      
-      await this.sleep(delay)
-      
-      // Limpiar locks expirados antes de reintentar
-      await this.cleanupExpiredLocks()
-      
-      // Intentar adquirir lock nuevamente
-      const retryAttempt = await this.acquireLock(key, ttlSeconds)
-      if (retryAttempt) {
+      if (lockResult.acquired) {
+        logger.debug('Lock adquirido exitosamente', 'ENHANCED_IDEMPOTENCY', {
+          key,
+          attempt,
+          processId: this.processId
+        })
         return { acquired: true }
       }
+      
+      if (attempt < maxRetries) {
+        logger.debug('Lock no disponible, reintentando', 'ENHANCED_IDEMPOTENCY', {
+          key,
+          attempt,
+          maxRetries,
+          retryDelayMs,
+          processId: this.processId
+        })
+        
+        await this.sleep(retryDelayMs)
+      }
     }
-
-    return {
-      acquired: false,
-      error: `No se pudo adquirir lock después de ${maxRetries} reintentos`
+    
+    logger.warn('No se pudo adquirir lock después de todos los reintentos', 'ENHANCED_IDEMPOTENCY', {
+      key,
+      maxRetries,
+      processId: this.processId
+    })
+    
+    return { 
+      acquired: false, 
+      error: `No se pudo adquirir lock después de ${maxRetries} intentos` 
     }
   }
 
   /**
-   * Adquiere un lock distribuido
+   * Intenta adquirir un lock
    */
-  private async acquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+  private async acquireLock(key: string, ttlSeconds: number): Promise<{ acquired: boolean; error?: string }> {
     try {
+      // Limpiar locks expirados primero
+      await this.cleanupExpiredLocks()
+      
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString()
       
-      const { error } = await this.supabase
+      const { data, error } = await this.supabase
         .from('idempotency_locks')
         .insert({
           lock_key: key,
           expires_at: expiresAt,
-          created_at: new Date().toISOString(),
-          process_id: this.processId
+          process_id: this.processId,
+          created_at: new Date().toISOString()
         })
+        .select()
       
       if (error) {
-        // Si es error de constraint único, el lock ya existe
+        // Si es un error de constraint único, significa que el lock ya existe
         if (error.code === '23505') {
-          logger.debug('Lock ya existe', 'ENHANCED_IDEMPOTENCY', {
-            key,
-            processId: this.processId
-          })
-          return false
+          return { acquired: false, error: 'Lock ya existe' }
         }
         throw error
       }
       
-      logger.info('Lock adquirido exitosamente', 'ENHANCED_IDEMPOTENCY', {
-        key,
-        expiresAt,
-        processId: this.processId
-      })
-      return true
+      return { acquired: true }
       
     } catch (error: any) {
       logger.error('Error adquiriendo lock', 'ENHANCED_IDEMPOTENCY', {
@@ -322,12 +316,13 @@ export class EnhancedIdempotencyService {
         error: error.message,
         processId: this.processId
       })
-      return false
+      
+      return { acquired: false, error: error.message }
     }
   }
 
   /**
-   * Libera un lock distribuido
+   * Libera un lock
    */
   private async releaseLock(key: string): Promise<void> {
     try {
@@ -454,86 +449,15 @@ export class EnhancedIdempotencyService {
   }
 
   /**
-   * Limpia resultados expirados
-   */
-  async cleanupExpiredResults(): Promise<{ removed: number; errors: string[] }> {
-    const errors: string[] = []
-    let removed = 0
-
-    try {
-      const { count, error } = await this.supabase
-        .from('idempotency_results')
-        .delete()
-        .lt('expires_at', new Date().toISOString())
-      
-      if (error) {
-        errors.push(`Error limpiando resultados: ${error.message}`)
-      } else {
-        removed = count || 0
-        logger.info('Resultados expirados limpiados', 'ENHANCED_IDEMPOTENCY', {
-          removed,
-          processId: this.processId
-        })
-      }
-      
-    } catch (error: any) {
-      errors.push(`Error general limpiando resultados: ${error.message}`)
-    }
-
-    return { removed, errors }
-  }
-
-  /**
    * Utilidad para dormir
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
-
-  /**
-   * Obtiene estadísticas del servicio
-   */
-  async getStats(): Promise<{
-    activeLocks: number
-    activeResults: number
-    expiredLocks: number
-    expiredResults: number
-  }> {
-    const now = new Date().toISOString()
-    
-    try {
-      const [locksActive, locksExpired, resultsActive, resultsExpired] = await Promise.all([
-        this.supabase.from('idempotency_locks').select('*', { count: 'exact' }).gt('expires_at', now),
-        this.supabase.from('idempotency_locks').select('*', { count: 'exact' }).lt('expires_at', now),
-        this.supabase.from('idempotency_results').select('*', { count: 'exact' }).gt('expires_at', now),
-        this.supabase.from('idempotency_results').select('*', { count: 'exact' }).lt('expires_at', now)
-      ])
-
-      return {
-        activeLocks: locksActive.count || 0,
-        activeResults: resultsActive.count || 0,
-        expiredLocks: locksExpired.count || 0,
-        expiredResults: resultsExpired.count || 0
-      }
-      
-    } catch (error: any) {
-      logger.error('Error obteniendo estadísticas', 'ENHANCED_IDEMPOTENCY', {
-        error: error.message,
-        processId: this.processId
-      })
-      
-      return {
-        activeLocks: 0,
-        activeResults: 0,
-        expiredLocks: 0,
-        expiredResults: 0
-      }
-    }
-  }
 }
 
-// NO exportar instancia singleton para evitar inicialización automática en el cliente
-// Los componentes del cliente deben crear su propia instancia cuando la necesiten
-export function createEnhancedIdempotencyService(): EnhancedIdempotencyService {
-  return new EnhancedIdempotencyService()
+// NO exportar instancia singleton para evitar inicialización automática
+// Las rutas de API deben crear su propia instancia cuando la necesiten
+export function createEnhancedIdempotencyServiceServer(): EnhancedIdempotencyServiceServer {
+  return new EnhancedIdempotencyServiceServer()
 }

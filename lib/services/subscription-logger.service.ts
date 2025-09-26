@@ -578,5 +578,10 @@ export class SubscriptionLoggerService {
 }
 
 // Exportar instancia singleton
-export const subscriptionLoggerService = SubscriptionLoggerService.getInstance()
-export default subscriptionLoggerService
+// Factory function para crear instancias
+export function createSubscriptionLoggerService(): SubscriptionLoggerService {
+  return SubscriptionLoggerService.getInstance();
+}
+
+// Export default usando la factory function
+export default createSubscriptionLoggerService()

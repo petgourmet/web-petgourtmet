@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import DynamicDiscountService, { SubscriptionType } from '@/lib/dynamic-discount-service'
 import { logger, LogCategory } from '@/lib/logger'
 import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
-import { enhancedIdempotencyService } from '@/lib/enhanced-idempotency-service'
+import { createEnhancedIdempotencyServiceServer } from '@/lib/enhanced-idempotency-service.server'
 
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -179,7 +179,8 @@ export async function POST(request: NextRequest) {
       auto_recurring.transaction_amount
     )
 
-    const result = await enhancedIdempotencyService.executeSubscriptionWithIdempotency(
+    const idempotencyService = createEnhancedIdempotencyServiceServer()
+    const result = await idempotencyService.executeSubscriptionWithIdempotency(
       idempotencyKey,
       async () => {
         // Preparar datos según documentación exacta de MercadoPago

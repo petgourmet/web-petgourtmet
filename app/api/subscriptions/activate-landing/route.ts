@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 // import logger, { LogCategory } from '@/lib/logger'
 import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
-import { enhancedIdempotencyService } from '@/lib/enhanced-idempotency-service'
+import { createEnhancedIdempotencyServiceServer } from '@/lib/enhanced-idempotency-service.server'
 
 /**
  * Endpoint para activar suscripción inmediatamente desde la página de aterrizaje de MercadoPago
@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Usar servicio de idempotencia para la activación
-    const result = await enhancedIdempotencyService.executeSubscriptionWithIdempotency(
+    const idempotencyService = createEnhancedIdempotencyServiceServer()
+    const result = await idempotencyService.executeSubscriptionWithIdempotency(
       idempotencyKey,
       async () => {
         const supabase = createServiceClient()
