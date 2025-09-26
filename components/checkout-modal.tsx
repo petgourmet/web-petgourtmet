@@ -530,13 +530,9 @@ export function CheckoutModal() {
       const hasSubscriptionItems = hasSubscriptions()
       const subscriptionType = getSubscriptionType()
 
-      // Generar un external reference determinístico para MercadoPago
-      // Para suscripciones, usar formato PG-SUB-hash-userId-planId que evita duplicados
-      const baseReference = `${orderNumber}_${Date.now()}`
-      let externalReference = baseReference
-      
       // Variable para controlar si se debe continuar con el procesamiento
       let shouldContinueProcessing = true
+      let externalReference = `${orderNumber}_${Date.now()}`
       
       if (hasSubscriptionItems && user) {
         const userId = user.id
@@ -611,7 +607,7 @@ export function CheckoutModal() {
             return
           }
         } else {
-          // Usar el external_reference generado por el servicio
+          // SIEMPRE usar el external_reference determinístico generado por el servicio
           externalReference = validationResult.externalReference || generateDeterministicReference(userId, planId, subscriptionType || 'monthly')
         }
       }
@@ -825,14 +821,49 @@ export function CheckoutModal() {
             conflictColumns: 'user_id,product_id,external_reference'
           })
 
-          // Guardar información de suscripción pendiente usando upsert para evitar duplicados
-          const { data: insertedData, error: subscriptionError } = await supabase
+          // Verificar si ya existe una suscripción pendiente para este usuario y producto
+          const { data: existingSubscription } = await supabase
             .from('unified_subscriptions')
-            .upsert(subscriptionData as any, {
-              onConflict: 'user_id,product_id,external_reference',
-              ignoreDuplicates: false
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('product_id', subscriptionItem.id)
+            .eq('subscription_type', subscriptionType)
+            .in('status', ['pending', 'active'])
+            .single()
+
+          let insertedData, subscriptionError
+
+          if (existingSubscription) {
+            // Si existe una suscripción pendiente o activa, actualizarla en lugar de crear una nueva
+            logger.info(LogCategory.SUBSCRIPTION, 'Actualizando suscripción existente en lugar de crear duplicado', {
+              existingId: existingSubscription.id,
+              userId: user.id,
+              productId: subscriptionItem.id,
+              subscriptionType,
+              existingStatus: existingSubscription.status
             })
-            .select()
+
+            const updateResult = await supabase
+              .from('unified_subscriptions')
+              .update({
+                ...subscriptionData,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingSubscription.id)
+              .select()
+
+            insertedData = updateResult.data
+            subscriptionError = updateResult.error
+          } else {
+            // No existe, crear nueva suscripción
+            const insertResult = await supabase
+              .from('unified_subscriptions')
+              .insert(subscriptionData as any)
+              .select()
+
+            insertedData = insertResult.data
+            subscriptionError = insertResult.error
+          }
 
           // Logging después del upsert
           if (!subscriptionError && insertedData) {
@@ -845,12 +876,13 @@ export function CheckoutModal() {
           }
 
           if (subscriptionError) {
-            logger.error(LogCategory.SUBSCRIPTION, 'Error guardando suscripción pendiente', subscriptionError, {
+            logger.error(LogCategory.SUBSCRIPTION, 'Error procesando suscripción', subscriptionError, {
               userId: user.id,
               externalReference,
               errorCode: subscriptionError.code,
               errorDetails: subscriptionError.details,
               errorHint: subscriptionError.hint,
+              operation: existingSubscription ? 'update' : 'insert',
               subscriptionData: {
                 productId: subscriptionItem.id,
                 productName: subscriptionItem.name,
@@ -859,14 +891,12 @@ export function CheckoutModal() {
               }
             })
             
-            console.error('Error al guardar suscripción pendiente:', getErrorDetails(subscriptionError))
+            console.error('Error al procesar suscripción:', getErrorDetails(subscriptionError))
             
             // Manejo específico de errores
-            let errorMessage = 'Error al guardar la suscripción. Por favor, inténtalo de nuevo.'
+            let errorMessage = 'Error al procesar la suscripción. Por favor, inténtalo de nuevo.'
             
-            if (subscriptionError.code === '23505') {
-              errorMessage = 'Ya existe una suscripción pendiente con esta referencia. Verifica tu perfil.'
-            } else if (subscriptionError.code === '23503') {
+            if (subscriptionError.code === '23503') {
               errorMessage = 'Error de datos. Por favor, verifica tu información e inténtalo de nuevo.'
             } else if (subscriptionError.message?.includes('permission')) {
               errorMessage = 'Error de permisos. Por favor, inicia sesión nuevamente.'
@@ -875,7 +905,7 @@ export function CheckoutModal() {
             setError(errorMessage)
             
             toast({
-              title: "Error al guardar suscripción",
+              title: "Error al procesar suscripción",
               description: errorMessage,
               variant: "destructive"
             })
