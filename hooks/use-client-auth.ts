@@ -3,13 +3,12 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { cacheService } from "@/utils/cache-service"
 import type { User } from "@supabase/supabase-js"
 
 // Constantes para optimización
-const TIMEOUT_MS = 5000 // Reducido de 10 segundos a 5
-const ROLE_CACHE_KEY = 'user_role_cache'
-const CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutos
-const MAX_RETRIES = 2
+const TIMEOUT_MS = 3000 // Reducido a 3 segundos para mejor UX
+const MAX_RETRIES = 1 // Reducido a 1 reintento para evitar demoras
 
 export function useClientAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -25,38 +24,14 @@ export function useClientAuth() {
     
     const supabase = createClient()
     
-    // Función para obtener rol desde caché
-    const getCachedRole = (userId: string): string | null => {
-      try {
-        const cached = localStorage.getItem(`${ROLE_CACHE_KEY}_${userId}`)
-        if (cached) {
-          const { role, timestamp } = JSON.parse(cached)
-          if (Date.now() - timestamp < CACHE_EXPIRY_MS) {
-            console.log('📦 [useClientAuth] Rol obtenido desde caché:', role)
-            return role
-          }
-        }
-      } catch (error) {
-        console.warn('⚠️ [useClientAuth] Error leyendo caché:', error)
-      }
-      return null
-    }
 
-    // Función para guardar rol en caché
-    const setCachedRole = (userId: string, role: string) => {
-      try {
-        const cacheData = { role, timestamp: Date.now() }
-        localStorage.setItem(`${ROLE_CACHE_KEY}_${userId}`, JSON.stringify(cacheData))
-      } catch (error) {
-        console.warn('⚠️ [useClientAuth] Error guardando en caché:', error)
-      }
-    }
 
     // Función para obtener el rol del usuario con retry y timeout
     const getUserRole = async (userId: string, retryCount = 0): Promise<string> => {
       // Intentar obtener desde caché primero
-      const cachedRole = getCachedRole(userId)
+      const cachedRole = cacheService.getUserRole(userId)
       if (cachedRole) {
+        console.log('📦 [useClientAuth] Rol obtenido desde caché:', cachedRole)
         return cachedRole
       }
 
@@ -87,7 +62,7 @@ export function useClientAuth() {
         console.log('✅ [useClientAuth] Perfil obtenido, rol:', role)
         
         // Guardar en caché
-        setCachedRole(userId, role)
+        cacheService.setUserRole(userId, role)
         
         return role
       } catch (error) {
@@ -141,9 +116,9 @@ export function useClientAuth() {
     
     const loadInitialSession = async () => {
       try {
-        console.log('🔧 [useClientAuth] Creando cliente Supabase...')
+        console.log('🔧 [useClientAuth] Iniciando carga de sesión...')
         
-        // Timeout de seguridad optimizado para evitar carga infinita
+        // Timeout de seguridad optimizado
         timeoutId = setTimeout(() => {
           if (isMounted) {
             console.warn(`⏰ [useClientAuth] Timeout: Forzando fin de carga después de ${TIMEOUT_MS/1000} segundos`)
@@ -151,7 +126,10 @@ export function useClientAuth() {
           }
         }, TIMEOUT_MS)
         
-        console.log('📡 [useClientAuth] Obteniendo sesión inicial...')
+        // Intentar obtener sesión desde caché primero (necesitamos userId, así que saltamos el caché aquí)
+        // El caché de sesión se manejará después de obtener la sesión inicial
+        
+        console.log('📡 [useClientAuth] Obteniendo sesión desde Supabase...')
         
         // Usar Promise.race para timeout más eficiente en getSession
         const sessionPromise = supabase.auth.getSession()
@@ -183,6 +161,9 @@ export function useClientAuth() {
           console.log('👤 [useClientAuth] Usuario encontrado:', session.user.email)
           setUser(session.user)
           
+          // Guardar sesión en caché para futuras cargas
+          cacheService.setUserSession(session.user.id, session)
+          
           // Obtener rol del usuario
           const role = await getUserRole(session.user.id)
           if (isMounted) {
@@ -192,6 +173,7 @@ export function useClientAuth() {
           console.log('🚪 [useClientAuth] No hay sesión activa')
           setUser(null)
           setUserRole(null)
+          // No hay sesión que limpiar
         }
       } catch (error) {
         console.error('💥 [useClientAuth] Error en loadInitialSession:', error)
@@ -224,11 +206,43 @@ export function useClientAuth() {
   }, [])
 
   const signOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    setUser(null)
-    setUserRole(null)
-    router.push('/')
+    try {
+      console.log('🚪 [useClientAuth] Cerrando sesión...')
+      
+      // Limpiar estado local primero
+      setUser(null)
+      setUserRole(null)
+      setLoading(false)
+      
+      // Limpiar todos los cachés
+      cacheService.clear()
+      console.log('🧹 [useClientAuth] Cachés limpiados')
+      
+      // Cerrar sesión en Supabase con timeout
+      const supabase = createClient()
+      const signOutPromise = supabase.auth.signOut()
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout cerrando sesión')), TIMEOUT_MS)
+      })
+      
+      const { error } = await Promise.race([
+        signOutPromise,
+        timeoutPromise
+      ]) as any
+      
+      if (error) {
+        console.error('❌ [useClientAuth] Error cerrando sesión:', error)
+        throw error
+      }
+      
+      console.log('✅ [useClientAuth] Sesión cerrada exitosamente')
+      router.push('/')
+    } catch (error) {
+      console.error('💥 [useClientAuth] Error en signOut:', error)
+      // No lanzar error para evitar bloquear la UI
+      // El estado local ya se limpió
+      router.push('/')
+    }
   }
 
   const isAdmin = userRole === 'admin'

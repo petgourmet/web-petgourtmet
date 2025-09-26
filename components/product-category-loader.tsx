@@ -10,8 +10,12 @@ import { ProductGridSkeleton } from "@/components/product-card-skeleton"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
+import { cacheService } from '@/utils/cache-service'
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
+
+// Configuración de timeouts
+const QUERY_TIMEOUT_MS = 6000 // 6 segundos timeout para consultas
 
 // Tipo para los productos desde la base de datos
 export type Product = {
@@ -90,12 +94,15 @@ export function ProductCategoryLoader({
   const [showFilters, setShowFilters] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const { addToCart } = useCart()
   const [filters, setFilters] = useState<Filters>({
     priceRange: [0, 1000],
     features: [],
     sortBy: "relevance",
   })
+
+  // Timeout handling is now managed by CacheService
 
   // Obtener la información de la categoría
   const categoryInfo = CATEGORY_MAPPING[categorySlug] || CATEGORY_MAPPING.all
@@ -105,29 +112,56 @@ export function ProductCategoryLoader({
     async function loadProductsByCategory() {
       setLoading(true)
       try {
-        // Cargar categorías para el filtro
-        const { data: categoriesData, error: categoriesError } = await supabase
+        console.log('🔄 [ProductLoader] Iniciando carga de productos...')
+        
+        // Intentar obtener datos desde caché primero
+        const cachedCategories = cacheService.getCategories()
+        const cachedProducts = cacheService.getProducts(categorySlug)
+        
+        if (cachedProducts && cachedCategories) {
+          console.log('📦 [ProductLoader] Usando datos desde caché optimizado')
+          setCategories(cachedCategories)
+          setProducts(cachedProducts)
+          setFilteredProducts(cachedProducts)
+          setLoading(false)
+          return
+        }
+        
+
+
+        // Cargar categorías para el filtro con timeout
+        console.log('📂 [ProductLoader] Obteniendo categorías...')
+        const categoriesPromise = supabase
           .from("categories")
           .select("id, name")
           .order("name")
 
+        const { data: categoriesData, error: categoriesError } = await categoriesPromise
+
         if (categoriesError) {
-          console.error("Error al cargar categorías:", categoriesError.message)
-          setCategories([
+          console.error("❌ [ProductLoader] Error al cargar categorías:", categoriesError.message)
+          const fallbackCategories = [
             { id: 1, name: "Celebrar" },
             { id: 2, name: "Premiar" },
             { id: 3, name: "Complementar" },
             { id: 4, name: "Recetas" },
-          ])
+          ]
+          setCategories(fallbackCategories)
+          cacheService.setCategories(fallbackCategories)
         } else if (categoriesData && categoriesData.length > 0) {
-          setCategories(categoriesData)
+          const categories = categoriesData || []
+          setCategories(categories)
+          cacheService.setCategories(categories)
+          console.log(`✅ [ProductLoader] ${categories.length} categorías cargadas`)
         } else {
-          setCategories([
+          const fallbackCategories = [
             { id: 1, name: "Celebrar" },
             { id: 2, name: "Premiar" },
             { id: 3, name: "Complementar" },
             { id: 4, name: "Recetas" },
-          ])
+          ]
+          setCategories(fallbackCategories)
+          cacheService.setCategories(fallbackCategories)
         }
 
         // Cargar productos según la categoría
@@ -135,21 +169,24 @@ export function ProductCategoryLoader({
 
         // Si no es "all", filtrar por categoría
         if (categorySlug !== "all") {
-          // Obtener el ID de la categoría
-          const { data: categoryData, error: categoryError } = await supabase
+          // Obtener el ID de la categoría con timeout
+          const categoryPromise = supabase
             .from("categories")
             .select("id")
             .ilike("name", categoryInfo.searchPattern)
             .limit(1)
 
+          const { data: categoryData, error: categoryError } = await categoryPromise
+
           if (categoryError) {
-            console.error("Error al obtener la categoría:", categoryError.message)
+            console.error("❌ [ProductLoader] Error al obtener la categoría:", categoryError.message)
           } else if (categoryData && categoryData.length > 0) {
             categoryId = categoryData[0].id
           }
         }
 
-        // Ejecutar la consulta de productos
+        // Ejecutar la consulta de productos con timeout
+        console.log('🛍️ [ProductLoader] Ejecutando consulta de productos...')
         let productsQuery = supabase.from("products").select(`
           *,
           categories(name),
@@ -174,12 +211,14 @@ export function ProductCategoryLoader({
         // Filtrar solo productos con stock mayor a 0
         productsQuery = productsQuery.gt('stock', 0)
 
-        const { data: productsData, error: productsError } = await productsQuery.order("created_at", {
+        const productsPromise = productsQuery.order("created_at", {
           ascending: false,
         })
 
+        const { data: productsData, error: productsError } = await productsPromise
+
         if (productsError) {
-          console.error("Error al cargar productos:", productsError.message)
+          console.error("❌ [ProductLoader] Error al cargar productos:", productsError.message)
           setProducts([])
           setFilteredProducts([])
           setLoading(false)
@@ -193,6 +232,8 @@ export function ProductCategoryLoader({
           setLoading(false)
           return
         }
+
+        console.log(`✅ [ProductLoader] ${productsData.length} productos cargados`)
 
         // ✅ OPTIMIZACIÓN: Una sola consulta JOIN en lugar de N+1 queries
         const productIds = productsData.map(p => p.id)
@@ -284,11 +325,22 @@ export function ProductCategoryLoader({
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
         
+        // Guardar productos en caché
+        cacheService.setProducts(processedProducts, categorySlug)
+        
         // ✅ OPTIMIZACIÓN: Precargar imágenes críticas (primera fila)
         const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)
         preloadCriticalImages(criticalImages)
+        
+        console.log('🎉 [ProductLoader] Carga completada exitosamente')
       } catch (error) {
-        console.error("Error al cargar productos:", error)
+        console.error("💥 [ProductLoader] Error al cargar productos:", error)
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+        
+        if (errorMessage.includes('Timeout')) {
+          console.error('⏰ [ProductLoader] Timeout detectado - La carga está tardando más de lo esperado')
+        }
+        
         setProducts([])
         setFilteredProducts([])
       } finally {
