@@ -1,7 +1,7 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
-import logger, { LogCategory } from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
 import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 import webhookMonitor from '@/lib/webhook-monitor'
 import autoSyncService from '@/lib/auto-sync-service'
@@ -87,7 +87,7 @@ export class WebhookService {
   }
 
   private initializeEmailTransporter() {
-    this.emailTransporter = nodemailer.createTransporter({
+    this.emailTransporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '465'),
       secure: process.env.SMTP_SECURE === 'true',
@@ -101,9 +101,9 @@ export class WebhookService {
     })
   }
 
-  async initializeSupabase() {
+  initializeSupabase() {
     if (!this.supabase) {
-      this.supabase = await createClient()
+      this.supabase = createServiceClient()
     }
     return this.supabase
   }
@@ -328,7 +328,7 @@ export class WebhookService {
         liveMode: webhookData.live_mode
       })
       
-      const supabase = await this.initializeSupabase()
+      const supabase = this.initializeSupabase()
       
       // Obtener datos del pago
       const paymentData = await this.getPaymentData(paymentId)
@@ -379,7 +379,7 @@ export class WebhookService {
         })
         
         // Registrar éxito en el monitor
-        webhookMonitor.logWebhookSuccess(eventId, duration)
+        webhookMonitor.logWebhookProcessed(eventId, duration)
       } else {
         logger.error('Error procesando webhook de pago', 'WEBHOOK', {
           eventId,
@@ -507,9 +507,8 @@ export class WebhookService {
         processing_mode: 'aggregator' // Modo por defecto de MercadoPago
       }
 
-      if (paymentData.status === 'approved' || paymentData.status === 'paid') {
-        updateData.confirmed_at = new Date().toISOString()
-      }
+      // Nota: No hay columna confirmed_at en la tabla orders
+      // El campo updated_at ya se actualiza arriba para registrar cuándo se confirmó
 
       logger.info('Actualizando estado de orden', 'ORDER', {
         paymentId,

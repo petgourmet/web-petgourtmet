@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import WebhookService from '@/lib/webhook-service'
+import { WebhookService } from '@/lib/webhook-service'
 
 // Configurar para que Next.js no parsee el body automáticamente
 export const runtime = 'nodejs'
 
-// Función para obtener el raw body
+// Función mejorada para obtener el raw body con límites de tamaño
 async function getRawBody(request: NextRequest): Promise<string> {
+  const MAX_BODY_SIZE = 1024 * 1024 // 1MB límite
+  let totalSize = 0
   const chunks: Uint8Array[] = []
+  
   const reader = request.body?.getReader()
   
   if (!reader) {
@@ -17,20 +20,26 @@ async function getRawBody(request: NextRequest): Promise<string> {
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      chunks.push(value)
+      
+      if (value) {
+        totalSize += value.length
+        if (totalSize > MAX_BODY_SIZE) {
+          throw new Error(`Body demasiado grande: ${totalSize} bytes (máximo: ${MAX_BODY_SIZE})`)
+        }
+        chunks.push(value)
+      }
     }
   } finally {
     reader.releaseLock()
   }
 
-  const concatenated = new Uint8Array(chunks.reduce((acc, chunk) => acc + chunk.length, 0))
-  let offset = 0
-  for (const chunk of chunks) {
-    concatenated.set(chunk, offset)
-    offset += chunk.length
+  if (chunks.length === 0) {
+    return ''
   }
 
-  return new TextDecoder().decode(concatenated)
+  // Usar Buffer.concat para mejor rendimiento
+  const buffer = Buffer.concat(chunks.map(chunk => Buffer.from(chunk)))
+  return buffer.toString('utf8')
 }
 
 // Endpoint principal para webhooks de MercadoPago
@@ -56,7 +65,13 @@ export async function POST(request: NextRequest) {
       console.error('❌ Body vacío en webhook')
       return NextResponse.json(
         { error: 'Body vacío' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        }
       )
     }
 
@@ -68,7 +83,13 @@ export async function POST(request: NextRequest) {
       console.error('❌ Error parseando JSON del webhook:', error)
       return NextResponse.json(
         { error: 'JSON inválido' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        }
       )
     }
 
@@ -81,11 +102,23 @@ export async function POST(request: NextRequest) {
     })
 
     // Validar estructura básica del webhook
-    if (!webhookData.type || !webhookData.data?.id) {
+    // topic_merchant_order_wh tiene estructura diferente (id directo, no data.id)
+    const hasValidStructure = webhookData.type && (
+      webhookData.data?.id || // Estructura normal (payment, subscription)
+      (webhookData.type === 'topic_merchant_order_wh' && webhookData.id) // Estructura de merchant order
+    )
+    
+    if (!hasValidStructure) {
       console.error('❌ Estructura de webhook inválida:', webhookData)
       return NextResponse.json(
         { error: 'Estructura de webhook inválida' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        }
       )
     }
 
@@ -99,7 +132,14 @@ export async function POST(request: NextRequest) {
         console.error('❌ Firma de webhook inválida')
         return NextResponse.json(
           { error: 'Firma inválida' },
-          { status: 401 }
+          { 
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'WWW-Authenticate': 'Signature realm="MercadoPago Webhook"'
+            }
+          }
         )
       }
       console.log('✅ Firma de webhook validada')
@@ -132,6 +172,16 @@ export async function POST(request: NextRequest) {
         processed = true // Las facturas no requieren procesamiento especial
         break
 
+      case 'topic_merchant_order_wh':
+        console.log('🛒 Webhook de merchant order recibido')
+        console.log('📦 Datos de merchant order:', {
+          id: webhookData.id,
+          status: webhookData.status || webhookData.data?.status,
+          action: webhookData.action
+        })
+        processed = true // Merchant orders se procesan exitosamente
+        break
+
       default:
         console.log(`ℹ️ Tipo de webhook no manejado: ${webhookData.type}`)
         processed = true // No fallar por tipos desconocidos
@@ -144,9 +194,17 @@ export async function POST(request: NextRequest) {
           success: true, 
           message: 'Webhook procesado',
           type: webhookData.type,
-          action: webhookData.action
+          action: webhookData.action,
+          timestamp: new Date().toISOString()
         },
-        { status: 200 }
+        { 
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'X-Webhook-Status': 'processed'
+          }
+        }
       )
     } else {
       console.error('❌ Error procesando webhook')
@@ -154,9 +212,17 @@ export async function POST(request: NextRequest) {
         { 
           error: 'Error procesando webhook',
           type: webhookData.type,
-          action: webhookData.action
+          action: webhookData.action,
+          timestamp: new Date().toISOString()
         },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'X-Webhook-Status': 'error'
+          }
+        }
       )
     }
 
@@ -165,9 +231,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Error interno del servidor',
-        message: error instanceof Error ? error.message : 'Error desconocido'
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        timestamp: new Date().toISOString()
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'X-Webhook-Status': 'critical-error'
+        }
+      }
     )
   }
 }
@@ -194,27 +268,67 @@ export async function GET(request: NextRequest) {
     message: 'Webhook endpoint de MercadoPago funcionando',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
+  }, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'X-Endpoint-Status': 'active'
+    }
   })
 }
 
 // Manejar otros métodos HTTP
 export async function PUT(request: NextRequest) {
   return NextResponse.json(
-    { error: 'Método no permitido' },
-    { status: 405 }
+    { 
+      error: 'Método no permitido',
+      allowed_methods: ['GET', 'POST'],
+      timestamp: new Date().toISOString()
+    },
+    { 
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Allow': 'GET, POST',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    }
   )
 }
 
 export async function DELETE(request: NextRequest) {
   return NextResponse.json(
-    { error: 'Método no permitido' },
-    { status: 405 }
+    { 
+      error: 'Método no permitido',
+      allowed_methods: ['GET', 'POST'],
+      timestamp: new Date().toISOString()
+    },
+    { 
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Allow': 'GET, POST',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    }
   )
 }
 
 export async function PATCH(request: NextRequest) {
   return NextResponse.json(
-    { error: 'Método no permitido' },
-    { status: 405 }
+    { 
+      error: 'Método no permitido',
+      allowed_methods: ['GET', 'POST'],
+      timestamp: new Date().toISOString()
+    },
+    { 
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Allow': 'GET, POST',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    }
   )
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import logger from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
 
 // Endpoint para verificar el estado y configuración del webhook
 export async function GET(request: NextRequest) {
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
     const healthStatus = healthScore >= 80 ? 'healthy' : 
                         healthScore >= 60 ? 'warning' : 'critical'
 
-    logger.info('Verificación de estado del webhook completada', 'WEBHOOK_STATUS', {
+    logger.info(LogCategory.WEBHOOK, 'Verificación de estado del webhook completada', {
       issuesCount: status.issues.length,
       healthScore,
       healthStatus
@@ -179,8 +179,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error('Error verificando estado del webhook', 'WEBHOOK_STATUS', {
-      error: error.message,
+    logger.error(LogCategory.WEBHOOK, 'Error verificando estado del webhook', error, {
       stack: error.stack
     })
     
@@ -253,7 +252,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    logger.info('Prueba de webhook ejecutada', 'WEBHOOK_TEST', {
+    logger.info(LogCategory.WEBHOOK, 'Prueba de webhook ejecutada', {
       testType,
       success: testResult?.success,
       status: testResult?.status
@@ -266,8 +265,7 @@ export async function POST(request: NextRequest) {
     })
     
   } catch (error) {
-    logger.error('Error en prueba de webhook', 'WEBHOOK_TEST', {
-      error: error.message,
+    logger.error(LogCategory.WEBHOOK, 'Error en prueba de webhook', error, {
       stack: error.stack
     })
     

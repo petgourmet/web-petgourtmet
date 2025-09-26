@@ -1,4 +1,4 @@
-import logger from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
 import { createServiceClient } from '@/lib/supabase/service'
 
 interface WebhookEvent {
@@ -48,7 +48,7 @@ class WebhookMonitor {
     this.events.set(eventId, event)
     this.cleanupOldEvents()
 
-    logger.info('Webhook recibido y registrado', 'WEBHOOK_MONITOR', {
+    logger.info(LogCategory.WEBHOOK, 'Webhook recibido y registrado', {
       eventId,
       type: event.type,
       action: event.action,
@@ -66,7 +66,7 @@ class WebhookMonitor {
       event.processed = true
       event.processingTime = processingTime
       
-      logger.info('Webhook procesado exitosamente', 'WEBHOOK_MONITOR', {
+      logger.info(LogCategory.WEBHOOK, 'Webhook procesado exitosamente', {
         eventId,
         type: event.type,
         action: event.action,
@@ -84,12 +84,11 @@ class WebhookMonitor {
       event.error = error
       event.processingTime = processingTime
       
-      logger.error('Error procesando webhook', 'WEBHOOK_MONITOR', {
+      logger.error(LogCategory.WEBHOOK, 'Error procesando webhook', error, {
         eventId,
         type: event.type,
         action: event.action,
         dataId: event.dataId,
-        error,
         processingTime
       })
     }
