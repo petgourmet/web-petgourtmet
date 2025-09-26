@@ -47,6 +47,9 @@ export default function BlogCard({ post }: BlogCardProps) {
           alt={post.title}
           fill
           className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          priority={false}
+          quality={85}
           onError={() => {
             // Si la imagen no se puede cargar, usamos el placeholder
             if (imageSrc !== "/placeholder.svg") {

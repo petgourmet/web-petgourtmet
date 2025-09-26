@@ -27,7 +27,7 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    unoptimized: true,
+    unoptimized: process.env.NODE_ENV === 'development',
   },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
