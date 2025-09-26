@@ -418,9 +418,146 @@ export class EmailService {
 
 // Funciones auxiliares para plantillas
 function getOrderStatusTemplate(status: string, orderData: any) {
+  const statusMessages = {
+    pending: {
+      subject: '📋 Tu pedido ha sido recibido - Pet Gourmet',
+      title: '📋 Pedido Recibido',
+      message: 'Hemos recibido tu pedido y lo estamos procesando. Te notificaremos cuando esté listo para envío.',
+      color: '#fbbf24',
+      icon: '📋'
+    },
+    processing: {
+      subject: '⚡ Tu pedido está siendo preparado - Pet Gourmet',
+      title: '⚡ Preparando tu Pedido',
+      message: 'Tu pedido está siendo preparado con mucho cuidado. Pronto estará listo para el envío.',
+      color: '#3b82f6',
+      icon: '⚡'
+    },
+    completed: {
+      subject: '✅ Tu pedido ha sido enviado - Pet Gourmet',
+      title: '✅ Pedido Enviado',
+      message: 'Tu pedido ha sido enviado exitosamente. Recibirás la información de seguimiento pronto.',
+      color: '#10b981',
+      icon: '✅'
+    },
+    cancelled: {
+      subject: '❌ Tu pedido ha sido cancelado - Pet Gourmet',
+      title: '❌ Pedido Cancelado',
+      message: 'Tu pedido ha sido cancelado. Si tienes alguna pregunta, no dudes en contactarnos.',
+      color: '#ef4444',
+      icon: '❌'
+    }
+  };
+
+  const statusInfo = statusMessages[status as keyof typeof statusMessages] || statusMessages.pending;
+  
+  // Formatear productos si existen
+  let productsHtml = '';
+  if (orderData?.products && Array.isArray(orderData.products)) {
+    productsHtml = `
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #374151;">🛍️ Productos en tu pedido:</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background-color: #e5e7eb;">
+              <th style="padding: 12px; text-align: left; border: 1px solid #d1d5db;">Producto</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #d1d5db;">Cantidad</th>
+              <th style="padding: 12px; text-align: right; border: 1px solid #d1d5db;">Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orderData.products.map((product: any) => `
+              <tr>
+                <td style="padding: 12px; border: 1px solid #d1d5db;">${product.name || 'Producto'}</td>
+                <td style="padding: 12px; text-align: center; border: 1px solid #d1d5db;">${product.quantity || 1}</td>
+                <td style="padding: 12px; text-align: right; border: 1px solid #d1d5db;">$${product.price || '0.00'} MXN</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // Información de envío si existe
+  let shippingHtml = '';
+  if (orderData?.shipping_address) {
+    const addr = orderData.shipping_address;
+    shippingHtml = `
+      <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #1e40af;">📍 Dirección de envío:</h3>
+        <p style="margin: 5px 0;"><strong>${addr.full_name || addr.name || 'Cliente'}</strong></p>
+        <p style="margin: 5px 0;">${addr.address_line_1 || addr.address || ''}</p>
+        ${addr.address_line_2 ? `<p style="margin: 5px 0;">${addr.address_line_2}</p>` : ''}
+        <p style="margin: 5px 0;">${addr.city || ''}, ${addr.state || ''} ${addr.postal_code || ''}</p>
+        ${addr.phone ? `<p style="margin: 5px 0;">📞 ${addr.phone}</p>` : ''}
+      </div>
+    `;
+  }
+
   return {
-    subject: `Actualización de tu pedido - ${status}`,
-    html: `<h1>Tu pedido está ${status}</h1><p>Detalles: ${JSON.stringify(orderData)}</p>`
+    subject: statusInfo.subject,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${statusInfo.title}</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">
+                ${statusInfo.icon} Pet Gourmet
+              </h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 30px 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="background-color: ${statusInfo.color}; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;">
+                  ${statusInfo.title}
+                </div>
+              </div>
+              
+              <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
+                ${statusInfo.message}
+              </p>
+              
+              ${orderData?.id ? `
+                <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                  <p style="margin: 0; font-size: 14px; color: #6b7280;">Número de pedido:</p>
+                  <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: #374151;">#${orderData.id}</p>
+                </div>
+              ` : ''}
+              
+              ${productsHtml}
+              ${shippingHtml}
+              
+              ${orderData?.total ? `
+                <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                  <p style="margin: 0; font-size: 16px; color: #065f46;">Total del pedido:</p>
+                  <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #10b981;">$${orderData.total} MXN</p>
+                </div>
+              ` : ''}
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="color: #6b7280; font-size: 14px;">¿Tienes alguna pregunta? Contáctanos:</p>
+                <p style="color: #7AB8BF; font-weight: bold;">📧 soporte@petgourmet.mx</p>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                © 2024 Pet Gourmet. Todos los derechos reservados.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
   };
 }
 

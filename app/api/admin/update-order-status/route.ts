@@ -104,11 +104,29 @@ export async function POST(request: NextRequest) {
             orderNumber: finalOrderNumber 
           })
           
+          // Preparar datos completos de la orden para el email
+          const orderDataForEmail = {
+            id: finalOrderNumber,
+            status: newStatus,
+            total: currentOrder.total,
+            products: currentOrder.products || [],
+            shipping_address: {
+              full_name: customerName,
+              email: customerData.email,
+              address_line_1: customerData.address || '',
+              city: customerData.city || '',
+              state: customerData.state || '',
+              postal_code: customerData.postalCode || '',
+              phone: customerData.phone || ''
+            },
+            customer_name: customerName,
+            created_at: currentOrder.created_at
+          }
+          
           const emailResult = await sendOrderStatusEmail(
             newStatus as 'pending' | 'processing' | 'completed' | 'cancelled',
             customerData.email,
-            finalOrderNumber,
-            customerName
+            orderDataForEmail
           )
           
           console.log('Email result:', emailResult)
