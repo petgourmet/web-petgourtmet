@@ -57,13 +57,32 @@ export function getOptimizedImageUrl(
 export function preloadCriticalImages(imageUrls: string[]) {
   if (typeof window === 'undefined') return
   
-  imageUrls.forEach((url) => {
-    if (url && url !== "/placeholder.svg") {
+  // Filtrar URLs válidas y evitar duplicados
+  const validUrls = [...new Set(imageUrls.filter(url => 
+    url && 
+    url !== "/placeholder.svg" && 
+    url !== "" && 
+    !url.includes('undefined') &&
+    !document.querySelector(`link[rel="preload"][href="${url}"]`) // Evitar duplicados
+  ))]
+  
+  validUrls.forEach((url) => {
+    try {
       const link = document.createElement('link')
       link.rel = 'preload'
       link.as = 'image'
       link.href = url
+      link.crossOrigin = 'anonymous' // Evitar warnings de CORS
+      
+      // Agregar listener para limpiar en caso de error
+      link.onerror = () => {
+        console.warn(`[preloadCriticalImages] Error precargando imagen: ${url}`)
+        link.remove()
+      }
+      
       document.head.appendChild(link)
+    } catch (error) {
+      console.warn(`[preloadCriticalImages] Error creando preload para: ${url}`, error)
     }
   })
 }

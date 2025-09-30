@@ -133,7 +133,8 @@ class SubscriptionMonitor {
           // Ejecutar diagnóstico para el usuario
           const diagnosticResult = await runSubscriptionDiagnostics(userId)
           
-          if (diagnosticResult.issues.length > 0) {
+          // Verificar que diagnosticResult y diagnosticResult.issues existan y sean arrays
+          if (diagnosticResult && Array.isArray(diagnosticResult.issues) && diagnosticResult.issues.length > 0) {
             result.issuesFound += diagnosticResult.issues.length
             totalIssuesProcessed += diagnosticResult.issues.length
 
@@ -142,17 +143,21 @@ class SubscriptionMonitor {
             // Aplicar correcciones automáticas si está habilitado
             if (this.config.autoFixEnabled) {
               try {
-                const fixResult = await applyAutomaticFixes(userId, diagnosticResult.issues)
-                result.fixesApplied += fixResult.fixesApplied
+                const fixResult = await applyAutomaticFixes(userId, diagnosticResult)
+                
+                // Verificar que fixResult existe antes de acceder a sus propiedades
+                if (fixResult && typeof fixResult.fixed === 'number') {
+                  result.fixesApplied += fixResult.fixed
 
-                if (fixResult.fixesApplied > 0) {
-                  console.log(`✅ Usuario ${userId}: ${fixResult.fixesApplied} correcciones aplicadas`)
-                  
-                  logger.info(LogCategory.SUBSCRIPTION, 'Correcciones automáticas aplicadas por monitor', {
-                    userId,
-                    fixesApplied: fixResult.fixesApplied,
-                    issuesResolved: fixResult.issuesResolved
-                  })
+                  if (fixResult.fixed > 0) {
+                    console.log(`✅ Usuario ${userId}: ${fixResult.fixed} correcciones aplicadas`)
+                    
+                    logger.info(LogCategory.SUBSCRIPTION, 'Correcciones automáticas aplicadas por monitor', {
+                      userId,
+                      fixesApplied: fixResult.fixed,
+                      errors: fixResult.errors || []
+                    })
+                  }
                 }
               } catch (fixError) {
                 const errorMsg = `Error aplicando correcciones para usuario ${userId}: ${fixError}`
@@ -160,6 +165,9 @@ class SubscriptionMonitor {
                 console.error('❌', errorMsg)
               }
             }
+          } else {
+            // Log cuando no hay problemas o el resultado es inválido
+            console.log(`✅ Usuario ${userId}: Sin problemas detectados o resultado inválido`)
           }
         } catch (userError) {
           const errorMsg = `Error procesando usuario ${userId}: ${userError}`

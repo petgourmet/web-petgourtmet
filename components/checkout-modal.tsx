@@ -16,6 +16,7 @@ import { toast } from "@/components/ui/use-toast"
 import crypto from "crypto"
 import { logger, LogCategory } from '@/lib/logger'
 import { SubscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
+import { makeExternalReference, makeExternalReferenceWithoutPreapproval } from '@/utils/external-reference-generator'
 
 // Type definitions
 interface Profile {
@@ -621,8 +622,9 @@ export function CheckoutModal() {
             return
           }
         } else {
-          // SIEMPRE usar el external_reference determinístico generado por el servicio
-          externalReference = validationResult.externalReference || generateDeterministicReference(userId, planId, subscriptionType || 'monthly')
+          // Usar la nueva función makeExternalReference con formato correcto SUB-{userId}-{planId}-{hash8}
+          // Como no tenemos preapprovalId aquí, usamos la versión sin preapproval
+          externalReference = validationResult.externalReference || makeExternalReferenceWithoutPreapproval(userId, planId, subscriptionType || 'monthly')
         }
       }
       

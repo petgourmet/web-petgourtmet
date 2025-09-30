@@ -3,17 +3,30 @@ import { supabase } from "@/lib/supabase/client"
 import MercadoPagoService from "@/lib/mercadopago-service"
 import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
 import { createEnhancedIdempotencyServiceServer } from '@/lib/enhanced-idempotency-service.server'
+import { makeExternalReference } from '@/utils/external-reference-generator'
 
 export async function POST(request: NextRequest) {
   try {
-    const { preapproval_id, user_id } = await request.json()
+    const body = await request.json()
+    const { preapproval_id, user_id, plan_id, external_reference } = body
 
+    // Validación de inputs al inicio
     if (!preapproval_id || !user_id) {
       return NextResponse.json(
         { error: "preapproval_id y user_id son requeridos" },
         { status: 400 }
       )
     }
+
+    if (!plan_id) {
+      return NextResponse.json(
+        { error: "plan_id es requerido para generar external_reference válido" },
+        { status: 400 }
+      )
+    }
+    
+    // Generar external_reference si no se proporciona
+    const extRef = external_reference || makeExternalReference(user_id, plan_id, preapproval_id)
     
     // Generar clave de idempotencia para la validación
     const idempotencyKey = subscriptionDeduplicationService.generateIdempotencyKey(
@@ -62,6 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Suscripción ya validada (desde caché)',
+        external_reference: extRef,
         ...result.result,
         fromCache: true
       })
@@ -70,7 +84,7 @@ export async function POST(request: NextRequest) {
     const { subscriptionInfo } = result.result
 
     // PASO 1: Buscar suscripción por external_reference (prioridad)
-    const externalReference = subscriptionInfo.external_reference || preapproval_id
+    const externalReference = subscriptionInfo.external_reference || extRef
     
     const { data: existingByReference, error: referenceError } = await supabase
       .from("unified_subscriptions")
@@ -81,8 +95,8 @@ export async function POST(request: NextRequest) {
     if (referenceError) {
       console.error("Error buscando por external_reference:", referenceError)
       return NextResponse.json(
-        { error: "Error al buscar suscripción" },
-        { status: 500 }
+        { error: "Error de base de datos al buscar suscripción", details: referenceError.message },
+        { status: 502 }
       )
     }
 
@@ -147,8 +161,8 @@ export async function POST(request: NextRequest) {
       if (preapprovalError) {
         console.error("Error buscando por preapproval_id:", preapprovalError)
         return NextResponse.json(
-          { error: "Error al buscar suscripción" },
-          { status: 500 }
+          { error: "Error de base de datos al buscar suscripción por preapproval_id", details: preapprovalError.message },
+          { status: 502 }
         )
       }
 
@@ -208,10 +222,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createError) {
-      console.error("Error creando suscripción activa:", createError)
+      console.error("Error activando suscripción:", createError)
       return NextResponse.json(
-        { error: "Error al activar suscripción" },
-        { status: 500 }
+        { error: "Error de base de datos al activar suscripción", details: createError.message },
+        { status: 502 }
       )
     }
 
@@ -229,13 +243,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       subscription: newSubscription,
+      external_reference: extRef,
       message: "Suscripción activada exitosamente"
     })
 
   } catch (error) {
     console.error("Error validando preapproval:", error)
+    
+    // Determinar el tipo de error y devolver código apropiado
+    if (error.message?.includes('Token de MercadoPago')) {
+      return NextResponse.json(
+        { error: "Error de configuración del servidor", details: "Token de MercadoPago no configurado" },
+        { status: 502 }
+      )
+    }
+    
+    if (error.message?.includes('Suscripción no encontrada')) {
+      return NextResponse.json(
+        { error: "Suscripción no encontrada o no autorizada en MercadoPago", details: error.message },
+        { status: 404 }
+      )
+    }
+    
+    // Error genérico del servidor
     return NextResponse.json(
-      { error: "Error interno del servidor" },
+      { error: "Error interno del servidor", details: error.message },
       { status: 500 }
     )
   }

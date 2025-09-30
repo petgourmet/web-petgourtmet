@@ -1,4 +1,4 @@
--- Consultar suscripción existente con external_reference específico
+-- Consultar suscripción existente con external_reference específico del webhook
 SELECT 
     id,
     user_id,
@@ -10,7 +10,7 @@ SELECT
     product_id,
     customer_data
 FROM unified_subscriptions 
-WHERE external_reference = 'd4fd7b195ee646dfb45fa030461a91c8';
+WHERE external_reference = '2c938084726fca8a01726fd4f4b80331';
 
 -- También verificar por user_id para ver todas las suscripciones del usuario
 SELECT 

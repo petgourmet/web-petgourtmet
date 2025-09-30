@@ -19,6 +19,7 @@ export function useClientAuth() {
   useEffect(() => {
     let isMounted = true
     let timeoutId: NodeJS.Timeout
+    let authSubscription: any = null // Variable para almacenar la suscripción
     
     console.log('🔄 [useClientAuth] Iniciando carga de usuario...')
     
@@ -190,9 +191,10 @@ export function useClientAuth() {
       }
     }
     
-    // Configurar listener de cambios de autenticación
+    // Configurar listener de cambios de autenticación SOLO UNA VEZ
     console.log('👂 [useClientAuth] Configurando listener de cambios de autenticación...')
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange)
+    authSubscription = subscription
     
     // Cargar sesión inicial
     loadInitialSession()
@@ -201,9 +203,13 @@ export function useClientAuth() {
       console.log('🧹 [useClientAuth] Limpiando listeners y timeouts...')
       isMounted = false
       clearTimeout(timeoutId)
-      subscription.unsubscribe()
+      // Asegurar que se desuscriba correctamente
+      if (authSubscription) {
+        authSubscription.unsubscribe()
+        authSubscription = null
+      }
     }
-  }, [])
+  }, []) // Array de dependencias vacío para ejecutar solo una vez
 
   const signOut = async () => {
     try {

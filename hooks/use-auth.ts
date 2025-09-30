@@ -12,6 +12,8 @@ export function useAuth() {
   const router = useRouter()
 
   useEffect(() => {
+    let authSubscription: any = null // Variable para almacenar la suscripción
+    
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -36,6 +38,8 @@ export function useAuth() {
         setIsAdmin(false)
       }
     })
+    
+    authSubscription = subscription
 
     // Verificar la sesión actual al cargar
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -60,9 +64,13 @@ export function useAuth() {
     })
 
     return () => {
-      subscription.unsubscribe()
+      // Asegurar que se desuscriba correctamente
+      if (authSubscription) {
+        authSubscription.unsubscribe()
+        authSubscription = null
+      }
     }
-  }, [router])
+  }, []) // Remover router de dependencias para evitar re-renders innecesarios
 
   const signIn = async (email: string, password: string) => {
     try {
