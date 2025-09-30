@@ -61,46 +61,102 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient()
     const webhookService = new WebhookService()
     
-    // PASO 1: Buscar suscripción por external_reference
+    // PASO 1: Búsqueda múltiple de suscripción usando estrategias mejoradas
     let targetSubscription = null
+    let searchMethod = 'not_found'
     
     if (external_reference) {
+      // Estrategia 1: Búsqueda directa por external_reference
+      logger.info('🔍 Estrategia 1: Búsqueda directa por external_reference', 'SEARCH_STRATEGY', {
+        operation_id,
+        external_reference
+      })
+      
       const { data: subscriptionByRef, error: refError } = await supabase
         .from('unified_subscriptions')
         .select('*')
         .eq('external_reference', external_reference)
-        .single()
+        .maybeSingle()
       
       if (subscriptionByRef && !refError) {
         targetSubscription = subscriptionByRef
-        logger.info('✅ Suscripción encontrada por external_reference', 'SUBSCRIPTION_FOUND', {
+        searchMethod = 'direct'
+        logger.info('✅ Suscripción encontrada por external_reference directo', 'SUBSCRIPTION_FOUND', {
           operation_id,
           subscriptionId: targetSubscription.id,
           status: targetSubscription.status,
+          external_reference,
+          searchMethod
+        })
+      }
+      
+      // Estrategia 2: Búsqueda en metadata por mercadopago_external_reference
+      if (!targetSubscription) {
+        logger.info('🔍 Estrategia 2: Búsqueda en metadata', 'SEARCH_STRATEGY', {
+          operation_id,
           external_reference
         })
+        
+        const { data: metadataResults, error: metadataError } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .contains('metadata', { mercadopago_external_reference: external_reference })
+        
+        if (!metadataError && metadataResults && metadataResults.length > 0) {
+          // Si hay múltiples resultados, priorizar por usuario
+          let selectedSubscription = metadataResults[0]
+          
+          if (metadataResults.length > 1 && user_id) {
+            const filtered = metadataResults.filter(sub => sub.user_id === user_id)
+            if (filtered.length > 0) {
+              selectedSubscription = filtered[0]
+              logger.info('🎯 Suscripción filtrada por usuario en metadata', 'SUBSCRIPTION_FILTERED', {
+                operation_id,
+                totalFound: metadataResults.length,
+                filteredCount: filtered.length
+              })
+            }
+          }
+          
+          targetSubscription = selectedSubscription
+          searchMethod = 'metadata'
+          logger.info('✅ Suscripción encontrada por metadata', 'SUBSCRIPTION_FOUND', {
+            operation_id,
+            subscriptionId: targetSubscription.id,
+            status: targetSubscription.status,
+            external_reference,
+            searchMethod,
+            totalFound: metadataResults.length
+          })
+        }
       }
     }
     
-    // PASO 2: Si no se encuentra por external_reference, buscar por user_id y estado pendiente
+    // Estrategia 3: Búsqueda por user_id y estado pendiente (más reciente)
     if (!targetSubscription && user_id) {
+      logger.info('🔍 Estrategia 3: Búsqueda por user_id y estado pendiente', 'SEARCH_STRATEGY', {
+        operation_id,
+        user_id
+      })
+      
       const { data: recentPendingSubs, error: pendingError } = await supabase
         .from('unified_subscriptions')
         .select('*')
         .eq('user_id', user_id)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'processing'])
         .order('created_at', { ascending: false })
         .limit(5)
       
       if (recentPendingSubs && recentPendingSubs.length > 0) {
-        // Tomar la más reciente
         targetSubscription = recentPendingSubs[0]
+        searchMethod = 'user_pending'
         logger.info('✅ Suscripción encontrada por user_id (más reciente pendiente)', 'SUBSCRIPTION_FOUND', {
           operation_id,
           subscriptionId: targetSubscription.id,
           status: targetSubscription.status,
           user_id,
-          pendingCount: recentPendingSubs.length
+          pendingCount: recentPendingSubs.length,
+          searchMethod
         })
       }
     }
@@ -223,6 +279,21 @@ export async function POST(request: NextRequest) {
           nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
       }
       
+      // Preparar metadata actualizada para sincronización
+      const currentMetadata = targetSubscription.metadata || {}
+      const updatedMetadata = {
+        ...currentMetadata,
+        mercadopago_external_reference: external_reference,
+        search_method: searchMethod,
+        activation_source: 'verify-return',
+        activation_timestamp: new Date().toISOString(),
+        payment_verification: {
+          payment_id: paymentIdToCheck,
+          status: paymentData?.status || status,
+          verified_at: new Date().toISOString()
+        }
+      }
+      
       // Actualizar suscripción a activa
       const { data: updatedSubscription, error: updateError } = await supabase
         .from('unified_subscriptions')
@@ -232,6 +303,7 @@ export async function POST(request: NextRequest) {
           next_billing_date: nextBillingDate.toISOString(),
           charges_made: (targetSubscription.charges_made || 0) + 1,
           last_billing_date: new Date().toISOString(),
+          metadata: updatedMetadata,
           updated_at: new Date().toISOString()
         })
         .eq('id', targetSubscription.id)

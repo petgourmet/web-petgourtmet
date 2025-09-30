@@ -971,10 +971,27 @@ export class WebhookService {
         const nextBillingDate = new Date(now)
         nextBillingDate.setDate(nextBillingDate.getDate() + (subscription.billing_frequency || 30))
         
+        // Preparar metadata actualizada para sincronización
+        const currentMetadata = subscription.metadata || {}
+        const updatedMetadata = {
+          ...currentMetadata,
+          mercadopago_external_reference: externalReference,
+          search_method: searchMethod,
+          activation_source: 'webhook_preapproval',
+          activation_timestamp: now.toISOString(),
+          webhook_data: {
+            type: webhookData.type,
+            action: webhookData.action,
+            subscription_id: subscriptionId,
+            processed_at: now.toISOString()
+          }
+        }
+        
         const updateData = {
           status: 'active',
           mercadopago_subscription_id: subscriptionId,
           external_reference: externalReference || subscription.external_reference,
+          metadata: updatedMetadata,
           updated_at: now.toISOString(),
           activated_at: now.toISOString(),
           next_billing_date: nextBillingDate.toISOString(),
@@ -1176,13 +1193,13 @@ export class WebhookService {
         }
       }
       
-      // Método 2: Buscar por external_reference
+      // Método 2: Buscar por external_reference directo
       if (!subscription && externalReference) {
         const { data: sub2, error: err2 } = await supabase
           .from('unified_subscriptions')
           .select('*')
           .eq('external_reference', externalReference)
-          .single()
+          .maybeSingle()
         
         if (sub2 && !err2) {
           subscription = sub2
@@ -1190,7 +1207,20 @@ export class WebhookService {
         }
       }
       
-      // Método 3: Para suscripciones de prueba, buscar pendientes recientes
+      // Método 3: Buscar en metadata por mercadopago_external_reference
+      if (!subscription && externalReference) {
+        const { data: metadataResults, error: metadataError } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .contains('metadata', { mercadopago_external_reference: externalReference })
+        
+        if (!metadataError && metadataResults && metadataResults.length > 0) {
+          subscription = metadataResults[0]
+          searchMethod = 'metadata'
+        }
+      }
+      
+      // Método 4: Para suscripciones de prueba, buscar pendientes recientes
       if (!subscription && (subscriptionId.startsWith('mp_sub_') || subscriptionId.startsWith('test_sub_'))) {
         const { data: sub3, error: err3 } = await supabase
           .from('unified_subscriptions')
@@ -1205,7 +1235,7 @@ export class WebhookService {
         }
       }
       
-      // Método 4: Último recurso - buscar cualquier suscripción pendiente reciente
+      // Método 5: Último recurso - buscar cualquier suscripción pendiente reciente
       if (!subscription) {
         const { data: sub4, error: err4 } = await supabase
           .from('unified_subscriptions')

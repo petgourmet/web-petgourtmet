@@ -158,8 +158,24 @@ export async function POST(request: NextRequest) {
 
       case 'subscription_preapproval':
       case 'subscription_authorized_payment':
-        console.log('📋 Procesando webhook de suscripción')
+        console.log('📋 Procesando webhook de suscripción con activación automática mejorada')
+        console.log('🔍 Detalles del webhook:', {
+          type: webhookData.type,
+          action: webhookData.action,
+          dataId: webhookData.data?.id,
+          liveMode: webhookData.live_mode,
+          timestamp: new Date().toISOString()
+        })
+        
+        // Procesar con el servicio mejorado
         processed = await webhookService.processSubscriptionWebhook(webhookData)
+        
+        // Log adicional para seguimiento
+        if (processed) {
+          console.log('✅ Webhook de suscripción procesado exitosamente con activación automática')
+        } else {
+          console.warn('⚠️ Webhook de suscripción procesado con advertencias')
+        }
         break
 
       case 'plan':
