@@ -7,23 +7,30 @@ import { PRODUCTION_CONFIG, validateProductionConfig } from '@/lib/production-co
 import { checkRateLimit } from '@/lib/checkout-validators'
 
 /**
+ * Obtener IP del cliente
+ */
+function getClientIP(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for') || 
+         request.headers.get('x-real-ip') || 
+         'unknown'
+}
+
+/**
  * Middleware de seguridad principal
  */
 export function securityMiddleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
+  const clientIP = getClientIP(request)
+
   // Solo aplicar a rutas de API
   if (!pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
-  console.log(`🔒 Aplicando middleware de seguridad a: ${pathname}`)
-
   try {
     // 1. Validar configuración de producción
     const configValidation = validateProductionConfig()
     if (!configValidation.isValid && process.env.NODE_ENV === 'production') {
-      console.error('❌ Configuración de producción inválida:', configValidation.errors)
       return NextResponse.json(
         { error: 'Configuración del servidor inválida' },
         { status: 500 }
@@ -31,10 +38,6 @@ export function securityMiddleware(request: NextRequest) {
     }
 
     // 2. Rate limiting
-    const clientIP = request.headers.get('x-forwarded-for') || 
-                    request.headers.get('x-real-ip') || 
-                    'unknown'
-    
     let rateLimit
     if (pathname.includes('/webhook')) {
       rateLimit = PRODUCTION_CONFIG.RATE_LIMITS.WEBHOOK
@@ -45,7 +48,6 @@ export function securityMiddleware(request: NextRequest) {
     }
 
     if (!checkRateLimit(clientIP, rateLimit.maxRequests, rateLimit.windowMs)) {
-      console.warn(`⚠️ Rate limit excedido para IP: ${clientIP} en ruta: ${pathname}`)
       return NextResponse.json(
         { error: 'Demasiadas solicitudes, intenta más tarde' },
         { status: 429 }
@@ -61,10 +63,6 @@ export function securityMiddleware(request: NextRequest) {
         { error: 'Content-Type header requerido' },
         { status: 400 }
       )
-    }
-
-    if (!userAgent) {
-      console.warn(`⚠️ Solicitud sin User-Agent desde IP: ${clientIP}`)
     }
 
     // 4. Validar tamaño del payload para webhooks
@@ -83,11 +81,6 @@ export function securityMiddleware(request: NextRequest) {
       return handleCORS(request)
     }
 
-    // 6. Log de seguridad para rutas críticas
-    if (pathname.includes('/webhook') || pathname.includes('/payment') || pathname.includes('/subscription')) {
-      console.log(`🔐 Acceso a ruta crítica: ${pathname} desde IP: ${clientIP}`)
-    }
-
     // Continuar con la solicitud
     const response = NextResponse.next()
     
@@ -97,7 +90,6 @@ export function securityMiddleware(request: NextRequest) {
     return response
 
   } catch (error) {
-    console.error('❌ Error en middleware de seguridad:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -116,7 +108,6 @@ function handleCORS(request: NextRequest): NextResponse {
   const isAllowedOrigin = !origin || allowedOrigins.includes(origin)
   
   if (!isAllowedOrigin) {
-    console.warn(`⚠️ Origen no permitido: ${origin}`)
     return NextResponse.json(
       { error: 'Origen no permitido' },
       { status: 403 }
@@ -170,15 +161,12 @@ export function webhookSecurityMiddleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  console.log(`🔗 Aplicando middleware de webhook a: ${pathname}`)
-
   // Validaciones específicas para webhooks
   const signature = request.headers.get('x-signature')
   const contentType = request.headers.get('content-type')
 
   // En producción, la firma es obligatoria
   if (process.env.NODE_ENV === 'production' && !signature) {
-    console.error('❌ Webhook sin firma en producción')
     return NextResponse.json(
       { error: 'Firma requerida' },
       { status: 401 }

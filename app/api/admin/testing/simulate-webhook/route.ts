@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = createServiceClient()
     
-    // Verificar autenticación de admin
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    // Verificar si es admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    // Para testing, omitir verificación de autenticación en desarrollo
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json({ error: 'Endpoint solo disponible en desarrollo' }, { status: 403 })
     }
 
     const { type } = await request.json()
@@ -107,12 +95,9 @@ export async function POST(request: NextRequest) {
     const { data: webhookLog, error: logError } = await supabase
       .from('webhook_logs')
       .insert({
-        event_type: eventType,
-        source: 'manual',
-        payload: webhookData,
+        webhook_type: eventType,
+        webhook_data: webhookData,
         status: status,
-        error_message: errorMessage,
-        processing_time: processingTime,
         created_at: new Date().toISOString()
       })
       .select()
@@ -135,12 +120,12 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (!existingOrder) {
-        // Crear una orden de prueba
+        // Crear una orden de prueba con un user_id de prueba
         await supabase
           .from('orders')
           .insert({
             reference: orderReference,
-            user_id: user.id,
+            user_id: 'test-user-id',
             total_amount: webhookData.transaction_amount,
             status: 'completed',
             payment_status: 'paid',

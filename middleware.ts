@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
     console.log('🔄 Interceptando URL de MercadoPago:', url.toString())
     
     // Construir URL local con todos los parámetros preservados
-    const localUrl = new URL('/subscriptions/checkout/congrats', request.url)
+    const localUrl = new URL('/suscripcion', request.url)
     
     // Preservar todos los parámetros de la URL original
     url.searchParams.forEach((value, key) => {

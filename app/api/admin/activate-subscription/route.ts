@@ -1,181 +1,200 @@
-import { NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase/client"
+import { NextRequest, NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/service'
+import { WebhookService } from '@/lib/webhook-service'
 
-// Endpoint para activar manualmente una suscripción pending con datos completos
-// SOLO PARA USO DE ADMINISTRADOR EN CASOS CRÍTICOS
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: "Cliente admin de Supabase no configurado" }, { status: 500 })
+    const { subscription_id, payment_id, external_reference } = await request.json()
+
+    if (!subscription_id || !payment_id || !external_reference) {
+      return NextResponse.json(
+        { error: 'subscription_id, payment_id y external_reference son requeridos' },
+        { status: 400 }
+      )
     }
 
-    const { searchParams } = new URL(request.url)
-    const subscriptionId = searchParams.get("id")
-    const confirmActivate = searchParams.get("confirm")
+    const supabase = createServiceClient()
+    const webhookService = new WebhookService()
 
-    if (!subscriptionId) {
-      return NextResponse.json({ error: "Se requiere el ID de la suscripción" }, { status: 400 })
-    }
-
-    if (confirmActivate !== "true") {
-      return NextResponse.json({ error: "Se requiere confirmación explícita para activar" }, { status: 400 })
-    }
-
-    // Obtener la suscripción actual
-    const { data: subscription, error: fetchError } = await supabaseAdmin
-      .from("unified_subscriptions")
-      .select("*")
-      .eq("id", subscriptionId)
+    // 1. Obtener la suscripción actual
+    const { data: subscription, error: fetchError } = await supabase
+      .from('unified_subscriptions')
+      .select('*')
+      .eq('id', subscription_id)
       .single()
 
     if (fetchError || !subscription) {
-      return NextResponse.json({ error: "Suscripción no encontrada" }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Suscripción no encontrada' },
+        { status: 404 }
+      )
     }
 
-    // Verificar que es un registro completo
-    const isComplete = subscription.customer_data && 
-                      subscription.cart_items && 
-                      subscription.product_id && 
-                      subscription.base_price
-
-    if (!isComplete) {
-      return NextResponse.json({ 
-        error: "Esta suscripción no tiene datos completos y no puede ser activada",
-        subscription: {
-          id: subscription.id,
-          has_customer_data: !!subscription.customer_data,
-          has_cart_items: !!subscription.cart_items,
-          has_product_id: !!subscription.product_id,
-          has_base_price: !!subscription.base_price
-        }
-      }, { status: 400 })
+    // 2. Calcular fechas de facturación
+    const now = new Date()
+    const nextBillingDate = new Date(now)
+    
+    // Para suscripción weekly, agregar 7 días
+    if (subscription.subscription_type === 'weekly') {
+      nextBillingDate.setDate(nextBillingDate.getDate() + 7)
+    } else if (subscription.subscription_type === 'monthly') {
+      nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
     }
 
-    // Verificar que está en estado pending
-    if (subscription.status !== 'pending') {
-      return NextResponse.json({ 
-        error: `La suscripción ya está en estado '${subscription.status}' y no puede ser activada`,
-        current_status: subscription.status
-      }, { status: 400 })
-    }
-
-    // Activar la suscripción
-    const now = new Date().toISOString()
-    const nextBillingDate = new Date()
-    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
-
-    const updateData: any = {
-      status: 'active',
-      updated_at: now,
-      last_billing_date: now,
-      next_billing_date: nextBillingDate.toISOString()
-    }
-
-    // Solo actualizar mercadopago_subscription_id si no existe
-    if (!subscription.mercadopago_subscription_id && subscription.external_reference) {
-      updateData.mercadopago_subscription_id = subscription.external_reference
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from("unified_subscriptions")
-      .update(updateData)
-      .eq("id", subscriptionId)
+    // Actualizar la suscripción (mantenemos el external_reference original)
+    const { data: updatedSubscription, error: updateError } = await supabase
+      .from('unified_subscriptions')
+      .update({
+        status: 'active',
+        last_billing_date: new Date().toISOString(),
+        next_billing_date: nextBillingDate.toISOString(),
+        charges_made: (subscription.charges_made || 0) + 1,
+        updated_at: new Date().toISOString(),
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', subscription_id)
+      .select()
+      .single()
 
     if (updateError) {
-      console.error("Error al activar suscripción:", updateError)
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+      console.error('Error actualizando suscripción:', updateError)
+      return NextResponse.json(
+        { error: 'Error actualizando suscripción' },
+        { status: 500 }
+      )
     }
 
-    // Obtener la suscripción actualizada
-    const { data: updatedSubscription, error: getError } = await supabaseAdmin
-      .from("unified_subscriptions")
-      .select("*")
-      .eq("id", subscriptionId)
-      .single()
+    // 4. Crear registro en billing_history
+    const customerData = typeof subscription.customer_data === 'string' 
+      ? JSON.parse(subscription.customer_data) 
+      : subscription.customer_data
+    const cartItems = typeof subscription.cart_items === 'string'
+      ? JSON.parse(subscription.cart_items)
+      : subscription.cart_items
+    const amount = parseFloat(subscription.transaction_amount)
 
-    if (getError || !updatedSubscription) {
-      console.error("Error al obtener suscripción actualizada:", getError)
-      return NextResponse.json({ error: "Error al obtener datos actualizados" }, { status: 500 })
+    const { error: billingError } = await supabase
+      .from('subscription_billing_history')
+      .insert({
+        subscription_id: subscription_id,
+        user_id: subscription.user_id,
+        amount: amount,
+        currency: subscription.currency_id || 'MXN',
+        status: 'completed',
+        mercadopago_payment_id: payment_id,
+        external_reference: external_reference,
+        billing_date: now.toISOString(),
+        payment_method: 'credit_card',
+        metadata: {
+          activation_type: 'manual_admin',
+          original_external_reference: subscription.external_reference,
+          processed_at: now.toISOString()
+        }
+      })
+
+    if (billingError) {
+      console.error('Error creando registro de facturación:', billingError)
+      // No retornamos error aquí porque la suscripción ya se activó
     }
 
-    console.log(`✅ Suscripción activada manualmente: ID ${subscriptionId}`)
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: `Suscripción activada exitosamente`,
-      activated_subscription: {
-        id: updatedSubscription.id,
-        user_id: updatedSubscription.user_id,
-        status: updatedSubscription.status,
-        external_reference: updatedSubscription.external_reference,
-        mercadopago_subscription_id: updatedSubscription.mercadopago_subscription_id,
-        product_name: updatedSubscription.product_name,
-        base_price: updatedSubscription.base_price,
-        last_billing_date: updatedSubscription.last_billing_date,
-        next_billing_date: updatedSubscription.next_billing_date
+    // 5. Enviar correo de confirmación usando el servicio de email interno
+    try {
+      // Crear el objeto de suscripción con los datos necesarios
+      const subscriptionForEmail = {
+        id: subscription_id,
+        user_id: subscription.user_id,
+        product_name: subscription.product_name,
+        subscription_type: subscription.subscription_type,
+        discounted_price: subscription.discounted_price,
+        base_price: subscription.base_price,
+        customer_data: subscription.customer_data
       }
+      
+      // Usar el método privado a través de reflexión o crear instancia temporal
+      const supabaseClient = createServiceClient()
+      
+      // Obtener datos del usuario para el email
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('email, first_name, last_name')
+        .eq('id', subscription.user_id)
+        .single()
+      
+      if (profile?.email) {
+        // Crear transporter de email temporal
+        const nodemailer = await import('nodemailer')
+        const emailTransporter = nodemailer.default.createTransporter({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+          }
+        })
+        
+        const productName = subscription.product_name || 'Suscripción PetGourmet'
+        
+        // Email al cliente
+        const customerEmailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">¡Tu suscripción está activa! 🎉</h2>
+            <p>Hola ${profile.first_name || customerData.firstName || 'Cliente'},</p>
+            <p>Tu suscripción a <strong>${productName}</strong> ha sido activada exitosamente.</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Detalles de tu suscripción:</h3>
+              <p><strong>Producto:</strong> ${productName}</p>
+              <p><strong>Tamaño:</strong> ${subscription.size}</p>
+              <p><strong>Tipo:</strong> ${subscription.subscription_type}</p>
+              <p><strong>Precio:</strong> $${subscription.discounted_price || subscription.base_price} MXN</p>
+              <p><strong>Próximo pago:</strong> ${nextBillingDate.toLocaleDateString('es-MX')}</p>
+            </div>
+            
+            <p>Ahora puedes disfrutar de todos los beneficios de tu suscripción:</p>
+            <ul>
+              <li>🥘 Comida premium para tu mascota</li>
+              <li>🚚 Entregas automáticas</li>
+              <li>💰 Precios preferenciales</li>
+              <li>🎯 Atención personalizada</li>
+            </ul>
+            
+            <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+            
+            <p style="margin-top: 30px;">¡Gracias por confiar en PetGourmet!</p>
+            <p><strong>El equipo de PetGourmet</strong></p>
+          </div>
+        `
+        
+        await emailTransporter.sendMail({
+          from: process.env.SMTP_FROM || 'contacto@petgourmet.mx',
+          to: profile.email,
+          subject: '🎉 ¡Tu suscripción a PetGourmet está activa!',
+          html: customerEmailHtml
+        })
+        
+        console.log('✅ Correo de confirmación enviado a:', profile.email)
+      }
+    } catch (emailError: any) {
+      console.error('❌ Error enviando correo:', emailError.message)
+      // No retornamos error aquí porque la suscripción ya se activó
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Suscripción activada exitosamente',
+      subscription_id: subscription_id,
+      status: 'active',
+      payment_id: payment_id,
+      external_reference: external_reference,
+      next_billing_date: nextBillingDate.toISOString()
     })
-  } catch (error: any) {
-    console.error("Error en la API de activación de suscripción:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-}
 
-// Endpoint GET para verificar datos de una suscripción antes de activar
-export async function GET(request: Request) {
-  try {
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: "Cliente admin de Supabase no configurado" }, { status: 500 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const subscriptionId = searchParams.get("id")
-
-    if (!subscriptionId) {
-      return NextResponse.json({ error: "Se requiere el ID de la suscripción" }, { status: 400 })
-    }
-
-    const { data: subscription, error } = await supabaseAdmin
-      .from("unified_subscriptions")
-      .select("*")
-      .eq("id", subscriptionId)
-      .single()
-
-    if (error || !subscription) {
-      return NextResponse.json({ error: "Suscripción no encontrada" }, { status: 404 })
-    }
-
-    // Analizar completitud de datos
-    const analysis = {
-      id: subscription.id,
-      user_id: subscription.user_id,
-      status: subscription.status,
-      external_reference: subscription.external_reference,
-      mercadopago_subscription_id: subscription.mercadopago_subscription_id,
-      product_name: subscription.product_name,
-      base_price: subscription.base_price,
-      completeness: {
-        has_customer_data: !!subscription.customer_data,
-        has_cart_items: !!subscription.cart_items,
-        has_product_id: !!subscription.product_id,
-        has_base_price: !!subscription.base_price,
-        has_product_name: !!subscription.product_name,
-        has_transaction_amount: !!subscription.transaction_amount
-      },
-      is_complete: !!(subscription.customer_data && 
-                     subscription.cart_items && 
-                     subscription.product_id && 
-                     subscription.base_price),
-      can_be_activated: subscription.status === 'pending' && 
-                       !!(subscription.customer_data && 
-                         subscription.cart_items && 
-                         subscription.product_id && 
-                         subscription.base_price)
-    }
-
-    return NextResponse.json({ success: true, analysis })
-  } catch (error: any) {
-    console.error("Error en la API de análisis de activación:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    console.error('Error en activate-subscription:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
   }
 }

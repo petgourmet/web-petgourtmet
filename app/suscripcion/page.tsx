@@ -115,7 +115,11 @@ export default function SuscripcionPage() {
         
         setIsApproved(true)
         processOptimizedSubscriptionActivation(urlParams).then(() => {
-          loadUserSubscriptions()
+          loadUserSubscriptions().finally(() => {
+            setIsLoading(false) // Asegurar que se quite el loading
+          })
+        }).catch(() => {
+          setIsLoading(false) // Asegurar que se quite el loading en caso de error
         })
       } else if (preapprovalId) {
         // Validar suscripción usando preapproval_id
@@ -136,7 +140,9 @@ export default function SuscripcionPage() {
         logger.info('Loading user subscriptions normally', 'SUBSCRIPTION_LOAD', {
           userId: user.id
         })
-        loadUserSubscriptions()
+        loadUserSubscriptions().finally(() => {
+          setIsLoading(false) // Asegurar que se quite el loading
+        })
       }
     }
   }, [user, loading, router])
@@ -157,7 +163,7 @@ export default function SuscripcionPage() {
     ))
   }
 
-  // Función optimizada para procesar activación de suscripción usando API route
+  // Función optimizada para procesar activación de suscripción usando nuevo endpoint de verificación
   const processOptimizedSubscriptionActivation = async (urlParams: URLSearchParams) => {
     const startTime = Date.now()
     const externalReference = urlParams.get('external_reference')
@@ -168,83 +174,133 @@ export default function SuscripcionPage() {
     const preferenceId = urlParams.get('preference_id')
     const paymentType = urlParams.get('payment_type')
     
-    if (!user?.id || !externalReference) {
-      logger.error('Missing required data for subscription activation', 'SUBSCRIPTION_ACTIVATION', {
+    if (!user?.id) {
+      logger.error('Missing user data for subscription activation', 'SUBSCRIPTION_ACTIVATION', {
         userId: user?.id,
         externalReference,
-        hasUser: !!user,
-        hasExternalRef: !!externalReference
+        hasUser: !!user
       })
+      setIsLoading(false) // Asegurar que se quite el loading
       return
     }
 
     try {
       setIsProcessing(true)
       
-      // Llamar al API route para procesar la activación
-      const response = await fetch('/api/subscriptions/activate', {
+      logger.info('🚀 VERIFY-RETURN: Iniciando verificación post-retorno', 'SUBSCRIPTION_VERIFICATION', {
+        userId: user.id,
+        externalReference,
+        collectionId,
+        paymentId,
+        status,
+        collectionStatus
+      })
+      
+      // PASO 1: Usar el nuevo endpoint de verificación post-retorno
+      const verifyResponse = await fetch('/api/subscriptions/verify-return', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: user.id,
-          externalReference,
-          collectionId,
-          paymentId,
+          external_reference: externalReference,
+          collection_id: collectionId,
+          payment_id: paymentId,
           status,
-          collectionStatus,
-          preferenceId,
-          paymentType,
-          userEmail: user.email
+          collection_status: collectionStatus,
+          preference_id: preferenceId,
+          user_id: user.id,
+          user_email: user.email
         })
       })
       
-      const result = await response.json()
+      const verifyResult = await verifyResponse.json()
       
-      if (!response.ok) {
-        if (response.status === 409) {
-          logger.warn('Another process is handling this subscription', 'SUBSCRIPTION_ACTIVATION', {
+      if (!verifyResponse.ok) {
+        logger.warn('Error en endpoint de verificación', 'SUBSCRIPTION_VERIFICATION', {
+          userId: user.id,
+          externalReference,
+          status: verifyResponse.status,
+          error: verifyResult.error
+        })
+        
+        // Si falla la verificación, intentar con el endpoint original como respaldo
+        logger.info('🔄 Intentando con endpoint de activación original como respaldo', 'SUBSCRIPTION_FALLBACK', {
           userId: user.id,
           externalReference
         })
-        toast({
-          title: "Procesando...",
-          description: "Tu suscripción se está procesando. Por favor espera.",
+        
+        const fallbackResponse = await fetch('/api/subscriptions/activate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            externalReference,
+            collectionId,
+            paymentId,
+            status,
+            collectionStatus,
+            preferenceId,
+            paymentType,
+            userEmail: user.email
+          })
         })
-        return
+        
+        const fallbackResult = await fallbackResponse.json()
+        
+        if (fallbackResponse.ok && fallbackResult.success) {
+          logger.info('✅ Suscripción activada via endpoint de respaldo', 'SUBSCRIPTION_FALLBACK', {
+            subscriptionId: fallbackResult.subscriptionId,
+            externalReference,
+            userId: user.id
+          })
+          
+          toast({
+            title: "¡Suscripción Activada!",
+            description: `Tu suscripción a ${fallbackResult.productName || 'Pet Gourmet'} está activa`,
+          })
+        } else {
+          throw new Error(fallbackResult.error || 'Error en activación de respaldo')
         }
-      }
-      
-      if (result.error) {
-        logger.error('Error in subscription activation API', 'SUBSCRIPTION_ACTIVATION', {
-          userId: user.id,
+      } else if (verifyResult.success) {
+        logger.info('✅ VERIFY-RETURN: Suscripción verificada y activada exitosamente', 'SUBSCRIPTION_VERIFICATION', {
+          subscriptionId: verifyResult.subscription?.id,
           externalReference,
-          error: result.error
+          userId: user.id,
+          productName: verifyResult.subscription?.product_name,
+          duration: Date.now() - startTime,
+          alreadyActive: verifyResult.subscription?.already_active
         })
-        throw new Error(result.error)
-      }
-      
-      if (result.success) {
-        logger.info('✅ Subscription activated successfully via API', 'SUBSCRIPTION_ACTIVATION', {
-          subscriptionId: result.subscriptionId,
-          externalReference,
+        
+        const message = verifyResult.subscription?.already_active 
+          ? "Tu suscripción ya estaba activa" 
+          : "¡Suscripción activada exitosamente!"
+        
+        toast({
+          title: verifyResult.subscription?.already_active ? "Suscripción Confirmada" : "¡Suscripción Activada!",
+          description: `${message} - ${verifyResult.subscription?.product_name || 'Pet Gourmet'}`,
+        })
+      } else {
+        // Pago no aprobado aún
+        logger.info('⏳ Pago aún no aprobado según verificación', 'SUBSCRIPTION_VERIFICATION', {
           userId: user.id,
-          productName: result.productName,
-          duration: Date.now() - startTime
+          externalReference,
+          paymentStatus: verifyResult.subscription?.payment_status
         })
         
         toast({
-          title: "¡Suscripción Activada!",
-          description: `Tu suscripción a ${result.productName || 'Pet Gourmet'} está activa`,
+          title: "Pago en Proceso",
+          description: "Tu pago está siendo procesado. Te notificaremos cuando esté listo.",
         })
-        
-        // Limpiar URL
-        window.history.replaceState({}, document.title, window.location.pathname)
-        
-        // Recargar suscripciones del usuario
-        await loadUserSubscriptions()
       }
+      
+      // Limpiar URL siempre
+      window.history.replaceState({}, document.title, window.location.pathname)
+      
+      // Recargar suscripciones del usuario
+      await loadUserSubscriptions()
 
     } catch (error: any) {
       const duration = Date.now() - startTime;
@@ -492,6 +548,8 @@ export default function SuscripcionPage() {
       loadUserSubscriptions()
     } finally {
       setIsProcessing(false)
+      // Asegurar que el loading se quite siempre
+      setIsLoading(false)
     }
   }
 

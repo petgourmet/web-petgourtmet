@@ -157,7 +157,21 @@ export function CheckoutModal() {
             }
           })
           setSubscriptionLinks(urlMap)
-          console.log('✅ URLs de suscripción cargadas exitosamente')
+          // ...existing code...
+          // console.log('✅ URLs de suscripción cargadas exitosamente')
+          // console.warn('⚠️ Usando URLs de respaldo para suscripciones')
+          // console.log(`Simulando pago exitoso para orden: ${orderId}`)
+          // console.log("Creando orden...")
+          // console.log("Procesando suscripción con tipo:", subscriptionType)
+          // console.log('Datos completos de suscripción:', subscriptionData)
+          // console.log('✅ Suscripción pendiente guardada exitosamente:', insertedData)
+          // console.log('Redirigiendo a:', finalLink)
+          // console.log("Modo de pruebas: Creando orden completa...")
+          // console.log("Orden de prueba creada:", testData)
+          // console.log("Creando preferencia de pago en Mercado Pago...")
+          // console.log("Preferencia creada:", mpData)
+
+          return true
         } else {
           throw new Error(data.message || 'Error en respuesta del servidor')
         }

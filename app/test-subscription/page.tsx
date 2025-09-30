@@ -81,7 +81,7 @@ export default function TestSubscriptionPage() {
       addToCart(realTestProduct)
       
       // 2. Simular el proceso de checkout
-      const externalReference = `TEST-SUB-${Date.now()}`
+      const externalReference = `SUB-test-user-${Date.now().toString().slice(-8)}`
       const subscriptionType = 'monthly'
       
       // Calcular precios como en el checkout real

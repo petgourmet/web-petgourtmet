@@ -90,7 +90,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (external_reference || !preapproval_plan_id) {
-      subscriptionData.external_reference = external_reference || `PG-${Date.now()}-${user_id || 'guest'}`
+      const timestamp = Date.now().toString().slice(-8)
+      subscriptionData.external_reference = external_reference || `SUB-${user_id || 'guest'}-default-${timestamp}`
     }
 
     if (card_token_id) {

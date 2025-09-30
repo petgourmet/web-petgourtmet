@@ -18,6 +18,12 @@ export type CartItem = {
   isSubscription: boolean
   subscriptionType?: SubscriptionType
   subscriptionDiscount?: number
+  // Campos de descuento por tipo de suscripción
+  weekly_discount?: number
+  biweekly_discount?: number
+  monthly_discount?: number
+  quarterly_discount?: number
+  annual_discount?: number
   // URLs de Mercado Pago específicas del producto
   weekly_mercadopago_url?: string
   biweekly_mercadopago_url?: string

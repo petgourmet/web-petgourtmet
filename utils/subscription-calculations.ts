@@ -25,7 +25,7 @@ export interface SubscriptionData {
 /**
  * Función para obtener el precio base de una suscripción
  */
-export const getBasePrice = (subscription: SubscriptionData): number => {
+export function getBasePrice(subscription: any): number {
   // Priorizar en este orden: transaction_amount, base_price, price, product.price
   let price = 0
   
@@ -39,13 +39,7 @@ export const getBasePrice = (subscription: SubscriptionData): number => {
     price = subscription.product.price
   }
   
-  console.debug('getBasePrice para suscripción', subscription.id, ':', {
-    transaction_amount: subscription.transaction_amount,
-    base_price: subscription.base_price,
-    price: subscription.price,
-    product_price: subscription.product?.price,
-    resultado: price
-  })
+  // Remover console.debug para producción
   
   return Math.max(0, price) // Asegurar que nunca sea negativo
 }
@@ -80,13 +74,9 @@ export const getOriginalPrice = (subscription: SubscriptionData): number => {
       originalPrice = calculatedOriginal
     }
     
-    console.debug('Verificando consistencia de precio original:', {
-      subscription_id: subscription.id,
-      original_directo: originalPrice,
-      original_calculado: calculatedOriginal,
-      discounted_price: subscription.discounted_price,
-      discount_percentage: subscription.discount_percentage
-    })
+    // Remover console.debug para producción
+    
+    return Math.round(Math.max(0, originalPrice) * 100) / 100 // Redondear a 2 decimales
   }
   
   return Math.round(Math.max(0, originalPrice) * 100) / 100 // Redondear a 2 decimales
@@ -200,12 +190,7 @@ export const getNextPaymentDate = (subscription: SubscriptionData): Date | null 
         }
       }
       
-      console.debug('Calculando próximo pago con frequency:', {
-        subscription_id: subscription.id,
-        frequency,
-        type,
-        nextDate: baseDate
-      })
+      // Remover console.debug para producción
       
       return baseDate
     }
@@ -233,11 +218,7 @@ export const getNextPaymentDate = (subscription: SubscriptionData): Date | null 
       }
     }
     
-    console.debug('Calculando próximo pago con subscription_type:', {
-      subscription_id: subscription.id,
-      type: subscription.subscription_type,
-      nextDate: baseDate
-    })
+    // Remover console.debug para producción
     
     return baseDate
   }
@@ -275,15 +256,7 @@ export const getTotalPrice = (subscription: SubscriptionData): number => {
   const shippingCost = getShippingCost(subscription)
   const total = (productPrice * quantity) + shippingCost
   
-  console.debug('Calculando precio total:', {
-    subscription_id: subscription.id,
-    productPrice,
-    quantity,
-    shippingCost,
-    total,
-    originalPrice: getOriginalPrice(subscription),
-    discountPercentage: getDiscountPercentage(subscription)
-  })
+  // Remover console.debug para producción
   
   return Math.round(total * 100) / 100 // Redondear a 2 decimales
 }

@@ -47,7 +47,7 @@ export class SubscriptionDeduplicationService {
     subscriptionData: SubscriptionData,
     options: DeterministicReferenceOptions = {}
   ): string {
-    console.log('🔗 [DEBUG] Iniciando generateDeterministicReference con:', subscriptionData)
+    // Remover console.log para producción
     const {
       includeTimestamp = false,
       customSalt = '',
@@ -55,8 +55,8 @@ export class SubscriptionDeduplicationService {
     } = options
 
     const { userId, planId, amount, currency, additionalData } = subscriptionData
-    console.log('🔗 [DEBUG] Datos extraídos - userId:', userId, 'planId:', planId, 'amount:', amount)
-
+    // Remover console.log para producción
+    
     // Crear objeto con datos ordenados para hash consistente
     const dataToHash: Record<string, any> = {
       userId,
@@ -81,18 +81,15 @@ export class SubscriptionDeduplicationService {
 
     // Generar hash
     const hashInput = JSON.stringify(orderedData)
-    console.log('🔗 [DEBUG] hashInput generado:', hashInput)
+    // Remover console.log para producción
     const hash = crypto
       .createHash('md5')
       .update(hashInput)
       .digest('hex')
       .substring(0, hashLength)
-    console.log('🔗 [DEBUG] hash generado:', hash)
-
-    // Formato: SUB-{userId}-{planId}-{hash}
+    // Remover console.log para producción
     const reference = `SUB-${userId}-${planId}-${hash}`
-    console.log('🔗 [DEBUG] reference final:', reference)
-
+    // Remover console.log para producción
     logger.info('External reference generado', 'DEDUPLICATION', {
       userId,
       planId,
@@ -270,14 +267,19 @@ export class SubscriptionDeduplicationService {
     operation: string = 'create'
   ): string {
     try {
-      console.log('🔑 [DEBUG] Datos recibidos en generateIdempotencyKey:', subscriptionData)
-      const { userId, planId } = subscriptionData
-      console.log('🔑 [DEBUG] userId:', userId, 'planId:', planId)
-      const externalReference = this.generateDeterministicReference(subscriptionData)
-      console.log('🔑 [DEBUG] externalReference generado:', externalReference)
-      const key = `subscription:${operation}:${userId}:${planId}:${externalReference}`
-      console.log('🔑 [DEBUG] Clave final generada:', key)
-      return key
+      // Remover console.log para producción
+      const userId = subscriptionData.user_id || subscriptionData.userId;
+      const planId = subscriptionData.plan_id || subscriptionData.planId;
+      const amount = subscriptionData.amount || subscriptionData.transaction_amount;
+      
+      // Remover console.log para producción
+      const externalReference = generateDeterministicReference(subscriptionData);
+      
+      // Remover console.log para producción
+      const key = `subscription_${userId}_${planId}_${externalReference}`;
+      
+      // Remover console.log para producción
+      return key;
     } catch (error) {
       console.error('🔑 [ERROR] Error en generateIdempotencyKey:', error)
       throw error

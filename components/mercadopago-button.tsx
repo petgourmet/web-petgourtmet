@@ -39,7 +39,6 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
           throw new Error("Clave pública no disponible")
         }
       } catch (error) {
-        console.error("Error al obtener la clave pública:", error)
         setError("Error al cargar opciones de pago")
         if (onError) onError(error)
       }
@@ -52,8 +51,6 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
     // Solo ejecutar en el cliente cuando tengamos la clave pública
     if (typeof window !== "undefined" && isSDKLoaded && preferenceId && publicKey && !isButtonRendered) {
       try {
-        console.log("Intentando renderizar botón de Mercado Pago con preferenceId:", preferenceId)
-
         // Verificar que el SDK esté disponible
         if (!window.MercadoPago) {
           throw new Error("SDK de MercadoPago no está disponible")
@@ -90,21 +87,17 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
           },
           callbacks: {
             onError: (error: any) => {
-              console.error("Error en MercadoPago checkout:", error)
               setError("Error al procesar el pago")
               if (onError) onError(error)
             },
             onReady: () => {
-              console.log("Botón de MercadoPago listo para producción")
               setError(null)
             },
           },
         })
 
         setIsButtonRendered(true)
-        console.log("Botón de Mercado Pago renderizado correctamente para producción")
       } catch (error) {
-        console.error("Error al renderizar el botón de Mercado Pago:", error)
         setError("Error al cargar el botón de pago")
         if (onError) onError(error)
       }
@@ -116,11 +109,9 @@ export function MercadoPagoButton({ preferenceId, onSuccess, onError }: MercadoP
       <Script
         src="https://sdk.mercadopago.com/js/v2"
         onLoad={() => {
-          console.log("SDK de Mercado Pago cargado correctamente")
           setIsSDKLoaded(true)
         }}
         onError={(e) => {
-          console.error("Error al cargar el SDK de Mercado Pago:", e)
           setError("Error al cargar SDK de pago")
           if (onError) onError(e)
         }}

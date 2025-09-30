@@ -129,9 +129,9 @@ class MercadoPagoService {
     }
 
     try {
-      console.log('📤 Enviando datos a MercadoPago:', JSON.stringify(requestBody, null, 2))
-      const result = await preapproval.create({ body: requestBody })
-      console.log('📥 Respuesta de MercadoPago:', JSON.stringify(result, null, 2))
+      // Enviar datos a MercadoPago (logs removidos para producción)
+      const result = await mercadopago.preapproval.create(requestBody)
+      // Respuesta procesada silenciosamente
       return result
     } catch (error) {
       console.error("Error creating subscription:", error)

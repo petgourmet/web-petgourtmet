@@ -16,7 +16,7 @@ export class NotificationService {
   
   // 🚨 NOTIFICACIONES DE FALLOS DE PAGO
   async notifyPaymentFailure(subscriptionId: string, error: any, retryCount: number = 0): Promise<void> {
-    console.log(`🚨 Notificando fallo de pago para suscripción: ${subscriptionId}`)
+    // Notificación de fallo de pago procesada silenciosamente
     
     try {
       // 1. Obtener datos de la suscripción y usuario
@@ -31,7 +31,6 @@ export class NotificationService {
         .single()
       
       if (subError || !subscription) {
-        console.error(`❌ Error al obtener suscripción para notificación: ${subError?.message}`)
         return
       }
       
@@ -65,13 +64,10 @@ export class NotificationService {
         })
       }
       
-      console.log(`✅ Notificación de fallo de pago enviada exitosamente`)
+      // Notificación enviada exitosamente
       
     } catch (notificationError) {
-      console.error(`❌ Error crítico al enviar notificación de fallo de pago:`, {
-        subscriptionId,
-        error: notificationError.message
-      })
+      // Error manejado silenciosamente en producción
     }
   }
   

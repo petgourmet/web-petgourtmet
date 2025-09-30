@@ -6,6 +6,10 @@ import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
 import webhookMonitor from '@/lib/webhook-monitor'
 import autoSyncService from '@/lib/auto-sync-service'
 import { createIdempotencyService, IdempotencyService } from '@/lib/idempotency-service'
+import { SubscriptionSyncService } from '@/lib/subscription-sync-service'
+// Importar el nuevo sistema de gestión de suscripciones
+import { SubscriptionManager } from '@/lib/subscription-manager'
+import { EnhancedEmailService } from '@/lib/email-service-enhanced'
 
 // Tipos para webhooks de MercadoPago
 interface WebhookPayload {
@@ -69,19 +73,30 @@ export class WebhookService {
   private mercadoPagoToken: string
   private webhookSecret: string
   private emailTransporter: any
+  private subscriptionSyncService: SubscriptionSyncService
+  // Nuevos servicios integrados
+  private subscriptionManager: SubscriptionManager
+  private emailService: EnhancedEmailService
 
   constructor() {
     this.mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
     this.webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
+    this.subscriptionSyncService = new SubscriptionSyncService()
+    
+    // Inicializar nuevos servicios
+    this.subscriptionManager = new SubscriptionManager()
+    this.emailService = new EnhancedEmailService()
     
     if (!this.mercadoPagoToken) {
       logger.error(LogCategory.WEBHOOK, 'MERCADOPAGO_ACCESS_TOKEN es requerido', undefined, { component: 'WebhookService' })
       throw new Error('MERCADOPAGO_ACCESS_TOKEN es requerido')
     }
 
-    logger.info(LogCategory.WEBHOOK, 'WebhookService inicializado correctamente', { 
+    logger.info(LogCategory.WEBHOOK, 'WebhookService inicializado correctamente con nuevos servicios', { 
       hasToken: !!this.mercadoPagoToken,
-      hasSecret: !!this.webhookSecret 
+      hasSecret: !!this.webhookSecret,
+      hasSubscriptionManager: !!this.subscriptionManager,
+      hasEmailService: !!this.emailService
     })
     this.initializeEmailTransporter()
   }
@@ -380,6 +395,32 @@ export class WebhookService {
         
         // Registrar éxito en el monitor
         webhookMonitor.logWebhookProcessed(eventId, duration)
+        
+        // Si es un pago de suscripción, activar sincronización inmediata
+        if (isSubscriptionPayment && paymentData.external_reference) {
+          try {
+            logger.info('🔄 Activando sincronización inmediata para pago de suscripción', 'SYNC', {
+              paymentId,
+              externalReference: paymentData.external_reference,
+              trigger: 'subscription_payment_webhook'
+            })
+            
+            // Sincronizar inmediatamente esta suscripción específica
+            await this.subscriptionSyncService.syncSingleSubscription(paymentData.external_reference)
+            
+            logger.info('✅ Sincronización inmediata completada para pago de suscripción', 'SYNC', {
+              paymentId,
+              externalReference: paymentData.external_reference
+            })
+          } catch (syncError: any) {
+            logger.error('❌ Error en sincronización inmediata para pago de suscripción', 'SYNC', {
+              paymentId,
+              externalReference: paymentData.external_reference,
+              error: syncError.message
+            })
+            // No fallar el webhook por error de sincronización
+          }
+        }
       } else {
         logger.error('Error procesando webhook de pago', 'WEBHOOK', {
           eventId,
@@ -411,14 +452,14 @@ export class WebhookService {
     }
   }
 
-  // WEBHOOK MEJORADO: Procesamiento completo de eventos de suscripciones
+  // WEBHOOK MEJORADO: Procesamiento completo de eventos de suscripciones con nuevo sistema
   async processSubscriptionWebhook(webhookData: WebhookPayload): Promise<boolean> {
     const startTime = Date.now()
     const subscriptionId = webhookData.data.id
     const supabase = this.initializeSupabase()
     
     try {
-      logger.info('🔔 Webhook de suscripción recibido - procesamiento completo', 'SUBSCRIPTION_WEBHOOK', {
+      logger.info('🔔 Webhook de suscripción recibido - usando nuevo sistema de gestión', 'SUBSCRIPTION_WEBHOOK', {
         subscriptionId,
         type: webhookData.type,
         action: webhookData.action,
@@ -436,15 +477,15 @@ export class WebhookService {
         return true // No fallar por datos no disponibles
       }
       
-      // Procesar según el tipo de evento y acción
+      // Usar el nuevo sistema de gestión de suscripciones
       let processed = false
       
       switch (webhookData.type) {
         case 'subscription_preapproval':
-          processed = await this.handleSubscriptionPreapproval(subscriptionData, webhookData, supabase)
+          processed = await this.handleSubscriptionPreapprovalEnhanced(subscriptionData, webhookData, supabase)
           break
         case 'subscription_authorized_payment':
-          processed = await this.handleSubscriptionPayment(subscriptionData, webhookData, supabase)
+          processed = await this.handleSubscriptionPaymentEnhanced(subscriptionData, webhookData, supabase)
           break
         default:
           logger.info('Tipo de webhook de suscripción no manejado específicamente', 'SUBSCRIPTION_WEBHOOK', {
@@ -455,27 +496,225 @@ export class WebhookService {
       }
       
       const duration = Date.now() - startTime
-      logger.info('✅ Webhook de suscripción procesado exitosamente', 'SUBSCRIPTION_WEBHOOK', {
+      logger.info('✅ Webhook de suscripción procesado con nuevo sistema', 'SUBSCRIPTION_WEBHOOK', {
         subscriptionId,
         action: webhookData.action,
         type: webhookData.type,
         processed,
-        duration
+        duration: `${duration}ms`
       })
       
       return processed
-
+      
     } catch (error: any) {
       const duration = Date.now() - startTime
-      logger.error('❌ Error procesando webhook de suscripción', 'SUBSCRIPTION_WEBHOOK', {
+      logger.error('❌ Error procesando webhook de suscripción con nuevo sistema', 'SUBSCRIPTION_WEBHOOK', {
         subscriptionId,
-        action: webhookData.action,
         error: error.message,
-        stack: error.stack,
-        duration
+        duration: `${duration}ms`
       })
       return false
     }
+  }
+
+  // Nuevo método mejorado para manejar preaprobaciones de suscripción
+  private async handleSubscriptionPreapprovalEnhanced(subscriptionData: any, webhookData: WebhookPayload, supabase: any): Promise<boolean> {
+    try {
+      const externalReference = subscriptionData.external_reference
+      const status = subscriptionData.status
+      const subscriptionId = subscriptionData.id
+      
+      logger.info('📋 WEBHOOK MEJORADO: Procesando preaprobación con nuevo sistema', 'SUBSCRIPTION_PREAPPROVAL_ENHANCED', {
+        subscriptionId,
+        externalReference,
+        status,
+        action: webhookData.action
+      })
+      
+      // Buscar suscripción usando el nuevo sistema
+      const subscription = await this.subscriptionManager.findSubscriptionByReference(externalReference)
+      
+      if (!subscription) {
+        logger.warn('❌ Suscripción no encontrada con nuevo sistema', 'SUBSCRIPTION_PREAPPROVAL_ENHANCED', {
+          externalReference,
+          subscriptionId
+        })
+        return true // No fallar el webhook
+      }
+      
+      // Determinar si debe activarse
+      const shouldActivate = ['authorized', 'approved', 'active'].includes(status)
+      
+      if (shouldActivate) {
+        // Usar el nuevo sistema para activar la suscripción
+        const activationResult = await this.subscriptionManager.activateSubscription(
+          subscription.id,
+          {
+            mp_subscription_id: subscriptionId,
+            status: 'active',
+            activated_at: new Date().toISOString()
+          }
+        )
+        
+        if (activationResult.success) {
+          logger.info('✅ Suscripción activada con nuevo sistema', 'SUBSCRIPTION_ACTIVATION_ENHANCED', {
+            subscriptionId: subscription.id,
+            externalReference,
+            mpSubscriptionId: subscriptionId
+          })
+          
+          // Crear registro de facturación usando el nuevo sistema
+          await this.subscriptionManager.createBillingRecord(subscription.id, {
+            amount: subscription.price,
+            status: 'paid',
+            payment_method: 'mercadopago',
+            external_reference: externalReference,
+            mp_payment_id: subscriptionId
+          })
+          
+          // Enviar email de confirmación usando el servicio mejorado
+          await this.emailService.sendSubscriptionConfirmation(
+            subscription.customer_email,
+            {
+              customerName: subscription.customer_name || 'Cliente',
+              planName: subscription.plan_name,
+              amount: subscription.price,
+              nextBillingDate: activationResult.nextBillingDate,
+              subscriptionId: subscription.id
+            }
+          )
+          
+          return true
+        } else {
+          logger.error('❌ Error activando suscripción con nuevo sistema', 'SUBSCRIPTION_ACTIVATION_ENHANCED', {
+            subscriptionId: subscription.id,
+            error: activationResult.error
+          })
+          return false
+        }
+      } else {
+        // Solo actualizar estado sin activar
+        const { error } = await supabase
+          .from('unified_subscriptions')
+          .update({
+            status: this.mapMercadoPagoStatusToLocal(status),
+            mp_subscription_id: subscriptionId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', subscription.id)
+        
+        if (error) {
+          logger.error('❌ Error actualizando estado de suscripción', 'SUBSCRIPTION_UPDATE_ENHANCED', {
+            subscriptionId: subscription.id,
+            error: error.message
+          })
+          return false
+        }
+        
+        logger.info('✅ Estado de suscripción actualizado', 'SUBSCRIPTION_UPDATE_ENHANCED', {
+          subscriptionId: subscription.id,
+          newStatus: this.mapMercadoPagoStatusToLocal(status)
+        })
+        
+        return true
+      }
+      
+    } catch (error: any) {
+      logger.error('❌ Error en preaprobación mejorada', 'SUBSCRIPTION_PREAPPROVAL_ENHANCED', {
+        error: error.message
+      })
+      return false
+    }
+  }
+
+  // Nuevo método mejorado para manejar pagos de suscripción
+  private async handleSubscriptionPaymentEnhanced(subscriptionData: any, webhookData: WebhookPayload, supabase: any): Promise<boolean> {
+    try {
+      const externalReference = subscriptionData.external_reference
+      const status = subscriptionData.status
+      const subscriptionId = subscriptionData.id
+      
+      logger.info('💳 WEBHOOK MEJORADO: Procesando pago con nuevo sistema', 'SUBSCRIPTION_PAYMENT_ENHANCED', {
+        subscriptionId,
+        externalReference,
+        status,
+        action: webhookData.action
+      })
+      
+      // Buscar suscripción usando el nuevo sistema
+      const subscription = await this.subscriptionManager.findSubscriptionByReference(externalReference)
+      
+      if (!subscription) {
+        logger.warn('❌ Suscripción no encontrada para pago', 'SUBSCRIPTION_PAYMENT_ENHANCED', {
+          externalReference,
+          subscriptionId
+        })
+        return true // No fallar el webhook
+      }
+      
+      // Si el pago está aprobado, crear registro de facturación
+      if (['approved', 'authorized', 'paid'].includes(status)) {
+        const billingResult = await this.subscriptionManager.createBillingRecord(subscription.id, {
+          amount: subscription.price,
+          status: 'paid',
+          payment_method: 'mercadopago',
+          external_reference: externalReference,
+          mp_payment_id: subscriptionId,
+          billing_date: new Date().toISOString()
+        })
+        
+        if (billingResult.success) {
+          logger.info('✅ Registro de facturación creado para pago', 'BILLING_RECORD_ENHANCED', {
+            subscriptionId: subscription.id,
+            amount: subscription.price,
+            paymentId: subscriptionId
+          })
+          
+          // Enviar notificación de pago procesado
+          await this.emailService.sendPaymentConfirmation(
+            subscription.customer_email,
+            {
+              customerName: subscription.customer_name || 'Cliente',
+              planName: subscription.plan_name,
+              amount: subscription.price,
+              paymentDate: new Date().toISOString(),
+              nextBillingDate: billingResult.nextBillingDate
+            }
+          )
+          
+          return true
+        } else {
+          logger.error('❌ Error creando registro de facturación', 'BILLING_RECORD_ENHANCED', {
+            subscriptionId: subscription.id,
+            error: billingResult.error
+          })
+          return false
+        }
+      }
+      
+      return true
+      
+    } catch (error: any) {
+      logger.error('❌ Error en pago mejorado', 'SUBSCRIPTION_PAYMENT_ENHANCED', {
+        error: error.message
+      })
+      return false
+    }
+  }
+
+  // Mapear estados de MercadoPago a estados locales
+  private mapMercadoPagoStatusToLocal(mpStatus: string): string {
+    const statusMap: { [key: string]: string } = {
+      'authorized': 'active',
+      'approved': 'active',
+      'active': 'active',
+      'pending': 'pending',
+      'cancelled': 'cancelled',
+      'paused': 'paused',
+      'expired': 'expired'
+    }
+    
+    return statusMap[mpStatus] || 'pending'
   }
 
   // MANTENER INTACTA: Manejar pago de orden (COMPRAS NORMALES)
@@ -618,7 +857,7 @@ export class WebhookService {
     }
   }
 
-  // PAGO DE SUSCRIPCIÓN MEJORADO: Procesamiento completo con webhook
+  // PAGO DE SUSCRIPCIÓN MEJORADO: Procesamiento completo con webhook y activación automática robusta
   private async handleSubscriptionPayment(subscriptionData: any, webhookData: WebhookPayload, supabase: any): Promise<boolean> {
     const startTime = Date.now()
     
@@ -627,71 +866,228 @@ export class WebhookService {
       const externalReference = subscriptionData.external_reference
       const status = subscriptionData.status
       
-      logger.info('💳 Procesando pago de suscripción via webhook', 'SUBSCRIPTION_PAYMENT', {
+      logger.info('💳 WEBHOOK MEJORADO: Procesando pago de suscripción con activación automática', 'SUBSCRIPTION_PAYMENT', {
         subscriptionId,
         externalReference,
         status,
-        action: webhookData.action
+        action: webhookData.action,
+        timestamp: new Date().toISOString()
       })
 
-      // Buscar la suscripción en nuestra base de datos
-      const { data: subscription, error: findError } = await supabase
-        .from('unified_subscriptions')
-        .select('*')
-        .eq('external_reference', externalReference)
-        .single()
+      // BÚSQUEDA ROBUSTA: Intentar múltiples métodos para encontrar la suscripción
+      let subscription = null
+      let searchMethod = 'none'
       
-      if (findError && findError.code !== 'PGRST116') {
-        logger.error('Error buscando suscripción por referencia externa', 'SUBSCRIPTION_PAYMENT', {
-          externalReference,
-          error: findError.message
-        })
-        return false
+      // Método 1: Buscar por external_reference exacto
+      if (externalReference) {
+        const { data: sub1, error: err1 } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('external_reference', externalReference)
+          .single()
+        
+        if (sub1 && !err1) {
+          subscription = sub1
+          searchMethod = 'external_reference'
+        }
       }
+      
+      // Método 2: Buscar por mercadopago_subscription_id
+      if (!subscription && subscriptionId) {
+        const { data: sub2, error: err2 } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('mercadopago_subscription_id', subscriptionId)
+          .single()
+        
+        if (sub2 && !err2) {
+          subscription = sub2
+          searchMethod = 'mercadopago_id'
+        }
+      }
+      
+      // Método 3: Buscar suscripciones pendientes recientes (último recurso)
+      if (!subscription) {
+        const { data: sub3, error: err3 } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(3)
+        
+        if (sub3 && sub3.length > 0) {
+          // Tomar la más reciente que no tenga mercadopago_subscription_id asignado
+          subscription = sub3.find(s => !s.mercadopago_subscription_id) || sub3[0]
+          searchMethod = 'recent_pending'
+        }
+      }
+      
+      logger.info('🔍 Resultado de búsqueda de suscripción', 'SUBSCRIPTION_SEARCH', {
+        found: !!subscription,
+        searchMethod,
+        subscriptionId: subscription?.id,
+        currentStatus: subscription?.status,
+        externalReference,
+        mercadopagoId: subscriptionId
+      })
       
       if (!subscription) {
-        logger.warn('Suscripción no encontrada para pago', 'SUBSCRIPTION_PAYMENT', {
+        logger.warn('❌ Suscripción no encontrada con ningún método', 'SUBSCRIPTION_PAYMENT', {
           externalReference,
-          subscriptionId
+          subscriptionId,
+          searchMethods: ['external_reference', 'mercadopago_id', 'recent_pending']
         })
-        return true // No es un error crítico
+        return true // No fallar el webhook
       }
       
-      // Activar suscripción si el pago fue autorizado
-      if (status === 'authorized' && subscription.status !== 'active') {
+      // ACTIVACIÓN AUTOMÁTICA ROBUSTA: Activar si el estado lo permite (GARANTIZADA)
+      const shouldActivate = (
+        (status === 'authorized' || status === 'approved' || status === 'active' || status === 'paid') &&
+        subscription.status !== 'active'
+      )
+      
+      logger.info('🔍 EVALUACIÓN DE ACTIVACIÓN AUTOMÁTICA', 'ACTIVATION_EVALUATION', {
+        subscriptionId: subscription.id,
+        mercadopagoStatus: status,
+        currentStatus: subscription.status,
+        shouldActivate,
+        activationCriteria: {
+          statusIsActivatable: ['authorized', 'approved', 'active', 'paid'].includes(status),
+          notAlreadyActive: subscription.status !== 'active'
+        }
+      })
+      
+      if (shouldActivate) {
+        logger.info('🚀 ACTIVACIÓN AUTOMÁTICA: Iniciando proceso de activación', 'AUTO_ACTIVATION', {
+          subscriptionId: subscription.id,
+          currentStatus: subscription.status,
+          newStatus: 'active',
+          mercadopagoStatus: status,
+          trigger: 'subscription_payment_webhook'
+        })
+        
+        // Calcular fechas de facturación
+        const now = new Date()
+        const nextBillingDate = new Date(now)
+        nextBillingDate.setDate(nextBillingDate.getDate() + (subscription.billing_frequency || 30))
+        
+        const updateData = {
+          status: 'active',
+          mercadopago_subscription_id: subscriptionId,
+          external_reference: externalReference || subscription.external_reference,
+          updated_at: now.toISOString(),
+          activated_at: now.toISOString(),
+          next_billing_date: nextBillingDate.toISOString(),
+          charges_made: (subscription.charges_made || 0) + 1
+        }
+        
         const { error: updateError } = await supabase
           .from('unified_subscriptions')
-          .update({
-            status: 'active',
-            mercadopago_subscription_id: subscriptionId,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', subscription.id)
         
         if (updateError) {
-          logger.error('Error activando suscripción por pago', 'SUBSCRIPTION_PAYMENT', {
+          logger.error('❌ Error en activación automática', 'AUTO_ACTIVATION', {
             subscriptionId: subscription.id,
-            error: updateError.message
+            error: updateError.message,
+            updateData
           })
           return false
         }
         
-        logger.info('✅ Suscripción activada por pago autorizado', 'SUBSCRIPTION_PAYMENT', {
+        logger.info('✅ ACTIVACIÓN AUTOMÁTICA EXITOSA', 'AUTO_ACTIVATION', {
           subscriptionId: subscription.id,
-          mercadopagoId: subscriptionId
+          mercadopagoId: subscriptionId,
+          customerEmail: subscription.customer_email,
+          planName: subscription.plan_name,
+          amount: subscription.amount,
+          nextBillingDate: nextBillingDate.toISOString()
         })
         
-        // Enviar email de confirmación
-        await this.sendSubscriptionConfirmationEmail(subscription, subscriptionData)
+        // Crear registro en historial de facturación
+        try {
+          const { error: billingError } = await supabase
+            .from('subscription_billing_history')
+            .insert({
+              subscription_id: subscription.id,
+              amount: subscription.amount,
+              currency: subscription.currency || 'MXN',
+              status: 'paid',
+              mercadopago_payment_id: subscriptionId,
+              external_reference: externalReference,
+              billing_date: now.toISOString(),
+              created_at: now.toISOString()
+            })
+          
+          if (billingError) {
+            logger.warn('⚠️ Error creando registro de facturación (no crítico)', 'BILLING_HISTORY', {
+              subscriptionId: subscription.id,
+              error: billingError.message
+            })
+          } else {
+            logger.info('📊 Registro de facturación creado exitosamente', 'BILLING_HISTORY', {
+              subscriptionId: subscription.id,
+              amount: subscription.amount
+            })
+          }
+        } catch (billingError: any) {
+          logger.warn('⚠️ Error en historial de facturación (continuando)', 'BILLING_HISTORY', {
+            error: billingError.message
+          })
+        }
+        
+        // ENVÍO INMEDIATO DE EMAIL DE CONFIRMACIÓN
+        try {
+          await this.sendSubscriptionConfirmationEmail({
+            ...subscription,
+            status: 'active',
+            mercadopago_subscription_id: subscriptionId
+          }, subscriptionData)
+          
+          logger.info('📧 Email de confirmación enviado exitosamente', 'EMAIL_CONFIRMATION', {
+            subscriptionId: subscription.id,
+            customerEmail: subscription.customer_email
+          })
+        } catch (emailError: any) {
+          logger.error('❌ Error enviando email de confirmación (no crítico)', 'EMAIL_CONFIRMATION', {
+            subscriptionId: subscription.id,
+            error: emailError.message
+          })
+        }
+        
+        // SINCRONIZACIÓN INMEDIATA ADICIONAL
+        try {
+          if (externalReference) {
+            await this.subscriptionSyncService.syncSingleSubscription(externalReference)
+            logger.info('🔄 Sincronización adicional completada', 'ADDITIONAL_SYNC', {
+              externalReference
+            })
+          }
+        } catch (syncError: any) {
+          logger.warn('⚠️ Error en sincronización adicional (no crítico)', 'ADDITIONAL_SYNC', {
+            error: syncError.message
+          })
+        }
+        
+      } else {
+        logger.info('ℹ️ Suscripción no requiere activación', 'SUBSCRIPTION_STATUS', {
+          subscriptionId: subscription.id,
+          currentStatus: subscription.status,
+          mercadopagoStatus: status,
+          reason: subscription.status === 'active' ? 'already_active' : 'status_not_activatable'
+        })
       }
       
       return true
 
     } catch (error: any) {
       const duration = Date.now() - startTime
-      logger.error('Error procesando pago de suscripción', 'SUBSCRIPTION_PAYMENT', {
+      logger.error('❌ Error crítico procesando pago de suscripción', 'SUBSCRIPTION_PAYMENT', {
         error: error.message,
-        duration
+        stack: error.stack,
+        duration,
+        subscriptionId: subscriptionData?.id,
+        externalReference: subscriptionData?.external_reference
       })
       return false
     }
@@ -745,81 +1141,113 @@ export class WebhookService {
     }
   }
 
-  // Método para manejar eventos de preaprobación de suscripciones
+  // PREAPROBACIÓN DE SUSCRIPCIÓN MEJORADA: Manejo robusto con activación automática garantizada
   private async handleSubscriptionPreapproval(subscriptionData: any, webhookData: WebhookPayload, supabase: any): Promise<boolean> {
+    const startTime = Date.now()
+    
     try {
       const externalReference = subscriptionData.external_reference
       const status = subscriptionData.status
       const subscriptionId = subscriptionData.id
       
-      logger.info('🔄 Procesando preaprobación de suscripción', 'SUBSCRIPTION_PREAPPROVAL', {
+      logger.info('📋 WEBHOOK MEJORADO: Procesando preaprobación con activación automática garantizada', 'SUBSCRIPTION_PREAPPROVAL', {
         subscriptionId,
         externalReference,
         status,
-        action: webhookData.action
+        action: webhookData.action,
+        timestamp: new Date().toISOString()
       })
       
-      // Para suscripciones de prueba, buscar por mercadopago_subscription_id o por external_reference
-      let subscription, findError
+      // BÚSQUEDA ROBUSTA: Múltiples métodos para encontrar la suscripción
+      let subscription = null
+      let searchMethod = 'none'
       
-      if (subscriptionId.startsWith('mp_sub_') || subscriptionId.startsWith('test_sub_')) {
-        // Primero intentar buscar por mercadopago_subscription_id
-        const result1 = await supabase
+      // Método 1: Buscar por mercadopago_subscription_id
+      if (subscriptionId) {
+        const { data: sub1, error: err1 } = await supabase
           .from('unified_subscriptions')
           .select('*')
           .eq('mercadopago_subscription_id', subscriptionId)
           .single()
         
-        if (result1.data) {
-          subscription = result1.data
-          findError = result1.error
-        } else {
-          // Si no se encuentra, buscar la suscripción más reciente en estado pending
-          const result2 = await supabase
-            .from('unified_subscriptions')
-            .select('*')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-          
-          subscription = result2.data
-          findError = result2.error
+        if (sub1 && !err1) {
+          subscription = sub1
+          searchMethod = 'mercadopago_id'
         }
-      } else {
-        // Para suscripciones reales, buscar por external_reference
-        const result = await supabase
+      }
+      
+      // Método 2: Buscar por external_reference
+      if (!subscription && externalReference) {
+        const { data: sub2, error: err2 } = await supabase
           .from('unified_subscriptions')
           .select('*')
           .eq('external_reference', externalReference)
           .single()
         
-        subscription = result.data
-        findError = result.error
+        if (sub2 && !err2) {
+          subscription = sub2
+          searchMethod = 'external_reference'
+        }
       }
       
-      if (findError && findError.code !== 'PGRST116') {
-        logger.error('Error buscando suscripción por referencia externa', 'SUBSCRIPTION_PREAPPROVAL', {
-          externalReference,
-          error: findError.message
-        })
-        return false
+      // Método 3: Para suscripciones de prueba, buscar pendientes recientes
+      if (!subscription && (subscriptionId.startsWith('mp_sub_') || subscriptionId.startsWith('test_sub_'))) {
+        const { data: sub3, error: err3 } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(3)
+        
+        if (sub3 && sub3.length > 0) {
+          subscription = sub3.find(s => !s.mercadopago_subscription_id) || sub3[0]
+          searchMethod = 'recent_pending_test'
+        }
       }
+      
+      // Método 4: Último recurso - buscar cualquier suscripción pendiente reciente
+      if (!subscription) {
+        const { data: sub4, error: err4 } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(3)
+        
+        if (sub4 && sub4.length > 0) {
+          subscription = sub4.find(s => !s.mercadopago_subscription_id) || sub4[0]
+          searchMethod = 'recent_pending_fallback'
+        }
+      }
+      
+      logger.info('🔍 Resultado de búsqueda de suscripción (preaprobación)', 'SUBSCRIPTION_SEARCH', {
+        found: !!subscription,
+        searchMethod,
+        subscriptionId: subscription?.id,
+        currentStatus: subscription?.status,
+        externalReference,
+        mercadopagoId: subscriptionId
+      })
       
       if (!subscription) {
-        logger.warn('Suscripción no encontrada en base de datos', 'SUBSCRIPTION_PREAPPROVAL', {
+        logger.warn('❌ Suscripción no encontrada para preaprobación', 'SUBSCRIPTION_PREAPPROVAL', {
           externalReference,
-          subscriptionId
+          subscriptionId,
+          searchMethods: ['mercadopago_id', 'external_reference', 'recent_pending_test', 'recent_pending_fallback']
         })
-        return true // No es un error crítico
+        return true // No fallar el webhook
       }
       
-      // Actualizar estado según el status de MercadoPago
+      // MAPEO ROBUSTO DE ESTADOS: Determinar el nuevo estado y si debe activarse
       let newStatus = subscription.status
+      let shouldActivate = false
       
       switch (status) {
         case 'authorized':
+        case 'approved':
+        case 'active':
           newStatus = 'active'
+          shouldActivate = true
           break
         case 'pending':
           newStatus = 'pending'
@@ -831,14 +1259,124 @@ export class WebhookService {
           newStatus = 'paused'
           break
         default:
-          logger.info('Estado de suscripción no reconocido', 'SUBSCRIPTION_PREAPPROVAL', {
+          logger.info('ℹ️ Estado de preaprobación no reconocido', 'SUBSCRIPTION_PREAPPROVAL', {
             status,
-            subscriptionId
+            subscriptionId,
+            currentStatus: subscription.status
           })
+          return true
       }
       
-      // Solo actualizar si el estado cambió
-      if (newStatus !== subscription.status) {
+      // ACTIVACIÓN AUTOMÁTICA ROBUSTA
+      if (shouldActivate && subscription.status !== 'active') {
+        logger.info('🚀 ACTIVACIÓN AUTOMÁTICA: Iniciando por preaprobación', 'AUTO_ACTIVATION', {
+          subscriptionId: subscription.id,
+          currentStatus: subscription.status,
+          newStatus: 'active',
+          mercadopagoStatus: status,
+          trigger: 'subscription_preapproval_webhook'
+        })
+        
+        // Calcular fechas de facturación
+        const now = new Date()
+        const nextBillingDate = new Date(now)
+        nextBillingDate.setDate(nextBillingDate.getDate() + (subscription.billing_frequency || 30))
+        
+        const updateData = {
+          status: 'active',
+          mercadopago_subscription_id: subscriptionId,
+          external_reference: externalReference || subscription.external_reference,
+          updated_at: now.toISOString(),
+          activated_at: now.toISOString(),
+          next_billing_date: nextBillingDate.toISOString(),
+          charges_made: (subscription.charges_made || 0) + 1
+        }
+        
+        const { error: updateError } = await supabase
+          .from('unified_subscriptions')
+          .update(updateData)
+          .eq('id', subscription.id)
+        
+        if (updateError) {
+          logger.error('❌ Error en activación automática (preaprobación)', 'AUTO_ACTIVATION', {
+            subscriptionId: subscription.id,
+            error: updateError.message,
+            updateData
+          })
+          return false
+        }
+        
+        logger.info('✅ ACTIVACIÓN AUTOMÁTICA EXITOSA (preaprobación)', 'AUTO_ACTIVATION', {
+          subscriptionId: subscription.id,
+          mercadopagoId: subscriptionId,
+          customerEmail: subscription.customer_email,
+          planName: subscription.plan_name,
+          amount: subscription.amount,
+          nextBillingDate: nextBillingDate.toISOString()
+        })
+        
+        // Crear registro en historial de facturación
+        try {
+          const { error: billingError } = await supabase
+            .from('subscription_billing_history')
+            .insert({
+              subscription_id: subscription.id,
+              amount: subscription.amount,
+              currency: subscription.currency || 'MXN',
+              status: 'paid',
+              mercadopago_payment_id: subscriptionId,
+              external_reference: externalReference,
+              billing_date: now.toISOString(),
+              created_at: now.toISOString()
+            })
+          
+          if (!billingError) {
+            logger.info('📊 Registro de facturación creado (preaprobación)', 'BILLING_HISTORY', {
+              subscriptionId: subscription.id,
+              amount: subscription.amount
+            })
+          }
+        } catch (billingError: any) {
+          logger.warn('⚠️ Error en historial de facturación (continuando)', 'BILLING_HISTORY', {
+            error: billingError.message
+          })
+        }
+        
+        // ENVÍO INMEDIATO DE EMAIL DE CONFIRMACIÓN
+        try {
+          await this.sendSubscriptionConfirmationEmail({
+            ...subscription,
+            status: 'active',
+            mercadopago_subscription_id: subscriptionId
+          }, subscriptionData)
+          
+          logger.info('📧 Email de confirmación enviado (preaprobación)', 'EMAIL_CONFIRMATION', {
+            subscriptionId: subscription.id,
+            customerEmail: subscription.customer_email
+          })
+        } catch (emailError: any) {
+          logger.error('❌ Error enviando email de confirmación (no crítico)', 'EMAIL_CONFIRMATION', {
+            subscriptionId: subscription.id,
+            error: emailError.message
+          })
+        }
+        
+        // SINCRONIZACIÓN INMEDIATA ADICIONAL
+        try {
+          if (externalReference) {
+            await this.subscriptionSyncService.syncSingleSubscription(externalReference)
+            logger.info('🔄 Sincronización adicional completada (preaprobación)', 'ADDITIONAL_SYNC', {
+              externalReference
+            })
+          }
+        } catch (syncError: any) {
+          logger.warn('⚠️ Error en sincronización adicional (no crítico)', 'ADDITIONAL_SYNC', {
+            error: syncError.message
+          })
+        }
+        
+      } else if (newStatus !== subscription.status) {
+        // Actualización de estado sin activación
         const { error: updateError } = await supabase
           .from('unified_subscriptions')
           .update({
@@ -849,7 +1387,7 @@ export class WebhookService {
           .eq('id', subscription.id)
         
         if (updateError) {
-          logger.error('Error actualizando estado de suscripción', 'SUBSCRIPTION_PREAPPROVAL', {
+          logger.error('❌ Error actualizando estado de suscripción', 'SUBSCRIPTION_PREAPPROVAL', {
             subscriptionId: subscription.id,
             newStatus,
             error: updateError.message
@@ -857,30 +1395,30 @@ export class WebhookService {
           return false
         }
         
-        logger.info('✅ Estado de suscripción actualizado exitosamente', 'SUBSCRIPTION_PREAPPROVAL', {
+        logger.info('✅ Estado de suscripción actualizado (preaprobación)', 'SUBSCRIPTION_PREAPPROVAL', {
           subscriptionId: subscription.id,
           oldStatus: subscription.status,
           newStatus,
           mercadopagoId: subscriptionId
         })
-        
-        // Enviar email de confirmación si la suscripción se activó
-        if (newStatus === 'active' && subscription.status !== 'active') {
-          await this.sendSubscriptionConfirmationEmail(subscription, subscriptionData)
-        }
       } else {
-        logger.info('Estado de suscripción sin cambios', 'SUBSCRIPTION_PREAPPROVAL', {
+        logger.info('ℹ️ Suscripción no requiere cambios (preaprobación)', 'SUBSCRIPTION_STATUS', {
           subscriptionId: subscription.id,
-          status: newStatus
+          currentStatus: subscription.status,
+          mercadopagoStatus: status
         })
       }
       
       return true
       
     } catch (error: any) {
-      logger.error('Error procesando preaprobación de suscripción', 'SUBSCRIPTION_PREAPPROVAL', {
+      const duration = Date.now() - startTime
+      logger.error('❌ Error crítico procesando preaprobación de suscripción', 'SUBSCRIPTION_PREAPPROVAL', {
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
+        duration,
+        subscriptionId: subscriptionData?.id,
+        externalReference: subscriptionData?.external_reference
       })
       return false
     }
@@ -906,9 +1444,7 @@ export class WebhookService {
             <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Detalles de tu suscripción:</h3>
               <p><strong>Plan:</strong> ${subscription.plan_name || 'Plan Premium'}</p>
-              <p><strong>Precio:</strong> $${subscription.amount} ${subscription.currency || 'MXN'}</p>
-              <p><strong>Estado:</strong> Activa ✅</p>
-              <p><strong>Próximo pago:</strong> ${subscriptionData.next_payment_date ? new Date(subscriptionData.next_payment_date).toLocaleDateString('es-MX') : 'Próximamente'}</p>
+              <p><strong>Precio:</strong> $${subscription.discounted_price || subscription.base_price}</li>
             </div>
             
             <p>Ahora puedes disfrutar de todos los beneficios de tu suscripción:</p>

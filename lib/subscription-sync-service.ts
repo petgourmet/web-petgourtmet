@@ -1,304 +1,285 @@
-import { supabase } from '@/lib/supabase/client'
-import { logger, LogCategory } from '@/lib/logger'
+import { createServiceClient } from '@/lib/supabase/service'
+import { MercadoPagoConfig, PreApproval } from 'mercadopago'
 
-interface SubscriptionSyncParams {
-  collection_id?: string
-  payment_id?: string
-  user_id?: string
-  product_id?: number
-  payer_email?: string
-  transaction_amount?: string
-  created_date?: string
-  external_reference?: string
+interface SubscriptionSyncResult {
+  subscription_id: number
+  external_reference: string
+  old_status: string
+  new_status: string
+  updated: boolean
+  error?: string
 }
 
-interface SubscriptionMatch {
-  id: number
-  user_id: string
-  external_reference: string
-  status: string
-  product_id: number
-  transaction_amount: string
-  created_at: string
-  customer_data: any
-  match_criteria: string[]
+interface SyncSummary {
+  total_processed: number
+  updated_count: number
+  error_count: number
+  results: SubscriptionSyncResult[]
+  execution_time_ms: number
 }
 
 export class SubscriptionSyncService {
+  private client: any
+  private preApproval: PreApproval
+  private isRunning: boolean = false
+
+  constructor() {
+    this.client = createServiceClient()
+    
+    const mercadoPagoClient = new MercadoPagoConfig({
+      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
+      options: {
+        timeout: 5000,
+        idempotencyKey: 'sync-service'
+      }
+    })
+    
+    this.preApproval = new PreApproval(mercadoPagoClient)
+  }
+
   /**
-   * Busca suscripciones pendientes usando múltiples criterios cuando el external_reference no coincide
+   * Sincroniza todas las suscripciones activas
    */
-  static async findPendingSubscriptionByAlternativeCriteria(
-    params: SubscriptionSyncParams
-  ): Promise<SubscriptionMatch | null> {
+  async syncAllSubscriptions(): Promise<SyncSummary> {
+    if (this.isRunning) {
+      throw new Error('Sync process is already running')
+    }
+
+    this.isRunning = true
+    const startTime = Date.now()
+    
     try {
-      logger.info(LogCategory.SUBSCRIPTION, 'Buscando suscripción por criterios alternativos', {
-        collection_id: params.collection_id,
-        payment_id: params.payment_id,
-        user_id: params.user_id,
-        product_id: params.product_id,
-        payer_email: params.payer_email,
-        external_reference: params.external_reference
-      })
-
-      // Construir query base para suscripciones pendientes
-      let query = supabase
+      console.log('🔄 Iniciando sincronización de todas las suscripciones...')
+      
+      // Obtener todas las suscripciones que no estén canceladas o expiradas
+      const { data: subscriptions, error } = await this.client
         .from('unified_subscriptions')
-        .select('*')
-        .eq('status', 'pending')
-
-      const matchCriteria: string[] = []
-      let hasValidCriteria = false
-
-      // Criterio 1: Buscar por user_id y product_id (más específico)
-      if (params.user_id && params.product_id) {
-        query = query.eq('user_id', params.user_id).eq('product_id', params.product_id)
-        matchCriteria.push('user_id + product_id')
-        hasValidCriteria = true
-      }
-      // Criterio 2: Buscar solo por user_id si no hay product_id
-      else if (params.user_id) {
-        query = query.eq('user_id', params.user_id)
-        matchCriteria.push('user_id')
-        hasValidCriteria = true
-      }
-      // Criterio 3: Buscar por email del pagador
-      else if (params.payer_email) {
-        // Buscar en customer_data que contiene el email
-        query = query.ilike('customer_data', `%${params.payer_email}%`)
-        matchCriteria.push('payer_email')
-        hasValidCriteria = true
-      }
-
-      if (!hasValidCriteria) {
-        logger.warn(LogCategory.SUBSCRIPTION, 'No hay criterios válidos para buscar suscripción', params)
-        return null
-      }
-
-      // Ejecutar query
-      const { data: subscriptions, error } = await query
+        .select('id, external_reference, status, user_id, created_at')
+        .in('status', ['pending', 'authorized', 'paused'])
+        .order('created_at', { ascending: false })
 
       if (error) {
-        logger.error(LogCategory.SUBSCRIPTION, 'Error buscando suscripciones por criterios alternativos', error.message, {
-          params,
-          error: error.details
-        })
-        return null
+        throw new Error(`Error fetching subscriptions: ${error.message}`)
       }
 
       if (!subscriptions || subscriptions.length === 0) {
-        logger.info(LogCategory.SUBSCRIPTION, 'No se encontraron suscripciones pendientes con los criterios dados', {
-          matchCriteria,
-          params
-        })
+        console.log('📋 No hay suscripciones para sincronizar')
+        return {
+          total_processed: 0,
+          updated_count: 0,
+          error_count: 0,
+          results: [],
+          execution_time_ms: Date.now() - startTime
+        }
+      }
+
+      console.log(`📊 Procesando ${subscriptions.length} suscripciones...`)
+      
+      const results: SubscriptionSyncResult[] = []
+      let updatedCount = 0
+      let errorCount = 0
+
+      // Procesar cada suscripción
+      for (const subscription of subscriptions) {
+        try {
+          const result = await this.syncSingleSubscription(subscription.external_reference)
+          results.push(result)
+          
+          if (result.updated) {
+            updatedCount++
+          }
+          
+          if (result.error) {
+            errorCount++
+          }
+          
+          // Pequeña pausa para evitar rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+        } catch (error) {
+          console.error(`❌ Error procesando suscripción ${subscription.external_reference}:`, error)
+          results.push({
+            subscription_id: subscription.id,
+            external_reference: subscription.external_reference,
+            old_status: subscription.status,
+            new_status: subscription.status,
+            updated: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
+          errorCount++
+        }
+      }
+
+      const summary: SyncSummary = {
+        total_processed: subscriptions.length,
+        updated_count: updatedCount,
+        error_count: errorCount,
+        results,
+        execution_time_ms: Date.now() - startTime
+      }
+
+      console.log(`✅ Sincronización completada: ${updatedCount}/${subscriptions.length} actualizadas en ${summary.execution_time_ms}ms`)
+      
+      return summary
+      
+    } finally {
+      this.isRunning = false
+    }
+  }
+
+  /**
+   * Sincroniza una suscripción específica por external_reference
+   */
+  async syncSingleSubscription(externalReference: string): Promise<SubscriptionSyncResult> {
+    try {
+      console.log(`🔍 Sincronizando suscripción: ${externalReference}`)
+      
+      // Obtener datos actuales de la base de datos
+      const { data: dbSubscription, error: dbError } = await this.client
+        .from('unified_subscriptions')
+        .select('id, status, user_id')
+        .eq('external_reference', externalReference)
+        .single()
+
+      if (dbError || !dbSubscription) {
+        throw new Error(`Subscription not found in database: ${externalReference}`)
+      }
+
+      // Obtener estado actual desde MercadoPago
+      const mpStatus = await this.getMercadoPagoSubscriptionStatus(externalReference)
+      
+      if (!mpStatus) {
+        throw new Error(`Could not fetch status from MercadoPago for: ${externalReference}`)
+      }
+
+      const result: SubscriptionSyncResult = {
+        subscription_id: dbSubscription.id,
+        external_reference: externalReference,
+        old_status: dbSubscription.status,
+        new_status: mpStatus,
+        updated: false
+      }
+
+      // Verificar si necesita actualización
+      if (dbSubscription.status !== mpStatus) {
+        console.log(`🔄 Actualizando estado: ${dbSubscription.status} → ${mpStatus}`)
+        
+        const { error: updateError } = await this.client
+          .from('unified_subscriptions')
+          .update({ 
+            status: mpStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', dbSubscription.id)
+
+        if (updateError) {
+          throw new Error(`Failed to update subscription: ${updateError.message}`)
+        }
+
+        result.updated = true
+        
+        // Log del cambio de estado
+        await this.logStatusChange(dbSubscription.id, dbSubscription.status, mpStatus)
+        
+      } else {
+        console.log(`✅ Estado ya sincronizado: ${mpStatus}`)
+      }
+
+      return result
+      
+    } catch (error) {
+      console.error(`❌ Error sincronizando ${externalReference}:`, error)
+      return {
+        subscription_id: 0,
+        external_reference: externalReference,
+        old_status: 'unknown',
+        new_status: 'unknown',
+        updated: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
+  /**
+   * Obtiene el estado actual de una suscripción desde MercadoPago
+   */
+  private async getMercadoPagoSubscriptionStatus(externalReference: string): Promise<string | null> {
+    try {
+      // Buscar por external_reference
+      const searchResponse = await this.preApproval.search({
+        filters: {
+          external_reference: externalReference
+        }
+      })
+
+      if (!searchResponse.results || searchResponse.results.length === 0) {
+        console.warn(`⚠️ No se encontró suscripción en MP: ${externalReference}`)
         return null
       }
 
-      // Si hay múltiples suscripciones, aplicar filtros adicionales
-      let bestMatch = subscriptions[0]
-
-      if (subscriptions.length > 1) {
-        logger.info(LogCategory.SUBSCRIPTION, `Encontradas ${subscriptions.length} suscripciones, aplicando filtros adicionales`, {
-          subscriptionIds: subscriptions.map(s => s.id),
-          matchCriteria
-        })
-
-        // Filtrar por monto de transacción si está disponible
-        if (params.transaction_amount) {
-          const amountMatches = subscriptions.filter(s => 
-            s.transaction_amount === params.transaction_amount
-          )
-          if (amountMatches.length > 0) {
-            bestMatch = amountMatches[0]
-            matchCriteria.push('transaction_amount')
-            logger.info(LogCategory.SUBSCRIPTION, 'Filtrado por monto de transacción', {
-              selectedId: bestMatch.id,
-              amount: params.transaction_amount
-            })
-          }
-        }
-
-        // Filtrar por fecha de creación (buscar la más reciente dentro de las últimas 24 horas)
-        if (params.created_date) {
-          const targetDate = new Date(params.created_date)
-          const dayBefore = new Date(targetDate.getTime() - 24 * 60 * 60 * 1000)
-          const dayAfter = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
-
-          const dateMatches = subscriptions.filter(s => {
-            const subDate = new Date(s.created_at)
-            return subDate >= dayBefore && subDate <= dayAfter
-          })
-
-          if (dateMatches.length > 0) {
-            // Tomar la más reciente
-            bestMatch = dateMatches.sort((a, b) => 
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )[0]
-            matchCriteria.push('created_date_range')
-            logger.info(LogCategory.SUBSCRIPTION, 'Filtrado por rango de fecha', {
-              selectedId: bestMatch.id,
-              targetDate: params.created_date,
-              selectedDate: bestMatch.created_at
-            })
-          }
-        }
-
-        // Si aún hay múltiples, tomar la más reciente
-        if (subscriptions.length > 1) {
-          bestMatch = subscriptions.sort((a, b) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          )[0]
-          matchCriteria.push('most_recent')
-        }
-      }
-
-      logger.info(LogCategory.SUBSCRIPTION, 'Suscripción encontrada por criterios alternativos', {
-        subscriptionId: bestMatch.id,
-        external_reference: bestMatch.external_reference,
-        user_id: bestMatch.user_id,
-        product_id: bestMatch.product_id,
-        status: bestMatch.status,
-        matchCriteria,
-        mercadopago_external_reference: params.external_reference
-      })
-
-      return {
-        ...bestMatch,
-        match_criteria: matchCriteria
-      }
-
+      const subscription = searchResponse.results[0]
+      return subscription.status || null
+      
     } catch (error) {
-      logger.error(LogCategory.SUBSCRIPTION, 'Error crítico buscando suscripción por criterios alternativos', 
-        error instanceof Error ? error.message : 'Error desconocido', {
-        params,
-        error: error instanceof Error ? error.stack : error
-      })
+      console.error(`❌ Error consultando MP para ${externalReference}:`, error)
       return null
     }
   }
 
   /**
-   * Actualiza una suscripción encontrada por criterios alternativos
+   * Registra cambios de estado en el log
    */
-  static async updateSubscriptionWithMercadoPagoData(
-    subscriptionId: number,
-    mercadoPagoData: {
-      external_reference: string
-      collection_id?: string
-      payment_id?: string
-      mercadopago_subscription_id?: string
-      status: string
-      payer_email?: string
-    }
-  ): Promise<boolean> {
+  private async logStatusChange(subscriptionId: number, oldStatus: string, newStatus: string): Promise<void> {
     try {
-      logger.info(LogCategory.SUBSCRIPTION, 'Actualizando suscripción con datos de MercadoPago', {
-        subscriptionId,
-        mercadoPagoData
-      })
-
-      const updateData: any = {
-        status: mercadoPagoData.status,
-        updated_at: new Date().toISOString(),
-        last_sync_at: new Date().toISOString()
-      }
-
-      // Agregar campos opcionales si están disponibles
-      if (mercadoPagoData.mercadopago_subscription_id) {
-        updateData.mercadopago_subscription_id = mercadoPagoData.mercadopago_subscription_id
-      }
-
-      // Actualizar metadata con información de sincronización
-      const { data: currentSub } = await supabase
-        .from('unified_subscriptions')
-        .select('metadata')
-        .eq('id', subscriptionId)
-        .single()
-
-      if (currentSub?.metadata) {
-        try {
-          const metadata = typeof currentSub.metadata === 'string' 
-            ? JSON.parse(currentSub.metadata) 
-            : currentSub.metadata
-          
-          metadata.sync_info = {
-            original_external_reference: metadata.external_reference || 'unknown',
-            mercadopago_external_reference: mercadoPagoData.external_reference,
-            collection_id: mercadoPagoData.collection_id,
-            payment_id: mercadoPagoData.payment_id,
-            synced_at: new Date().toISOString(),
-            sync_method: 'alternative_criteria'
-          }
-          
-          updateData.metadata = JSON.stringify(metadata)
-        } catch (metadataError) {
-          logger.warn(LogCategory.SUBSCRIPTION, 'Error procesando metadata, creando nueva', {
-            subscriptionId,
-            error: metadataError
-          })
-          
-          updateData.metadata = JSON.stringify({
-            sync_info: {
-              mercadopago_external_reference: mercadoPagoData.external_reference,
-              collection_id: mercadoPagoData.collection_id,
-              payment_id: mercadoPagoData.payment_id,
-              synced_at: new Date().toISOString(),
-              sync_method: 'alternative_criteria'
-            }
-          })
-        }
-      }
-
-      const { error } = await supabase
-        .from('unified_subscriptions')
-        .update(updateData)
-        .eq('id', subscriptionId)
-
-      if (error) {
-        logger.error(LogCategory.SUBSCRIPTION, 'Error actualizando suscripción', error.message, {
-          subscriptionId,
-          updateData,
-          error: error.details
+      await this.client
+        .from('subscription_logs')
+        .insert({
+          subscription_id: subscriptionId,
+          event_type: 'status_sync',
+          old_status: oldStatus,
+          new_status: newStatus,
+          description: `Status synchronized from ${oldStatus} to ${newStatus}`,
+          created_at: new Date().toISOString()
         })
-        return false
-      }
-
-      logger.info(LogCategory.SUBSCRIPTION, 'Suscripción actualizada exitosamente', {
-        subscriptionId,
-        newStatus: mercadoPagoData.status,
-        mercadopago_external_reference: mercadoPagoData.external_reference
-      })
-
-      return true
-
     } catch (error) {
-      logger.error(LogCategory.SUBSCRIPTION, 'Error crítico actualizando suscripción', 
-        error instanceof Error ? error.message : 'Error desconocido', {
-        subscriptionId,
-        mercadoPagoData,
-        error: error instanceof Error ? error.stack : error
-      })
-      return false
+      console.error('❌ Error logging status change:', error)
+      // No lanzar error para no interrumpir la sincronización
     }
   }
 
   /**
-   * Extrae información del usuario desde los parámetros de MercadoPago
+   * Verifica si el servicio está ejecutándose
    */
-  static extractUserInfoFromMercadoPagoParams(searchParams: URLSearchParams): {
-    collection_id?: string
-    payment_id?: string
-    external_reference?: string
-    status?: string
-    payer_email?: string
-  } {
-    return {
-      collection_id: searchParams.get('collection_id') || undefined,
-      payment_id: searchParams.get('payment_id') || undefined,
-      external_reference: searchParams.get('external_reference') || undefined,
-      status: searchParams.get('status') || undefined,
-      // El payer_email no viene en los parámetros de URL, se obtendría del webhook
-      payer_email: undefined
+  isCurrentlyRunning(): boolean {
+    return this.isRunning
+  }
+
+  /**
+   * Obtiene estadísticas de sincronización
+   */
+  async getSyncStats(): Promise<any> {
+    try {
+      const { data: stats } = await this.client
+        .from('subscription_logs')
+        .select('event_type, created_at')
+        .eq('event_type', 'status_sync')
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      return {
+        last_24h_syncs: stats?.length || 0,
+        last_sync: stats?.[0]?.created_at || null
+      }
+    } catch (error) {
+      console.error('Error getting sync stats:', error)
+      return { last_24h_syncs: 0, last_sync: null }
     }
   }
 }
+
+// Singleton instance
+const subscriptionSyncService = new SubscriptionSyncService()
+
+export default subscriptionSyncService
+export type { SubscriptionSyncResult, SyncSummary }
