@@ -5,13 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import MercadoPagoService from '@/lib/mercadopago-service'
 import { sendSubscriptionPaymentReminder, sendSubscriptionPaymentSuccess } from '@/lib/contact-email-service'
 import { DynamicDiscountService } from '@/lib/dynamic-discount-service'
+import { getMercadoPagoAccessToken } from '@/lib/mercadopago-config'
 
-const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
+const MP_ACCESS_TOKEN = getMercadoPagoAccessToken()
 const CRON_SECRET = process.env.CRON_SECRET
-
-if (!MP_ACCESS_TOKEN) {
-  throw new Error('MERCADOPAGO_ACCESS_TOKEN is required')
-}
 
 const mercadoPagoService = new MercadoPagoService(MP_ACCESS_TOKEN)
 

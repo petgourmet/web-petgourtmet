@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { getMercadoPagoAccessToken, isTestMode } from '@/lib/mercadopago-config'
 
 // Configuración de MercadoPago
-const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
-const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
+const MP_ACCESS_TOKEN = getMercadoPagoAccessToken()
+const IS_TEST_MODE = isTestMode()
 
 export async function POST(request: NextRequest) {
   try {

@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
             transaction_amount: auto_recurring.transaction_amount,
             currency_id: auto_recurring.currency_id || "MXN"
           },
-          back_url: back_url || 'https://petgourmet.mx/perfil/suscripciones',
+          back_url: back_url || '/suscripcion',
           status: status || (card_token_id ? "authorized" : "pending")
         }
 

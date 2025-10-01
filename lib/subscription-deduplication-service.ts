@@ -182,15 +182,35 @@ export class SubscriptionDeduplicationService {
       }
 
       if (activeSubs && activeSubs.length > 0) {
+        // Separar suscripciones por estado para mejor manejo
+        const pendingSubs = activeSubs.filter(sub => sub.status === 'pending')
+        const activeSubs_filtered = activeSubs.filter(sub => sub.status === 'active')
+        const processingSubs = activeSubs.filter(sub => sub.status === 'processing')
+        
         logger.warn('Usuario ya tiene suscripciones activas para este plan', 'DEDUPLICATION', {
           userId,
           planId,
           activeCount: activeSubs.length,
+          pendingCount: pendingSubs.length,
+          activeCount_filtered: activeSubs_filtered.length,
+          processingCount: processingSubs.length,
           activeIds: activeSubs.map(s => s.id)
         })
+        
+        // Si solo hay suscripciones pendientes, permitir gestión más flexible
+        if (pendingSubs.length > 0 && activeSubs_filtered.length === 0 && processingSubs.length === 0) {
+          return {
+            isValid: false,
+            reason: `Ya existe una suscripción pendiente para este producto. Puedes continuar con ella o cancelarla para crear una nueva.`,
+            externalReference,
+            existingSubscription: pendingSubs[0]
+          }
+        }
+        
+        // Si hay suscripciones activas o en procesamiento, ser más restrictivo
         return {
           isValid: false,
-          reason: `Usuario ya tiene ${activeSubs.length} suscripción(es) activa(s) para este plan`,
+          reason: `Ya existe una suscripción activa para este usuario y producto. User ID: ${userId}, Product ID: ${planId}`,
           externalReference,
           existingSubscription: activeSubs[0]
         }

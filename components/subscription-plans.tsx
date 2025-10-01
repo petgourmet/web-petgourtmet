@@ -153,7 +153,7 @@ export default function SubscriptionPlans({
             transaction_amount: calculateDiscountedPrice(plan),
             currency_id: 'MXN'
           },
-          back_url: `${window.location.origin}/suscripcion?external_reference=${externalReference}&user_id=${userId}`,
+          back_url: `/suscripcion?external_reference=${externalReference}&user_id=${userId}`,
           status: 'pending', // Sin método de pago, el usuario lo agregará en MercadoPago
           user_id: userId,
           product_id: productId,

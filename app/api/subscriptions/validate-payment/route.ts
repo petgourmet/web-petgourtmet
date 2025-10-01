@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import MercadoPagoService from '@/lib/mercadopago-service'
+import { getMercadoPagoAccessToken, isTestMode } from '@/lib/mercadopago-config'
 
-const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
-const MP_ACCESS_TOKEN = IS_TEST_MODE 
-  ? process.env.MERCADOPAGO_TEST_ACCESS_TOKEN 
-  : process.env.MERCADOPAGO_ACCESS_TOKEN
-
-if (!MP_ACCESS_TOKEN) {
-  throw new Error('MERCADOPAGO_ACCESS_TOKEN is required')
-}
+const IS_TEST_MODE = isTestMode()
+const MP_ACCESS_TOKEN = getMercadoPagoAccessToken()
 
 const mercadoPagoService = new MercadoPagoService(MP_ACCESS_TOKEN)
 

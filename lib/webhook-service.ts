@@ -874,7 +874,7 @@ export class WebhookService {
         timestamp: new Date().toISOString()
       })
 
-      // BÚSQUEDA ROBUSTA: Intentar múltiples métodos para encontrar la suscripción
+      // BÚSQUEDA ROBUSTA MEJORADA: Múltiples criterios para encontrar la suscripción
       let subscription = null
       let searchMethod = 'none'
       
@@ -884,11 +884,11 @@ export class WebhookService {
           .from('unified_subscriptions')
           .select('*')
           .eq('external_reference', externalReference)
-          .single()
+          .maybeSingle()
         
         if (sub1 && !err1) {
           subscription = sub1
-          searchMethod = 'external_reference'
+          searchMethod = 'external_reference_exact'
         }
       }
       
@@ -898,7 +898,7 @@ export class WebhookService {
           .from('unified_subscriptions')
           .select('*')
           .eq('mercadopago_subscription_id', subscriptionId)
-          .single()
+          .maybeSingle()
         
         if (sub2 && !err2) {
           subscription = sub2
@@ -906,19 +906,55 @@ export class WebhookService {
         }
       }
       
-      // Método 3: Buscar suscripciones pendientes recientes (último recurso)
-      if (!subscription) {
-        const { data: sub3, error: err3 } = await supabase
+      // Método 3: NUEVO - Buscar por external_reference parcial (para casos de formato inconsistente)
+      if (!subscription && externalReference) {
+        // Extraer partes del external_reference para búsqueda flexible
+        const refParts = externalReference.split('-')
+        if (refParts.length >= 2) {
+          const { data: sub3, error: err3 } = await supabase
+            .from('unified_subscriptions')
+            .select('*')
+            .ilike('external_reference', `%${refParts[refParts.length - 1]}%`)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(3)
+          
+          if (sub3 && sub3.length > 0 && !err3) {
+            subscription = sub3[0]
+            searchMethod = 'external_reference_partial'
+          }
+        }
+      }
+      
+      // Método 4: NUEVO - Buscar por email del pagador si está disponible
+      if (!subscription && subscriptionData.payer_email) {
+        const { data: sub4, error: err4 } = await supabase
           .from('unified_subscriptions')
           .select('*')
+          .eq('customer_email', subscriptionData.payer_email)
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(3)
         
-        if (sub3 && sub3.length > 0) {
+        if (sub4 && sub4.length > 0 && !err4) {
+          subscription = sub4[0]
+          searchMethod = 'payer_email'
+        }
+      }
+      
+      // Método 5: Buscar suscripciones pendientes recientes (último recurso)
+      if (!subscription) {
+        const { data: sub5, error: err5 } = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(5)
+        
+        if (sub5 && sub5.length > 0) {
           // Tomar la más reciente que no tenga mercadopago_subscription_id asignado
-          subscription = sub3.find(s => !s.mercadopago_subscription_id) || sub3[0]
-          searchMethod = 'recent_pending'
+          subscription = sub5.find(s => !s.mercadopago_subscription_id) || sub5[0]
+          searchMethod = 'recent_pending_fallback'
         }
       }
       
@@ -935,7 +971,21 @@ export class WebhookService {
         logger.warn('❌ Suscripción no encontrada con ningún método', 'SUBSCRIPTION_PAYMENT', {
           externalReference,
           subscriptionId,
-          searchMethods: ['external_reference', 'mercadopago_id', 'recent_pending']
+          payerEmail: subscriptionData.payer_email,
+          searchMethods: [
+            'external_reference_exact',
+            'mercadopago_id', 
+            'external_reference_partial',
+            'payer_email',
+            'recent_pending_fallback'
+          ],
+          webhook_data: {
+            external_reference: externalReference,
+            subscription_id: subscriptionId,
+            payer_email: subscriptionData.payer_email,
+            status: subscriptionData.status
+          },
+          timestamp: new Date().toISOString()
         })
         return true // No fallar el webhook
       }

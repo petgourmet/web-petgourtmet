@@ -587,9 +587,162 @@ export function CheckoutModal() {
               existingId: validationResult.existingSubscription.id,
               externalReference: validationResult.existingSubscription.external_reference
             })
-            externalReference = validationResult.existingSubscription.external_reference
+            
+            // Mostrar diálogo de confirmación con opciones
+            const userChoice = await new Promise<'continue' | 'cancel' | 'close'>((resolve) => {
+              const handleChoice = (choice: 'continue' | 'cancel' | 'close') => {
+                resolve(choice)
+              }
+              
+              // Crear un diálogo personalizado
+              const existingSub = validationResult.existingSubscription
+              const createdDate = new Date(existingSub.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+              
+              const message = `Ya tienes una suscripción ${existingSub.subscription_type} pendiente para este producto, creada el ${createdDate}.\n\n¿Qué deseas hacer?`
+              
+              // Usar confirm nativo por simplicidad (se puede mejorar con un modal personalizado)
+              const continueWithExisting = confirm(
+                `${message}\n\n` +
+                `• Presiona "Aceptar" para continuar con la suscripción existente\n` +
+                `• Presiona "Cancelar" para cancelar la suscripción existente y crear una nueva`
+              )
+              
+              if (continueWithExisting) {
+                handleChoice('continue')
+              } else {
+                // Segundo confirm para confirmar cancelación
+                const confirmCancel = confirm(
+                  '¿Estás seguro de que deseas cancelar la suscripción existente y crear una nueva?\n\n' +
+                  'Esta acción no se puede deshacer.'
+                )
+                handleChoice(confirmCancel ? 'cancel' : 'close')
+              }
+            })
+            
+            if (userChoice === 'continue') {
+              // Continuar con la suscripción existente
+              logger.info(LogCategory.SUBSCRIPTION, 'Usuario eligió continuar con suscripción pendiente existente', {
+                userId,
+                planId,
+                existingId: validationResult.existingSubscription.id,
+                externalReference: validationResult.existingSubscription.external_reference
+              })
+              
+              externalReference = validationResult.existingSubscription.external_reference
+              
+              // Mostrar mensaje de confirmación
+              toast({
+                title: "Continuando con suscripción existente",
+                description: "Te redirigiremos a completar tu suscripción pendiente.",
+                duration: 3000,
+              })
+              
+              // Limpiar carrito y redirigir
+              clearCart()
+              setShowCheckout(false)
+              
+              // Redirigir al enlace de suscripción existente
+              const subscriptionLink = getSubscriptionLink(validationResult.existingSubscription.subscription_type)
+              const finalLink = `${subscriptionLink}&external_reference=${externalReference}&back_url=${encodeURIComponent(window.location.origin + '/suscripcion')}`
+              
+              logger.info(LogCategory.SUBSCRIPTION, 'Redirigiendo a suscripción pendiente existente', {
+                userId,
+                externalReference,
+                subscriptionType: validationResult.existingSubscription.subscription_type,
+                redirectUrl: finalLink
+              })
+              
+              window.location.href = finalLink
+              return
+              
+            } else if (userChoice === 'cancel') {
+              // Cancelar la suscripción existente
+              logger.info(LogCategory.SUBSCRIPTION, 'Usuario eligió cancelar suscripción pendiente existente', {
+                userId,
+                planId,
+                existingId: validationResult.existingSubscription.id
+              })
+              
+              try {
+                // Actualizar el estado de la suscripción existente a 'cancelled'
+                const { error: cancelError } = await supabase
+                  .from('unified_subscriptions')
+                  .update({ 
+                    status: 'cancelled',
+                    cancelled_at: new Date().toISOString(),
+                    notes: (validationResult.existingSubscription.notes || '') + ' | Cancelada por usuario para crear nueva suscripción'
+                  })
+                  .eq('id', validationResult.existingSubscription.id)
+                
+                if (cancelError) {
+                  logger.error(LogCategory.SUBSCRIPTION, 'Error cancelando suscripción existente', getErrorMessage(cancelError), {
+                    userId,
+                    existingId: validationResult.existingSubscription.id
+                  })
+                  
+                  setError('Error al cancelar la suscripción existente. Por favor, inténtalo de nuevo.')
+                  return
+                }
+                
+                logger.info(LogCategory.SUBSCRIPTION, 'Suscripción existente cancelada exitosamente', {
+                  userId,
+                  planId,
+                  cancelledId: validationResult.existingSubscription.id
+                })
+                
+                toast({
+                  title: "Suscripción anterior cancelada",
+                  description: "Ahora puedes crear una nueva suscripción.",
+                  duration: 3000,
+                })
+                
+                // Continuar con el procesamiento normal (crear nueva suscripción)
+                // No hacer return aquí para que continúe el flujo
+                
+              } catch (error) {
+                logger.error(LogCategory.SUBSCRIPTION, 'Error crítico cancelando suscripción existente', getErrorMessage(error), {
+                  userId,
+                  existingId: validationResult.existingSubscription.id
+                })
+                
+                setError('Error crítico al cancelar la suscripción existente. Por favor, contacta soporte.')
+                return
+              }
+              
+            } else {
+              // Usuario cerró el diálogo sin elegir
+              logger.info(LogCategory.SUBSCRIPTION, 'Usuario cerró diálogo sin elegir opción', {
+                userId,
+                planId
+              })
+              return
+            }
+            
           } else {
-            // Para suscripciones activas o otros casos, mostrar advertencia y detener procesamiento
+            // Para suscripciones activas o otros casos, mostrar error más informativo
+            const existingSub = validationResult.existingSubscription
+            let userFriendlyMessage = 'Ya tienes una suscripción para este producto.'
+            
+            if (existingSub) {
+              const statusTranslations = {
+                'active': 'activa',
+                'processing': 'en proceso',
+                'pending': 'pendiente'
+              }
+              
+              const statusText = statusTranslations[existingSub.status] || existingSub.status
+              const createdDate = new Date(existingSub.created_at).toLocaleDateString('es-ES')
+              
+              userFriendlyMessage = `Ya tienes una suscripción ${statusText} para este producto (creada el ${createdDate}). ` +
+                'Puedes gestionar tus suscripciones desde tu perfil.'
+            }
+            
             logger.warn(LogCategory.SUBSCRIPTION, 'Suscripción duplicada detectada - procesamiento detenido', validationResult.reason, {
               userId,
               planId,
@@ -599,13 +752,14 @@ export function CheckoutModal() {
             })
             
             // Mostrar error al usuario
-            setError(validationResult.reason)
+            setError(userFriendlyMessage)
             
             // Mostrar toast de error
             toast({
               title: "Suscripción existente",
-              description: validationResult.reason,
-              variant: "destructive"
+              description: userFriendlyMessage,
+              variant: "destructive",
+              duration: 5000,
             })
             
             // Detener procesamiento inmediatamente
@@ -647,7 +801,8 @@ export function CheckoutModal() {
       })
 
       // Si hay suscripciones, redirigir al enlace de suscripción de Mercado Pago
-      if (hasSubscriptionItems && subscriptionType && !isTestMode) {
+      // Las suscripciones SIEMPRE redirigen a MercadoPago (sandbox en modo prueba, producción en modo normal)
+      if (hasSubscriptionItems && subscriptionType) {
         console.log("Procesando suscripción con tipo:", subscriptionType)
         
         // Validar que el usuario esté autenticado para suscripciones
@@ -971,7 +1126,7 @@ export function CheckoutModal() {
           console.log('Redirigiendo a:', finalLink)
           window.location.href = finalLink
 
-          return
+          return // Salir completamente de la función después de procesar suscripción
         } catch (error) {
           const errorDetails = getErrorDetails(error)
           logger.error(LogCategory.SUBSCRIPTION, 'Error crítico procesando suscripción', errorDetails.message, {
@@ -994,19 +1149,22 @@ export function CheckoutModal() {
             variant: "destructive"
           })
           
-          return
+          return // Salir completamente de la función en caso de error
         }
       }
 
-      if (isTestMode) {
+      // Si llegamos aquí, NO hay suscripciones en el carrito, proceder con orden normal
+
+      if (isTestMode && !hasSubscriptionItems) {
         // En modo de pruebas, crear orden usando el endpoint de MercadoPago
-        // pero sin redirección real
-        console.log("Modo de pruebas: Creando orden completa...")
+        // pero sin redirección real - SOLO para productos normales, NO suscripciones
+        console.log("Modo de pruebas: Creando orden completa para productos normales...")
 
         // Preparar los datos como se haría para MercadoPago
         const items = cart.map((item) => {
           let finalPrice = item.price
           
+          // No debería haber suscripciones aquí, pero por seguridad
           if (item.isSubscription) {
             const subscriptionType = item.subscriptionType || getSubscriptionType() || 'monthly'
             const discount = getProductSubscriptionDiscount(item, subscriptionType)
@@ -1085,14 +1243,15 @@ export function CheckoutModal() {
         // Redirigir a la página de agradecimiento
         router.push(`/gracias-por-tu-compra?order_id=${testData.orderId || 'test'}`)
 
-      } else {
-        // En modo normal, crear preferencia de pago en Mercado Pago
-        console.log("Creando preferencia de pago en Mercado Pago...")
+      } else if (!hasSubscriptionItems) {
+        // En modo normal, crear preferencia de pago en Mercado Pago - SOLO para productos normales
+        console.log("Creando preferencia de pago en Mercado Pago para productos normales...")
 
         // Preparar los datos para la API
         const items = cart.map((item) => {
           let finalPrice = item.price
           
+          // No debería haber suscripciones aquí, pero por seguridad
           if (item.isSubscription) {
             const subscriptionType = item.subscriptionType || getSubscriptionType() || 'monthly'
             const discount = getProductSubscriptionDiscount(item, subscriptionType)
@@ -1187,8 +1346,8 @@ export function CheckoutModal() {
       })
       
       setError(
-        errorDetails.message || "Ha ocurrido un error al procesar tu pedido. Por favor, inténtalo de nuevo.",
-      )
+        errorDetails.message || "Ha ocurrido un error al procesar tu pedido. Por favor, inténtalo de nuevo."
+      );
       
       toast({
         title: "Error al procesar pedido",
@@ -1208,7 +1367,7 @@ export function CheckoutModal() {
   }
 
   if (!showCheckout) {
-    return null
+    return null;
   }
 
   return (
@@ -1425,9 +1584,15 @@ export function CheckoutModal() {
                   </div>
                 )}
 
-                {isTestMode && (
+                {isTestMode && !hasSubscriptions() && (
                   <p className="text-sm text-center text-amber-600 font-medium">
                     Modo de pruebas activado. Se simulará un pago exitoso.
+                  </p>
+                )}
+                
+                {isTestMode && hasSubscriptions() && (
+                  <p className="text-sm text-center text-blue-600 font-medium">
+                    Modo de pruebas activado. Serás redirigido a MercadoPago sandbox para completar la suscripción con tarjetas de prueba.
                   </p>
                 )}
 

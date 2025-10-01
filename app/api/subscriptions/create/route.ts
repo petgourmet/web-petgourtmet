@@ -3,14 +3,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import MercadoPagoService from '@/lib/mercadopago-service'
 import { createClient } from '@/lib/supabase/server'
+import { getMercadoPagoAccessToken, isTestMode } from '@/lib/mercadopago-config'
 
-const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
-const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
+const MP_ACCESS_TOKEN = getMercadoPagoAccessToken()
+const IS_TEST_MODE = isTestMode()
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'
-
-if (!MP_ACCESS_TOKEN) {
-  throw new Error('MERCADOPAGO_ACCESS_TOKEN is required')
-}
 
 const mercadoPagoService = new MercadoPagoService(MP_ACCESS_TOKEN)
 

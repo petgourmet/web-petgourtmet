@@ -595,6 +595,12 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         ...(selectedSubscriptionTypes.includes('monthly') && cleanedProduct.monthly_discount !== undefined && cleanedProduct.monthly_discount !== null ? { monthly_discount: Number(cleanedProduct.monthly_discount) } : {}),
         ...(selectedSubscriptionTypes.includes('quarterly') && cleanedProduct.quarterly_discount !== undefined && cleanedProduct.quarterly_discount !== null ? { quarterly_discount: Number(cleanedProduct.quarterly_discount) } : {}),
         ...(selectedSubscriptionTypes.includes('annual') && cleanedProduct.annual_discount !== undefined && cleanedProduct.annual_discount !== null ? { annual_discount: Number(cleanedProduct.annual_discount) } : {}),
+        // Incluir URLs de Mercado Pago si están definidas
+        ...(cleanedProduct.weekly_mercadopago_url ? { weekly_mercadopago_url: cleanedProduct.weekly_mercadopago_url } : {}),
+        ...(cleanedProduct.biweekly_mercadopago_url ? { biweekly_mercadopago_url: cleanedProduct.biweekly_mercadopago_url } : {}),
+        ...(cleanedProduct.monthly_mercadopago_url ? { monthly_mercadopago_url: cleanedProduct.monthly_mercadopago_url } : {}),
+        ...(cleanedProduct.quarterly_mercadopago_url ? { quarterly_mercadopago_url: cleanedProduct.quarterly_mercadopago_url } : {}),
+        ...(cleanedProduct.annual_mercadopago_url ? { annual_mercadopago_url: cleanedProduct.annual_mercadopago_url } : {}),
       }
 
       let productId: number

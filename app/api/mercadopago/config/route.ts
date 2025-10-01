@@ -1,20 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getMercadoPagoPublicKey, isTestMode } from "@/lib/mercadopago-config"
 
 export async function GET(request: NextRequest) {
   try {
-    // Devolver la clave pública de MercadoPago para uso en el cliente
-    const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
-
-    if (!publicKey) {
-      return NextResponse.json({ error: "Clave pública de MercadoPago no configurada" }, { status: 500 })
-    }
+    // Obtener la clave pública según el modo configurado (producción o pruebas)
+    const publicKey = getMercadoPagoPublicKey()
+    const testMode = isTestMode()
 
     return NextResponse.json({
       publicKey,
       configured: true,
+      testMode,
+      environment: testMode ? 'sandbox' : 'production'
     })
   } catch (error) {
     console.error("Error al obtener configuración de MercadoPago:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Error interno del servidor",
+      details: error instanceof Error ? error.message : "Error desconocido"
+    }, { status: 500 })
   }
 }
