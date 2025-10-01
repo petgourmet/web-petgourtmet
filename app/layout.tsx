@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { GoogleAnalytics } from "@/components/google-analytics"
 import { FacebookPixel } from "@/components/facebook-pixel"
 import { StructuredData } from "@/components/structured-data"
+import { GoogleTagManager, GoogleTagManagerNoScript } from "@/components/google-tag-manager"
 
 // Fuente principal para el contenido general
 const montserrat = Montserrat({
@@ -124,6 +125,8 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>
+        <GoogleTagManagerNoScript />
+        <GoogleTagManager />
         <GoogleAnalytics />
         <FacebookPixel />
         <StructuredData type="organization" />
