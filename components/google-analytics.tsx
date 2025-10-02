@@ -26,17 +26,33 @@ export function GoogleAnalytics() {
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
         strategy="afterInteractive"
+        onError={(e) => {
+          console.warn('Google Analytics failed to load:', e)
+        }}
       />
       <Script id="google-analytics" strategy="afterInteractive">
         {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GA_MEASUREMENT_ID}', {
-            page_title: document.title,
-            page_location: window.location.href,
-            cookie_flags: 'SameSite=None;Secure',
-          });
+          try {
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}', {
+              page_title: document.title,
+              page_location: window.location.href,
+              cookie_flags: 'SameSite=None;Secure',
+              // Configuración para evitar interferencias con navegación
+              send_page_view: false,
+              transport_type: 'beacon'
+            });
+            
+            // Enviar page view inicial manualmente
+            gtag('event', 'page_view', {
+              page_title: document.title,
+              page_location: window.location.href
+            });
+          } catch (error) {
+            console.warn('Google Analytics initialization error:', error);
+          }
         `}
       </Script>
     </>

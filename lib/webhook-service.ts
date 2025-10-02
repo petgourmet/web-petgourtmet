@@ -941,6 +941,28 @@ export class WebhookService {
           searchMethod = 'payer_email'
         }
       }
+
+      // Método 4.5: NUEVO - Buscar por user_id extraído del external_reference
+      if (!subscription && externalReference) {
+        // Extraer user_id del external_reference (formato: SUB-{user_id}-{product_id}-{hash})
+        const refParts = externalReference.split('-')
+        if (refParts.length >= 4 && refParts[0] === 'SUB') {
+          const extractedUserId = refParts[1]
+          
+          const { data: sub4_5, error: err4_5 } = await supabase
+            .from('unified_subscriptions')
+            .select('*')
+            .eq('user_id', extractedUserId)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(3)
+          
+          if (sub4_5 && sub4_5.length > 0 && !err4_5) {
+            subscription = sub4_5[0]
+            searchMethod = 'user_id_from_reference'
+          }
+        }
+      }
       
       // Método 5: Buscar suscripciones pendientes recientes (último recurso)
       if (!subscription) {
@@ -977,6 +999,7 @@ export class WebhookService {
             'mercadopago_id', 
             'external_reference_partial',
             'payer_email',
+            'user_id_from_reference',
             'recent_pending_fallback'
           ],
           webhook_data: {

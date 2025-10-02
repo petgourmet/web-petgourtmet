@@ -60,9 +60,36 @@ export default function SuscripcionPage() {
   const [isApproved, setIsApproved] = useState(false)
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login?redirect=/suscripcion")
+    // Verificar si hay parámetros de Mercado Pago antes de redirigir
+    const urlParams = new URLSearchParams(window.location.search)
+    const preapprovalId = urlParams.get('preapproval_id')
+    const hasMP = preapprovalId || urlParams.get('external_reference') || urlParams.get('collection_id')
+    
+    // Si hay parámetros de MP y estamos cargando, esperar más tiempo
+    if (hasMP && loading) {
+      console.log('🔄 Detectados parámetros de Mercado Pago, esperando autenticación...', { preapprovalId, loading })
       return
+    }
+    
+    if (!loading && !user) {
+      // Solo redirigir si NO hay parámetros de Mercado Pago
+      if (!hasMP) {
+        console.log('🚪 Sin usuario y sin parámetros MP, redirigiendo a login')
+        router.push("/login?redirect=/suscripcion")
+        return
+      } else {
+        // Si hay parámetros de MP pero no hay usuario, esperar más tiempo
+        console.log('⏳ Parámetros de MP detectados sin usuario, esperando más tiempo...', { hasMP, user: !!user })
+        setTimeout(() => {
+          if (!user) {
+            console.log('⚠️ Timeout esperando usuario con parámetros MP, redirigiendo a login con parámetros')
+            const currentUrl = window.location.href
+            const encodedUrl = encodeURIComponent(currentUrl.split('?')[1] || '')
+            router.push(`/login?redirect=/suscripcion&mp_params=${encodedUrl}`)
+          }
+        }, 8000) // Esperar 8 segundos adicionales para MP
+        return
+      }
     }
 
     if (user) {

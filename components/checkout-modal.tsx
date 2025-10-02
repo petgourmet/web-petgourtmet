@@ -80,13 +80,9 @@ const getErrorDetails = (error: unknown): ErrorLike => {
   return { message: 'Error desconocido' }
 }
 
-// Función para generar external_reference determinístico (mantenida para compatibilidad)
+// Función para generar external_reference determinístico usando el generador oficial estandarizado
 const generateDeterministicReference = (userId: string, planId: string, subscriptionType: string) => {
-  return deduplicationService.generateDeterministicReference({
-    userId,
-    planId,
-    additionalData: { subscriptionType }
-  })
+  return makeExternalReferenceWithoutPreapproval(userId, planId, subscriptionType)
 }
 
 // Función para validar registros existentes con múltiples criterios

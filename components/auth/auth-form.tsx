@@ -208,8 +208,22 @@ export function AuthForm() {
           description: "Bienvenido de nuevo a Pet Gourmet",
         })
 
-        // Redirigir al perfil del usuario
-        router.push("/perfil")
+        // Manejar redirección después del login
+        const redirect = searchParams.get('redirect')
+        const mpParams = searchParams.get('mp_params')
+        
+        if (redirect) {
+          // Si hay parámetros de MP, reconstruir la URL completa
+          if (mpParams) {
+            const decodedParams = decodeURIComponent(mpParams)
+            router.push(`${redirect}?${decodedParams}`)
+          } else {
+            router.push(redirect)
+          }
+        } else {
+          // Redirigir al perfil por defecto
+          router.push("/perfil")
+        }
       }
     } catch (error: any) {
       console.error("Error de autenticación:", error)

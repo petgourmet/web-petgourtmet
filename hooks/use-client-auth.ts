@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/client"
 import { cacheService } from "@/utils/cache-service"
 import type { User } from "@supabase/supabase-js"
 
-// Constantes para optimización
-const TIMEOUT_MS = 3000 // Reducido a 3 segundos para mejor UX
-const MAX_RETRIES = 1 // Reducido a 1 reintento para evitar demoras
+// Constantes para optimización - Aumentado para evitar timeouts al regresar de Mercado Pago
+const TIMEOUT_MS = 15000 // Aumentado a 15 segundos para conexiones lentas desde MP
+const MAX_RETRIES = 3 // Aumentado a 3 reintentos para mayor robustez
+const MP_TIMEOUT_MS = 20000 // Timeout especial para retornos de Mercado Pago
 
 export function useClientAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -119,23 +120,44 @@ export function useClientAuth() {
       try {
         console.log('🔧 [useClientAuth] Iniciando carga de sesión...')
         
-        // Timeout de seguridad optimizado
+        // Detectar si venimos de Mercado Pago
+        const urlParams = new URLSearchParams(window.location.search)
+        const fromMP = urlParams.get('preapproval_id') || urlParams.get('external_reference') || urlParams.get('collection_id')
+        
+        if (fromMP) {
+          console.log('🏪 [useClientAuth] Detectado retorno de Mercado Pago:', { fromMP })
+        }
+        
+        // Timeout de seguridad optimizado - usar timeout especial para MP
+        const currentTimeout = fromMP ? MP_TIMEOUT_MS : TIMEOUT_MS
         timeoutId = setTimeout(() => {
           if (isMounted) {
-            console.warn(`⏰ [useClientAuth] Timeout: Forzando fin de carga después de ${TIMEOUT_MS/1000} segundos`)
+            console.warn(`⏰ [useClientAuth] Timeout: Forzando fin de carga después de ${currentTimeout/1000} segundos`, { fromMP })
             setLoading(false)
           }
-        }, TIMEOUT_MS)
+        }, currentTimeout)
         
-        // Intentar obtener sesión desde caché primero (necesitamos userId, así que saltamos el caché aquí)
-        // El caché de sesión se manejará después de obtener la sesión inicial
+        // Intentar obtener sesión desde caché primero si no venimos de MP
+        if (!fromMP) {
+          const cachedSession = cacheService.getUserSession('current')
+          if (cachedSession) {
+            console.log('📦 [useClientAuth] Sesión obtenida desde caché')
+            setUser(cachedSession.user)
+            const role = await getUserRole(cachedSession.user.id)
+            if (isMounted) {
+              setUserRole(role)
+              setLoading(false)
+            }
+            return
+          }
+        }
         
         console.log('📡 [useClientAuth] Obteniendo sesión desde Supabase...')
         
         // Usar Promise.race para timeout más eficiente en getSession
         const sessionPromise = supabase.auth.getSession()
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout obteniendo sesión')), TIMEOUT_MS)
+          setTimeout(() => reject(new Error('Timeout obteniendo sesión')), currentTimeout)
         })
 
         const { data: { session }, error } = await Promise.race([
@@ -164,6 +186,7 @@ export function useClientAuth() {
           
           // Guardar sesión en caché para futuras cargas
           cacheService.setUserSession(session.user.id, session)
+          cacheService.setUserSession('current', session) // Cache general para acceso rápido
           
           // Obtener rol del usuario
           const role = await getUserRole(session.user.id)
@@ -174,7 +197,8 @@ export function useClientAuth() {
           console.log('🚪 [useClientAuth] No hay sesión activa')
           setUser(null)
           setUserRole(null)
-          // No hay sesión que limpiar
+          // Limpiar caché de sesión
+          cacheService.setUserSession('current', null)
         }
       } catch (error) {
         console.error('💥 [useClientAuth] Error en loadInitialSession:', error)

@@ -130,10 +130,13 @@ export default function SubscriptionPlans({
     setCreatingSubscription(plan.id)
 
     try {
-      // Generar external_reference único con información del usuario usando formato consistente
-      const timestamp = Date.now()
-      const hash = timestamp.toString().slice(-8) // Últimos 8 dígitos del timestamp
-      const externalReference = `SUB-${userId}-${plan.id}-${hash}`
+      // Generar external_reference usando el generador oficial estandarizado
+      const { makeExternalReferenceWithoutPreapproval } = await import('@/utils/external-reference-generator')
+      const externalReference = makeExternalReferenceWithoutPreapproval(
+        userId || 'guest',
+        plan.id,
+        planToSubscriptionType(plan)
+      )
       
       // Crear suscripción sin plan usando la nueva API
       const subscriptionResponse = await fetch('/api/subscriptions/create-without-plan', {
