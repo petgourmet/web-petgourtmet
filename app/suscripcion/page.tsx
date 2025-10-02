@@ -79,16 +79,19 @@ export default function SuscripcionPage() {
         router.push("/login?redirect=/suscripcion")
         return
       } else {
-        // Si hay parámetros de MP pero no hay usuario, esperar más tiempo
-        console.log('⏳ Parámetros de MP detectados sin usuario, esperando más tiempo...', { hasMP, user: !!user })
-        setTimeout(() => {
-          if (!user) {
-            console.log('⚠️ Timeout esperando usuario con parámetros MP, redirigiendo a login con parámetros')
-            const currentUrl = window.location.href
-            const encodedUrl = encodeURIComponent(currentUrl.split('?')[1] || '')
-            router.push(`/login?redirect=/suscripcion&mp_params=${encodedUrl}`)
-          }
-        }, 8000) // Esperar 8 segundos adicionales para MP
+        // Si hay parámetros de MP pero no hay usuario, preservar TODOS los parámetros
+        console.log('⚠️ Parámetros de MP detectados sin usuario, redirigiendo a login preservando parámetros')
+        const currentParams = window.location.search
+        const fullRedirectUrl = `/suscripcion${currentParams}`
+        const encodedRedirectUrl = encodeURIComponent(fullRedirectUrl)
+        
+        console.log('🔗 Redirigiendo con parámetros preservados:', {
+          originalParams: currentParams,
+          fullRedirectUrl,
+          encodedRedirectUrl
+        })
+        
+        router.push(`/login?redirect=${encodedRedirectUrl}`)
         return
       }
     }

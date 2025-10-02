@@ -210,16 +210,18 @@ export function AuthForm() {
 
         // Manejar redirección después del login
         const redirect = searchParams.get('redirect')
-        const mpParams = searchParams.get('mp_params')
         
         if (redirect) {
-          // Si hay parámetros de MP, reconstruir la URL completa
-          if (mpParams) {
-            const decodedParams = decodeURIComponent(mpParams)
-            router.push(`${redirect}?${decodedParams}`)
-          } else {
-            router.push(redirect)
-          }
+          // Decodificar la URL de redirección que puede contener parámetros
+          const decodedRedirect = decodeURIComponent(redirect)
+          
+          console.log('🔗 Redirigiendo después del login:', {
+            originalRedirect: redirect,
+            decodedRedirect,
+            fullUrl: decodedRedirect
+          })
+          
+          router.push(decodedRedirect)
         } else {
           // Redirigir al perfil por defecto
           router.push("/perfil")
