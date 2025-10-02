@@ -1,230 +1,127 @@
+// app/api/cron/sync-subscriptions/route.ts
+// Endpoint de cron job para sincronizar automáticamente suscripciones pendientes
+
 import { NextRequest, NextResponse } from 'next/server'
-import { SubscriptionSyncService } from '@/lib/subscription-sync-service'
-import { createServiceClient } from '@/lib/supabase/service'
+import { MercadoPagoSyncService } from '@/lib/mercadopago-sync-service'
+import { logger, LogCategory } from '@/lib/logger'
 
-export const runtime = 'nodejs'
-export const maxDuration = 300 // 5 minutos máximo de ejecución
+// Configuración del cron job
+const CRON_SECRET = process.env.CRON_SECRET || 'default-secret'
+const STALE_THRESHOLD_MINUTES = parseInt(process.env.STALE_SUBSCRIPTION_THRESHOLD_MINUTES || '10')
 
-// Variable global para controlar ejecuciones concurrentes
-let lastExecution = 0
-const EXECUTION_COOLDOWN = 10 * 60 * 1000 // 10 minutos entre ejecuciones
-const subscriptionSyncService = new SubscriptionSyncService()
-
-/**
- * GET /api/cron/sync-subscriptions
- * Endpoint de cron para sincronización automática de suscripciones
- * 
- * Este endpoint debe ser configurado para ejecutarse cada 15 minutos
- * en el servicio de cron (Vercel Cron, GitHub Actions, etc.)
- */
 export async function GET(request: NextRequest) {
-  const executionId = `sync-${Date.now()}`
   const startTime = Date.now()
   
   try {
-    console.log(`🕐 [CRON-${executionId}] Iniciando sincronización automática...`)
-    
-    // Verificar autorización del cron (opcional)
+    // Verificar autorización del cron job
     const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
+    const cronSecret = request.headers.get('x-cron-secret')
     
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      console.warn(`⚠️ [CRON-${executionId}] Intento de acceso no autorizado`)
+    if (cronSecret !== CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+      logger.warn(LogCategory.SUBSCRIPTION, 'Intento de acceso no autorizado al cron job de sincronización', {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown'
+      })
+      
       return NextResponse.json(
-        { error: 'Unauthorized cron access' },
+        { error: 'No autorizado' },
         { status: 401 }
       )
     }
 
-    // Verificar cooldown para evitar ejecuciones muy frecuentes
-    const now = Date.now()
-    if (now - lastExecution < EXECUTION_COOLDOWN) {
-      const remainingTime = Math.ceil((EXECUTION_COOLDOWN - (now - lastExecution)) / 1000 / 60)
-      console.log(`⏳ [CRON-${executionId}] Cooldown activo. Próxima ejecución en ${remainingTime} minutos`)
-      
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        reason: 'cooldown_active',
-        next_execution_in_minutes: remainingTime,
-        timestamp: new Date().toISOString()
-      })
-    }
-
-    // Verificar si ya hay una sincronización en curso
-    if (subscriptionSyncService.isCurrentlyRunning()) {
-      console.warn(`⚠️ [CRON-${executionId}] Sincronización ya en curso, saltando ejecución`)
-      
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        reason: 'sync_in_progress',
-        timestamp: new Date().toISOString()
-      })
-    }
-
-    // Actualizar timestamp de última ejecución
-    lastExecution = now
-
-    // Registrar inicio de ejecución
-    await logCronExecution(executionId, 'started')
-
-    console.log(`🚀 [CRON-${executionId}] Ejecutando sincronización completa...`)
-    
-    // Ejecutar sincronización
-    const syncResult = await subscriptionSyncService.syncAllSubscriptions()
-    
-    const executionTime = Date.now() - startTime
-    
-    // Registrar finalización exitosa
-    await logCronExecution(executionId, 'completed', {
-      total_processed: syncResult.total_processed,
-      updated_count: syncResult.updated_count,
-      error_count: syncResult.error_count,
-      execution_time_ms: executionTime
+    logger.info(LogCategory.SUBSCRIPTION, '🚀 Iniciando cron job de sincronización de suscripciones', {
+      staleThresholdMinutes: STALE_THRESHOLD_MINUTES
     })
 
-    console.log(`✅ [CRON-${executionId}] Sincronización completada en ${executionTime}ms`)
-    console.log(`📊 [CRON-${executionId}] Resultados: ${syncResult.updated_count}/${syncResult.total_processed} actualizadas, ${syncResult.error_count} errores`)
-    
-    // Obtener estadísticas actualizadas
-    const stats = await subscriptionSyncService.getSyncStats()
+    // Inicializar servicio de sincronización
+    const syncService = new MercadoPagoSyncService()
 
-    return NextResponse.json({
+    // Sincronizar suscripciones obsoletas (prioritarias)
+    const staleResults = await syncService.syncStaleSubscriptions(STALE_THRESHOLD_MINUTES)
+    
+    // Si hay tiempo y recursos, sincronizar todas las pendientes
+    let allResults = { synced: 0, errors: 0, total: 0 }
+    const elapsedTime = Date.now() - startTime
+    
+    // Solo sincronizar todas si el proceso de obsoletas fue rápido (< 30 segundos)
+    if (elapsedTime < 30000) {
+      logger.info(LogCategory.SUBSCRIPTION, 'Sincronizando todas las suscripciones pendientes restantes')
+      allResults = await syncService.syncAllPendingSubscriptions()
+    } else {
+      logger.info(LogCategory.SUBSCRIPTION, 'Saltando sincronización completa por tiempo límite', {
+        elapsedTime: `${elapsedTime}ms`
+      })
+    }
+
+    const totalDuration = Date.now() - startTime
+    
+    // Preparar respuesta
+    const response = {
       success: true,
-      execution_id: executionId,
       timestamp: new Date().toISOString(),
-      execution_time_ms: executionTime,
-      sync_result: syncResult,
-      stats,
-      next_scheduled_execution: new Date(now + 15 * 60 * 1000).toISOString()
-    })
+      duration: `${totalDuration}ms`,
+      staleSubscriptions: {
+        total: staleResults.total,
+        synced: staleResults.synced,
+        errors: staleResults.errors
+      },
+      allSubscriptions: {
+        total: allResults.total,
+        synced: allResults.synced,
+        errors: allResults.errors
+      },
+      summary: {
+        totalProcessed: staleResults.total + allResults.total,
+        totalSynced: staleResults.synced + allResults.synced,
+        totalErrors: staleResults.errors + allResults.errors
+      }
+    }
 
-  } catch (error) {
-    const executionTime = Date.now() - startTime
+    // Log del resultado
+    if (response.summary.totalSynced > 0) {
+      logger.info(LogCategory.SUBSCRIPTION, '✅ Cron job completado exitosamente con activaciones', {
+        ...response.summary,
+        duration: totalDuration
+      })
+    } else if (response.summary.totalProcessed > 0) {
+      logger.info(LogCategory.SUBSCRIPTION, '⚠️ Cron job completado sin activaciones', {
+        ...response.summary,
+        duration: totalDuration
+      })
+    } else {
+      logger.info(LogCategory.SUBSCRIPTION, '✅ Cron job completado - no hay suscripciones pendientes', {
+        duration: totalDuration
+      })
+    }
+
+    return NextResponse.json(response)
+
+  } catch (error: any) {
+    const duration = Date.now() - startTime
     
-    console.error(`❌ [CRON-${executionId}] Error en sincronización automática:`, error)
-    
-    // Registrar error
-    await logCronExecution(executionId, 'failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      execution_time_ms: executionTime
+    logger.error(LogCategory.SUBSCRIPTION, '❌ Error en cron job de sincronización', {
+      error: error.message,
+      stack: error.stack,
+      duration: `${duration}ms`
     })
 
     return NextResponse.json(
       {
         success: false,
-        execution_id: executionId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Error interno del servidor',
         timestamp: new Date().toISOString(),
-        execution_time_ms: executionTime
+        duration: `${duration}ms`
       },
       { status: 500 }
     )
   }
 }
 
-/**
- * POST /api/cron/sync-subscriptions
- * Endpoint alternativo para forzar ejecución inmediata (bypass cooldown)
- */
+// También permitir POST para flexibilidad
 export async function POST(request: NextRequest) {
-  const executionId = `force-sync-${Date.now()}`
-  
-  try {
-    console.log(`🔥 [CRON-${executionId}] Forzando sincronización inmediata...`)
-    
-    // Verificar autorización más estricta para POST
-    const authHeader = request.headers.get('authorization')
-    const adminSecret = process.env.ADMIN_SECRET || process.env.CRON_SECRET
-    
-    if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-      console.warn(`⚠️ [CRON-${executionId}] Intento de acceso no autorizado para forzar sync`)
-      return NextResponse.json(
-        { error: 'Unauthorized force sync access' },
-        { status: 401 }
-      )
-    }
-
-    // Verificar si ya hay una sincronización en curso
-    if (subscriptionSyncService.isCurrentlyRunning()) {
-      return NextResponse.json(
-        { 
-          error: 'Sync already in progress',
-          message: 'Una sincronización ya está en curso'
-        },
-        { status: 409 }
-      )
-    }
-
-    // Resetear cooldown para permitir ejecución inmediata
-    lastExecution = 0
-    
-    // Ejecutar sincronización
-    const syncResult = await subscriptionSyncService.syncAllSubscriptions()
-    
-    // Actualizar timestamp después de ejecución exitosa
-    lastExecution = Date.now()
-    
-    await logCronExecution(executionId, 'force_completed', {
-      total_processed: syncResult.total_processed,
-      updated_count: syncResult.updated_count,
-      error_count: syncResult.error_count
-    })
-
-    console.log(`✅ [CRON-${executionId}] Sincronización forzada completada`)
-    
-    return NextResponse.json({
-      success: true,
-      execution_id: executionId,
-      forced: true,
-      timestamp: new Date().toISOString(),
-      sync_result: syncResult
-    })
-
-  } catch (error) {
-    console.error(`❌ [CRON-${executionId}] Error en sincronización forzada:`, error)
-    
-    await logCronExecution(executionId, 'force_failed', {
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
-
-    return NextResponse.json(
-      {
-        success: false,
-        execution_id: executionId,
-        forced: true,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    )
-  }
+  return GET(request)
 }
 
-/**
- * Registra las ejecuciones del cron en la base de datos
- */
-async function logCronExecution(
-  executionId: string, 
-  status: 'started' | 'completed' | 'failed' | 'force_completed' | 'force_failed',
-  metadata?: any
-): Promise<void> {
-  try {
-    const client = createServiceClient()
-    
-    await client
-      .from('cron_logs')
-      .insert({
-        execution_id: executionId,
-        job_name: 'sync-subscriptions',
-        status,
-        metadata: metadata || {},
-        created_at: new Date().toISOString()
-      })
-      
-  } catch (error) {
-    console.error(`❌ Error logging cron execution ${executionId}:`, error)
-    // No lanzar error para no interrumpir la ejecución principal
-  }
-}
+// Configuración de runtime para evitar timeouts
+export const runtime = 'nodejs'
+export const maxDuration = 60 // 60 segundos máximo

@@ -147,60 +147,95 @@ export async function POST(request: NextRequest) {
       console.log('⚠️ Modo desarrollo - omitiendo validación de firma')
     }
 
-    // Procesar según el tipo de webhook
+    // Procesar según el tipo de webhook con retry automático
     let processed = false
+    const maxRetries = 3
+    let retryCount = 0
 
-    switch (webhookData.type) {
-      case 'payment':
-        console.log('💳 Procesando webhook de pago')
-        processed = await webhookService.processPaymentWebhook(webhookData)
-        break
+    while (!processed && retryCount < maxRetries) {
+      try {
+        switch (webhookData.type) {
+          case 'payment':
+            console.log(`💳 Procesando webhook de pago (intento ${retryCount + 1}/${maxRetries})`)
+            processed = await webhookService.processPaymentWebhook(webhookData)
+            break
 
-      case 'subscription_preapproval':
-      case 'subscription_authorized_payment':
-        console.log('📋 Procesando webhook de suscripción con activación automática mejorada')
-        console.log('🔍 Detalles del webhook:', {
-          type: webhookData.type,
-          action: webhookData.action,
-          dataId: webhookData.data?.id,
-          liveMode: webhookData.live_mode,
-          timestamp: new Date().toISOString()
-        })
-        
-        // Procesar con el servicio mejorado
-        processed = await webhookService.processSubscriptionWebhook(webhookData)
-        
-        // Log adicional para seguimiento
-        if (processed) {
-          console.log('✅ Webhook de suscripción procesado exitosamente con activación automática')
-        } else {
-          console.warn('⚠️ Webhook de suscripción procesado con advertencias')
+          case 'subscription_preapproval':
+          case 'subscription_authorized_payment':
+            console.log(`📋 Procesando webhook de suscripción con activación automática mejorada (intento ${retryCount + 1}/${maxRetries})`)
+            console.log('🔍 Detalles del webhook:', {
+              type: webhookData.type,
+              action: webhookData.action,
+              dataId: webhookData.data?.id,
+              liveMode: webhookData.live_mode,
+              timestamp: new Date().toISOString(),
+              retryAttempt: retryCount + 1
+            })
+            
+            // Procesar con el servicio mejorado
+            processed = await webhookService.processSubscriptionWebhook(webhookData)
+            
+            // Log adicional para seguimiento
+            if (processed) {
+              console.log(`✅ Webhook de suscripción procesado exitosamente con activación automática (intento ${retryCount + 1})`)
+            } else {
+              console.warn(`⚠️ Webhook de suscripción falló en intento ${retryCount + 1}`)
+            }
+            break
+
+          case 'plan':
+            console.log('📋 Webhook de plan recibido (no procesado)')
+            processed = true // Los planes no requieren procesamiento especial
+            break
+
+          case 'invoice':
+            console.log('🧾 Webhook de factura recibido (no procesado)')
+            processed = true // Las facturas no requieren procesamiento especial
+            break
+
+          case 'topic_merchant_order_wh':
+            console.log('🛒 Webhook de merchant order recibido')
+            console.log('📦 Datos de merchant order:', {
+              id: webhookData.id,
+              status: webhookData.status || webhookData.data?.status,
+              action: webhookData.action
+            })
+            processed = true // Merchant orders se procesan exitosamente
+            break
+
+          default:
+            console.log(`ℹ️ Tipo de webhook no manejado: ${webhookData.type}`)
+            processed = true // No fallar por tipos desconocidos
         }
-        break
 
-      case 'plan':
-        console.log('📋 Webhook de plan recibido (no procesado)')
-        processed = true // Los planes no requieren procesamiento especial
-        break
-
-      case 'invoice':
-        console.log('🧾 Webhook de factura recibido (no procesado)')
-        processed = true // Las facturas no requieren procesamiento especial
-        break
-
-      case 'topic_merchant_order_wh':
-        console.log('🛒 Webhook de merchant order recibido')
-        console.log('📦 Datos de merchant order:', {
-          id: webhookData.id,
-          status: webhookData.status || webhookData.data?.status,
-          action: webhookData.action
-        })
-        processed = true // Merchant orders se procesan exitosamente
-        break
-
-      default:
-        console.log(`ℹ️ Tipo de webhook no manejado: ${webhookData.type}`)
-        processed = true // No fallar por tipos desconocidos
+        // Si no se procesó correctamente y aún hay intentos disponibles
+        if (!processed && retryCount < maxRetries - 1) {
+          retryCount++
+          const delayMs = Math.pow(2, retryCount) * 1000 // Backoff exponencial: 2s, 4s, 8s
+          console.log(`⏳ Reintentando procesamiento en ${delayMs}ms (intento ${retryCount + 1}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        } else {
+          break
+        }
+      } catch (error) {
+        console.error(`❌ Error en intento ${retryCount + 1} de procesamiento de webhook:`, error)
+        
+        if (retryCount < maxRetries - 1) {
+          retryCount++
+          const delayMs = Math.pow(2, retryCount) * 1000 // Backoff exponencial
+          console.log(`⏳ Reintentando tras error en ${delayMs}ms (intento ${retryCount + 1}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        } else {
+          // Último intento falló, registrar error crítico
+          console.error('❌ Todos los intentos de procesamiento fallaron:', {
+            type: webhookData.type,
+            dataId: webhookData.data?.id,
+            error: error instanceof Error ? error.message : 'Error desconocido',
+            totalAttempts: maxRetries
+          })
+          break
+        }
+      }
     }
 
     if (processed) {

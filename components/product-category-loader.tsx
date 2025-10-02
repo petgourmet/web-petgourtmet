@@ -68,9 +68,9 @@ const FALLBACK_PRODUCTS: Record<string, Product[]> = {
 // Mapeo de categorías para la consulta a la base de datos
 const CATEGORY_MAPPING: Record<string, { name: string; displayName: string; searchPattern: string }> = {
   all: { name: "all", displayName: "Todos los Productos", searchPattern: "%" },
-  celebrar: { name: "celebrar", displayName: "Para Celebrar", searchPattern: "%celebrar%" },
-  complementar: { name: "complementar", displayName: "Para Complementar", searchPattern: "%complementar%" },
-  premiar: { name: "premiar", displayName: "Para Premiar", searchPattern: "%premi%" },
+  celebrar: { name: "celebrar", displayName: "Para Celebrar", searchPattern: "Para Celebrar" },
+  complementar: { name: "complementar", displayName: "Para Complementar", searchPattern: "Para Complementar" },
+  premiar: { name: "premiar", displayName: "Para Premiar", searchPattern: "Para Premiar" },
   recetas: { name: "recetas", displayName: "Nuestras Recetas", searchPattern: "%receta%" },
 }
 
@@ -172,8 +172,8 @@ export function ProductCategoryLoader({
           // Obtener el ID de la categoría con timeout
           const categoryPromise = supabase
             .from("categories")
-            .select("id")
-            .ilike("name", categoryInfo.searchPattern)
+            .select("id, name")
+            .eq("name", categoryInfo.searchPattern)
             .limit(1)
 
           const { data: categoryData, error: categoryError } = await categoryPromise
@@ -182,6 +182,9 @@ export function ProductCategoryLoader({
             console.error("❌ [ProductLoader] Error al obtener la categoría:", categoryError.message)
           } else if (categoryData && categoryData.length > 0) {
             categoryId = categoryData[0].id
+            console.log(`✅ [ProductLoader] Categoría encontrada: ${categoryData[0].name} (ID: ${categoryId})`)
+          } else {
+            console.warn(`⚠️ [ProductLoader] No se encontró categoría con nombre: ${categoryInfo.searchPattern}`)
           }
         }
 

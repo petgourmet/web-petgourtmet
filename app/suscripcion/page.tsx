@@ -58,6 +58,7 @@ export default function SuscripcionPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isApproved, setIsApproved] = useState(false)
+  const [autoVerificationInProgress, setAutoVerificationInProgress] = useState(false)
 
   useEffect(() => {
     // Verificar si hay parámetros de Mercado Pago antes de redirigir
@@ -399,10 +400,93 @@ export default function SuscripcionPage() {
       if (subscriptions && subscriptions.length > 0) {
         await updateUserProfile()
       }
+
+      // Verificar si hay suscripciones pendientes que necesiten auto-verificación
+      await checkAndAutoVerifyPendingSubscriptions()
     } catch (error) {
       console.error("Error al cargar suscripciones:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Nueva función para auto-verificación de suscripciones pendientes
+  const checkAndAutoVerifyPendingSubscriptions = async () => {
+    if (!user?.id || autoVerificationInProgress) return
+
+    try {
+      // Buscar suscripciones pendientes del usuario
+      const { data: pendingSubscriptions, error } = await supabase
+        .from("unified_subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .not('mercadopago_subscription_id', 'is', null)
+
+      if (error || !pendingSubscriptions || pendingSubscriptions.length === 0) {
+        return
+      }
+
+      console.log(`🔍 Encontradas ${pendingSubscriptions.length} suscripciones pendientes para auto-verificación`)
+
+      // Filtrar suscripciones que llevan más de 2 minutos pendientes
+      const now = new Date()
+      const staleThreshold = 2 * 60 * 1000 // 2 minutos en millisegundos
+      
+      const staleSubscriptions = pendingSubscriptions.filter(sub => {
+        const createdAt = new Date(sub.created_at)
+        const timeDiff = now.getTime() - createdAt.getTime()
+        return timeDiff > staleThreshold
+      })
+
+      if (staleSubscriptions.length === 0) {
+        console.log('⏳ Suscripciones pendientes encontradas pero aún no han pasado 2 minutos')
+        return
+      }
+
+      console.log(`⚡ Iniciando auto-verificación para ${staleSubscriptions.length} suscripciones pendientes`)
+      setAutoVerificationInProgress(true)
+
+      // Verificar cada suscripción pendiente
+      for (const subscription of staleSubscriptions) {
+        try {
+          console.log(`🔄 Auto-verificando suscripción ${subscription.id}...`)
+          
+          const response = await fetch('/api/subscriptions/verify-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              subscriptionId: subscription.id
+            })
+          })
+
+          const result = await response.json()
+          
+          if (result.success && result.statusChanged) {
+            console.log(`✅ Suscripción ${subscription.id} verificada y actualizada automáticamente`)
+            toast({
+              title: "Suscripción activada automáticamente",
+              description: `Tu suscripción de ${subscription.product_name} ha sido activada`,
+            })
+          } else {
+            console.log(`⏳ Suscripción ${subscription.id} aún pendiente en MercadoPago`)
+          }
+        } catch (error) {
+          console.error(`❌ Error auto-verificando suscripción ${subscription.id}:`, error)
+        }
+      }
+
+      // Recargar suscripciones después de la verificación
+      setTimeout(() => {
+        loadUserSubscriptions()
+      }, 1000)
+
+    } catch (error) {
+      console.error('❌ Error en auto-verificación de suscripciones pendientes:', error)
+    } finally {
+      setAutoVerificationInProgress(false)
     }
   }
 
