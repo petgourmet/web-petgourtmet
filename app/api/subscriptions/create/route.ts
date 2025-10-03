@@ -87,8 +87,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (external_reference || !preapproval_plan_id) {
-      const timestamp = Date.now().toString().slice(-8)
-      subscriptionData.external_reference = external_reference || `SUB-${user_id || 'guest'}-default-${timestamp}`
+      // Usar external_reference proporcionado o generar uno determinístico
+      // que incluya información para búsqueda posterior
+      if (external_reference) {
+        subscriptionData.external_reference = external_reference
+      } else {
+        // Generar external_reference que incluya user_id y product_id para búsqueda
+        const timestamp = Date.now().toString().slice(-8)
+        subscriptionData.external_reference = `SUB-${user_id || 'guest'}-${product_id || 'default'}-${timestamp}`
+      }
     }
 
     if (card_token_id) {
@@ -140,6 +147,16 @@ export async function POST(request: NextRequest) {
     // Guardar en base de datos local si hay user_id
     if (user_id) {
       try {
+        // Crear metadata con información de mapeo para búsqueda posterior
+        const metadata = {
+          mercadopago_subscription_id: result.id,
+          mercadopago_external_reference: result.external_reference,
+          user_id: user_id,
+          product_id: product_id,
+          creation_timestamp: Date.now(),
+          creation_source: 'api_create'
+        }
+
         const { data: subscription, error: dbError } = await supabase
           .from('unified_subscriptions')
           .insert({
@@ -164,6 +181,7 @@ export async function POST(request: NextRequest) {
             discounted_price: discounted_price || (result.auto_recurring?.transaction_amount || 0),
             discount_percentage: discount_percentage || null,
             quantity: quantity,
+            metadata: JSON.stringify(metadata),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })

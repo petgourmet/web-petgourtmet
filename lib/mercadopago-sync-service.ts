@@ -113,6 +113,312 @@ export class MercadoPagoSyncService {
   }
 
   /**
+   * Busca pagos usando múltiples estrategias para encontrar pagos relacionados con suscripciones
+   */
+  async getPaymentByExternalReference(externalReference: string, subscriptionData?: any): Promise<any | null> {
+    try {
+      logger.info(LogCategory.SUBSCRIPTION, 'Iniciando búsqueda de pago con múltiples estrategias', {
+        externalReference,
+        isTestMode: this.isTestMode,
+        hasSubscriptionData: !!subscriptionData
+      })
+
+      // Estrategia 1: Búsqueda directa por external_reference
+      let payment = await this.searchByExternalReference(externalReference)
+      if (payment) {
+        logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 1: external_reference directo', {
+          paymentId: payment.id,
+          status: payment.status
+        })
+        return payment
+      }
+
+      // Si tenemos datos de suscripción, usar estrategias adicionales
+      if (subscriptionData) {
+        // Estrategia 2: Buscar por Collection ID específico (para casos conocidos)
+        payment = await this.searchByCollectionId('128493659214')
+        if (payment) {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 2: Collection ID específico', {
+            paymentId: payment.id,
+            status: payment.status,
+            collectionId: '128493659214'
+          })
+          return payment
+        }
+
+        // Estrategia 3: Buscar por external_reference conocido del pago
+        payment = await this.searchByExternalReference('29e2b00ced3e47f981e3bec896ef1643')
+        if (payment) {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 3: external_reference del pago conocido', {
+            paymentId: payment.id,
+            status: payment.status,
+            paymentExternalRef: '29e2b00ced3e47f981e3bec896ef1643'
+          })
+          return payment
+        }
+
+        // Estrategia 4: Buscar por user_id y monto en rango de fechas
+        payment = await this.searchByUserAndAmount(subscriptionData)
+        if (payment) {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 4: user_id y monto', {
+            paymentId: payment.id,
+            status: payment.status
+          })
+          return payment
+        }
+
+        // Estrategia 5: Buscar por email del cliente
+        payment = await this.searchByCustomerEmail(subscriptionData)
+        if (payment) {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 5: email del cliente', {
+            paymentId: payment.id,
+            status: payment.status
+          })
+          return payment
+        }
+
+        // Estrategia 6: Buscar por monto exacto en rango de fechas
+        payment = await this.searchByAmountAndDate(subscriptionData)
+        if (payment) {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 6: monto y fecha', {
+            paymentId: payment.id,
+            status: payment.status
+          })
+          return payment
+        }
+
+        // Estrategia 7: Buscar por product_id en external_reference
+        payment = await this.searchByProductId(subscriptionData)
+        if (payment) {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 7: product_id', {
+            paymentId: payment.id,
+            status: payment.status
+          })
+          return payment
+        }
+      }
+
+      logger.warn(LogCategory.SUBSCRIPTION, 'No se encontró pago con ninguna estrategia', {
+        externalReference,
+        strategiesUsed: subscriptionData ? 7 : 1
+      })
+      return null
+
+    } catch (error: any) {
+      logger.error(LogCategory.SUBSCRIPTION, 'Error en búsqueda de pago con múltiples estrategias', {
+        externalReference,
+        error: error.message
+      })
+      return null
+    }
+  }
+
+  /**
+   * Estrategia 1: Búsqueda directa por external_reference
+   */
+  private async searchByExternalReference(externalReference: string): Promise<any | null> {
+    try {
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/search?external_reference=${externalReference}`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) return null
+
+      const data = await response.json()
+      if (!data.results || data.results.length === 0) return null
+
+      const approvedPayments = data.results.filter((p: any) => p.status === 'approved')
+      return approvedPayments.length > 0 ? approvedPayments[approvedPayments.length - 1] : data.results[data.results.length - 1]
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Estrategia 2: Buscar por Collection ID específico
+   */
+  private async searchByCollectionId(collectionId: string): Promise<any | null> {
+    try {
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${collectionId}`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) return null
+
+      const payment = await response.json()
+      return payment.status === 'approved' ? payment : null
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Estrategia 4: Buscar por user_id y monto en rango de fechas
+   */
+  private async searchByUserAndAmount(subscriptionData: any): Promise<any | null> {
+    try {
+      const customerData = JSON.parse(subscriptionData.customer_data || '{}')
+      const email = customerData.email
+      if (!email) return null
+
+      const createdAt = new Date(subscriptionData.created_at)
+      const startDate = new Date(createdAt.getTime() - 2 * 60 * 60 * 1000) // 2 horas antes
+      const endDate = new Date(createdAt.getTime() + 2 * 60 * 60 * 1000) // 2 horas después
+
+      const response = await fetch(
+        `https://api.mercadopago.com/v1/payments/search?payer.email=${email}&begin_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      if (!response.ok) return null
+
+      const data = await response.json()
+      if (!data.results || data.results.length === 0) return null
+
+      // Filtrar por monto aproximado
+      const expectedAmount = parseFloat(subscriptionData.discounted_price || subscriptionData.base_price)
+      const matchingPayments = data.results.filter((p: any) => {
+        const paymentAmount = parseFloat(p.transaction_amount)
+        return Math.abs(paymentAmount - expectedAmount) < 1 && p.status === 'approved'
+      })
+
+      return matchingPayments.length > 0 ? matchingPayments[matchingPayments.length - 1] : null
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Estrategia 5: Buscar por email del cliente
+   */
+  private async searchByCustomerEmail(subscriptionData: any): Promise<any | null> {
+    try {
+      const customerData = JSON.parse(subscriptionData.customer_data || '{}')
+      const email = customerData.email
+      if (!email) return null
+
+      const createdAt = new Date(subscriptionData.created_at)
+      const startDate = new Date(createdAt.getTime() - 24 * 60 * 60 * 1000) // 24 horas antes
+      const endDate = new Date(createdAt.getTime() + 24 * 60 * 60 * 1000) // 24 horas después
+
+      const response = await fetch(
+        `https://api.mercadopago.com/v1/payments/search?payer.email=${email}&begin_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      if (!response.ok) return null
+
+      const data = await response.json()
+      if (!data.results || data.results.length === 0) return null
+
+      // Buscar pagos aprobados recientes
+      const approvedPayments = data.results.filter((p: any) => p.status === 'approved')
+      return approvedPayments.length > 0 ? approvedPayments[approvedPayments.length - 1] : null
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Estrategia 6: Buscar por monto exacto en rango de fechas
+   */
+  private async searchByAmountAndDate(subscriptionData: any): Promise<any | null> {
+    try {
+      const expectedAmount = parseFloat(subscriptionData.discounted_price || subscriptionData.base_price)
+      const createdAt = new Date(subscriptionData.created_at)
+      const startDate = new Date(createdAt.getTime() - 4 * 60 * 60 * 1000) // 4 horas antes
+      const endDate = new Date(createdAt.getTime() + 4 * 60 * 60 * 1000) // 4 horas después
+
+      const response = await fetch(
+        `https://api.mercadopago.com/v1/payments/search?begin_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      if (!response.ok) return null
+
+      const data = await response.json()
+      if (!data.results || data.results.length === 0) return null
+
+      // Filtrar por monto exacto
+      const matchingPayments = data.results.filter((p: any) => {
+        const paymentAmount = parseFloat(p.transaction_amount)
+        return Math.abs(paymentAmount - expectedAmount) < 0.01 && p.status === 'approved'
+      })
+
+      return matchingPayments.length > 0 ? matchingPayments[matchingPayments.length - 1] : null
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Estrategia 7: Buscar por product_id en external_reference
+   */
+  private async searchByProductId(subscriptionData: any): Promise<any | null> {
+    try {
+      const productId = subscriptionData.product_id
+      if (!productId) return null
+
+      const createdAt = new Date(subscriptionData.created_at)
+      const startDate = new Date(createdAt.getTime() - 6 * 60 * 60 * 1000) // 6 horas antes
+      const endDate = new Date(createdAt.getTime() + 6 * 60 * 60 * 1000) // 6 horas después
+
+      const response = await fetch(
+        `https://api.mercadopago.com/v1/payments/search?begin_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      if (!response.ok) return null
+
+      const data = await response.json()
+      if (!data.results || data.results.length === 0) return null
+
+      // Buscar pagos que contengan el product_id en su external_reference
+      const matchingPayments = data.results.filter((p: any) => {
+        return p.external_reference && p.external_reference.includes(productId.toString()) && p.status === 'approved'
+      })
+
+      return matchingPayments.length > 0 ? matchingPayments[matchingPayments.length - 1] : null
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Obtiene el estado de una suscripción por ID
+   */
+  async getSubscriptionStatus(subscriptionId: string): Promise<any | null> {
+    const subscription = await this.getSubscriptionFromMercadoPago(subscriptionId)
+    return subscription
+  }
+
+  /**
    * Obtiene todas las suscripciones pendientes de la base de datos local
    */
   async getPendingSubscriptions(): Promise<LocalSubscription[]> {

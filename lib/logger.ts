@@ -157,7 +157,52 @@ class Logger {
   }
 
   subscriptionEvent(subscriptionId: string, event: string, data?: any) {
-    this.info(LogCategory.SUBSCRIPTION, `Evento de suscripción: ${event}`, data, { subscriptionId });
+    this.info(LogCategory.SUBSCRIPTION, `Subscription ${event}`, data, { subscriptionId });
+  }
+
+  // 🔥 MÉTODOS ESPECÍFICOS PARA DEBUGGING DE ACTIVACIÓN AUTOMÁTICA
+  subscriptionActivationAttempt(subscriptionId: string, method: string, data?: any) {
+    this.info(LogCategory.SUBSCRIPTION, `🔄 ACTIVACIÓN INTENTO: Suscripción ${subscriptionId} via ${method}`, data, { subscriptionId });
+  }
+
+  subscriptionActivationSuccess(subscriptionId: string, method: string, previousStatus: string, data?: any) {
+    this.info(LogCategory.SUBSCRIPTION, `✅ ACTIVACIÓN EXITOSA: Suscripción ${subscriptionId} via ${method} (${previousStatus} → active)`, data, { subscriptionId });
+  }
+
+  subscriptionActivationFailed(subscriptionId: string, method: string, error: string, data?: any) {
+    this.error(LogCategory.SUBSCRIPTION, `❌ ACTIVACIÓN FALLIDA: Suscripción ${subscriptionId} via ${method}`, error, data, { subscriptionId });
+  }
+
+  subscriptionPollingCheck(totalFound: number, processed: number, activated: number, duration: string) {
+    this.info(LogCategory.SUBSCRIPTION, `⚡ POLLING CHECK: ${totalFound} encontradas, ${processed} procesadas, ${activated} activadas (${duration})`, {
+      totalFound,
+      processed,
+      activated,
+      duration
+    });
+  }
+
+  subscriptionWebhookBackup(totalFound: number, processed: number, activated: number, duration: string) {
+    this.info(LogCategory.SUBSCRIPTION, `🔄 WEBHOOK BACKUP: ${totalFound} encontradas, ${processed} procesadas, ${activated} activadas (${duration})`, {
+      totalFound,
+      processed,
+      activated,
+      duration
+    });
+  }
+
+  subscriptionRealTimeVerification(subscriptionId: string, status: 'started' | 'checking' | 'found_pending' | 'activated' | 'stopped', data?: any) {
+    const emoji = status === 'started' ? '🚀' : status === 'checking' ? '🔍' : status === 'found_pending' ? '⏳' : status === 'activated' ? '✅' : '🛑';
+    this.info(LogCategory.SUBSCRIPTION, `${emoji} TIEMPO REAL: ${status.toUpperCase()} - Suscripción ${subscriptionId}`, data, { subscriptionId });
+  }
+
+  mercadoPagoSyncAttempt(subscriptionId: string, externalReference: string, data?: any) {
+    this.info(LogCategory.PAYMENT, `🔄 MP SYNC: Verificando suscripción ${subscriptionId} con ref ${externalReference}`, data, { subscriptionId });
+  }
+
+  mercadoPagoSyncResult(subscriptionId: string, mpStatus: string, updated: boolean, data?: any) {
+    const emoji = updated ? '✅' : '⏳';
+    this.info(LogCategory.PAYMENT, `${emoji} MP SYNC RESULTADO: Suscripción ${subscriptionId} - MP Status: ${mpStatus}, Actualizada: ${updated}`, data, { subscriptionId });
   }
 
   orderStatusChanged(orderId: string, oldStatus: string, newStatus: string, userId?: string) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { supabase } from "@/lib/supabase/client"
@@ -59,6 +59,11 @@ export default function SuscripcionPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [isApproved, setIsApproved] = useState(false)
   const [autoVerificationInProgress, setAutoVerificationInProgress] = useState(false)
+  
+  // Estados para verificación automática en tiempo real
+  const [realTimeVerificationActive, setRealTimeVerificationActive] = useState(false)
+  const [lastVerificationTime, setLastVerificationTime] = useState<Date | null>(null)
+  const [verificationInterval, setVerificationInterval] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     // Verificar si hay parámetros de Mercado Pago antes de redirigir
@@ -177,6 +182,21 @@ export default function SuscripcionPage() {
       }
     }
   }, [user, loading, router])
+
+  // Iniciar verificación automática cuando el usuario carga la página
+  useEffect(() => {
+    if (user?.id && !loading && !realTimeVerificationActive) {
+      // Esperar 2 segundos antes de iniciar para permitir que se carguen las suscripciones
+      setTimeout(() => {
+        startRealTimeVerification()
+      }, 2000)
+    }
+
+    // Cleanup al desmontar el componente
+    return () => {
+      stopRealTimeVerification()
+    }
+  }, [user?.id, loading, realTimeVerificationActive])
 
   // Función para validar si los parámetros de MercadoPago son válidos
   const hasValidMercadoPagoParams = (urlParams: URLSearchParams): boolean => {
@@ -358,7 +378,7 @@ export default function SuscripcionPage() {
     try {
       setIsLoading(true)
 
-      
+      // Cargar TODAS las suscripciones (activas Y pendientes) para mostrar estado completo
       const { data: subscriptions, error } = await supabase
         .from("unified_subscriptions")
         .select(`
@@ -374,7 +394,7 @@ export default function SuscripcionPage() {
           )
         `)
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .in("status", ["active", "pending"])
         .order("created_at", { ascending: false })
         .returns<UserSubscription[]>()
 
@@ -400,9 +420,16 @@ export default function SuscripcionPage() {
       setSubscriptions(mappedSubscriptions)
       
       // Si el usuario tiene suscripciones activas, actualizar su perfil
-      if (subscriptions && subscriptions.length > 0) {
+      const activeSubscriptions = mappedSubscriptions.filter(sub => sub.status === 'active')
+      if (activeSubscriptions.length > 0) {
         await updateUserProfile()
       }
+
+      // Log para debugging
+      const pendingCount = mappedSubscriptions.filter(sub => sub.status === 'pending').length
+      const activeCount = mappedSubscriptions.filter(sub => sub.status === 'active').length
+      
+      console.log(`📊 Suscripciones cargadas: ${activeCount} activas, ${pendingCount} pendientes`)
 
       // Verificar si hay suscripciones pendientes que necesiten auto-verificación
       await checkAndAutoVerifyPendingSubscriptions()
@@ -412,6 +439,98 @@ export default function SuscripcionPage() {
       setIsLoading(false)
     }
   }
+
+  // Nueva función para verificación automática en tiempo real
+  const startRealTimeVerification = useCallback(async () => {
+    if (realTimeVerificationActive || !user?.id) return
+
+    console.log('🚀 INICIANDO VERIFICACIÓN EN TIEMPO REAL')
+    setRealTimeVerificationActive(true)
+
+    const performVerification = async () => {
+      try {
+        setLastVerificationTime(new Date())
+        
+        // Buscar suscripciones pendientes del usuario
+        const { data: pendingSubscriptions, error } = await supabase
+          .from("unified_subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+
+        if (error) {
+          console.error('❌ Error buscando suscripciones pendientes:', error)
+          return
+        }
+
+        if (!pendingSubscriptions || pendingSubscriptions.length === 0) {
+          console.log('✅ No hay suscripciones pendientes')
+          return
+        }
+
+        console.log(`🔍 Encontradas ${pendingSubscriptions.length} suscripciones pendientes para verificación automática`)
+
+        // Verificar cada suscripción pendiente
+        for (const subscription of pendingSubscriptions) {
+          try {
+            console.log(`⚡ Verificando automáticamente suscripción ${subscription.id}...`)
+            
+            const response = await fetch('/api/subscriptions/auto-verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                subscriptionId: subscription.id,
+                userId: user.id
+              })
+            })
+
+            const result = await response.json()
+            
+            if (result.success && result.updated) {
+              console.log(`✅ ÉXITO: Suscripción ${subscription.id} activada automáticamente`)
+              toast({
+                title: "¡Suscripción activada automáticamente!",
+                description: `Tu suscripción de ${subscription.product_name} ha sido activada`,
+              })
+              
+              // Recargar suscripciones inmediatamente
+              await loadUserSubscriptions()
+            } else {
+              console.log(`⏳ Suscripción ${subscription.id} aún pendiente en MercadoPago`)
+            }
+          } catch (error) {
+            console.error(`❌ Error verificando suscripción ${subscription.id}:`, error)
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error en verificación automática:', error)
+      }
+    }
+
+    // Ejecutar verificación inmediatamente
+    await performVerification()
+
+    // Configurar intervalo de 5 segundos
+    const interval = setInterval(performVerification, 5000)
+    setVerificationInterval(interval)
+
+    // Detener después de 5 minutos para evitar consumo excesivo
+    setTimeout(() => {
+      stopRealTimeVerification()
+    }, 5 * 60 * 1000)
+  }, [user?.id, realTimeVerificationActive, supabase, toast, loadUserSubscriptions])
+
+  const stopRealTimeVerification = useCallback(() => {
+    console.log('🛑 DETENIENDO VERIFICACIÓN EN TIEMPO REAL')
+    setRealTimeVerificationActive(false)
+    if (verificationInterval) {
+      clearInterval(verificationInterval)
+      setVerificationInterval(null)
+    }
+  }, [verificationInterval])
 
   // Nueva función para auto-verificación de suscripciones pendientes
   const checkAndAutoVerifyPendingSubscriptions = async () => {
@@ -1929,15 +2048,83 @@ export default function SuscripcionPage() {
           </div>
         </div>
 
+        {/* Indicador de verificación en tiempo real */}
+        {realTimeVerificationActive && (
+          <div className="max-w-4xl mx-auto mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span className="text-blue-800 font-medium">
+                Verificación automática activa
+              </span>
+            </div>
+            <p className="text-blue-600 text-sm mt-1">
+              Verificando suscripciones pendientes cada 5 segundos
+              {lastVerificationTime && (
+                <span className="ml-2">
+                  (Última verificación: {lastVerificationTime.toLocaleTimeString()})
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
         {/* Subscriptions List */}
         {subscriptions.length > 0 ? (
           <div className="max-w-4xl mx-auto space-y-6">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-              Tus Suscripciones Activas
-            </h2>
+            {/* Mostrar suscripciones pendientes con estado visual */}
+            {subscriptions.filter(sub => sub.status === 'pending').length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4 text-orange-600">
+                  Suscripciones en Proceso ({subscriptions.filter(sub => sub.status === 'pending').length})
+                </h3>
+                <div className="space-y-4">
+                  {subscriptions.filter(sub => sub.status === 'pending').map((subscription) => (
+                    <div key={subscription.id} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="animate-pulse rounded-full h-3 w-3 bg-orange-500"></div>
+                          <div>
+                            <h4 className="font-medium text-orange-800">
+                              {subscription.product_name} ({subscription.size})
+                            </h4>
+                            <p className="text-orange-600 text-sm">
+                              Procesando pago - ID: {subscription.id}
+                            </p>
+                            <p className="text-orange-500 text-xs">
+                              Creada: {new Date(subscription.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-orange-800">
+                            ${subscription.discounted_price}
+                          </p>
+                          <p className="text-orange-600 text-sm capitalize">
+                            {subscription.subscription_type}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-sm">
+                    💡 <strong>Activación automática en progreso:</strong> Estamos verificando tu pago cada 5 segundos. 
+                    Una vez confirmado, tu suscripción se activará automáticamente.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Suscripciones activas */}
+            {subscriptions.filter(sub => sub.status === 'active').length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-green-600">
+                  Suscripciones Activas ({subscriptions.filter(sub => sub.status === 'active').length})
+                </h3>
             
-            <div className="grid gap-6 md:grid-cols-2">
-              {subscriptions.map((subscription) => (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {subscriptions.filter(sub => sub.status === 'active').map((subscription) => (
                 <Card key={subscription.id} className="overflow-hidden">
                   <CardHeader className="bg-primary/10">
                     <div className="flex items-start justify-between">
@@ -2010,8 +2197,10 @@ export default function SuscripcionPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="max-w-2xl mx-auto text-center">
