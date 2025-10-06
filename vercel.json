@@ -17,7 +17,7 @@
       "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/admin/subscription-notifications",
+      "path": "/api/cron/subscription-notifications",
       "schedule": "*/5 * * * *"
     }
   ],
@@ -33,6 +33,9 @@
     },
     "app/api/cron/subscription-payments/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/subscription-notifications/route.ts": {
+      "maxDuration": 180
     },
     "app/api/admin/subscription-notifications/route.ts": {
       "maxDuration": 180
