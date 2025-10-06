@@ -65,20 +65,41 @@ export async function POST(request: Request) {
 
     console.log('✅ Token de MercadoPago disponible')
 
+    // Detectar la moneda correcta basado en la URL base
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'
+    const currencyId = baseUrl.includes('.cl') ? 'CLP' : 'MXN'
+    
+    console.log('💰 Moneda detectada:', currencyId, 'para URL:', baseUrl)
+
+    // Parsear y validar el monto
+    const amount = parseFloat(transaction_amount)
+    if (isNaN(amount) || amount <= 0) {
+      console.error('❌ Monto inválido:', transaction_amount)
+      return NextResponse.json({ 
+        error: "Monto de transacción inválido",
+        received: transaction_amount,
+        parsed: amount
+      }, { status: 400 })
+    }
+
     // Construir el objeto de Preapproval con external_reference correcto
-    const preapprovalData = {
+    const preapprovalData: any = {
       reason: reason || `Suscripción Pet Gourmet`,
       auto_recurring: {
         frequency: frequency || 1,
         frequency_type: frequency_type || "months",
-        transaction_amount: parseFloat(transaction_amount),
-        currency_id: "MXN"
+        transaction_amount: Math.round(amount * 100) / 100,  // Redondear a 2 decimales
+        currency_id: currencyId
       },
-      back_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/suscripcion`,
+      back_url: `${baseUrl}/suscripcion`,
       payer_email: payer_email,
       external_reference: external_reference,  // 🔥 CLAVE: Aquí enviamos NUESTRO external_reference
-      status: "pending",
-      notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`
+      status: "pending"
+    }
+
+    // Agregar notification_url solo si está en producción
+    if (baseUrl.includes('petgourmet')) {
+      preapprovalData.notification_url = `${baseUrl}/api/mercadopago/webhook`
     }
 
     console.log('📤 Creando Preapproval en MercadoPago con external_reference:', external_reference)
@@ -98,11 +119,16 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errorData = await response.json()
-      console.error("❌ Error de MercadoPago:", errorData)
+      console.error("❌ Error de MercadoPago:", JSON.stringify(errorData, null, 2))
+      console.error("❌ Status:", response.status)
+      console.error("❌ Datos enviados:", JSON.stringify(preapprovalData, null, 2))
+      
       return NextResponse.json({ 
         error: "Error creando suscripción en MercadoPago", 
         details: errorData,
-        status: response.status
+        status: response.status,
+        sentData: preapprovalData,  // Para debugging
+        message: errorData.message || 'Error desconocido de MercadoPago'
       }, { status: response.status })
     }
 
