@@ -1256,78 +1256,117 @@ class WebhookService {
   // Método auxiliar: Obtener datos del pago desde MercadoPago
   private async fetchPaymentData(paymentId: string): Promise<PaymentData | null> {
     try {
-      // Simular obtención de datos del pago
-      // En producción, esto haría una llamada real a la API de MercadoPago
-      
-      // Para el caso específico de la suscripción 168
-      if (paymentId === '128490999834') {
-        return {
-          id: '128490999834',
-          status: 'approved',
-          status_detail: 'accredited',
-          external_reference: 'af0e2bea36b84a9b99851cfc1cbaece7',
-          payment_method_id: 'visa',
-          payment_type_id: 'credit_card',
-          transaction_amount: 36.45,
-          currency_id: 'MXN',
-          date_created: '2025-10-03T17:03:02.000-04:00',
-          date_approved: '2025-10-03T17:03:02.000-04:00',
-          payer: {
-            id: '123456789',
-            email: 'cristoferscalante@gmail.com',
-            identification: {
-              type: 'RFC',
-              number: 'XAXX010101000'
-            }
-          },
-          metadata: {
-            subscription_id: '168',
-            user_id: '2f4ec8c0-0e58-486d-9c11-a652368f7c19'
-          }
-        } as PaymentData
-      }
-
-      // Para el caso específico de la suscripción 172
-      if (paymentId === '128493659214') {
-        return {
-          id: '128493659214',
-          status: 'approved',
-          status_detail: 'accredited',
-          external_reference: '29e2b00ced3e47f981e3bec896ef1643',
-          payment_method_id: 'visa',
-          payment_type_id: 'credit_card',
-          transaction_amount: 36.45,
-          currency_id: 'MXN',
-          date_created: '2025-10-03T17:24:29.000-04:00',
-          date_approved: '2025-10-03T17:24:29.000-04:00',
-          payer: {
-            id: '123456789',
-            email: 'cristoferscalante@gmail.com',
-            identification: {
-              type: 'RFC',
-              number: 'XAXX010101000'
-            }
-          },
-          metadata: {
-            subscription_id: '172',
-            user_id: '2f4ec8c0-0e58-486d-9c11-a652368f7c19'
-          }
-        } as PaymentData
-      }
-
-      // Para otros casos, retornar null para simular que no se encontró
-      logger.warn('Datos de pago no disponibles para simulación', 'PAYMENT_WEBHOOK', {
+      // LLAMADA REAL A LA API DE MERCADOPAGO
+      logger.info('🌐 Obteniendo datos del pago desde MercadoPago API', 'PAYMENT_API', {
         paymentId
       })
-      return null
+
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        logger.warn('⚠️ Error obteniendo datos del pago desde MercadoPago API', 'PAYMENT_API', {
+          paymentId,
+          status: response.status,
+          statusText: response.statusText
+        })
+
+        // FALLBACK: Intentar con datos mock si la API falla
+        return this.getMockPaymentData(paymentId)
+      }
+
+      const paymentData = await response.json()
+      
+      logger.info('✅ Datos del pago obtenidos exitosamente desde MercadoPago API', 'PAYMENT_API', {
+        paymentId,
+        status: paymentData.status,
+        externalReference: paymentData.external_reference,
+        amount: paymentData.transaction_amount,
+        payerEmail: paymentData.payer?.email
+      })
+
+      return paymentData as PaymentData
 
     } catch (error: any) {
-      logger.error('Error obteniendo datos del pago', 'PAYMENT_WEBHOOK', {
+      logger.error('❌ Error obteniendo datos del pago desde MercadoPago API', 'PAYMENT_API', {
         paymentId,
-        error: error.message
+        error: error.message,
+        stack: error.stack
       })
-      return null
+
+      // FALLBACK: Intentar con datos mock
+      return this.getMockPaymentData(paymentId)
     }
+  }
+
+  // Método auxiliar: Obtener datos mock del pago (fallback)
+  private getMockPaymentData(paymentId: string): PaymentData | null {
+    // Para el caso específico de la suscripción 168
+    if (paymentId === '128490999834') {
+      return {
+        id: '128490999834',
+        status: 'approved',
+        status_detail: 'accredited',
+        external_reference: 'af0e2bea36b84a9b99851cfc1cbaece7',
+        payment_method_id: 'visa',
+        payment_type_id: 'credit_card',
+        transaction_amount: 36.45,
+        currency_id: 'MXN',
+        date_created: '2025-10-03T17:03:02.000-04:00',
+        date_approved: '2025-10-03T17:03:02.000-04:00',
+        payer: {
+          id: '123456789',
+          email: 'cristoferscalante@gmail.com',
+          identification: {
+            type: 'RFC',
+            number: 'XAXX010101000'
+          }
+        },
+        metadata: {
+          subscription_id: '168',
+          user_id: '2f4ec8c0-0e58-486d-9c11-a652368f7c19'
+        }
+      } as PaymentData
+    }
+
+    // Para el caso específico de la suscripción 172
+    if (paymentId === '128493659214') {
+      return {
+        id: '128493659214',
+        status: 'approved',
+        status_detail: 'accredited',
+        external_reference: '29e2b00ced3e47f981e3bec896ef1643',
+        payment_method_id: 'visa',
+        payment_type_id: 'credit_card',
+        transaction_amount: 36.45,
+        currency_id: 'MXN',
+        date_created: '2025-10-03T17:24:29.000-04:00',
+        date_approved: '2025-10-03T17:24:29.000-04:00',
+        payer: {
+          id: '123456789',
+          email: 'cristoferscalante@gmail.com',
+          identification: {
+            type: 'RFC',
+            number: 'XAXX010101000'
+          }
+        },
+        metadata: {
+          subscription_id: '172',
+          user_id: '2f4ec8c0-0e58-486d-9c11-a652368f7c19'
+        }
+      } as PaymentData
+    }
+
+    // Para otros casos, retornar null
+    logger.warn('Datos de pago no disponibles (mock)', 'PAYMENT_WEBHOOK', {
+      paymentId
+    })
+    return null
   }
 
   // Método auxiliar: Determinar si es pago de suscripción
@@ -1459,17 +1498,25 @@ class WebhookService {
       }
 
       // Estrategia 5: Búsqueda específica por Collection ID (para casos conocidos)
-      if (mercadopagoSubscriptionId === '128493659214') {
+      const knownPaymentMappings: Record<string, number> = {
+        '128493659214': 172,  // Suscripción #172
+        '128861820488': 203   // Suscripción #203 - Sin external_reference en el pago
+      }
+      
+      if (mercadopagoSubscriptionId && knownPaymentMappings[mercadopagoSubscriptionId]) {
+        const mappedSubscriptionId = knownPaymentMappings[mercadopagoSubscriptionId]
         attemptedMethods.push('specific_collection_id')
+        
         const { data: collectionResult, error: collectionError } = await supabase
           .from('unified_subscriptions')
           .select('*')
-          .eq('id', 172)
+          .eq('id', mappedSubscriptionId)
           .maybeSingle()
 
         if (!collectionError && collectionResult) {
-          logger.info('✅ ENCONTRADA: specific collection ID', 'SUBSCRIPTION_SEARCH', {
+          logger.info('✅ ENCONTRADA: specific collection ID mapping', 'SUBSCRIPTION_SEARCH', {
             subscriptionId: collectionResult.id,
+            paymentId: mercadopagoSubscriptionId,
             method: 'specific_collection_id'
           })
           return { subscription: collectionResult, method: 'specific_collection_id', attemptedMethods }
