@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient();
     
-    // Verificar si es una llamada inmediata desde el trigger o webhook
+    // Verificar si es una llamada inmediata desde el trigger
     let body: any = {};
     try {
       body = await request.json();
@@ -43,17 +43,9 @@ export async function POST(request: NextRequest) {
       // Si no hay body, es una llamada del cron
     }
     
-    // También aceptar parámetros de URL (para webhooks de Supabase)
-    const { searchParams } = new URL(request.url);
-    const notificationIdFromQuery = searchParams.get('notification_id');
-    const notificationIdFromBody = body.notification_id;
-    
-    // Usar el notification_id de donde venga (body o query params)
-    const notificationId = notificationIdFromBody || notificationIdFromQuery;
-    
     // Si viene notification_id, procesar solo esa notificación (llamada inmediata)
-    if (notificationId) {
-      console.log(`[SUBSCRIPTION-NOTIFICATIONS] Procesamiento INMEDIATO de notificación #${notificationId}`);
+    if (body.notification_id) {
+      console.log(`[SUBSCRIPTION-NOTIFICATIONS] Procesamiento INMEDIATO de notificación #${body.notification_id}`);
       
       const { data: notification, error: fetchError } = await supabase
         .from('subscription_notifications')
@@ -71,7 +63,7 @@ export async function POST(request: NextRequest) {
             customer_data
           )
         `)
-        .eq('id', notificationId)
+        .eq('id', body.notification_id)
         .single();
       
       if (fetchError || !notification) {
