@@ -240,3 +240,48 @@ const knownPaymentMappings: Record<string, number> = {
 Una vez implementado, **todas las suscripciones futuras funcionarán automáticamente** sin necesidad de agregar mapeos.
 
 Las suscripciones #203 y #206 se pueden activar manualmente con los scripts SQL que ya creamos.
+
+---
+
+## ✅ ESTADO DE IMPLEMENTACIÓN
+
+### COMPLETADO el 2025-01-06
+
+1. ✅ **API Endpoint Creado**: `app/api/mercadopago/create-subscription-preference/route.ts`
+   - 193 líneas implementadas
+   - POST method que crea Preapproval con external_reference en body
+   - Actualiza suscripción con preapproval_id e init_point
+   - Logging completo y manejo de errores
+   - GET method para health check
+
+2. ✅ **Checkout Modal Modificado**: `components/checkout-modal.tsx`
+   - Líneas 1110-1200 reemplazadas
+   - Ya no usa URLs pre-generadas
+   - Llama al API endpoint con fetch()
+   - Validación de respuesta y manejo de errores
+   - Logging detallado del flujo
+
+3. ✅ **Script de Testing Creado**: `scripts/test-preapproval-api.ts`
+   - Pruebas automatizadas de la API
+   - Verifica external_reference coincide
+   - Valida actualización en DB
+   - Confirma init_point válido
+
+### PENDIENTE
+
+- [ ] **Testing Local**: Ejecutar `npm run dev` y probar flujo completo
+- [ ] **Ejecutar Script**: `npx ts-node scripts/test-preapproval-api.ts`
+- [ ] **Commit y Deploy**: Push a GitHub → Auto-deploy Vercel
+- [ ] **Testing Producción**: Crear suscripción real y verificar
+- [ ] **Validación Final**: Confirmar que no se necesitan mapeos manuales
+- [ ] **Cleanup**: Remover `knownPaymentMappings` después de 1 semana sin issues
+
+### RESULTADO ESPERADO
+
+🎯 **Flujo Automático 100%**:
+1. Usuario completa checkout → Suscripción en DB
+2. API crea Preapproval → external_reference correcto en MercadoPago
+3. Usuario paga → MercadoPago usa el external_reference que le enviamos
+4. Webhook recibe notificación → Encuentra suscripción por external_reference
+5. Estado cambia a "active" → Trigger envía email
+6. **TODO SIN INTERVENCIÓN MANUAL** ✨

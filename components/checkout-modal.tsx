@@ -1102,27 +1102,117 @@ export function CheckoutModal() {
           // Esperar un momento para asegurar que la suscripción se guardó
           await new Promise(resolve => setTimeout(resolve, 1500))
 
-          // Limpiar carrito después de confirmar que se guardó
-          clearCart()
-          setShowCheckout(false)
+          // Validar que tenemos el ID de la suscripción
+          if (!insertedData || insertedData.length === 0 || !(insertedData as any)[0]?.id) {
+            logger.error(LogCategory.SUBSCRIPTION, 'No se obtuvo ID de suscripción después de guardar', {
+              userId: user.id,
+              externalReference,
+              insertedData
+            })
+            
+            toast({
+              title: "Error al procesar suscripción",
+              description: "No se pudo crear la suscripción. Inténtalo de nuevo.",
+              variant: "destructive"
+            })
+            return
+          }
 
-          // Redirigir al enlace de suscripción de Mercado Pago
-          const subscriptionLink = getSubscriptionLink(subscriptionType)
-          const finalLink = `${subscriptionLink}&external_reference=${externalReference}&back_url=${encodeURIComponent(window.location.origin + '/suscripcion')}`
+          const subscriptionId = (insertedData as any)[0].id
+
+          // SOLUCIÓN DEFINITIVA: Crear Preapproval con API de MercadoPago
+          // Esto garantiza que el external_reference sea el mismo en el pago
+          console.log('🔄 Creando Preapproval de MercadoPago con external_reference correcto')
           
-          logger.info(LogCategory.SUBSCRIPTION, 'Redirigiendo a MercadoPago para suscripción', {
+          logger.info(LogCategory.SUBSCRIPTION, 'Creando Preapproval con API', {
             userId: user.id,
             externalReference,
             subscriptionType,
-            redirectUrl: finalLink,
-            productId: subscriptionItem.id,
+            subscriptionId,
             transactionAmount
           })
-          
-          console.log('Redirigiendo a:', finalLink)
-          window.location.href = finalLink
 
-          return // Salir completamente de la función después de procesar suscripción
+          try {
+            const preapprovalResponse = await fetch('/api/mercadopago/create-subscription-preference', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                external_reference: externalReference,  // Nuestro SUB-xxx-xxx
+                subscription_id: subscriptionId,
+                payer_email: user.email,
+                payer_first_name: customerInfo.firstName,
+                payer_last_name: customerInfo.lastName,
+                transaction_amount: transactionAmount,
+                reason: `Suscripción ${subscriptionType} - ${subscriptionItem.name} (${subscriptionItem.size || 'Standard'})`,
+                frequency: frequency,
+                frequency_type: frequency_type
+              })
+            })
+
+            if (!preapprovalResponse.ok) {
+              const errorData = await preapprovalResponse.json()
+              console.error('❌ Error creando Preapproval:', errorData)
+              
+              logger.error(LogCategory.SUBSCRIPTION, 'Error en API de Preapproval', errorData.error, {
+                userId: user.id,
+                externalReference,
+                statusCode: preapprovalResponse.status
+              })
+              
+              toast({
+                title: "Error al procesar suscripción",
+                description: "No se pudo crear el pago en MercadoPago. Inténtalo de nuevo.",
+                variant: "destructive"
+              })
+              return
+            }
+
+            const preapprovalData = await preapprovalResponse.json()
+            
+            logger.info(LogCategory.SUBSCRIPTION, 'Preapproval creado exitosamente', {
+              userId: user.id,
+              externalReference,
+              preapprovalId: preapprovalData.preapproval_id,
+              initPoint: preapprovalData.init_point,
+              externalReferenceConfirmed: preapprovalData.external_reference === externalReference
+            })
+
+            console.log('✅ Preapproval creado correctamente:', {
+              preapproval_id: preapprovalData.preapproval_id,
+              external_reference: preapprovalData.external_reference,
+              match: preapprovalData.external_reference === externalReference
+            })
+
+            // Limpiar carrito y cerrar modal
+            clearCart()
+            setShowCheckout(false)
+
+            // Redirigir al checkout de MercadoPago
+            console.log('🔄 Redirigiendo a MercadoPago:', preapprovalData.init_point)
+            window.location.href = preapprovalData.init_point
+
+            return // Salir completamente de la función después de procesar suscripción
+
+          } catch (apiError: any) {
+            const errorDetails = getErrorDetails(apiError)
+            
+            logger.error(LogCategory.SUBSCRIPTION, 'Error crítico en API de Preapproval', errorDetails.message, {
+              userId: user.id,
+              externalReference,
+              errorStack: errorDetails.stack
+            })
+            
+            console.error('❌ Error en API de Preapproval:', errorDetails)
+            
+            toast({
+              title: "Error al procesar suscripción",
+              description: "Error de conexión con el servidor. Inténtalo de nuevo.",
+              variant: "destructive"
+            })
+            return
+          }
         } catch (error) {
           const errorDetails = getErrorDetails(error)
           logger.error(LogCategory.SUBSCRIPTION, 'Error crítico procesando suscripción', errorDetails.message, {
