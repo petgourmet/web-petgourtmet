@@ -1501,7 +1501,8 @@ class WebhookService {
       const knownPaymentMappings: Record<string, number> = {
         '128493659214': 172,  // Suscripción #172
         '128861820488': 203,  // Suscripción #203 - Sin external_reference en el pago
-        '128298100369': 206   // Suscripción #206 - external_reference mismatch
+        '128298100369': 206,  // Suscripción #206 - external_reference mismatch
+        '128875494516': 213   // Suscripción #213 - external_reference mismatch (e18739d05b0e4dbea8cb65d88d8463d5)
       }
       
       if (mercadopagoSubscriptionId && knownPaymentMappings[mercadopagoSubscriptionId]) {
