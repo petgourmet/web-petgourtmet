@@ -17,16 +17,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    if (!plan_id) {
-      return NextResponse.json(
-        { error: "plan_id es requerido para generar external_reference válido" },
-        { status: 400 }
-      )
-    }
     
     // Generar external_reference si no se proporciona
-    const extRef = external_reference || makeExternalReference(user_id, plan_id, preapproval_id)
+    // Si no hay plan_id ni external_reference, usar el preapproval_id como fallback
+    let extRef = external_reference
+    if (!extRef) {
+      if (plan_id) {
+        extRef = makeExternalReference(user_id, plan_id, preapproval_id)
+      } else {
+        // Usar preapproval_id como external_reference cuando no hay plan_id
+        extRef = preapproval_id
+        console.log('⚠️ plan_id no proporcionado, usando preapproval_id como external_reference')
+      }
+    }
     
     // Generar clave de idempotencia para la validación
     const idempotencyKey = subscriptionDeduplicationService.generateIdempotencyKey(
