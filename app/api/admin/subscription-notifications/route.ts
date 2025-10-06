@@ -33,9 +33,67 @@ interface SubscriptionNotification {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[SUBSCRIPTION-NOTIFICATIONS] Iniciando procesamiento de notificaciones pendientes...');
-    
     const supabase = createClient();
+    
+    // Verificar si es una llamada inmediata desde el trigger o webhook
+    let body: any = {};
+    try {
+      body = await request.json();
+    } catch (e) {
+      // Si no hay body, es una llamada del cron
+    }
+    
+    // También aceptar parámetros de URL (para webhooks de Supabase)
+    const { searchParams } = new URL(request.url);
+    const notificationIdFromQuery = searchParams.get('notification_id');
+    const notificationIdFromBody = body.notification_id;
+    
+    // Usar el notification_id de donde venga (body o query params)
+    const notificationId = notificationIdFromBody || notificationIdFromQuery;
+    
+    // Si viene notification_id, procesar solo esa notificación (llamada inmediata)
+    if (notificationId) {
+      console.log(`[SUBSCRIPTION-NOTIFICATIONS] Procesamiento INMEDIATO de notificación #${notificationId}`);
+      
+      const { data: notification, error: fetchError } = await supabase
+        .from('subscription_notifications')
+        .select(`
+          *,
+          unified_subscriptions (
+            id,
+            user_id,
+            subscription_type,
+            status,
+            external_reference,
+            product_name,
+            product_image,
+            next_billing_date,
+            customer_data
+          )
+        `)
+        .eq('id', notificationId)
+        .single();
+      
+      if (fetchError || !notification) {
+        console.error('[SUBSCRIPTION-NOTIFICATIONS] Error obteniendo notificación:', fetchError);
+        return NextResponse.json({ 
+          success: false, 
+          error: fetchError?.message || 'Notificación no encontrada' 
+        }, { status: 404 });
+      }
+      
+      const result = await processNotification(notification as SubscriptionNotification, supabase);
+      
+      return NextResponse.json({
+        success: result.success,
+        message: result.success ? 'Email enviado inmediatamente' : 'Error al enviar email',
+        error: result.error,
+        notification_id: body.notification_id
+      });
+    }
+    
+    // Si no viene notification_id, procesar todas las pendientes (llamada del cron)
+    console.log('[SUBSCRIPTION-NOTIFICATIONS] Iniciando procesamiento de notificaciones pendientes...');
     
     // Obtener notificaciones pendientes (no enviadas y con menos de 5 reintentos)
     const { data: notifications, error: fetchError } = await supabase
