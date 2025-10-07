@@ -139,65 +139,9 @@ export function CheckoutModal() {
   const [isProcessing, setIsProcessing] = useState(false)
   const DEBOUNCE_TIME = 3000 // 3 segundos de debounce mejorado
 
-  // Cargar URLs de suscripción dinámicamente
-  useEffect(() => {
-    const loadSubscriptionUrls = async () => {
-      try {
-        const response = await fetch('/api/subscription-urls')
-        const data = await response.json()
-        
-        if (data.success && data.subscription_urls) {
-          const urlMap: { [key: string]: string } = {}
-          Object.entries(data.subscription_urls).forEach(([key, config]: [string, any]) => {
-            if (config.mercadopago_url) {
-              urlMap[key] = config.mercadopago_url
-            }
-          })
-          setSubscriptionLinks(urlMap)
-          // ...existing code...
-          // console.log('✅ URLs de suscripción cargadas exitosamente')
-          // console.warn('⚠️ Usando URLs de respaldo para suscripciones')
-          // console.log(`Simulando pago exitoso para orden: ${orderId}`)
-          // console.log("Creando orden...")
-          // console.log("Procesando suscripción con tipo:", subscriptionType)
-          // console.log('Datos completos de suscripción:', subscriptionData)
-          // console.log('✅ Suscripción pendiente guardada exitosamente:', insertedData)
-          // console.log('Redirigiendo a:', finalLink)
-          // console.log("Modo de pruebas: Creando orden completa...")
-          // console.log("Orden de prueba creada:", testData)
-          // console.log("Creando preferencia de pago en Mercado Pago...")
-          // console.log("Preferencia creada:", mpData)
-
-          return true
-        } else {
-          throw new Error(data.message || 'Error en respuesta del servidor')
-        }
-      } catch (error) {
-        console.error('Error al cargar URLs de suscripción:', getErrorDetails(error))
-        
-        // URLs de respaldo en caso de error
-        const fallbackUrls = {
-          weekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=weekly_plan_id",
-          biweekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=biweekly_plan_id",
-          monthly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=monthly_plan_id",
-          quarterly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=quarterly_plan_id",
-          annual: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=annual_plan_id"
-        }
-        
-        setSubscriptionLinks(fallbackUrls)
-        console.warn('⚠️ Usando URLs de respaldo para suscripciones')
-        
-        // Mostrar toast de advertencia al usuario
-        toast({
-          title: "Advertencia",
-          description: "Algunas funciones de suscripción pueden estar limitadas. Contacta soporte si persiste el problema.",
-          variant: "destructive"
-        })
-      }
-    }
-
-    loadSubscriptionUrls()
-  }, [])
+  // ⚠️ DEPRECADO: Ya no se cargan URLs pre-generadas
+  // Las suscripciones ahora se crean dinámicamente con el SDK de MercadoPago
+  // Ver: /api/mercadopago/create-subscription-preference
 
   // Estados para el formulario
   const [customerInfo, setCustomerInfo] = useState({
@@ -215,8 +159,8 @@ export function CheckoutModal() {
     country: "México",
   })
 
-  // Enlaces de suscripción de Mercado Pago (cargados dinámicamente)
-  const [subscriptionLinks, setSubscriptionLinks] = useState<{ [key: string]: string }>({})
+  // ⚠️ DEPRECADO: subscriptionLinks eliminado - ahora se crean preapprovals dinámicamente
+  // Ver: /api/mercadopago/create-subscription-preference
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -295,24 +239,8 @@ export function CheckoutModal() {
     return subscriptionItems[0].subscriptionType || 'monthly'
   }
 
-  // Función para obtener el enlace de suscripción según el tipo
-  const getSubscriptionLink = (type: string) => {
-    // Buscar si hay productos con URLs específicas de Mercado Pago
-    const subscriptionItems = cart.filter(item => item.isSubscription)
-    
-    if (subscriptionItems.length > 0) {
-      const firstItem = subscriptionItems[0]
-      
-      // Verificar si el producto tiene una URL específica para este tipo de suscripción
-      const productSpecificUrl = getProductSpecificUrl(firstItem, type)
-      if (productSpecificUrl) {
-        return productSpecificUrl
-      }
-    }
-    
-    // Fallback a URLs globales
-    return subscriptionLinks[type] || subscriptionLinks.monthly || "#"
-  }
+  // ⚠️ DEPRECADO: getSubscriptionLink eliminado
+  // Las suscripciones ahora se crean dinámicamente, no se usan URLs pre-generadas
 
   // Función para obtener el descuento dinámico del producto según la frecuencia
   const getProductSubscriptionDiscount = (item: any, subscriptionType: string): number => {
@@ -334,23 +262,8 @@ export function CheckoutModal() {
     }
   }
 
-  // Función auxiliar para obtener URL específica del producto
-  const getProductSpecificUrl = (item: any, type: string) => {
-    switch (type) {
-      case 'weekly':
-        return item.weekly_mercadopago_url
-      case 'biweekly':
-        return item.biweekly_mercadopago_url
-      case 'monthly':
-        return item.monthly_mercadopago_url
-      case 'quarterly':
-        return item.quarterly_mercadopago_url
-      case 'annual':
-        return item.annual_mercadopago_url
-      default:
-        return null
-    }
-  }
+  // ⚠️ DEPRECADO: getProductSpecificUrl eliminado
+  // Ya no se usan URLs específicas de productos, se crean preapprovals dinámicamente
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
@@ -635,26 +548,23 @@ export function CheckoutModal() {
               // Mostrar mensaje de confirmación
               toast({
                 title: "Continuando con suscripción existente",
-                description: "Te redirigiremos a completar tu suscripción pendiente.",
+                description: "Tu suscripción pendiente está lista. Revisa tu perfil.",
                 duration: 3000,
               })
               
-              // Limpiar carrito y redirigir
+              // Limpiar carrito y redirigir al perfil
               clearCart()
               setShowCheckout(false)
               
-              // Redirigir al enlace de suscripción existente
-              const subscriptionLink = getSubscriptionLink(validationResult.existingSubscription.subscription_type)
-              const finalLink = `${subscriptionLink}&external_reference=${externalReference}&back_url=${encodeURIComponent(window.location.origin + '/suscripcion')}`
-              
-              logger.info(LogCategory.SUBSCRIPTION, 'Redirigiendo a suscripción pendiente existente', {
+              logger.info(LogCategory.SUBSCRIPTION, 'Usuario redirigido a perfil para completar suscripción pendiente', {
                 userId,
                 externalReference,
                 subscriptionType: validationResult.existingSubscription.subscription_type,
-                redirectUrl: finalLink
+                subscriptionId: validationResult.existingSubscription.id
               })
               
-              window.location.href = finalLink
+              // Redirigir al perfil donde verá su suscripción pendiente
+              router.push('/perfil?tab=subscriptions')
               return
               
             } else if (userChoice === 'cancel') {
@@ -851,7 +761,22 @@ export function CheckoutModal() {
           const basePrice = subscriptionItem.price
           const discountPercentage = discount * 100
           const discountedPrice = basePrice * (1 - discount)
-          const transactionAmount = discountedPrice * subscriptionItem.quantity
+          const subtotal = discountedPrice * subscriptionItem.quantity
+          
+          // 🚚 IMPORTANTE: Calcular costo de envío (gratis si subtotal >= $1000)
+          const shippingCost = subtotal >= 1000 ? 0 : 100
+          const transactionAmount = subtotal + shippingCost
+          
+          logger.info(LogCategory.SUBSCRIPTION, 'Cálculo de precio de suscripción', {
+            basePrice,
+            discount: discountPercentage,
+            discountedPrice,
+            quantity: subscriptionItem.quantity,
+            subtotal,
+            shippingCost,
+            transactionAmount,
+            freeShipping: shippingCost === 0
+          })
 
           // Calcular frequency y frequency_type basado en subscription_type
           let frequency = 1
@@ -936,6 +861,10 @@ export function CheckoutModal() {
               discount_applied: discountPercentage > 0,
               original_price: basePrice,
               final_price: discountedPrice,
+              subtotal: subtotal,
+              shipping_cost: shippingCost,
+              free_shipping: shippingCost === 0,
+              total_amount: transactionAmount,
               size: subscriptionItem.size || 'Standard',
               created_from: 'checkout_modal',
               user_agent: navigator.userAgent,

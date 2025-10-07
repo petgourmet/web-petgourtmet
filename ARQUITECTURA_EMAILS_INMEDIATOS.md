@@ -42,8 +42,7 @@
              ▼                               ▼
 ┌────────────────────────┐      ┌────────────────────────┐
 │  WEBHOOK DE SUPABASE   │      │   CRON JOB (Respaldo)  │
-│  (< 1 segundo)         │      │   (cada 5 minutos)     │
-│                        │      │                        │
+ │                        │      │                        │
 │  Detecta INSERT en     │      │  Procesa notificaciones│
 │  subscription_         │      │  pendientes si el      │
 │  notifications         │      │  webhook falló         │
