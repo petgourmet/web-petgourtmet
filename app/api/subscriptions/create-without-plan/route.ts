@@ -2,13 +2,37 @@
 // Crear suscripción sin plan según documentación de MercadoPago
 
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash } from 'crypto'
 import MercadoPagoService from '@/lib/mercadopago-service'
 import MercadoPagoServiceMock from '@/lib/mercadopago-service-mock'
 import { createClient } from '@/lib/supabase/server'
-import DynamicDiscountService, { SubscriptionType } from '@/lib/dynamic-discount-service'
 import { logger, LogCategory } from '@/lib/logger'
 import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
 import { createEnhancedIdempotencyServiceServer } from '@/lib/enhanced-idempotency-service.server'
+
+type UnifiedSubscriptionRow = {
+  id: number
+  user_id: string | null
+  product_id: number | null
+  subscription_type: string
+  status: string
+  external_reference: string | null
+  mercadopago_subscription_id: string | null
+  cart_items: any
+  customer_data: any
+  metadata: any
+  quantity: number
+  size: string | null
+  transaction_amount: number | null
+  frequency: number | null
+  frequency_type: string | null
+  discounted_price: number | null
+  base_price: number | null
+  product_name: string | null
+  product_image: string | null
+  updated_at: string | null
+  created_at: string | null
+}
 
 const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
@@ -37,7 +61,8 @@ export async function POST(request: NextRequest) {
       requestOrigin: request.headers.get('origin') || 'unknown'
     })
     
-    const supabase = await createClient()
+  const supabase = await createClient()
+  const supabaseClient = supabase as any
     
     const {
       reason,
@@ -51,7 +76,13 @@ export async function POST(request: NextRequest) {
       product_id,
       quantity = 1,
       subscription_type,
-      plan_id
+      plan_id,
+      cart_items = [],
+      cart_summary,
+      shipping_cost = 0,
+      bundle_label,
+      customer_data,
+      shipping_address
     } = body
 
     // Generar external_reference determinística si no se proporciona
@@ -172,21 +203,105 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Usar servicio de idempotencia mejorado para crear la suscripción
-    const idempotencyKey = subscriptionDeduplicationService.generateIdempotencyKey(
-      finalExternalReference,
-      payer_email,
-      auto_recurring.transaction_amount
-    )
+    const normalizeCartItems = Array.isArray(cart_items)
+      ? cart_items.map((item: any) => ({
+          product_id: item.product_id ?? item.id ?? null,
+          product_name: item.product_name ?? item.name ?? null,
+          quantity: Number(item.quantity ?? 1),
+          price: Number(item.price ?? 0),
+          size: item.size ?? null,
+          isSubscription: Boolean(item.isSubscription ?? true),
+          subscriptionType: item.subscriptionType || subscription_type || 'monthly',
+          metadata: item.metadata ?? null
+        }))
+      : []
+
+    const cartFingerprintPayload = normalizeCartItems
+      .map(item => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        size: item.size
+      }))
+      .sort((a, b) => {
+        const keyA = `${a.product_id ?? 'none'}-${a.size ?? 'std'}`
+        const keyB = `${b.product_id ?? 'none'}-${b.size ?? 'std'}`
+        return keyA.localeCompare(keyB)
+      })
+
+    const bundleHash = cartFingerprintPayload.length > 0
+      ? createHash('sha256').update(JSON.stringify(cartFingerprintPayload)).digest('hex').slice(0, 16)
+      : null
+
+    const subscriptionContext = user_id && product_id ? {
+      userId: user_id,
+      planId: String(product_id),
+      amount: auto_recurring.transaction_amount,
+      currency: auto_recurring.currency_id || 'MXN',
+      additionalData: {
+        subscription_type: subscription_type || 'monthly',
+        bundle_hash: bundleHash,
+        quantity
+      }
+    } : undefined
+
+    const mergeMetadata = (previous: any): Record<string, any> => {
+      let base: Record<string, any> = {}
+
+      if (previous) {
+        if (typeof previous === 'object') {
+          base = { ...(previous as Record<string, any>) }
+        } else if (typeof previous === 'string') {
+          try {
+            base = JSON.parse(previous)
+          } catch {
+            base = {}
+          }
+        }
+      }
+
+      const additions: Record<string, any> = {
+        bundle_hash: bundleHash,
+        bundle_label,
+        cart_summary,
+        shipping_cost,
+        cart_items_count: normalizeCartItems.length,
+        updated_via: 'create-without-plan',
+        updated_at: new Date().toISOString()
+      }
+
+      if (cartFingerprintPayload.length > 0) {
+        additions.bundle_fingerprint = cartFingerprintPayload
+      }
+
+      return Object.fromEntries(
+        Object.entries({ ...base, ...additions }).filter(([, value]) => value !== undefined)
+      )
+    }
+
+    const idempotencyKeySeed = [
+      user_id || 'guest',
+      product_id ?? 'bundle',
+      finalExternalReference || 'pending-ref',
+      subscription_type || 'monthly',
+      auto_recurring.transaction_amount,
+      bundleHash || 'no-bundle'
+    ].join('|')
+
+    const idempotencyKey = createHash('sha256')
+      .update(idempotencyKeySeed)
+      .digest('hex')
 
     const idempotencyService = createEnhancedIdempotencyServiceServer()
-    const result = await idempotencyService.executeSubscriptionWithIdempotency(
-      idempotencyKey,
-      async () => {
-        // Preparar datos según documentación exacta de MercadoPago
-        const subscriptionData = {
+
+    const idempotencyResult = await idempotencyService.executeSubscriptionWithIdempotency<any>(
+      async (prevalidatedExternalReference: string) => {
+        const externalReferenceForOperation = finalExternalReference || prevalidatedExternalReference
+        finalExternalReference = externalReferenceForOperation
+
+        const subscriptionPayload: any = {
           reason,
-          external_reference: finalExternalReference,
+          external_reference: externalReferenceForOperation,
           payer_email,
           auto_recurring: {
             frequency: auto_recurring.frequency,
@@ -194,58 +309,67 @@ export async function POST(request: NextRequest) {
             start_date: auto_recurring.start_date || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             end_date: auto_recurring.end_date,
             transaction_amount: auto_recurring.transaction_amount,
-            currency_id: auto_recurring.currency_id || "MXN"
+            currency_id: auto_recurring.currency_id || 'MXN'
           },
-          back_url: back_url || '/suscripcion',
-          status: status || (card_token_id ? "authorized" : "pending")
+          back_url: back_url || `${APP_URL}/suscripcion`,
+          status: status || (card_token_id ? 'authorized' : 'pending')
         }
 
-        // Agregar card_token_id solo si se proporciona
         if (card_token_id) {
-          subscriptionData.card_token_id = card_token_id
+          subscriptionPayload.card_token_id = card_token_id
         }
 
         logger.info(LogCategory.SUBSCRIPTION, 'Datos de suscripción preparados para MercadoPago', {
-          externalReference: finalExternalReference,
+          externalReference: externalReferenceForOperation,
           payerEmail: payer_email,
-          reason: reason,
+          reason,
           frequency: auto_recurring.frequency,
           frequencyType: auto_recurring.frequency_type,
           transactionAmount: auto_recurring.transaction_amount,
           backUrl: back_url,
           idempotencyKey
         })
-        
-        console.log('📤 Datos enviados a MercadoPago:', JSON.stringify(subscriptionData, null, 2))
 
-        // Crear la suscripción en MercadoPago
-        return await mercadoPagoService.createSubscription(subscriptionData)
+        console.log('📤 Datos enviados a MercadoPago:', JSON.stringify(subscriptionPayload, null, 2))
+
+        return await mercadoPagoService.createSubscription(subscriptionPayload)
       },
       {
-        lockTimeout: 30000, // 30 segundos
-        resultTtl: 300000,  // 5 minutos
-        maxRetries: 3
+        key: idempotencyKey,
+        ttlSeconds: 300,
+        maxRetries: 3,
+        retryDelayMs: 1000,
+        enablePreValidation: Boolean(subscriptionContext),
+        subscriptionData: subscriptionContext
       }
     )
 
-    // Si es un resultado de caché, retornarlo directamente
-    if (result.fromCache) {
-      logger.info(LogCategory.SUBSCRIPTION, 'Suscripción obtenida desde caché de idempotencia', {
-        externalReference: finalExternalReference,
-        idempotencyKey,
-        subscriptionId: result.data.id
-      })
-      
+    if (!idempotencyResult.success) {
+      if (idempotencyResult.validationResult && !idempotencyResult.validationResult.isValid) {
+        return NextResponse.json({
+          error: idempotencyResult.validationResult.reason,
+          existing_subscription: idempotencyResult.validationResult.existingSubscription
+        }, { status: 409 })
+      }
+
+      if (idempotencyResult.errorCode === 'LOCK_NOT_ACQUIRED') {
+        return NextResponse.json({
+          error: 'Estamos finalizando una solicitud anterior con la misma información. Intenta de nuevo en unos segundos.',
+          reason: 'LOCK_NOT_ACQUIRED'
+        }, { status: 409 })
+      }
+
       return NextResponse.json({
-        success: true,
-        from_cache: true,
-        subscription: result.data,
-        redirect_url: result.data.init_point
-      })
+        error: idempotencyResult.error || 'No se pudo crear la suscripción'
+      }, { status: 500 })
     }
 
-    // Continuar con el resultado nuevo
-    const mpResult = result.data
+    if (!finalExternalReference) {
+      finalExternalReference = idempotencyResult.externalReference || finalExternalReference
+    }
+
+    const mpResult = idempotencyResult.data as any
+    const wasAlreadyProcessed = idempotencyResult.wasAlreadyProcessed
 
     logger.info(LogCategory.SUBSCRIPTION, 'Suscripción creada exitosamente en MercadoPago', {
       subscriptionId: mpResult.id,
@@ -253,7 +377,8 @@ export async function POST(request: NextRequest) {
       externalReference: finalExternalReference,
       payerEmail: payer_email,
       transactionAmount: auto_recurring.transaction_amount,
-      hasInitPoint: !!mpResult.init_point
+      hasInitPoint: !!mpResult.init_point,
+      fromCache: wasAlreadyProcessed
     })
     
     console.log('✅ Suscripción creada en MercadoPago:', {
@@ -265,7 +390,7 @@ export async function POST(request: NextRequest) {
     // Guardar o actualizar suscripción en unified_subscriptions
     try {
       const supabase = await createClient()
-      let existingSubscription = null
+  let existingSubscription: UnifiedSubscriptionRow | null = null
       
       // Buscar suscripción existente con lógica mejorada
       if (user_id && finalExternalReference) {
@@ -276,7 +401,7 @@ export async function POST(request: NextRequest) {
         })
         
         // Buscar primero por external_reference y user_id
-        let { data, error: findError } = await supabase
+        let { data, error: findError } = await supabaseClient
           .from('unified_subscriptions')
           .select('*')
           .eq('external_reference', finalExternalReference)
@@ -284,7 +409,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle()
         
         if (data && !findError) {
-          existingSubscription = data
+          existingSubscription = data as UnifiedSubscriptionRow
           logger.info(LogCategory.SUBSCRIPTION, 'Suscripción existente encontrada por external_reference', {
             id: data.id,
             status: data.status,
@@ -299,7 +424,7 @@ export async function POST(request: NextRequest) {
               userId: user_id
             })
             
-            const { data: mpData, error: mpFindError } = await supabase
+            const { data: mpData, error: mpFindError } = await supabaseClient
               .from('unified_subscriptions')
               .select('*')
               .eq('mercadopago_subscription_id', mpResult.id)
@@ -307,7 +432,7 @@ export async function POST(request: NextRequest) {
               .maybeSingle()
             
             if (mpData && !mpFindError) {
-              existingSubscription = mpData
+              existingSubscription = mpData as UnifiedSubscriptionRow
               logger.info(LogCategory.SUBSCRIPTION, 'Suscripción existente encontrada por mercadopago_subscription_id', {
                 id: mpData.id,
                 status: mpData.status,
@@ -317,6 +442,28 @@ export async function POST(request: NextRequest) {
             }
           }
           
+          if (!existingSubscription && user_id && product_id) {
+            const statusFilter = ['pending', 'active', 'authorized', 'processing']
+            const { data: candidateList, error: comboError } = await supabaseClient
+              .from('unified_subscriptions')
+              .select('*')
+              .eq('user_id', user_id)
+              .eq('product_id', product_id)
+              .in('status', statusFilter)
+              .order('created_at', { ascending: false })
+              .limit(1)
+
+            if (!comboError && candidateList && candidateList.length > 0) {
+              existingSubscription = candidateList[0] as UnifiedSubscriptionRow
+              logger.info(LogCategory.SUBSCRIPTION, 'Suscripción existente encontrada por user_id/product_id', {
+                id: existingSubscription.id,
+                status: existingSubscription.status,
+                productId: existingSubscription.product_id,
+                subscriptionType: existingSubscription.subscription_type
+              })
+            }
+          }
+
           if (!existingSubscription) {
             logger.info(LogCategory.SUBSCRIPTION, 'No se encontró suscripción existente', {
               external_reference: finalExternalReference,
@@ -343,11 +490,17 @@ export async function POST(request: NextRequest) {
         const updateData: any = {
           mercadopago_subscription_id: mpResult.id,
           updated_at: new Date().toISOString(),
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
+          transaction_amount: auto_recurring.transaction_amount,
+          frequency: auto_recurring.frequency,
+          frequency_type: auto_recurring.frequency_type,
+          subscription_type: subscription_type || existingSubscription.subscription_type,
+          quantity
         }
 
-        // PRESERVAR customer_data existente, solo agregar si no existe
-        if (payer_email && !existingSubscription.customer_data) {
+        if (customer_data) {
+          updateData.customer_data = customer_data
+        } else if (payer_email && !existingSubscription.customer_data) {
           updateData.customer_data = {
             email: payer_email,
             processed_via: 'create-without-plan',
@@ -355,41 +508,50 @@ export async function POST(request: NextRequest) {
           }
         }
 
-          // PRESERVAR cart_items existentes, solo agregar si no existen
-          if (product_id && !existingSubscription.cart_items) {
-            // Obtener información del producto para cart_items
-            const { data: productData, error: productError } = await supabase
+        const primaryCartItem = normalizeCartItems.find(item => item.product_id === product_id) || normalizeCartItems[0]
+
+        if (primaryCartItem) {
+          updateData.cart_items = normalizeCartItems
+          updateData.product_name = primaryCartItem.product_name || existingSubscription.product_name
+          updateData.size = primaryCartItem.size || existingSubscription.size
+          updateData.base_price = primaryCartItem.price || existingSubscription.base_price
+          updateData.discounted_price = auto_recurring.transaction_amount
+
+          const numericProductId = Number(primaryCartItem.product_id ?? product_id)
+          if (!Number.isNaN(numericProductId)) {
+            updateData.product_id = numericProductId
+          }
+        } else {
+          updateData.cart_items = normalizeCartItems.length > 0 ? normalizeCartItems : existingSubscription.cart_items
+
+          if (product_id) {
+            const { data: productRow, error: productError } = await supabaseClient
               .from('products')
               .select('*')
               .eq('id', product_id)
               .single()
 
+            const productData = productRow as any
+
             if (productData && !productError) {
-              updateData.cart_items = [{
-                product_id: productData.id,
-                product_name: productData.name,
-                quantity: quantity || 1,
-                price: productData.price,
-                size: productData.size || 'Standard',
-                isSubscription: true,
-                subscriptionType: subscription_type || 'monthly'
-              }]
-              
-              // Agregar campos del producto SOLO si no existen
-              if (!existingSubscription.product_name) {
-                updateData.product_name = productData.name
-              }
-              if (!existingSubscription.product_image) {
-                updateData.product_image = productData.image
-              }
-              if (!existingSubscription.size) {
-                updateData.size = productData.size || 'Standard'
-              }
+              updateData.product_id = productData.id
+              updateData.product_name = productData.name
+              updateData.product_image = productData.image
+              updateData.size = productData.size || 'Standard'
+              updateData.base_price = productData.price
+              updateData.discounted_price = auto_recurring.transaction_amount
             }
           }
+        }
+
+        const metadataSource = mergeMetadata(existingSubscription.metadata)
+        if (shipping_address) {
+          metadataSource.shipping_address = shipping_address
+        }
+        updateData.metadata = metadataSource
 
           // Actualizar la suscripción existente con todos los campos
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabaseClient
             .from('unified_subscriptions')
             .update(updateData)
             .eq('id', existingSubscription.id)
@@ -425,7 +587,17 @@ export async function POST(request: NextRequest) {
           currency_id: auto_recurring.currency_id || 'MXN',
           processed_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          quantity,
+          discounted_price: auto_recurring.transaction_amount,
+          metadata: mergeMetadata(null)
+        }
+
+        if (shipping_address) {
+          newSubscriptionData.metadata = {
+            ...newSubscriptionData.metadata,
+            shipping_address
+          }
         }
         
         // Agregar user_id si se proporciona
@@ -434,7 +606,9 @@ export async function POST(request: NextRequest) {
         }
         
         // Agregar customer_data
-        if (payer_email) {
+        if (customer_data) {
+          newSubscriptionData.customer_data = customer_data
+        } else if (payer_email) {
           newSubscriptionData.customer_data = {
             email: payer_email,
             processed_via: 'create-without-plan',
@@ -442,23 +616,39 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        // Agregar información del producto si está disponible
-        if (product_id) {
-          const { data: productData, error: productError } = await supabase
+        if (normalizeCartItems.length > 0) {
+          newSubscriptionData.cart_items = normalizeCartItems
+          const primaryCartItem = normalizeCartItems.find(item => item.product_id === product_id) || normalizeCartItems[0]
+
+          if (primaryCartItem) {
+            const numericProductId = Number(primaryCartItem.product_id ?? product_id)
+            if (!Number.isNaN(numericProductId)) {
+              newSubscriptionData.product_id = numericProductId
+            } else if (product_id) {
+              newSubscriptionData.product_id = product_id
+            }
+
+            newSubscriptionData.product_name = primaryCartItem.product_name || null
+            newSubscriptionData.size = primaryCartItem.size || null
+            newSubscriptionData.base_price = primaryCartItem.price || null
+            newSubscriptionData.discount_percentage = 0
+          }
+        } else if (product_id) {
+          const { data: productRow, error: productError } = await supabaseClient
             .from('products')
             .select('*')
             .eq('id', product_id)
             .single()
-          
+
+          const productData = productRow as any
+
           if (productData && !productError) {
             newSubscriptionData.product_id = productData.id
             newSubscriptionData.product_name = productData.name
             newSubscriptionData.product_image = productData.image
             newSubscriptionData.size = productData.size || 'Standard'
             newSubscriptionData.base_price = productData.price
-            newSubscriptionData.discounted_price = productData.price // Por defecto igual al precio base
             newSubscriptionData.discount_percentage = 0
-            
             newSubscriptionData.cart_items = [{
               product_id: productData.id,
               product_name: productData.name,
@@ -470,9 +660,13 @@ export async function POST(request: NextRequest) {
             }]
           }
         }
+
+        if (!newSubscriptionData.cart_items) {
+          newSubscriptionData.cart_items = []
+        }
         
         // Crear la nueva suscripción
-        const { error: insertError } = await supabase
+        const { error: insertError } = await supabaseClient
           .from('unified_subscriptions')
           .insert([newSubscriptionData])
         
@@ -501,6 +695,8 @@ export async function POST(request: NextRequest) {
     // Respuesta exitosa
     return NextResponse.json({
       success: true,
+      from_cache: wasAlreadyProcessed,
+      bundle_hash: bundleHash,
       subscription: {
         id: mpResult.id,
         version: mpResult.version,
@@ -522,7 +718,7 @@ export async function POST(request: NextRequest) {
       redirect_url: mpResult.init_point
     })
 
-  } catch (error) {
+  } catch (error: any) {
     logger.error(LogCategory.SUBSCRIPTION, 'Error crítico creando suscripción sin plan', error.message, {
       errorStack: error.stack,
       errorName: error.name,

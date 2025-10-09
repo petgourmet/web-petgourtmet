@@ -895,7 +895,7 @@ export function CheckoutModal() {
             }))
           }
 
-          logger.info(LogCategory.SUBSCRIPTION, 'Creando registro de suscripción pendiente', {
+          logger.info(LogCategory.SUBSCRIPTION, 'Preparando payload para API de suscripciones', {
             userId: user.id,
             productId: subscriptionItem.id,
             productName: subscriptionItem.name,
@@ -906,242 +906,141 @@ export function CheckoutModal() {
             discountedPrice,
             discountPercentage
           })
-          
+
           console.log('Datos completos de suscripción:', subscriptionData)
 
-          // Logging detallado antes del upsert
-          logger.info(LogCategory.SUBSCRIPTION, 'Realizando upsert en unified_subscriptions', {
-            userId: user.id,
-            externalReference,
-            tableName: 'unified_subscriptions',
-            conflictColumns: 'user_id,product_id,external_reference'
-          })
+          const cartSummary = cart
+            .map(item => `${item.quantity} x ${item.name}`)
+            .join(', ')
 
-          // Verificar si ya existe una suscripción pendiente para este usuario y producto
-          const { data: existingSubscription } = await supabase
-            .from('unified_subscriptions')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('product_id', subscriptionItem.id)
-            .eq('subscription_type', subscriptionType)
-            .in('status', ['pending', 'active'])
-            .single()
-
-          let insertedData, subscriptionError
-
-          if (existingSubscription) {
-            // Si existe una suscripción pendiente o activa, actualizarla en lugar de crear una nueva
-            logger.info(LogCategory.SUBSCRIPTION, 'Actualizando suscripción existente en lugar de crear duplicado', {
-              existingId: existingSubscription.id,
-              userId: user.id,
-              productId: subscriptionItem.id,
-              subscriptionType,
-              existingStatus: existingSubscription.status
-            })
-
-            const updateResult = await supabase
-              .from('unified_subscriptions')
-              .update({
-                ...subscriptionData,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', existingSubscription.id)
-              .select()
-
-            insertedData = updateResult.data
-            subscriptionError = updateResult.error
-          } else {
-            // No existe, crear nueva suscripción
-            const insertResult = await supabase
-              .from('unified_subscriptions')
-              .insert(subscriptionData as any)
-              .select()
-
-            insertedData = insertResult.data
-            subscriptionError = insertResult.error
-          }
-
-          // Logging después del upsert
-          if (!subscriptionError && insertedData) {
-            logger.info(LogCategory.SUBSCRIPTION, 'Upsert exitoso en unified_subscriptions', {
-              userId: user.id,
-              externalReference,
-              recordsAffected: insertedData.length,
-              operation: 'upsert_completed'
-            })
-          }
-
-          if (subscriptionError) {
-            logger.error(LogCategory.SUBSCRIPTION, 'Error procesando suscripción', subscriptionError, {
-              userId: user.id,
-              externalReference,
-              errorCode: subscriptionError.code,
-              errorDetails: subscriptionError.details,
-              errorHint: subscriptionError.hint,
-              operation: existingSubscription ? 'update' : 'insert',
-              subscriptionData: {
-                productId: subscriptionItem.id,
-                productName: subscriptionItem.name,
-                subscriptionType,
-                transactionAmount
-              }
-            })
-            
-            console.error('Error al procesar suscripción:', getErrorDetails(subscriptionError))
-            
-            // Manejo específico de errores
-            let errorMessage = 'Error al procesar la suscripción. Por favor, inténtalo de nuevo.'
-            
-            if (subscriptionError.code === '23503') {
-              errorMessage = 'Error de datos. Por favor, verifica tu información e inténtalo de nuevo.'
-            } else if (subscriptionError.message?.includes('permission')) {
-              errorMessage = 'Error de permisos. Por favor, inicia sesión nuevamente.'
-            }
-            
-            setError(errorMessage)
-            
-            toast({
-              title: "Error al procesar suscripción",
-              description: errorMessage,
-              variant: "destructive"
-            })
-            
-            return
-          }
-
-          logger.info(LogCategory.SUBSCRIPTION, 'Suscripción pendiente guardada exitosamente', {
-            subscriptionId: (insertedData as any)?.[0]?.id,
-            userId: user.id,
-            externalReference,
-            productId: subscriptionItem.id,
-            productName: subscriptionItem.name,
-            subscriptionType,
-            transactionAmount
-          })
-          
-          console.log('✅ Suscripción pendiente guardada exitosamente:', insertedData)
-
-          // Mostrar mensaje de confirmación
-          toast({
-            title: "Suscripción guardada",
-            description: "Tu suscripción ha sido registrada. Redirigiendo a Mercado Pago...",
-            duration: 2000,
-          })
-
-          // Esperar un momento para asegurar que la suscripción se guardó
-          await new Promise(resolve => setTimeout(resolve, 1500))
-
-          // Validar que tenemos el ID de la suscripción
-          if (!insertedData || insertedData.length === 0 || !(insertedData as any)[0]?.id) {
-            logger.error(LogCategory.SUBSCRIPTION, 'No se obtuvo ID de suscripción después de guardar', {
-              userId: user.id,
-              externalReference,
-              insertedData
-            })
-            
-            toast({
-              title: "Error al procesar suscripción",
-              description: "No se pudo crear la suscripción. Inténtalo de nuevo.",
-              variant: "destructive"
-            })
-            return
-          }
-
-          const subscriptionId = (insertedData as any)[0].id
-
-          // SOLUCIÓN DEFINITIVA: Crear Preapproval con API de MercadoPago
-          // Esto garantiza que el external_reference sea el mismo en el pago
-          console.log('🔄 Creando Preapproval de MercadoPago con external_reference correcto')
-          
-          logger.info(LogCategory.SUBSCRIPTION, 'Creando Preapproval con API', {
-            userId: user.id,
-            externalReference,
-            subscriptionType,
-            subscriptionId,
-            transactionAmount
-          })
-
+          let shippingAddressPayload: Record<string, any> | null = null
           try {
-            const preapprovalResponse = await fetch('/api/mercadopago/create-subscription-preference', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                external_reference: externalReference,  // Nuestro SUB-xxx-xxx
-                subscription_id: subscriptionId,
-                payer_email: user.email,
-                payer_first_name: customerInfo.firstName,
-                payer_last_name: customerInfo.lastName,
-                transaction_amount: transactionAmount,
-                reason: `Suscripción ${subscriptionType} - ${subscriptionItem.name} (${subscriptionItem.size || 'Standard'})`,
-                frequency: frequency,
-                frequency_type: frequency_type
-              })
+            shippingAddressPayload = shippingAddress ? JSON.parse(shippingAddress) : null
+          } catch {
+            logger.warn(LogCategory.SUBSCRIPTION, 'No se pudo parsear shippingAddress, se enviará como string', {
+              userId: user.id,
+              externalReference,
+              shippingAddress
             })
+          }
 
-            if (!preapprovalResponse.ok) {
-              const errorData = await preapprovalResponse.json()
-              console.error('❌ Error creando Preapproval:', errorData)
-              
-              logger.error(LogCategory.SUBSCRIPTION, 'Error en API de Preapproval', errorData.error, {
-                userId: user.id,
-                externalReference,
-                statusCode: preapprovalResponse.status
-              })
-              
-              toast({
-                title: "Error al procesar suscripción",
-                description: "No se pudo crear el pago en MercadoPago. Inténtalo de nuevo.",
-                variant: "destructive"
-              })
-              return
+          const subscriptionRequestPayload = {
+            reason: subscriptionData.reason,
+            external_reference: externalReference,
+            payer_email: user.email,
+            auto_recurring: {
+              frequency,
+              frequency_type,
+              start_date: startDate,
+              end_date: subscriptionData.next_billing_date,
+              transaction_amount: transactionAmount,
+              currency_id: 'MXN'
+            },
+            back_url: subscriptionData.back_url,
+            status: 'pending',
+            user_id: user.id,
+            product_id: subscriptionItem.id,
+            quantity: subscriptionItem.quantity,
+            subscription_type: subscriptionType,
+            plan_id: subscriptionItem.id,
+            cart_items: subscriptionData.cart_items,
+            cart_summary: cartSummary,
+            shipping_cost: shippingCost,
+            bundle_label: subscriptionItem.name,
+            customer_data: subscriptionData.customer_data,
+            shipping_address: shippingAddressPayload || shippingAddress,
+            metadata: subscriptionData.metadata
+          }
+
+          logger.info(LogCategory.SUBSCRIPTION, 'Invocando API create-without-plan', {
+            userId: user.id,
+            externalReference,
+            payloadKeys: Object.keys(subscriptionRequestPayload)
+          })
+
+          const apiResponse = await fetch('/api/subscriptions/create-without-plan', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(subscriptionRequestPayload)
+          })
+
+          if (apiResponse.status === 409) {
+            const conflict = await apiResponse.json().catch(() => null)
+            const conflictReason = conflict?.reason
+            let conflictMessage = conflict?.error || 'Ya existe una suscripción activa para este producto.'
+
+            if (conflictReason === 'LOCK_NOT_ACQUIRED') {
+              conflictMessage = 'Estamos terminando una solicitud previa idéntica. Intenta nuevamente en unos segundos.'
             }
 
-            const preapprovalData = await preapprovalResponse.json()
-            
-            logger.info(LogCategory.SUBSCRIPTION, 'Preapproval creado exitosamente', {
+            logger.warn(LogCategory.SUBSCRIPTION, 'API reportó suscripción duplicada', {
               userId: user.id,
               externalReference,
-              preapprovalId: preapprovalData.preapproval_id,
-              initPoint: preapprovalData.init_point,
-              externalReferenceConfirmed: preapprovalData.external_reference === externalReference
+              conflict,
+              conflictReason
             })
 
-            console.log('✅ Preapproval creado correctamente:', {
-              preapproval_id: preapprovalData.preapproval_id,
-              external_reference: preapprovalData.external_reference,
-              match: preapprovalData.external_reference === externalReference
-            })
-
-            // Limpiar carrito y cerrar modal
-            clearCart()
-            setShowCheckout(false)
-
-            // Redirigir al checkout de MercadoPago
-            console.log('🔄 Redirigiendo a MercadoPago:', preapprovalData.init_point)
-            window.location.href = preapprovalData.init_point
-
-            return // Salir completamente de la función después de procesar suscripción
-
-          } catch (apiError: any) {
-            const errorDetails = getErrorDetails(apiError)
-            
-            logger.error(LogCategory.SUBSCRIPTION, 'Error crítico en API de Preapproval', errorDetails.message, {
-              userId: user.id,
-              externalReference,
-              errorStack: errorDetails.stack
-            })
-            
-            console.error('❌ Error en API de Preapproval:', errorDetails)
-            
+            setError(conflictMessage)
             toast({
-              title: "Error al procesar suscripción",
-              description: "Error de conexión con el servidor. Inténtalo de nuevo.",
-              variant: "destructive"
+              title: 'Suscripción existente',
+              description: conflictMessage,
+              variant: 'destructive'
             })
             return
           }
+
+          if (!apiResponse.ok) {
+            const errorPayload = await apiResponse.json().catch(() => null)
+            const errorMessage = errorPayload?.error || 'No se pudo crear la suscripción. Inténtalo de nuevo.'
+
+            logger.error(LogCategory.SUBSCRIPTION, 'API create-without-plan falló', errorMessage, {
+              userId: user.id,
+              externalReference,
+              statusCode: apiResponse.status
+            })
+
+            setError(errorMessage)
+            toast({
+              title: 'Error al procesar suscripción',
+              description: errorMessage,
+              variant: 'destructive'
+            })
+            return
+          }
+
+          const subscriptionResponse = await apiResponse.json()
+
+          logger.info(LogCategory.SUBSCRIPTION, 'Suscripción creada mediante API', {
+            userId: user.id,
+            externalReference,
+            mercadopagoId: subscriptionResponse?.subscription?.id,
+            fromCache: subscriptionResponse?.from_cache
+          })
+
+          toast({
+            title: 'Suscripción creada',
+            description: 'Te redirigiremos a Mercado Pago para completar el pago.',
+            duration: 2500
+          })
+
+          clearCart()
+          setShowCheckout(false)
+
+          const redirectUrl = subscriptionResponse?.redirect_url || subscriptionResponse?.subscription?.init_point
+
+          if (redirectUrl) {
+            window.location.href = redirectUrl
+          } else {
+            toast({
+              title: 'Suscripción registrada',
+              description: 'Revisa tu correo para completar el proceso de pago.',
+              duration: 4000
+            })
+          }
+
+          return
         } catch (error) {
           const errorDetails = getErrorDetails(error)
           logger.error(LogCategory.SUBSCRIPTION, 'Error crítico procesando suscripción', errorDetails.message, {

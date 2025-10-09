@@ -5,7 +5,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/service'
-import { logger } from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
 import { subscriptionDeduplicationService, SubscriptionData, ValidationResult } from './subscription-deduplication-service'
 
 export interface EnhancedIdempotencyOptions {
@@ -25,6 +25,7 @@ export interface EnhancedIdempotencyResult<T> {
   validationResult?: ValidationResult
   externalReference?: string
   processingTimeMs?: number
+  errorCode?: string
 }
 
 export interface IdempotencyLock {
@@ -40,6 +41,38 @@ export interface IdempotencyResult {
   expires_at: string
   created_at: string
 }
+
+const ENHANCED_IDEMPOTENCY_CONTEXT = 'ENHANCED_IDEMPOTENCY'
+
+const withContext = (data?: any) => {
+  if (!data) {
+    return { context: ENHANCED_IDEMPOTENCY_CONTEXT }
+  }
+
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    return {
+      context: ENHANCED_IDEMPOTENCY_CONTEXT,
+      ...data
+    }
+  }
+
+  return {
+    context: ENHANCED_IDEMPOTENCY_CONTEXT,
+    value: data
+  }
+}
+
+const logDebug = (message: string, data?: any, metadata?: any) =>
+  logger.debug(LogCategory.SUBSCRIPTION, message, withContext(data), metadata)
+
+const logInfo = (message: string, data?: any, metadata?: any) =>
+  logger.info(LogCategory.SUBSCRIPTION, message, withContext(data), metadata)
+
+const logWarn = (message: string, data?: any, metadata?: any) =>
+  logger.warn(LogCategory.SUBSCRIPTION, message, withContext(data), metadata)
+
+const logError = (message: string, error?: any, data?: any, metadata?: any) =>
+  logger.error(LogCategory.SUBSCRIPTION, message, error, withContext(data), metadata)
 
 export class EnhancedIdempotencyServiceServer {
   private static instance: EnhancedIdempotencyServiceServer
@@ -75,7 +108,7 @@ export class EnhancedIdempotencyServiceServer {
       subscriptionData
     } = options
 
-    logger.info('Iniciando operación de suscripción con idempotencia (servidor)', 'ENHANCED_IDEMPOTENCY', {
+    logInfo('Iniciando operación de suscripción con idempotencia (servidor)', {
       key,
       ttlSeconds,
       maxRetries,
@@ -92,7 +125,7 @@ export class EnhancedIdempotencyServiceServer {
         validationResult = await subscriptionDeduplicationService.validateBeforeCreate(subscriptionData)
         
         if (!validationResult.isValid) {
-          logger.warn('Validación previa falló', 'ENHANCED_IDEMPOTENCY', {
+          logWarn('Validación previa falló', {
             key,
             reason: validationResult.reason,
             processId: this.processId
@@ -103,22 +136,22 @@ export class EnhancedIdempotencyServiceServer {
             error: validationResult.reason,
             wasAlreadyProcessed: false,
             validationResult,
-            processingTimeMs: Date.now() - startTime
+            processingTimeMs: Date.now() - startTime,
+            errorCode: 'VALIDATION_FAILED'
           }
         }
         
         externalReference = validationResult.externalReference
         
-        logger.info('Validación previa exitosa', 'ENHANCED_IDEMPOTENCY', {
+        logInfo('Validación previa exitosa', {
           key,
           externalReference,
           processId: this.processId
         })
         
       } catch (error: any) {
-        logger.error('Error en validación previa', 'ENHANCED_IDEMPOTENCY', {
+        logError('Error en validación previa', error, {
           key,
-          error: error.message,
           processId: this.processId
         })
         
@@ -126,7 +159,8 @@ export class EnhancedIdempotencyServiceServer {
           success: false,
           error: `Error en validación previa: ${error.message}`,
           wasAlreadyProcessed: false,
-          processingTimeMs: Date.now() - startTime
+          processingTimeMs: Date.now() - startTime,
+          errorCode: 'VALIDATION_ERROR'
         }
       }
     }
@@ -134,7 +168,7 @@ export class EnhancedIdempotencyServiceServer {
     // 2. Verificar si ya existe un resultado previo
     const existingResult = await this.getExistingResult<T>(key)
     if (existingResult) {
-      logger.info('Operación ya procesada previamente', 'ENHANCED_IDEMPOTENCY', {
+      logInfo('Operación ya procesada previamente', {
         key,
         resultExists: true,
         processId: this.processId
@@ -157,7 +191,7 @@ export class EnhancedIdempotencyServiceServer {
       // Verificar una vez más si se completó mientras esperábamos
       const finalCheck = await this.getExistingResult<T>(key)
       if (finalCheck) {
-        logger.info('Operación completada por otro proceso durante espera', 'ENHANCED_IDEMPOTENCY', {
+        logInfo('Operación completada por otro proceso durante espera', {
           key,
           processId: this.processId
         })
@@ -178,13 +212,14 @@ export class EnhancedIdempotencyServiceServer {
         wasAlreadyProcessed: false,
         validationResult,
         externalReference,
-        processingTimeMs: Date.now() - startTime
+        processingTimeMs: Date.now() - startTime,
+        errorCode: 'LOCK_NOT_ACQUIRED'
       }
     }
 
     // 4. Ejecutar la operación con el lock adquirido
     try {
-      logger.info('Ejecutando operación con lock adquirido', 'ENHANCED_IDEMPOTENCY', {
+      logInfo('Ejecutando operación con lock adquirido', {
         key,
         externalReference,
         processId: this.processId
@@ -196,7 +231,7 @@ export class EnhancedIdempotencyServiceServer {
       // Guardar el resultado
       await this.saveResult(key, result, ttlSeconds)
       
-      logger.info('Operación completada exitosamente', 'ENHANCED_IDEMPOTENCY', {
+      logInfo('Operación completada exitosamente', {
         key,
         externalReference,
         processId: this.processId
@@ -212,9 +247,8 @@ export class EnhancedIdempotencyServiceServer {
       }
       
     } catch (error: any) {
-      logger.error('Error ejecutando operación', 'ENHANCED_IDEMPOTENCY', {
+      logError('Error ejecutando operación', error, {
         key,
-        error: error.message,
         processId: this.processId
       })
       
@@ -224,7 +258,8 @@ export class EnhancedIdempotencyServiceServer {
         wasAlreadyProcessed: false,
         validationResult,
         externalReference,
-        processingTimeMs: Date.now() - startTime
+        processingTimeMs: Date.now() - startTime,
+        errorCode: 'OPERATION_FAILED'
       }
       
     } finally {
@@ -247,7 +282,7 @@ export class EnhancedIdempotencyServiceServer {
       const lockResult = await this.acquireLock(key, ttlSeconds)
       
       if (lockResult.acquired) {
-        logger.debug('Lock adquirido exitosamente', 'ENHANCED_IDEMPOTENCY', {
+        logDebug('Lock adquirido exitosamente', {
           key,
           attempt,
           processId: this.processId
@@ -256,7 +291,7 @@ export class EnhancedIdempotencyServiceServer {
       }
       
       if (attempt < maxRetries) {
-        logger.debug('Lock no disponible, reintentando', 'ENHANCED_IDEMPOTENCY', {
+        logDebug('Lock no disponible, reintentando', {
           key,
           attempt,
           maxRetries,
@@ -268,7 +303,7 @@ export class EnhancedIdempotencyServiceServer {
       }
     }
     
-    logger.warn('No se pudo adquirir lock después de todos los reintentos', 'ENHANCED_IDEMPOTENCY', {
+    logWarn('No se pudo adquirir lock después de todos los reintentos', {
       key,
       maxRetries,
       processId: this.processId
@@ -311,9 +346,8 @@ export class EnhancedIdempotencyServiceServer {
       return { acquired: true }
       
     } catch (error: any) {
-      logger.error('Error adquiriendo lock', 'ENHANCED_IDEMPOTENCY', {
+      logError('Error adquiriendo lock', error, {
         key,
-        error: error.message,
         processId: this.processId
       })
       
@@ -333,22 +367,20 @@ export class EnhancedIdempotencyServiceServer {
         .eq('process_id', this.processId)
       
       if (error) {
-        logger.error('Error liberando lock', 'ENHANCED_IDEMPOTENCY', {
+        logError('Error liberando lock', error, {
           key,
-          error: error.message,
           processId: this.processId
         })
       } else {
-        logger.debug('Lock liberado exitosamente', 'ENHANCED_IDEMPOTENCY', {
+        logDebug('Lock liberado exitosamente', {
           key,
           processId: this.processId
         })
       }
       
     } catch (error: any) {
-      logger.error('Error liberando lock', 'ENHANCED_IDEMPOTENCY', {
+      logError('Error liberando lock', error, {
         key,
-        error: error.message,
         processId: this.processId
       })
     }
@@ -367,9 +399,8 @@ export class EnhancedIdempotencyServiceServer {
         .maybeSingle()
       
       if (error) {
-        logger.error('Error obteniendo resultado existente', 'ENHANCED_IDEMPOTENCY', {
+        logError('Error obteniendo resultado existente', error, {
           key,
-          error: error.message,
           processId: this.processId
         })
         return null
@@ -378,9 +409,8 @@ export class EnhancedIdempotencyServiceServer {
       return data?.result_data || null
       
     } catch (error: any) {
-      logger.error('Error obteniendo resultado existente', 'ENHANCED_IDEMPOTENCY', {
+      logError('Error obteniendo resultado existente', error, {
         key,
-        error: error.message,
         processId: this.processId
       })
       return null
@@ -407,16 +437,15 @@ export class EnhancedIdempotencyServiceServer {
         throw error
       }
       
-      logger.debug('Resultado guardado exitosamente', 'ENHANCED_IDEMPOTENCY', {
+      logDebug('Resultado guardado exitosamente', {
         key,
         expiresAt,
         processId: this.processId
       })
       
     } catch (error: any) {
-      logger.error('Error guardando resultado', 'ENHANCED_IDEMPOTENCY', {
+      logError('Error guardando resultado', error, {
         key,
-        error: error.message,
         processId: this.processId
       })
       throw error
@@ -434,15 +463,13 @@ export class EnhancedIdempotencyServiceServer {
         .lt('expires_at', new Date().toISOString())
       
       if (error) {
-        logger.error('Error limpiando locks expirados', 'ENHANCED_IDEMPOTENCY', {
-          error: error.message,
+        logError('Error limpiando locks expirados', error, {
           processId: this.processId
         })
       }
       
     } catch (error: any) {
-      logger.error('Error limpiando locks expirados', 'ENHANCED_IDEMPOTENCY', {
-        error: error.message,
+      logError('Error limpiando locks expirados', error, {
         processId: this.processId
       })
     }
