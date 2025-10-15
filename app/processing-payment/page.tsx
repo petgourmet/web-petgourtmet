@@ -15,6 +15,7 @@ function ProcessingPaymentContent() {
   const [orderData, setOrderData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [redirecting, setRedirecting] = useState(false)
 
   // Extraer parámetros de la URL
   const orderId = searchParams.get('order_id')
@@ -29,6 +30,76 @@ function ProcessingPaymentContent() {
   const preferenceId = searchParams.get('preference_id')
   const siteId = searchParams.get('site_id')
   const processingMode = searchParams.get('processing_mode')
+  const preapprovalId = searchParams.get('preapproval_id')
+  const subscriptionId = searchParams.get('subscription_id')
+
+  // Función para detectar si es una suscripción
+  const isSubscription = () => {
+    // Verificar parámetros específicos de suscripción
+    if (preapprovalId || subscriptionId) {
+      return true
+    }
+    
+    // Verificar patrones en external_reference
+    if (externalReference) {
+      // Patrones comunes para suscripciones
+      const subscriptionPatterns = [
+        /^SUB-/i,           // SUB-xxx-xxx-xxx
+        /subscription/i,     // contiene "subscription"
+        /suscripcion/i,      // contiene "suscripcion"
+        /preapproval/i,      // contiene "preapproval"
+        /-sub-/i,           // contiene "-sub-"
+        /-subs-/i           // contiene "-subs-"
+      ]
+      
+      return subscriptionPatterns.some(pattern => pattern.test(externalReference))
+    }
+    
+    return false
+  }
+
+  // Función para construir URL de redirección con parámetros
+  const buildRedirectUrl = (basePath: string) => {
+    const url = new URL(basePath, window.location.origin)
+    
+    // Parámetros esenciales a preservar
+    const paramsToPreserve = [
+      'order_id', 'order_number', 'payment_id', 'status', 'collection_id',
+      'collection_status', 'external_reference', 'payment_type', 
+      'merchant_order_id', 'preference_id', 'preapproval_id', 'subscription_id'
+    ]
+    
+    paramsToPreserve.forEach(param => {
+      const value = searchParams.get(param)
+      if (value) {
+        url.searchParams.set(param, value)
+      }
+    })
+    
+    return url.toString()
+  }
+
+  // Función para manejar redirección automática
+  const handleAutoRedirect = () => {
+    if (status === 'approved' && !redirecting) {
+      setRedirecting(true)
+      
+      const targetPath = isSubscription() ? '/suscripcion/exito' : '/gracias-por-tu-compra'
+      const redirectUrl = buildRedirectUrl(targetPath)
+      
+      console.log('🔄 Redirigiendo automáticamente:', {
+        isSubscription: isSubscription(),
+        targetPath,
+        redirectUrl,
+        searchParams: Object.fromEntries(searchParams.entries())
+      })
+      
+      // Pequeño delay para mostrar el mensaje de redirección
+      setTimeout(() => {
+        router.push(redirectUrl)
+      }, 1500)
+    }
+  }
 
   useEffect(() => {
     const processPayment = async () => {
@@ -103,11 +174,20 @@ function ProcessingPaymentContent() {
         }
       } finally {
         setIsLoading(false)
+        // Intentar redirección automática después de cargar los datos
+        handleAutoRedirect()
       }
     }
 
     processPayment()
   }, [orderId, paymentId, status])
+
+  // Efecto separado para manejar redirección cuando cambia el estado
+  useEffect(() => {
+    if (!isLoading) {
+      handleAutoRedirect()
+    }
+  }, [isLoading, status])
 
   const getStatusIcon = () => {
     switch (status) {
@@ -133,7 +213,9 @@ function ProcessingPaymentContent() {
       case 'approved':
         return {
           title: '¡Pago Aprobado!',
-          description: 'Tu pago ha sido procesado exitosamente.',
+          description: redirecting ? 
+            `Redirigiendo a la página de ${isSubscription() ? 'suscripción' : 'compra'} exitosa...` :
+            'Tu pago ha sido procesado exitosamente.',
           color: 'text-green-600'
         }
       case 'rejected':
@@ -198,11 +280,13 @@ function ProcessingPaymentContent() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="p-8 text-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
             <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-red-600 mb-2">Error</h1>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <CardTitle className="text-red-600">Error</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-gray-600">{error}</p>
             <Button onClick={() => router.push('/')} variant="outline">
               Volver al Inicio
             </Button>
@@ -212,33 +296,66 @@ function ProcessingPaymentContent() {
     )
   }
 
-  const statusInfo = getStatusMessage()
+  // Mostrar mensaje de redirección para pagos aprobados
+  if (redirecting && status === 'approved') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <CardTitle className="text-green-600">¡Pago Exitoso!</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+            <p className="text-gray-600">
+              Redirigiendo a la página de {isSubscription() ? 'suscripción' : 'compra'} exitosa...
+            </p>
+            <p className="text-sm text-gray-500">
+              Si no eres redirigido automáticamente, haz clic en el botón de abajo.
+            </p>
+            <Button 
+              onClick={() => router.push(buildRedirectUrl(isSubscription() ? '/suscripcion/exito' : '/gracias-por-tu-compra'))}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Continuar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const statusMessage = getStatusMessage()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Estado Principal */}
-        <Card className="mb-8">
-          <CardContent className="p-8 text-center">
-            <div className="mb-6">
+        <Card className="text-center">
+          <CardHeader className="pb-4">
+            <div className="flex justify-center mb-4">
               {getStatusIcon()}
             </div>
-            <h1 className={`text-3xl font-bold mb-2 ${statusInfo.color}`}>
-              {statusInfo.title}
-            </h1>
-            <p className="text-gray-600 text-lg mb-6">
-              {statusInfo.description}
+            <CardTitle className={`text-2xl font-bold ${statusMessage.color}`}>
+              {statusMessage.title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              {statusMessage.description}
             </p>
-            
+
+            <Separator />
+
             {orderNumber && (
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <p className="text-sm text-gray-500 mb-1">Número de Orden</p>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <p className="text-blue-700 font-medium mb-2">Número de Orden</p>
                 <p className="text-xl font-mono font-bold text-gray-900">{orderNumber}</p>
               </div>
             )}
 
             <div className="flex justify-center gap-4">
-              {status === 'approved' && (
+              {status === 'approved' && !redirecting && (
                 <Button onClick={() => router.push('/perfil')} className="bg-green-600 hover:bg-green-700">
                   Ver Mis Pedidos
                 </Button>
