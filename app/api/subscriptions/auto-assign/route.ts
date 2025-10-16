@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import MercadoPagoService from '@/lib/mercadopago-service'
+import { logger, LogCategory } from '@/lib/logger'
 
 // Configuración de MercadoPago (solo lectura de preapprovals)
 const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
@@ -86,14 +87,14 @@ async function findUserByEmail(email: string) {
     // 2) Buscar en auth.users
     const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers()
     if (usersError) {
-      console.error(`Error buscando usuario ${email} en auth.users:`, usersError)
+      logger.error(LogCategory.USER, 'Error searching user in auth.users', { email, error: usersError })
       return null
     }
 
     const user = users.find(u => normalizeEmail(u.email) === email)
     return user || null
   } catch (error) {
-    console.error(`Error en findUserByEmail para ${email}:`, error)
+    logger.error(LogCategory.USER, 'Error in findUserByEmail', { email, error })
     return null
   }
 }
@@ -108,12 +109,12 @@ async function updateSubscriptionUserId(subscriptionId: number | string, userId:
       .eq('id', subscriptionId)
 
     if (error) {
-      console.error(`Error actualizando suscripción ${subscriptionId}:`, error)
+      logger.error(LogCategory.SUBSCRIPTION, 'Error updating subscription user_id', { subscriptionId, error })
       return false
     }
     return true
   } catch (error) {
-    console.error(`Error al actualizar user_id para suscripción ${subscriptionId}:`, error)
+    logger.error(LogCategory.SUBSCRIPTION, 'Error updating user_id for subscription', { subscriptionId, error })
     return false
   }
 }
@@ -131,7 +132,7 @@ async function getEmailFromMercadoPago(preapprovalId: string): Promise<string | 
     }
     return null
   } catch (error) {
-    console.error(`Error obteniendo payer_email de MP (${preapprovalId}):`, error)
+    logger.error(LogCategory.SUBSCRIPTION, 'Error getting payer_email from MercadoPago', { preapprovalId, error })
     return null
   }
 }
@@ -161,7 +162,7 @@ async function resolveEmailForSubscription(subscription: UnifiedSubscription): P
       }
     }
   } catch (e) {
-    console.error(`Error consultando subscription_billing_history para ${subscription.id}:`, e)
+    logger.error(LogCategory.SUBSCRIPTION, 'Error querying subscription_billing_history', { subscriptionId: subscription.id, error: e })
   }
 
   // 3) MercadoPago (preapproval)
@@ -249,7 +250,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const { subscriptionId, processAll } = body
 
-    console.log('🔄 Auto-assign subscriptions API called:', { subscriptionId, processAll })
+    logger.info(LogCategory.SUBSCRIPTION, 'Auto-assign subscriptions API called', { subscriptionId, processAll })
 
     if (subscriptionId) {
       const result = await processSubscription(subscriptionId)
@@ -261,7 +262,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Debe especificar subscriptionId o processAll=true' }, { status: 400 })
     }
   } catch (error) {
-    console.error('Error en auto-assign subscriptions API:', error)
+    logger.error(LogCategory.SUBSCRIPTION, 'Error in auto-assign subscriptions API', { error })
     return NextResponse.json({ success: false, message: 'Error interno del servidor' }, { status: 500 })
   }
 }
@@ -297,7 +298,7 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: { subscriptionsWithoutUserId: count || 0, sample: withEmails } })
   } catch (error) {
-    console.error('Error en GET auto-assign subscriptions API:', error)
+    logger.error(LogCategory.SUBSCRIPTION, 'Error in GET auto-assign subscriptions API', { error })
     return NextResponse.json({ success: false, message: 'Error interno del servidor' }, { status: 500 })
   }
 }

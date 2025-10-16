@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
+import { logger, LogCategory } from "@/lib/logger"
 import { 
   validateCompleteCheckout, 
   validateMercadoPagoPreference,
@@ -11,15 +12,14 @@ import {
 } from "@/lib/checkout-validators"
 
 export async function POST(request: Request) {
-  console.log("=== CREATE PREFERENCE ENDPOINT CALLED ===")
-  console.log("Request URL:", request.url)
-  console.log("Request method:", request.method)
-  console.log("Request headers:", Object.fromEntries(request.headers.entries()))
+  logger.info(LogCategory.PAYMENT, 'Create preference endpoint called', {
+    url: request.url,
+    method: request.method
+  })
   
   try {
-    console.log("Parsing request body...")
     const body = await request.json()
-    console.log("Request body parsed successfully:", JSON.stringify(body, null, 2))
+    logger.info(LogCategory.PAYMENT, 'Request body parsed successfully')
     
     // Manejar ambos formatos: el nuevo (orderData) y el frontend actual (items, customerData directo)
     let customerData, items, externalReference, backUrls, userId, metadata
@@ -42,18 +42,16 @@ export async function POST(request: Request) {
       userId = body.userId
       metadata = body.metadata
     }
-    
-    console.log("Extracted data:", { customerData, items, externalReference, backUrls, userId, metadata })
 
     // Rate limiting básico
     const clientIP = request.headers.get('x-forwarded-for') || 'unknown'
     if (!checkRateLimit(clientIP, 10, 60000)) {
-      console.log(`Rate limit exceeded for IP: ${clientIP}`)
+      logger.warn(LogCategory.PAYMENT, 'Rate limit exceeded', { clientIP })
       return NextResponse.json({ error: "Demasiadas solicitudes, intenta más tarde" }, { status: 429 })
     }
 
     // Validar datos usando validadores robustos
-    console.log("Validating data with robust validators...")
+    logger.info(LogCategory.PAYMENT, 'Validating data with robust validators')
     
     // Convertir items a formato esperado
     const cartItems: CartItem[] = items.map((item: any) => ({
@@ -73,11 +71,11 @@ export async function POST(request: Request) {
     const validation = validateCompleteCheckout(sanitizedCustomerData, cartItems)
     
     if (!validation.isValid) {
-      console.error('❌ VALIDATION FAILED:')
-      console.error('Original customerData:', JSON.stringify(customerData, null, 2))
-      console.error('Sanitized customerData:', JSON.stringify(sanitizedCustomerData, null, 2))
-      console.error('Cart items:', JSON.stringify(cartItems, null, 2))
-      console.error('Validation errors:', validation.errors)
+      logger.error(LogCategory.PAYMENT, 'Validation failed', undefined, {
+        errors: validation.errors,
+        customerData: sanitizedCustomerData,
+        cartItems
+      })
       logValidationErrors('create-preference API', validation)
       return NextResponse.json({ 
         error: "Datos de validación incorrectos", 
@@ -91,30 +89,32 @@ export async function POST(request: Request) {
     
     // Log advertencias si las hay
     if (validation.warnings && validation.warnings.length > 0) {
-      console.warn('⚠️ Advertencias de validación:', validation.warnings)
+      logger.warn(LogCategory.PAYMENT, 'Validation warnings', { warnings: validation.warnings })
     }
     
-    console.log("All validations passed")
+    logger.info(LogCategory.PAYMENT, 'All validations passed')
 
     // Calcular el total de la orden incluyendo envío
-    console.log("Calculating order total...")
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
     const shipping = subtotal > 1000 ? 0 : 100.0  // Envío gratis por compras mayores a $1000
     const taxes = 0  // Los impuestos ya están incluidos en el precio del producto
     const total = subtotal + shipping
-    console.log(`Calculated subtotal: ${subtotal}, shipping: ${shipping}, taxes: ${taxes}, total: ${total}`)
+    
+    logger.info(LogCategory.PAYMENT, 'Order total calculated', {
+      subtotal,
+      shipping,
+      taxes,
+      total
+    })
     
     // Crear la orden en Supabase con los datos disponibles
-    console.log("Creating Supabase service client...")
     const supabase = createServiceClient()
-    console.log("Supabase service client created successfully")
     
     // Generar número de orden único
     const orderNumber = `PG${Date.now()}`
-    console.log(`Generated order number: ${orderNumber}`)
+    logger.info(LogCategory.PAYMENT, 'Generated order number', { orderNumber })
     
     // Crear orden con la estructura real de la tabla
-    console.log("Preparing form data for storage...")
     const formDataForStorage = {
       order_number: orderNumber,
       customer_data: {
@@ -132,9 +132,7 @@ export async function POST(request: Request) {
       frequency: 'none', // Default value
       created_at: new Date().toISOString()
     }
-    console.log("Form data prepared:", JSON.stringify(formDataForStorage, null, 2))
 
-    console.log("Preparing order data for database insertion...")
     const orderDataForDB = {
       // No incluir ID, que es autoincremental
       status: 'pending',
@@ -151,23 +149,21 @@ export async function POST(request: Request) {
     }
     
     if (userId) {
-      console.log(`✅ User ID provided: ${userId}, will be assigned to order`)
+      logger.info(LogCategory.PAYMENT, 'User ID provided for order assignment', { userId })
     } else {
-      console.log(`ℹ️ No user ID provided, order will be created without user assignment`)
+      logger.info(LogCategory.PAYMENT, 'No user ID provided, order will be created without user assignment')
     }
 
-    console.log("Order data prepared for insertion:", JSON.stringify(orderDataForDB, null, 2))
-
-    console.log("Attempting to insert order into database...")
     const { error: orderError, data: createdOrder } = await supabase
       .from('orders')
       .insert(orderDataForDB)
       .select()
 
     if (orderError) {
-      console.error('ERROR CREATING ORDER:', orderError)
-      console.error('Order error details:', JSON.stringify(orderError, null, 2))
-      console.error('Attempted order data:', JSON.stringify(orderDataForDB, null, 2))
+      logger.error(LogCategory.PAYMENT, 'Error creating order', orderError.message, {
+        orderError,
+        attemptedData: orderDataForDB
+      })
       return NextResponse.json({ 
         error: 'Error creando la orden', 
         details: orderError,
@@ -177,7 +173,7 @@ export async function POST(request: Request) {
     }
 
     if (!createdOrder || createdOrder.length === 0) {
-      console.error('No order data returned from insert operation')
+      logger.error(LogCategory.PAYMENT, 'No order data returned from insert operation')
       return NextResponse.json({ 
         error: 'No order data returned from database', 
         step: 'database_insertion_no_data'
@@ -185,11 +181,13 @@ export async function POST(request: Request) {
     }
 
     const orderId = createdOrder[0].id
-    console.log("Order created successfully with ID:", orderId)
-    console.log("Created order data:", JSON.stringify(createdOrder[0], null, 2))
+    logger.info(LogCategory.PAYMENT, 'Order created successfully', {
+      orderId,
+      orderNumber
+    })
 
     // Auto-asignar user_id basado en el email del cliente
-    console.log("🔄 Attempting to auto-assign user_id based on customer email...")
+    logger.info(LogCategory.PAYMENT, 'Attempting to auto-assign user_id based on customer email')
     try {
       const autoAssignResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/orders/auto-assign`, {
         method: 'POST',
@@ -202,15 +200,24 @@ export async function POST(request: Request) {
       if (autoAssignResponse.ok) {
         const autoAssignResult = await autoAssignResponse.json()
         if (autoAssignResult.success) {
-          console.log(`✅ Order ${orderId} auto-assigned to user ${autoAssignResult.userId} (${autoAssignResult.email})`)
+          logger.info(LogCategory.PAYMENT, 'Order auto-assigned to user', {
+            orderId,
+            userId: autoAssignResult.userId,
+            email: autoAssignResult.email
+          })
         } else {
-          console.log(`ℹ️ Order ${orderId} not auto-assigned: ${autoAssignResult.message}`)
+          logger.info(LogCategory.PAYMENT, 'Order not auto-assigned', {
+            orderId,
+            message: autoAssignResult.message
+          })
         }
       } else {
-        console.log(`⚠️ Auto-assign API call failed with status ${autoAssignResponse.status}`)
+        logger.warn(LogCategory.PAYMENT, 'Auto-assign API call failed', {
+          status: autoAssignResponse.status
+        })
       }
     } catch (autoAssignError) {
-      console.log(`⚠️ Auto-assign failed (non-critical):`, autoAssignError)
+      logger.warn(LogCategory.PAYMENT, 'Auto-assign failed (non-critical)', autoAssignError.message)
       // No fallar la creación de la orden por esto
     }
 
@@ -218,10 +225,14 @@ export async function POST(request: Request) {
     // NOTA: Para suscripciones, SIEMPRE crear la preferencia real en MercadoPago
     const isSubscription = body.metadata?.is_subscription === true
     const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true" && !isSubscription
-    console.log("Test mode check:", isTestMode, "| Is subscription:", isSubscription)
+    
+    logger.info(LogCategory.PAYMENT, 'Test mode and subscription check', {
+      isTestMode,
+      isSubscription
+    })
     
     if (isSubscription) {
-      console.log("🔔 SUSCRIPCIÓN DETECTADA: El modo test será ignorado para crear preferencia real en MercadoPago")
+      logger.info(LogCategory.SUBSCRIPTION, 'Subscription detected: test mode will be ignored to create real MercadoPago preference')
     }
 
     // Generar URLs de retorno
@@ -237,7 +248,7 @@ export async function POST(request: Request) {
 
     if (isTestMode) {
       // En modo de prueba, devolver una respuesta simulada (solo para pagos normales, NO suscripciones)
-      console.log("Test mode enabled, returning mock response")
+      logger.info(LogCategory.PAYMENT, 'Test mode enabled, returning mock response')
       return NextResponse.json({
         success: true,
         preferenceId: `test_preference_${Date.now()}`,
@@ -249,11 +260,9 @@ export async function POST(request: Request) {
 
     // Verificar que tenemos el token de acceso de Mercado Pago
     const mercadoPagoAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    console.log("MercadoPago token check:", !!mercadoPagoAccessToken)
-    console.log("MercadoPago token length:", mercadoPagoAccessToken?.length || 0)
     
     if (!mercadoPagoAccessToken) {
-      console.error("Mercado Pago access token not configured")
+      logger.error(LogCategory.PAYMENT, 'MercadoPago access token not configured')
       return NextResponse.json({ 
         error: "Mercado Pago access token not configured",
         step: 'mercadopago_config'
@@ -261,7 +270,7 @@ export async function POST(request: Request) {
     }
 
     // Crear la preferencia en Mercado Pago
-    console.log("Preparing MercadoPago preference...")
+    logger.info(LogCategory.PAYMENT, 'Preparing MercadoPago preference')
     
     // Preparar los ítems de productos
     const productItems = items.map((item: any) => ({
@@ -278,7 +287,7 @@ export async function POST(request: Request) {
     // Validar que todos los precios sean válidos
     for (const item of productItems) {
       if (!item.unit_price || item.unit_price <= 0) {
-        console.error("Invalid item price:", item)
+        logger.error(LogCategory.PAYMENT, 'Invalid item price', undefined, { item })
         return NextResponse.json({ 
           error: "Precio de producto inválido",
           step: 'price_validation'
@@ -304,11 +313,10 @@ export async function POST(request: Request) {
 
     // Combinar todos los ítems
     const allItems = [...productItems, ...additionalItems]
-    console.log("All items for MercadoPago:", JSON.stringify(allItems, null, 2))
     
     // Validar que las URLs de retorno estén definidas
     if (!finalBackUrls.success) {
-      console.error("back_urls.success is required when using auto_return")
+      logger.error(LogCategory.PAYMENT, 'back_urls.success is required when using auto_return')
       return NextResponse.json({ 
         error: "URL de éxito requerida",
         step: 'back_urls_validation'
@@ -343,11 +351,9 @@ export async function POST(request: Request) {
       expires: false,
       ...(metadata && { metadata }) // Agregar metadata si está disponible (para suscripciones)
     }
-    
-    console.log("MercadoPago preference prepared:", JSON.stringify(preference, null, 2))
 
     // Llamar a la API de Mercado Pago
-    console.log("Calling MercadoPago API...")
+    logger.info(LogCategory.PAYMENT, 'Calling MercadoPago API to create preference')
     const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: {
@@ -357,12 +363,13 @@ export async function POST(request: Request) {
       body: JSON.stringify(preference),
     })
 
-    console.log("MercadoPago API response status:", response.status)
-    console.log("MercadoPago API response headers:", Object.fromEntries(response.headers.entries()))
-
     if (!response.ok) {
       const errorData = await response.json()
-      console.error("Error creating Mercado Pago preference:", errorData)
+      logger.error(LogCategory.PAYMENT, 'Error creating MercadoPago preference', undefined, {
+        status: response.status,
+        errorData,
+        preference
+      })
       return NextResponse.json(
         { 
           error: "Failed to create Mercado Pago preference", 
@@ -375,10 +382,12 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json()
-    console.log("MercadoPago preference created successfully:", data)
+    logger.info(LogCategory.PAYMENT, 'MercadoPago preference created successfully', {
+      preferenceId: data.id,
+      initPoint: data.init_point
+    })
 
     // Actualizar el pedido con el ID de preferencia
-    console.log("Updating order with preference ID...")
     const { error: updateError } = await supabase
       .from("orders")
       .update({ 
@@ -387,17 +396,25 @@ export async function POST(request: Request) {
       .eq("id", orderId)
 
     if (updateError) {
-      console.error("Error updating order with preference ID:", updateError)
+      logger.error(LogCategory.PAYMENT, 'Error updating order with preference ID', updateError.message)
       // No fallar por esto, pero loggearlo
     } else {
-      console.log("Order updated with preference ID successfully")
+      logger.info(LogCategory.PAYMENT, 'Order updated with preference ID successfully', {
+        orderId,
+        preferenceId: data.id
+      })
 
     // NO enviar email de confirmación aquí - solo cuando el pago sea confirmado
     // El email se enviará desde el webhook cuando el pago sea aprobado
-    console.log('Order created successfully, email will be sent when payment is confirmed via webhook')
+    logger.info(LogCategory.PAYMENT, 'Order created successfully, email will be sent when payment is confirmed via webhook')
     }
 
-    console.log("=== CREATE PREFERENCE COMPLETED SUCCESSFULLY ===")
+    logger.info(LogCategory.PAYMENT, 'Create preference completed successfully', {
+      orderId,
+      preferenceId: data.id,
+      orderNumber
+    })
+    
     return NextResponse.json({
       success: true,
       preferenceId: data.id,
@@ -408,11 +425,10 @@ export async function POST(request: Request) {
       externalReference: orderId.toString()
     })
   } catch (error) {
-    console.error("=== ERROR IN CREATE-PREFERENCE ROUTE ===")
-    console.error("Error type:", typeof error)
-    console.error("Error message:", error instanceof Error ? error.message : String(error))
-    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace')
-    console.error("Full error object:", error)
+    logger.error(LogCategory.PAYMENT, 'Unexpected error in create-preference route', error instanceof Error ? error.message : String(error), {
+      errorType: typeof error,
+      errorStack: error instanceof Error ? error.stack : 'No stack trace'
+    })
     
     return NextResponse.json({ 
       error: "Internal server error", 

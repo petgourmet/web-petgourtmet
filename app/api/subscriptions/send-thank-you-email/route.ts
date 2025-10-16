@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import nodemailer from 'nodemailer'
+import { logger, LogCategory } from '@/lib/logger'
 
 // Crear transporter para emails usando SMTP
 const createTransporter = () => {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       send_admin_notification = false
     } = body
 
-    console.log('📧 Enviando email de agradecimiento:', {
+    logger.info(LogCategory.EMAIL, 'Sending thank you email', {
       user_id,
       subscription_id,
       user_email,
@@ -57,9 +58,9 @@ export async function POST(request: NextRequest) {
         .maybeSingle()
 
       if (checkError) {
-        console.error('Error verificando emails previos:', checkError)
+        logger.error(LogCategory.EMAIL, 'Error checking previous emails', { error: checkError })
       } else if (existingEmail) {
-        console.log('✅ Email ya enviado previamente para esta suscripción')
+        logger.info(LogCategory.EMAIL, 'Email already sent previously for this subscription')
         return NextResponse.json({
           success: true,
           message: 'Email ya enviado previamente'
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const emailResult = await transporter.sendMail(mailOptions)
-    console.log('📧 Resultado del envío al usuario:', emailResult)
+    logger.info(LogCategory.EMAIL, 'Email sent to user', { messageId: emailResult.messageId })
 
     // Enviar notificación a administradores si se solicita
     let adminEmailResult = null
@@ -101,9 +102,9 @@ export async function POST(request: NextRequest) {
         }
 
         adminEmailResult = await transporter.sendMail(adminMailOptions)
-        console.log('📧 Resultado del envío a admin:', adminEmailResult)
+        logger.info(LogCategory.EMAIL, 'Admin notification email sent', { messageId: adminEmailResult.messageId })
       } catch (adminError) {
-        console.error('❌ Error enviando email a admin:', adminError)
+        logger.error(LogCategory.EMAIL, 'Error sending admin email', { error: adminError })
         // No fallar si el email de admin falla
       }
     }
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
         })
 
       if (logError) {
-        console.error('Error registrando email log:', logError)
+        logger.error(LogCategory.EMAIL, 'Error registering email log', { error: logError })
       }
     }
 
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('❌ Error enviando email de agradecimiento:', error)
+    logger.error(LogCategory.EMAIL, 'Error sending thank you email', { error })
     
     return NextResponse.json(
       { 

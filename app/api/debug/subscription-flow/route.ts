@@ -1,7 +1,7 @@
 // app/api/debug/subscription-flow/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { WebhookService } from '@/lib/webhook-service';
+import WebhookService from '@/lib/webhook-service';
 
 interface DebugWebhookPayload {
   action: string;
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       console.log('🔄 Simulando webhook de MercadoPago:', mockWebhookPayload);
 
       // Procesar el webhook usando el servicio existente
-      const webhookService = new WebhookService();
+      const webhookService = WebhookService;
       const result = await webhookService.processSubscriptionWebhook(mockWebhookPayload);
 
       return NextResponse.json({

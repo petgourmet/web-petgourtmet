@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/client"
+import { logger, LogCategory } from "@/lib/logger"
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     const paymentType = url.searchParams.get("payment_type")
     const merchantOrderId = url.searchParams.get("merchant_order_id")
 
-    console.log('Payment status request params:', {
+    logger.info(LogCategory.PAYMENT, 'Payment status request', {
       paymentId,
       status,
       orderId,
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
 
     if (!response.ok) {
       const errorData = await response.json()
-      console.error("Error verifying payment status:", errorData)
+      logger.error(LogCategory.PAYMENT, 'Error verifying payment status', { error: errorData })
       return NextResponse.json({ error: "Failed to verify payment status" }, { status: response.status })
     }
 
@@ -100,7 +101,7 @@ export async function GET(request: Request) {
        merchant_account_id: searchParams.get('merchant_account_id')
     }
 
-    console.log('Updating order with data:', updateData)
+    logger.info(LogCategory.PAYMENT, 'Updating order', { updateData })
 
     // Actualizar el estado del pedido en la base de datos
     let updateResult
@@ -120,11 +121,11 @@ export async function GET(request: Request) {
     const { error: updateError } = updateResult || { error: new Error("Failed to update order") }
 
     if (updateError) {
-      console.error("Error updating order:", updateError)
+      logger.error(LogCategory.PAYMENT, 'Error updating order', { error: updateError })
       return NextResponse.json({ error: "Failed to update order", details: updateError.message }, { status: 500 })
     }
 
-    console.log('Order updated successfully')
+    logger.info(LogCategory.PAYMENT, 'Order updated successfully')
 
     return NextResponse.json({
       success: true,
@@ -144,7 +145,7 @@ export async function GET(request: Request) {
       }
     })
   } catch (error) {
-    console.error("Error in payment-status route:", error)
+    logger.error(LogCategory.PAYMENT, 'Error in payment-status route', { error })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

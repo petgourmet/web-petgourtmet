@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import WebhookService from '@/lib/webhook-service'
 import { validateWebhookSignature } from '@/lib/checkout-validators'
+import logger from '@/lib/logger'
 
 // Configurar para que Next.js no parsee el body automáticamente
 export const runtime = 'nodejs'
@@ -45,28 +46,18 @@ async function getRawBody(request: NextRequest): Promise<string> {
 
 // Endpoint principal para webhooks de MercadoPago
 export async function POST(request: NextRequest) {
-  console.log('🔔🔔🔔 ==================== WEBHOOK RECIBIDO DE MERCADOPAGO ====================')
-  console.log('🔔 Timestamp:', new Date().toISOString())
-  console.log('🔔 URL:', request.url)
+  const timestamp = new Date().toISOString()
   
   try {
     // Obtener headers importantes
     const signature = request.headers.get('x-signature') || ''
     const requestId = request.headers.get('x-request-id') || ''
-    const userAgent = request.headers.get('user-agent') || ''
     
-    console.log('📋 Headers del webhook:', {
-      signature: signature ? 'presente' : 'ausente',
-      requestId,
-      userAgent,
-      allHeaders: Object.fromEntries(request.headers.entries())
-    })
-
     // Obtener el raw body para validación de firma
     const rawBody = await getRawBody(request)
     
     if (!rawBody) {
-      console.error('❌ Body vacío en webhook')
+      logger.error('Webhook recibido con body vacío', { requestId })
       return NextResponse.json(
         { error: 'Body vacío' },
         { 
@@ -84,7 +75,7 @@ export async function POST(request: NextRequest) {
     try {
       webhookData = JSON.parse(rawBody)
     } catch (error) {
-      console.error('❌ Error parseando JSON del webhook:', error)
+      logger.error('Error parseando JSON del webhook', { error, requestId })
       return NextResponse.json(
         { error: 'JSON inválido' },
         { 
@@ -97,20 +88,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('📦📦📦 DATOS DEL WEBHOOK:', {
-      id: webhookData.id,
+    // Log de auditoría para webhook recibido
+    logger.info('Webhook MercadoPago recibido', {
       type: webhookData.type,
       action: webhookData.action,
       dataId: webhookData.data?.id,
-      liveMode: webhookData.live_mode,
-      fullPayload: JSON.stringify(webhookData, null, 2)
+      requestId,
+      timestamp
     })
 
     // Validar estructura básica del webhook
-    // Diferentes tipos de webhooks tienen estructuras diferentes:
-    // - payment: tiene data.id
-    // - subscription_preapproval: tiene id directamente y entity
-    // - merchant_order: tiene topic y resource
     const hasValidStructure = (
       (webhookData.type && webhookData.data?.id) || // Estructura normal (payment)
       (webhookData.type === 'subscription_preapproval' && webhookData.id && webhookData.entity) || // Estructura de suscripción
@@ -119,14 +106,12 @@ export async function POST(request: NextRequest) {
     )
     
     if (!hasValidStructure) {
-      console.error('❌ Estructura de webhook inválida:', webhookData)
-      console.error('📋 Estructura recibida:', {
+      logger.error('Estructura de webhook inválida', { 
+        webhookData, 
+        requestId,
         hasType: !!webhookData.type,
         hasDataId: !!webhookData.data?.id,
-        hasId: !!webhookData.id,
-        hasEntity: !!webhookData.entity,
-        hasTopic: !!webhookData.topic,
-        hasResource: !!webhookData.resource
+        hasId: !!webhookData.id
       })
       return NextResponse.json(
         { error: 'Estructura de webhook inválida' },
@@ -143,46 +128,16 @@ export async function POST(request: NextRequest) {
     // Inicializar el servicio de webhooks
     const webhookService = new WebhookService()
 
-    // ✅ VALIDACIÓN DE FIRMA ACTIVADA
-    console.log('🔐 Validando firma del webhook de MercadoPago...')
-    console.log('📋 Datos de firma recibidos:', {
-      hasSignature: !!signature,
-      signatureLength: signature?.length || 0,
-      hasRequestId: !!requestId,
-      environment: process.env.NODE_ENV,
-      webhookSecret: process.env.MERCADOPAGO_WEBHOOK_SECRET?.substring(0, 10) + '...'
-    })
-    
-    // Validar firma del webhook con el secret correcto
+    // Validar firma del webhook
     const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
     
-    // TEMPORAL: Desactivar validación de firma hasta configurar correctamente en MercadoPago
-    // La validación de firma requiere que el webhook secret esté configurado en MercadoPago
-    console.log('⚠️ VALIDACIÓN DE FIRMA TEMPORALMENTE DESACTIVADA')
-    console.log('📋 Configuración actual:', {
-      hasSignature: !!signature,
-      hasSecret: !!webhookSecret,
-      environment: process.env.NODE_ENV,
-      webhookSecretPrefix: webhookSecret?.substring(0, 10) + '...'
-    })
-    
-    // Validar firma solo si está configurada correctamente
     let isValidSignature = false
     if (signature && webhookSecret) {
       isValidSignature = validateWebhookSignature(rawBody, signature, webhookSecret)
-      if (isValidSignature) {
-        console.log('✅ Firma de webhook validada correctamente')
-      } else {
-        console.log('⚠️ Firma inválida pero continuando procesamiento')
+      if (!isValidSignature) {
+        logger.warn('Firma de webhook inválida', { requestId, type: webhookData.type })
       }
-    } else {
-      console.log('⚠️ Sin firma o secret - continuando sin validación')
     }
-    
-    // NO BLOQUEAR por firma inválida hasta que esté configurado correctamente
-    // if (!isValidSignature && process.env.NODE_ENV === 'production') {
-    //   return NextResponse.json({ error: 'Firma inválida' }, { status: 401 })
-    // }
 
     // Procesar según el tipo de webhook con retry automático
     let processed = false
@@ -193,65 +148,28 @@ export async function POST(request: NextRequest) {
       try {
         switch (webhookData.type) {
           case 'payment':
-            console.log(`💳 Procesando webhook de pago (intento ${retryCount + 1}/${maxRetries})`)
-            console.log(`� Acción del webhook: ${webhookData.action}`)
             processed = await webhookService.processPaymentWebhook(webhookData)
             break
 
           case 'subscription_preapproval':
           case 'subscription_authorized_payment':
-            console.log(`📋 Procesando webhook de suscripción (intento ${retryCount + 1}/${maxRetries})`)
-            console.log('🔍 Detalles del webhook:', {
-              type: webhookData.type,
-              action: webhookData.action,
-              entity: webhookData.entity,
-              id: webhookData.id,
-              dataId: webhookData.data?.id,
-              applicationId: webhookData.application_id,
-              liveMode: webhookData.live_mode,
-              timestamp: new Date().toISOString(),
-              retryAttempt: retryCount + 1
-            })
-            
             // Normalizar estructura - MercadoPago puede enviar diferentes formatos
             const normalizedWebhookData = {
               ...webhookData,
               data: webhookData.data || { id: webhookData.id }
             }
             
-            // Procesar con el servicio mejorado
             processed = await webhookService.processSubscriptionWebhook(normalizedWebhookData)
-            
-            // Log adicional para seguimiento
-            if (processed) {
-              console.log(`✅ Webhook de suscripción procesado exitosamente (intento ${retryCount + 1})`)
-            } else {
-              console.warn(`⚠️ Webhook de suscripción falló en intento ${retryCount + 1}`)
-            }
             break
 
           case 'plan':
-            console.log('📋 Webhook de plan recibido (no procesado)')
-            processed = true // Los planes no requieren procesamiento especial
-            break
-
           case 'invoice':
-            console.log('🧾 Webhook de factura recibido (no procesado)')
-            processed = true // Las facturas no requieren procesamiento especial
-            break
-
           case 'topic_merchant_order_wh':
-            console.log('🛒 Webhook de merchant order recibido')
-            console.log('📦 Datos de merchant order:', {
-              id: webhookData.id,
-              status: webhookData.status || webhookData.data?.status,
-              action: webhookData.action
-            })
-            processed = true // Merchant orders se procesan exitosamente
+            processed = true // Estos tipos no requieren procesamiento especial
             break
 
           default:
-            console.log(`ℹ️ Tipo de webhook no manejado: ${webhookData.type}`)
+            logger.info('Tipo de webhook no manejado', { type: webhookData.type, requestId })
             processed = true // No fallar por tipos desconocidos
         }
 
@@ -259,26 +177,30 @@ export async function POST(request: NextRequest) {
         if (!processed && retryCount < maxRetries - 1) {
           retryCount++
           const delayMs = Math.pow(2, retryCount) * 1000 // Backoff exponencial: 2s, 4s, 8s
-          console.log(`⏳ Reintentando procesamiento en ${delayMs}ms (intento ${retryCount + 1}/${maxRetries})`)
           await new Promise(resolve => setTimeout(resolve, delayMs))
         } else {
           break
         }
       } catch (error) {
-        console.error(`❌ Error en intento ${retryCount + 1} de procesamiento de webhook:`, error)
+        logger.error('Error procesando webhook', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          type: webhookData.type,
+          dataId: webhookData.data?.id,
+          attempt: retryCount + 1,
+          requestId
+        })
         
         if (retryCount < maxRetries - 1) {
           retryCount++
-          const delayMs = Math.pow(2, retryCount) * 1000 // Backoff exponencial
-          console.log(`⏳ Reintentando tras error en ${delayMs}ms (intento ${retryCount + 1}/${maxRetries})`)
+          const delayMs = Math.pow(2, retryCount) * 1000
           await new Promise(resolve => setTimeout(resolve, delayMs))
         } else {
-          // Último intento falló, registrar error crítico
-          console.error('❌ Todos los intentos de procesamiento fallaron:', {
+          logger.error('Todos los intentos de procesamiento fallaron', {
             type: webhookData.type,
             dataId: webhookData.data?.id,
-            error: error instanceof Error ? error.message : 'Error desconocido',
-            totalAttempts: maxRetries
+            totalAttempts: maxRetries,
+            requestId
           })
           break
         }
@@ -286,14 +208,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (processed) {
-      console.log('✅ Webhook procesado exitosamente')
+      logger.info('Webhook procesado exitosamente', {
+        type: webhookData.type,
+        action: webhookData.action,
+        requestId,
+        timestamp
+      })
+      
       return NextResponse.json(
         { 
           success: true, 
           message: 'Webhook procesado',
           type: webhookData.type,
           action: webhookData.action,
-          timestamp: new Date().toISOString()
+          timestamp
         },
         { 
           status: 200,
@@ -305,13 +233,19 @@ export async function POST(request: NextRequest) {
         }
       )
     } else {
-      console.error('❌ Error procesando webhook')
+      logger.error('Error procesando webhook', {
+        type: webhookData.type,
+        action: webhookData.action,
+        requestId,
+        timestamp
+      })
+      
       return NextResponse.json(
         { 
           error: 'Error procesando webhook',
           type: webhookData.type,
           action: webhookData.action,
-          timestamp: new Date().toISOString()
+          timestamp
         },
         { 
           status: 500,
@@ -325,12 +259,17 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('❌ Error crítico en webhook:', error)
+    logger.error('Error crítico en webhook', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp
+    })
+    
     return NextResponse.json(
       { 
         error: 'Error interno del servidor',
         message: error instanceof Error ? error.message : 'Error desconocido',
-        timestamp: new Date().toISOString()
+        timestamp
       },
       { 
         status: 500,
@@ -351,7 +290,6 @@ export async function GET(request: NextRequest) {
   
   // Si MercadoPago envía un challenge, devolverlo
   if (challenge) {
-    console.log('🔍 Challenge de MercadoPago recibido:', challenge)
     return new NextResponse(challenge, {
       status: 200,
       headers: {

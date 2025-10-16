@@ -4,16 +4,16 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logger, LogCategory } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
     const { subscriptionId, paymentId, externalReference } = await request.json()
     
-    console.log('🔧 Forzando activación de suscripción', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Force activating subscription', {
       subscriptionId,
       paymentId,
-      externalReference,
-      timestamp: new Date().toISOString()
+      externalReference
     })
 
     // Buscar la suscripción por ID o external_reference
@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!subscription) {
-      console.error('❌ No se encontró la suscripción', { subscriptionId, externalReference })
+      logger.error(LogCategory.SUBSCRIPTION, 'Subscription not found for force activation', { subscriptionId, externalReference })
       return NextResponse.json({
         success: false,
         error: 'Suscripción no encontrada'
       }, { status: 404 })
     }
 
-    console.log('✅ Suscripción encontrada:', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Subscription found for force activation', {
       id: subscription.id,
       status: subscription.status,
       mercadopago_payment_id: subscription.mercadopago_payment_id
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     // Si ya está activa, retornar éxito
     if (subscription.status === 'active') {
-      console.log('✅ Suscripción ya está activa')
+      logger.info(LogCategory.SUBSCRIPTION, 'Subscription already active')
       return NextResponse.json({
         success: true,
         already_active: true,
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (updateError) {
-      console.error('❌ Error actualizando suscripción', updateError)
+      logger.error(LogCategory.SUBSCRIPTION, 'Error updating subscription in force activation', { error: updateError })
       return NextResponse.json({
         success: false,
         error: 'Error al actualizar suscripción',
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Suscripción activada exitosamente', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Subscription force activated successfully', {
       id: updated.id,
       status: updated.status,
       activated_at: updated.activated_at
@@ -136,9 +136,9 @@ export async function POST(request: NextRequest) {
           userId: updated.user_id
         })
       })
-      console.log('📧 Email de confirmación enviado')
+      logger.info(LogCategory.EMAIL, 'Subscription confirmation email sent')
     } catch (emailError: any) {
-      console.warn('⚠️ No se pudo enviar email de confirmación', emailError.message)
+      logger.warn(LogCategory.EMAIL, 'Failed to send subscription confirmation email', { error: emailError.message })
       // No fallar si el email falla
     }
 
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('❌ Error en force-activate', error)
+    logger.error(LogCategory.SUBSCRIPTION, 'Error in force-activate route', { error })
     return NextResponse.json({
       success: false,
       error: 'Error interno',

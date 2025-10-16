@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('🔄 Creando suscripción sin plan:', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Creating subscription without plan', {
       reason,
       external_reference,
       payer_email,
@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
           idempotencyKey
         })
         
-        console.log('📤 Datos enviados a MercadoPago:', JSON.stringify(subscriptionData, null, 2))
+        logger.info(LogCategory.SUBSCRIPTION, 'Sending subscription data to MercadoPago', { subscriptionData })
 
         // Crear la suscripción en MercadoPago
         return await mercadoPagoService.createSubscription(subscriptionData)
@@ -256,10 +256,11 @@ export async function POST(request: NextRequest) {
       hasInitPoint: !!mpResult.init_point
     })
     
-    console.log('✅ Suscripción creada en MercadoPago:', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Subscription created in MercadoPago', {
       id: mpResult.id,
       status: mpResult.status,
-      init_point: mpResult.init_point
+      init_point: mpResult.init_point,
+      preapproval_id: mpResult.preapproval_id
     })
 
     // Guardar o actualizar suscripción en unified_subscriptions
@@ -337,7 +338,9 @@ export async function POST(request: NextRequest) {
           newMercadopagoId: mpResult.id,
           operation: 'update_existing'
         })
-        console.log('🔄 Actualizando suscripción existente ID:', existingSubscription.id)
+        logger.info(LogCategory.SUBSCRIPTION, 'Updating existing subscription instead of creating duplicate', {
+          existingId: existingSubscription.id
+        })
         
         // Preparar datos de actualización - SOLO agregar campos faltantes
         const updateData: any = {
@@ -401,17 +404,16 @@ export async function POST(request: NextRequest) {
               errorCode: updateError.code,
               errorDetails: updateError.details
             })
-            console.error('⚠️ Error actualizando suscripción existente:', updateError)
+            // Error already logged above
           } else {
-            logger.info(LogCategory.SUBSCRIPTION, 'Suscripción actualizada exitosamente con ID de MercadoPago', {
+            logger.info(LogCategory.SUBSCRIPTION, 'Existing subscription updated with MercadoPago ID', {
               externalReference: finalExternalReference,
               mercadopagoSubscriptionId: mpResult.id
             })
-            console.log('✅ Suscripción existente actualizada con mercadopago_subscription_id:', mpResult.id)
           }
       } else {
         // CREAR nueva suscripción si no existe una previa
-        console.log('📝 Creando nueva suscripción en unified_subscriptions')
+        logger.info(LogCategory.SUBSCRIPTION, 'Creating new subscription in unified_subscriptions')
         
         // Preparar datos para nueva suscripción
         const newSubscriptionData: any = {
@@ -483,18 +485,17 @@ export async function POST(request: NextRequest) {
             errorCode: insertError.code,
             errorDetails: insertError.details
           })
-          console.error('⚠️ Error creando nueva suscripción:', insertError)
+          // Error already logged above
         } else {
-          logger.info(LogCategory.SUBSCRIPTION, 'Nueva suscripción creada exitosamente en unified_subscriptions', {
+          logger.info(LogCategory.SUBSCRIPTION, 'New subscription created successfully in unified_subscriptions', {
             externalReference: finalExternalReference,
             mercadopagoSubscriptionId: mpResult.id
           })
-          console.log('✅ Nueva suscripción creada en unified_subscriptions')
         }
       }
       
     } catch (dbError) {
-      console.error('⚠️ Error en operaciones de base de datos:', dbError)
+      logger.error(LogCategory.DATABASE, 'Error in database operations', { error: dbError })
       // No fallar la respuesta si hay error en BD, pero loggearlo
     }
 
@@ -529,7 +530,7 @@ export async function POST(request: NextRequest) {
       requestOrigin: request.headers.get('origin') || 'unknown'
     })
     
-    console.error('❌ Error creando suscripción sin plan:', error)
+    logger.error(LogCategory.SUBSCRIPTION, 'Error creating subscription without plan', { error })
     
     // Manejar errores específicos de MercadoPago
     if (error && typeof error === 'object' && 'cause' in error) {

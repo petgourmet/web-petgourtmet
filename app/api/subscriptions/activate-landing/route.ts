@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-// import logger, { LogCategory } from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
 import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
 import { createEnhancedIdempotencyServiceServer } from '@/lib/enhanced-idempotency-service.server'
 
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const requestData = await request.json()
     operation_id = requestData.operation_id || `activate-landing-${Date.now()}`
     
-    console.log('🎯 Iniciando activación desde landing de MercadoPago', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Starting activation from MercadoPago landing', {
       operation_id,
       external_reference: requestData.external_reference,
       collection_status: requestData.collection_status,
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     
     // Manejar resultado desde caché o nueva ejecución
     if (result.fromCache) {
-      console.log('✅ Activación de suscripción obtenida desde caché de idempotencia')
+      logger.info(LogCategory.SUBSCRIPTION, 'Subscription activation obtained from idempotency cache')
       return NextResponse.json({
         success: true,
         message: 'Suscripción ya activada (desde caché)',
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     // Manejar duplicados: seleccionar la suscripción más completa
     let subscription = subscriptions[0]
     if (subscriptions.length > 1) {
-      console.warn('⚠️ Múltiples suscripciones encontradas, seleccionando la más completa', {
+      logger.warn(LogCategory.SUBSCRIPTION, 'Multiple subscriptions found, selecting most complete', {
          operation_id,
          external_reference,
          count: subscriptions.length,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         return currentScore > bestScore ? current : best
       })
       
-      console.log('✅ Suscripción seleccionada', {
+      logger.info(LogCategory.SUBSCRIPTION, 'Subscription selected', {
          operation_id,
          selected_id: subscription.id,
          selected_status: subscription.status,
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
        })
     }
 
-    console.log('📋 Suscripción encontrada', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Subscription found', {
       operation_id,
       subscription_id: subscription.id,
       current_status: subscription.status,
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // Si ya está activa, no hacer nada
     if (subscription.status === 'active') {
-      console.log('✅ Suscripción ya está activa', {
+      logger.info(LogCategory.SUBSCRIPTION, 'Subscription already active', {
         operation_id,
         subscription_id: subscription.id
       })
@@ -181,9 +181,10 @@ export async function POST(request: NextRequest) {
       .select()
 
     if (updateError || !updatedSubscriptions || updatedSubscriptions.length === 0) {
-      console.error('❌ Error actualizando suscripción', updateError?.message || updateError || 'No se encontró la suscripción', {
+      logger.error(LogCategory.SUBSCRIPTION, 'Error updating subscription', {
         operation_id,
         subscription_id: subscription.id,
+        error: updateError?.message || updateError || 'No se encontró la suscripción',
         updated_count: updatedSubscriptions?.length || 0
       })
       return NextResponse.json(
@@ -194,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     const updatedSubscription = updatedSubscriptions[0]
 
-    console.log('🎉 Suscripción activada exitosamente', {
+    logger.info(LogCategory.SUBSCRIPTION, 'Subscription activated successfully', {
       operation_id,
       subscription_id: updatedSubscription.id,
       previous_status: subscription.status,
@@ -256,8 +257,9 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('❌ Error en activación desde landing', error instanceof Error ? error.message : String(error), {
+    logger.error(LogCategory.SUBSCRIPTION, 'Error in activation from landing', {
       operation_id,
+      error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
     })
 

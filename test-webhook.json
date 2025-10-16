@@ -1,0 +1,12 @@
+{
+  "id": "test-webhook-123",
+  "type": "payment",
+  "action": "payment.updated",
+  "data": {
+    "id": "130099545356"
+  },
+  "live_mode": false,
+  "date_created": "2025-10-16T13:51:39.805Z",
+  "application_id": "2718057813",
+  "user_id": "2718057813"
+}

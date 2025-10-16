@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logger, LogCategory } from '@/lib/logger'
 
 interface MercadoPagoPaymentResponse {
   id: number
@@ -29,11 +30,11 @@ async function validatePaymentWithMercadoPago(paymentId: string): Promise<Mercad
   try {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
     if (!accessToken) {
-      console.error('❌ MERCADOPAGO_ACCESS_TOKEN no está configurado')
+      logger.error(LogCategory.PAYMENT, 'MERCADOPAGO_ACCESS_TOKEN not configured')
       return null
     }
 
-    console.log(`🔍 Validando pago ${paymentId} con MercadoPago...`)
+    logger.info(LogCategory.PAYMENT, 'Validating payment with MercadoPago', { paymentId })
 
     const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: {
@@ -43,24 +44,27 @@ async function validatePaymentWithMercadoPago(paymentId: string): Promise<Mercad
     })
 
     if (!response.ok) {
-      console.error(`❌ Error al consultar pago ${paymentId}:`, response.status, response.statusText)
+      logger.error(LogCategory.PAYMENT, 'Error querying payment', { 
+        paymentId, 
+        status: response.status, 
+        statusText: response.statusText 
+      })
       return null
     }
 
     const paymentData = await response.json()
     
-    console.log(`✅ Estado del pago ${paymentId} obtenido:`, {
-      id: paymentData.id,
+    logger.info(LogCategory.PAYMENT, 'Payment status obtained', {
+      paymentId,
       status: paymentData.status,
-      status_detail: paymentData.status_detail,
       amount: paymentData.transaction_amount,
-      date_approved: paymentData.date_approved,
+      currency: paymentData.currency_id,
       external_reference: paymentData.external_reference
     })
 
     return paymentData
   } catch (error) {
-    console.error(`💥 Error al validar pago ${paymentId}:`, error)
+    logger.error(LogCategory.PAYMENT, 'Error validating payment', { paymentId, error })
     return null
   }
 }

@@ -11,7 +11,10 @@ export enum LogCategory {
   SUBSCRIPTION = 'subscription',
   ORDER = 'order',
   SYSTEM = 'system',
-  AUTH = 'auth'
+  AUTH = 'auth',
+  EMAIL = 'email',
+  USER = 'user',
+  DATABASE = 'database'
 }
 
 interface LogEntry {

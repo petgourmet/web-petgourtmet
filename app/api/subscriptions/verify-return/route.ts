@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { logger, LogCategory } from '@/lib/logger'
-import { WebhookService } from '@/lib/webhook-service'
+import WebhookService from '@/lib/webhook-service'
 
 /**
  * ENDPOINT DE VERIFICACIÓN POST-RETORNO DE MERCADOPAGO
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
     
     const supabase = createServiceClient()
-    const webhookService = new WebhookService()
+    const webhookService = WebhookService
     
     // PASO 1: Búsqueda múltiple de suscripción usando estrategias mejoradas
     let targetSubscription = null

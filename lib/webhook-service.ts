@@ -16,19 +16,18 @@ class WebhookService {
     subscriptionData?: any
   ): Promise<{ success: boolean; subscription?: any; mappingMethod?: string }> {
     
-    console.log('🔗 INICIANDO MAPEO ROBUSTO: Pago → Suscripción', {
+    logger.info('Iniciando mapeo pago-suscripción', {
       paymentId: paymentData.id,
       paymentExternalRef: paymentData.external_reference,
       subscriptionId: subscriptionData?.id,
-      subscriptionExternalRef: subscriptionData?.external_reference,
-      timestamp: new Date().toISOString()
+      subscriptionExternalRef: subscriptionData?.external_reference
     })
 
     try {
       // ESTRATEGIA 1: Mapeo directo por external_reference
       if (paymentData.external_reference && subscriptionData?.external_reference) {
         if (paymentData.external_reference === subscriptionData.external_reference) {
-          console.log('✅ MAPEO DIRECTO: external_reference coincide', {
+          logger.info('Mapeo directo por external_reference exitoso', {
             externalReference: paymentData.external_reference
           })
           return { success: true, subscription: subscriptionData, mappingMethod: 'direct_external_reference' }
@@ -55,9 +54,8 @@ class WebhookService {
           .order('created_at', { ascending: false })
         
         if (!timeError && timeBasedSubs && timeBasedSubs.length > 0) {
-          console.log('✅ MAPEO POR TIMESTAMP: Suscripción encontrada en ventana temporal', {
+          logger.info('Mapeo por timestamp exitoso', {
             email,
-            paymentTime: paymentTime.toISOString(),
             subscriptionFound: timeBasedSubs[0].id,
             timeWindow: '10 minutos'
           })
@@ -92,12 +90,11 @@ class WebhookService {
         // Si tenemos user_id y product_id de ambos, verificar coincidencia
         if (paymentUserId && paymentProductId && subscriptionUserId && subscriptionProductId) {
           if (paymentUserId === subscriptionUserId && paymentProductId === subscriptionProductId) {
-            console.log('✅ MAPEO POR USER+PRODUCT: Coincidencia encontrada', {
+            logger.info('Mapeo por user+product exitoso', {
               userId: paymentUserId,
-              productId: paymentProductId,
-              paymentRef,
-              subscriptionRef
+              productId: paymentProductId
             })
+
             return { success: true, subscription: subscriptionData, mappingMethod: 'user_product_match' }
           }
         }
@@ -204,27 +201,19 @@ class WebhookService {
     try {
       const supabase = this.createSupabaseClient()
       
-      console.log('💳 Procesando webhook de pago', {
-        action: webhookData.action,
-        type: webhookData.type,
-        data_id: webhookData.data?.id
-      })
-
       const paymentId = webhookData.data?.id
       if (!paymentId) {
-        console.error('❌ ID de pago no encontrado en webhook')
+        logger.error('ID de pago no encontrado en webhook', { webhookData })
         return false
       }
 
-      // ⏳ Esperar 2 segundos antes de consultar la API si es payment.created
+      // Esperar 2 segundos antes de consultar la API si es payment.created
       // MercadoPago a veces envía el webhook antes de que el pago esté disponible
       if (webhookData.action === 'payment.created') {
-        console.log('⏳ Webhook es payment.created, esperando 2 segundos antes de consultar API...')
         await new Promise(resolve => setTimeout(resolve, 2000))
       }
 
       // Obtener datos del pago de MercadoPago
-      console.log(`🔍 Consultando pago ${paymentId} en MercadoPago...`)
       const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: {
           'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`
@@ -233,7 +222,7 @@ class WebhookService {
 
       if (!mpResponse.ok) {
         const errorText = await mpResponse.text()
-        console.error('❌ Error obteniendo datos de pago de MercadoPago', {
+        logger.error('Error obteniendo datos de pago de MercadoPago', {
           status: mpResponse.status,
           payment_id: paymentId,
           error: errorText
@@ -243,58 +232,33 @@ class WebhookService {
 
       const paymentData = await mpResponse.json()
 
-      console.log('📊 ==================== DATOS COMPLETOS DEL PAGO ====================')
-      console.log('📊 Payment ID:', paymentData.id)
-      console.log('📊 Status:', paymentData.status)
-      console.log('📊 Status Detail:', paymentData.status_detail)
-      console.log('📊 External Reference:', paymentData.external_reference)
-      console.log('📊 Description:', paymentData.description)
-      console.log('📊 Payer Email:', paymentData.payer?.email)
-      console.log('📊 Transaction Amount:', paymentData.transaction_amount)
-      console.log('📊 Additional Info:', JSON.stringify(paymentData.additional_info, null, 2))
-      console.log('📊 Metadata:', JSON.stringify(paymentData.metadata, null, 2))
-      console.log('📊 Full Payment Data:', JSON.stringify(paymentData, null, 2))
-      console.log('📊 ==================================================================')
-
-      console.log('🔍 VERIFICANDO METADATA DEL PAGO', {
-        raw_metadata: JSON.stringify(paymentData.metadata),
-        is_subscription: paymentData.metadata?.is_subscription,
-        first_payment: paymentData.metadata?.first_payment,
-        subscription_id: paymentData.metadata?.subscription_id,
-        user_id: paymentData.metadata?.user_id,
-        has_external_reference: !!paymentData.external_reference,
-        external_reference_value: paymentData.external_reference
+      // Log de auditoría para pago procesado
+      logger.info('Pago procesado desde webhook', {
+        paymentId: paymentData.id,
+        status: paymentData.status,
+        externalReference: paymentData.external_reference,
+        amount: paymentData.transaction_amount,
+        payerEmail: paymentData.payer?.email
       })
 
       // Verificar si el pago está aprobado
       if (paymentData.status !== 'approved') {
-        console.log('ℹ️ Pago no aprobado aún, no se procesa', {
+        logger.info('Pago no aprobado, no se procesa', {
           status: paymentData.status,
           payment_id: paymentId
         })
         return true // No es un error, simplemente no está aprobado aún
       }
 
-      console.log('✅ PAGO APROBADO - Verificando si es suscripción')
-
       // Verificar si es un pago de suscripción mediante metadata
       const metadata = paymentData.metadata || {}
       const isSubscription = metadata.is_subscription === true || metadata.is_subscription === 'true'
       const isFirstPayment = metadata.first_payment === true || metadata.first_payment === 'true'
 
-      console.log('🔍 Resultado verificación suscripción:', {
-        isSubscription,
-        isFirstPayment,
-        metadata_keys: Object.keys(metadata),
-        has_external_reference: !!paymentData.external_reference
-      })
-
-      // NUEVO: Si no hay metadata pero hay external_reference, buscar suscripción pendiente
+      // Si no hay metadata pero hay external_reference, buscar suscripción pendiente
       let shouldProcessAsSubscription = isSubscription && isFirstPayment
 
       if (!shouldProcessAsSubscription && paymentData.external_reference) {
-        console.log('🔍 No hay metadata de suscripción, verificando si existe suscripción pendiente por external_reference')
-        
         // Buscar si existe una suscripción pendiente con este external_reference
         const { data: pendingSubscription } = await supabase
           .from('unified_subscriptions')
@@ -304,23 +268,20 @@ class WebhookService {
           .single()
         
         if (pendingSubscription) {
-          console.log('✅ Encontrada suscripción pendiente por external_reference!', {
+          logger.info('Suscripción pendiente encontrada por external_reference', {
             subscription_id: pendingSubscription.id,
             status: pendingSubscription.status
           })
           shouldProcessAsSubscription = true
-        } else {
-          console.log('ℹ️ No se encontró suscripción pendiente con este external_reference')
         }
       }
 
       if (!shouldProcessAsSubscription) {
-        console.log('ℹ️ Pago no es de suscripción o no requiere procesamiento de activación')
-        // Aquí se podría procesar como pago normal de producto
+        logger.info('Pago no es de suscripción o no requiere procesamiento de activación')
         return true
       }
 
-      console.log('🎯 ¡ACTIVANDO FLUJO DE SUSCRIPCIÓN! Pago aprobado es primer pago de suscripción, creando preapproval', {
+      logger.info('Activando flujo de suscripción', {
         payment_id: paymentId,
         subscription_id: metadata.subscription_id,
         external_reference: paymentData.external_reference
@@ -333,7 +294,6 @@ class WebhookService {
       // Intentar buscar por subscription_id en metadata
       const subscriptionId = metadata.subscription_id
       if (subscriptionId) {
-        console.log('🔍 Buscando suscripción por subscription_id en metadata:', subscriptionId)
         const result = await supabase
           .from('unified_subscriptions')
           .select('*')
@@ -346,7 +306,6 @@ class WebhookService {
 
       // Si no se encontró por ID, intentar buscar por external_reference
       if (!subscription && paymentData.external_reference) {
-        console.log('🔍 Buscando suscripción por external_reference:', paymentData.external_reference)
         const result = await supabase
           .from('unified_subscriptions')
           .select('*')
@@ -355,15 +314,10 @@ class WebhookService {
         
         subscription = result.data
         subError = result.error
-        
-        if (subscription) {
-          console.log('✅ Suscripción encontrada por external_reference!')
-        }
       }
 
       // Si aún no se encontró, intentar buscar por mercadopago_payment_id
       if (!subscription && paymentId) {
-        console.log('🔍 Buscando suscripción por mercadopago_payment_id:', paymentId)
         const result = await supabase
           .from('unified_subscriptions')
           .select('*')
@@ -372,14 +326,10 @@ class WebhookService {
         
         subscription = result.data
         subError = result.error
-        
-        if (subscription) {
-          console.log('✅ Suscripción encontrada por payment_id!')
-        }
       }
 
       if (subError || !subscription) {
-        console.error('❌ Suscripción no encontrada en DB después de todos los intentos', {
+        logger.error('Suscripción no encontrada en DB', {
           tried_subscription_id: subscriptionId,
           tried_external_reference: paymentData.external_reference,
           tried_payment_id: paymentId,
@@ -388,13 +338,7 @@ class WebhookService {
         return false
       }
 
-      console.log('✅ Suscripción encontrada exitosamente:', {
-        id: subscription.id,
-        external_reference: subscription.external_reference,
-        status: subscription.status
-      })
-
-      console.log('✅ Suscripción encontrada, creando preapproval en MercadoPago', {
+      logger.info('Suscripción encontrada, creando preapproval en MercadoPago', {
         subscription_id: subscription.id,
         product_id: subscription.product_id,
         frequency: subscription.frequency,
@@ -776,4 +720,5 @@ class WebhookService {
 
 }
 
-export default WebhookService
+const webhookService = new WebhookService()
+export default webhookService

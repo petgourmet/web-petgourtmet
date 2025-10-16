@@ -9,7 +9,7 @@ class MercadoPagoService {
     this.config = new MercadoPagoConfig({ 
       accessToken,
       options: {
-        timeout: 5000,
+        timeout: 10000, // Aumentar timeout para producción
         idempotencyKey: undefined,
       }
     })
