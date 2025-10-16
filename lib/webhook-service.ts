@@ -243,19 +243,27 @@ class WebhookService {
 
       const paymentData = await mpResponse.json()
 
-      console.log('📊 Datos de pago obtenidos', {
-        payment_id: paymentData.id,
-        status: paymentData.status,
-        external_reference: paymentData.external_reference,
-        metadata: paymentData.metadata
-      })
+      console.log('📊 ==================== DATOS COMPLETOS DEL PAGO ====================')
+      console.log('📊 Payment ID:', paymentData.id)
+      console.log('📊 Status:', paymentData.status)
+      console.log('📊 Status Detail:', paymentData.status_detail)
+      console.log('📊 External Reference:', paymentData.external_reference)
+      console.log('📊 Description:', paymentData.description)
+      console.log('📊 Payer Email:', paymentData.payer?.email)
+      console.log('📊 Transaction Amount:', paymentData.transaction_amount)
+      console.log('📊 Additional Info:', JSON.stringify(paymentData.additional_info, null, 2))
+      console.log('📊 Metadata:', JSON.stringify(paymentData.metadata, null, 2))
+      console.log('📊 Full Payment Data:', JSON.stringify(paymentData, null, 2))
+      console.log('📊 ==================================================================')
 
       console.log('🔍 VERIFICANDO METADATA DEL PAGO', {
         raw_metadata: JSON.stringify(paymentData.metadata),
         is_subscription: paymentData.metadata?.is_subscription,
         first_payment: paymentData.metadata?.first_payment,
         subscription_id: paymentData.metadata?.subscription_id,
-        user_id: paymentData.metadata?.user_id
+        user_id: paymentData.metadata?.user_id,
+        has_external_reference: !!paymentData.external_reference,
+        external_reference_value: paymentData.external_reference
       })
 
       // Verificar si el pago está aprobado
@@ -277,17 +285,38 @@ class WebhookService {
       console.log('🔍 Resultado verificación suscripción:', {
         isSubscription,
         isFirstPayment,
-        metadata_keys: Object.keys(metadata)
+        metadata_keys: Object.keys(metadata),
+        has_external_reference: !!paymentData.external_reference
       })
 
-      if (!isSubscription) {
-        console.log('ℹ️ Pago no es de suscripción, procesamiento normal')
-        // Aquí se podría procesar como pago normal de producto
-        return true
+      // NUEVO: Si no hay metadata pero hay external_reference, buscar suscripción pendiente
+      let shouldProcessAsSubscription = isSubscription && isFirstPayment
+
+      if (!shouldProcessAsSubscription && paymentData.external_reference) {
+        console.log('🔍 No hay metadata de suscripción, verificando si existe suscripción pendiente por external_reference')
+        
+        // Buscar si existe una suscripción pendiente con este external_reference
+        const { data: pendingSubscription } = await supabase
+          .from('unified_subscriptions')
+          .select('id, status, external_reference')
+          .eq('external_reference', paymentData.external_reference)
+          .in('status', ['pending', 'processing'])
+          .single()
+        
+        if (pendingSubscription) {
+          console.log('✅ Encontrada suscripción pendiente por external_reference!', {
+            subscription_id: pendingSubscription.id,
+            status: pendingSubscription.status
+          })
+          shouldProcessAsSubscription = true
+        } else {
+          console.log('ℹ️ No se encontró suscripción pendiente con este external_reference')
+        }
       }
 
-      if (!isFirstPayment) {
-        console.log('ℹ️ Pago de suscripción pero no es el primer pago')
+      if (!shouldProcessAsSubscription) {
+        console.log('ℹ️ Pago no es de suscripción o no requiere procesamiento de activación')
+        // Aquí se podría procesar como pago normal de producto
         return true
       }
 
@@ -298,25 +327,72 @@ class WebhookService {
       })
 
       // Buscar la suscripción pendiente en la DB
+      let subscription: any = null
+      let subError: any = null
+
+      // Intentar buscar por subscription_id en metadata
       const subscriptionId = metadata.subscription_id
-      if (!subscriptionId) {
-        console.error('❌ No se encontró subscription_id en metadata del pago')
-        return false
+      if (subscriptionId) {
+        console.log('🔍 Buscando suscripción por subscription_id en metadata:', subscriptionId)
+        const result = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('id', subscriptionId)
+          .single()
+        
+        subscription = result.data
+        subError = result.error
       }
 
-      const { data: subscription, error: subError } = await supabase
-        .from('unified_subscriptions')
-        .select('*')
-        .eq('id', subscriptionId)
-        .single()
+      // Si no se encontró por ID, intentar buscar por external_reference
+      if (!subscription && paymentData.external_reference) {
+        console.log('🔍 Buscando suscripción por external_reference:', paymentData.external_reference)
+        const result = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('external_reference', paymentData.external_reference)
+          .single()
+        
+        subscription = result.data
+        subError = result.error
+        
+        if (subscription) {
+          console.log('✅ Suscripción encontrada por external_reference!')
+        }
+      }
+
+      // Si aún no se encontró, intentar buscar por mercadopago_payment_id
+      if (!subscription && paymentId) {
+        console.log('🔍 Buscando suscripción por mercadopago_payment_id:', paymentId)
+        const result = await supabase
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('mercadopago_payment_id', paymentId)
+          .single()
+        
+        subscription = result.data
+        subError = result.error
+        
+        if (subscription) {
+          console.log('✅ Suscripción encontrada por payment_id!')
+        }
+      }
 
       if (subError || !subscription) {
-        console.error('❌ Suscripción no encontrada en DB', {
-          subscription_id: subscriptionId,
+        console.error('❌ Suscripción no encontrada en DB después de todos los intentos', {
+          tried_subscription_id: subscriptionId,
+          tried_external_reference: paymentData.external_reference,
+          tried_payment_id: paymentId,
           error: subError?.message
         })
         return false
       }
+
+      console.log('✅ Suscripción encontrada exitosamente:', {
+        id: subscription.id,
+        external_reference: subscription.external_reference,
+        status: subscription.status
+      })
 
       console.log('✅ Suscripción encontrada, creando preapproval en MercadoPago', {
         subscription_id: subscription.id,
