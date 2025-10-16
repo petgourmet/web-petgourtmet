@@ -22,18 +22,19 @@ class MercadoPagoServiceMock {
     }
   }
 
-  // Mock de crear plan de suscripción
-  async createSubscriptionPlan(planData: any): Promise<any> {
-    return {
-      id: `mock-plan-${Date.now()}`,
-      ...planData,
-      status: 'active'
-    }
-  }
+  // ELIMINADO: Mock de crear plan de suscripción - Ya no se usa
+  // async createSubscriptionPlan(planData: any): Promise<any> {
+  //   return {
+  //     id: `mock-plan-${Date.now()}`,
+  //     ...planData,
+  //     status: 'active'
+  //   }
+  // }
 
   // Mock de crear suscripción
   async createSubscription(subscriptionData: {
-    preapproval_plan_id?: string,
+    // ELIMINADO: preapproval_plan_id ya no se usa
+    // preapproval_plan_id?: string,
     reason?: string,
     external_reference?: string,
     payer_email: string,

@@ -42,7 +42,7 @@ export function RealtimeStatus({ showLabel = true, className = '' }: RealtimeSta
   const checkConnection = async () => {
     try {
       const { data, error } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('count')
         .limit(1)
         .single()

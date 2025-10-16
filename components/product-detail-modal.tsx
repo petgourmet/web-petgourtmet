@@ -111,8 +111,6 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
       quarterly_discount: product.quarterly_discount,
       annual_discount: product.annual_discount,
       // Incluir URLs de MercadoPago específicas del producto
-      weekly_mercadopago_url: product.weekly_mercadopago_url,
-      biweekly_mercadopago_url: product.biweekly_mercadopago_url,
       monthly_mercadopago_url: product.monthly_mercadopago_url,
       quarterly_mercadopago_url: product.quarterly_mercadopago_url,
       annual_mercadopago_url: product.annual_mercadopago_url,

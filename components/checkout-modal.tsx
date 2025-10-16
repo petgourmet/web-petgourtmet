@@ -46,8 +46,7 @@ interface ExtendedCartItem {
   subscriptionType?: string
   subscriptionDiscount?: number
   category?: string
-  weekly_mercadopago_url?: string
-  biweekly_mercadopago_url?: string
+
   monthly_mercadopago_url?: string
   quarterly_mercadopago_url?: string
   annual_mercadopago_url?: string
@@ -139,65 +138,7 @@ export function CheckoutModal() {
   const [isProcessing, setIsProcessing] = useState(false)
   const DEBOUNCE_TIME = 3000 // 3 segundos de debounce mejorado
 
-  // Cargar URLs de suscripción dinámicamente
-  useEffect(() => {
-    const loadSubscriptionUrls = async () => {
-      try {
-        const response = await fetch('/api/subscription-urls')
-        const data = await response.json()
-        
-        if (data.success && data.subscription_urls) {
-          const urlMap: { [key: string]: string } = {}
-          Object.entries(data.subscription_urls).forEach(([key, config]: [string, any]) => {
-            if (config.mercadopago_url) {
-              urlMap[key] = config.mercadopago_url
-            }
-          })
-          setSubscriptionLinks(urlMap)
-          // ...existing code...
-          // console.log('✅ URLs de suscripción cargadas exitosamente')
-          // console.warn('⚠️ Usando URLs de respaldo para suscripciones')
-          // console.log(`Simulando pago exitoso para orden: ${orderId}`)
-          // console.log("Creando orden...")
-          // console.log("Procesando suscripción con tipo:", subscriptionType)
-          // console.log('Datos completos de suscripción:', subscriptionData)
-          // console.log('✅ Suscripción pendiente guardada exitosamente:', insertedData)
-          // console.log('Redirigiendo a:', finalLink)
-          // console.log("Modo de pruebas: Creando orden completa...")
-          // console.log("Orden de prueba creada:", testData)
-          // console.log("Creando preferencia de pago en Mercado Pago...")
-          // console.log("Preferencia creada:", mpData)
 
-          return true
-        } else {
-          throw new Error(data.message || 'Error en respuesta del servidor')
-        }
-      } catch (error) {
-        console.error('Error al cargar URLs de suscripción:', getErrorDetails(error))
-        
-        // URLs de respaldo en caso de error
-        const fallbackUrls = {
-          weekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=weekly_plan_id",
-          biweekly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=biweekly_plan_id",
-          monthly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=monthly_plan_id",
-          quarterly: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=quarterly_plan_id",
-          annual: "https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=annual_plan_id"
-        }
-        
-        setSubscriptionLinks(fallbackUrls)
-        console.warn('⚠️ Usando URLs de respaldo para suscripciones')
-        
-        // Mostrar toast de advertencia al usuario
-        toast({
-          title: "Advertencia",
-          description: "Algunas funciones de suscripción pueden estar limitadas. Contacta soporte si persiste el problema.",
-          variant: "destructive"
-        })
-      }
-    }
-
-    loadSubscriptionUrls()
-  }, [])
 
   // Estados para el formulario
   const [customerInfo, setCustomerInfo] = useState({
@@ -215,8 +156,7 @@ export function CheckoutModal() {
     country: "México",
   })
 
-  // Enlaces de suscripción de Mercado Pago (cargados dinámicamente)
-  const [subscriptionLinks, setSubscriptionLinks] = useState<{ [key: string]: string }>({})
+
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -296,23 +236,8 @@ export function CheckoutModal() {
   }
 
   // Función para obtener el enlace de suscripción según el tipo
-  const getSubscriptionLink = (type: string) => {
-    // Buscar si hay productos con URLs específicas de Mercado Pago
-    const subscriptionItems = cart.filter(item => item.isSubscription)
-    
-    if (subscriptionItems.length > 0) {
-      const firstItem = subscriptionItems[0]
-      
-      // Verificar si el producto tiene una URL específica para este tipo de suscripción
-      const productSpecificUrl = getProductSpecificUrl(firstItem, type)
-      if (productSpecificUrl) {
-        return productSpecificUrl
-      }
-    }
-    
-    // Fallback a URLs globales
-    return subscriptionLinks[type] || subscriptionLinks.monthly || "#"
-  }
+  // Esta función ya no es necesaria con el nuevo sistema de suscripciones dinámicas
+  // Las suscripciones se crean directamente a través del endpoint /api/subscriptions/create-dynamic
 
   // Función para obtener el descuento dinámico del producto según la frecuencia
   const getProductSubscriptionDiscount = (item: any, subscriptionType: string): number => {
@@ -338,9 +263,9 @@ export function CheckoutModal() {
   const getProductSpecificUrl = (item: any, type: string) => {
     switch (type) {
       case 'weekly':
-        return item.weekly_mercadopago_url
-      case 'biweekly':
-        return item.biweekly_mercadopago_url
+        return item.monthly_mercadopago_url
+      case "biweekly":
+        return item.monthly_mercadopago_url
       case 'monthly':
         return item.monthly_mercadopago_url
       case 'quarterly':
@@ -568,233 +493,88 @@ export function CheckoutModal() {
         })
         
         if (!validationResult.isValid) {
-          logger.warn(LogCategory.SUBSCRIPTION, 'Validación de deduplicación falló', {
-            userId,
-            planId,
-            reason: validationResult.reason,
-            externalReference: validationResult.externalReference
-          })
-          
-          // Si existe una suscripción pendiente, reutilizar su external_reference
-          if (validationResult.existingSubscription?.status === 'pending') {
-            logger.info(LogCategory.SUBSCRIPTION, 'Reutilizando suscripción pendiente existente', {
+          // VALIDACIÓN CRÍTICA MEJORADA: Verificar suscripciones activas ANTES de proceder
+          if (validationResult.existingSubscription?.status === 'active') {
+            const activeSub = validationResult.existingSubscription
+            const createdDate = new Date(activeSub.created_at).toLocaleDateString('es-ES')
+            
+            logger.warn(LogCategory.SUBSCRIPTION, 'Suscripción activa detectada - bloqueando creación', {
               userId,
-              planId,
-              existingId: validationResult.existingSubscription.id,
-              externalReference: validationResult.existingSubscription.external_reference
+              productId: planId,
+              activeSubscriptionId: activeSub.id,
+              createdDate
             })
+
+            setError(`Ya tienes una suscripción activa para este producto (creada el ${createdDate}). Puedes gestionar tus suscripciones desde tu perfil.`)
             
-            // Mostrar diálogo de confirmación con opciones
-            const userChoice = await new Promise<'continue' | 'cancel' | 'close'>((resolve) => {
-              const handleChoice = (choice: 'continue' | 'cancel' | 'close') => {
-                resolve(choice)
-              }
-              
-              // Crear un diálogo personalizado
-              const existingSub = validationResult.existingSubscription
-              const createdDate = new Date(existingSub.created_at).toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })
-              
-              const message = `Ya tienes una suscripción ${existingSub.subscription_type} pendiente para este producto, creada el ${createdDate}.\n\n¿Qué deseas hacer?`
-              
-              // Usar confirm nativo por simplicidad (se puede mejorar con un modal personalizado)
-              const continueWithExisting = confirm(
-                `${message}\n\n` +
-                `• Presiona "Aceptar" para continuar con la suscripción existente\n` +
-                `• Presiona "Cancelar" para cancelar la suscripción existente y crear una nueva`
-              )
-              
-              if (continueWithExisting) {
-                handleChoice('continue')
-              } else {
-                // Segundo confirm para confirmar cancelación
-                const confirmCancel = confirm(
-                  '¿Estás seguro de que deseas cancelar la suscripción existente y crear una nueva?\n\n' +
-                  'Esta acción no se puede deshacer.'
-                )
-                handleChoice(confirmCancel ? 'cancel' : 'close')
-              }
-            })
+            // Redirigir a la página de suscripciones después de un delay
+            setTimeout(() => {
+              router.push('/suscripcion')
+            }, 3000)
             
-            if (userChoice === 'continue') {
-              // Continuar con la suscripción existente
-              logger.info(LogCategory.SUBSCRIPTION, 'Usuario eligió continuar con suscripción pendiente existente', {
-                userId,
-                planId,
-                existingId: validationResult.existingSubscription.id,
-                externalReference: validationResult.existingSubscription.external_reference
-              })
-              
-              externalReference = validationResult.existingSubscription.external_reference
-              
-              // Mostrar mensaje de confirmación
-              toast({
-                title: "Continuando con suscripción existente",
-                description: "Te redirigiremos a completar tu suscripción pendiente.",
-                duration: 3000,
-              })
-              
-              // Limpiar carrito y redirigir
-              clearCart()
-              setShowCheckout(false)
-              
-              // Redirigir al enlace de suscripción existente
-              const subscriptionLink = getSubscriptionLink(validationResult.existingSubscription.subscription_type)
-              const finalLink = `${subscriptionLink}&external_reference=${externalReference}&back_url=${encodeURIComponent(window.location.origin + '/suscripcion')}`
-              
-              logger.info(LogCategory.SUBSCRIPTION, 'Redirigiendo a suscripción pendiente existente', {
-                userId,
-                externalReference,
-                subscriptionType: validationResult.existingSubscription.subscription_type,
-                redirectUrl: finalLink
-              })
-              
-              window.location.href = finalLink
-              return
-              
-            } else if (userChoice === 'cancel') {
-              // Cancelar la suscripción existente
-              logger.info(LogCategory.SUBSCRIPTION, 'Usuario eligió cancelar suscripción pendiente existente', {
-                userId,
-                planId,
-                existingId: validationResult.existingSubscription.id
-              })
-              
-              try {
-                // Actualizar el estado de la suscripción existente a 'cancelled'
-                const { error: cancelError } = await supabase
-                  .from('unified_subscriptions')
-                  .update({ 
-                    status: 'cancelled',
-                    cancelled_at: new Date().toISOString(),
-                    notes: (validationResult.existingSubscription.notes || '') + ' | Cancelada por usuario para crear nueva suscripción'
-                  })
-                  .eq('id', validationResult.existingSubscription.id)
-                
-                if (cancelError) {
-                  logger.error(LogCategory.SUBSCRIPTION, 'Error cancelando suscripción existente', getErrorMessage(cancelError), {
-                    userId,
-                    existingId: validationResult.existingSubscription.id
-                  })
-                  
-                  setError('Error al cancelar la suscripción existente. Por favor, inténtalo de nuevo.')
-                  return
-                }
-                
-                logger.info(LogCategory.SUBSCRIPTION, 'Suscripción existente cancelada exitosamente', {
-                  userId,
-                  planId,
-                  cancelledId: validationResult.existingSubscription.id
-                })
-                
-                toast({
-                  title: "Suscripción anterior cancelada",
-                  description: "Ahora puedes crear una nueva suscripción.",
-                  duration: 3000,
-                })
-                
-                // Continuar con el procesamiento normal (crear nueva suscripción)
-                // No hacer return aquí para que continúe el flujo
-                
-              } catch (error) {
-                logger.error(LogCategory.SUBSCRIPTION, 'Error crítico cancelando suscripción existente', getErrorMessage(error), {
-                  userId,
-                  existingId: validationResult.existingSubscription.id
-                })
-                
-                setError('Error crítico al cancelar la suscripción existente. Por favor, contacta soporte.')
-                return
-              }
-              
-            } else {
-              // Usuario cerró el diálogo sin elegir
-              logger.info(LogCategory.SUBSCRIPTION, 'Usuario cerró diálogo sin elegir opción', {
-                userId,
-                planId
-              })
-              return
-            }
-            
-          } else {
-            // Para suscripciones activas o otros casos, mostrar error más informativo
-            const existingSub = validationResult.existingSubscription
-            let userFriendlyMessage = 'Ya tienes una suscripción para este producto.'
-            
-            if (existingSub) {
-              const statusTranslations = {
-                'active': 'activa',
-                'processing': 'en proceso',
-                'pending': 'pendiente'
-              }
-              
-              const statusText = statusTranslations[existingSub.status] || existingSub.status
-              const createdDate = new Date(existingSub.created_at).toLocaleDateString('es-ES')
-              
-              userFriendlyMessage = `Ya tienes una suscripción ${statusText} para este producto (creada el ${createdDate}). ` +
-                'Puedes gestionar tus suscripciones desde tu perfil.'
-            }
-            
-            logger.warn(LogCategory.SUBSCRIPTION, 'Suscripción duplicada detectada - procesamiento detenido', validationResult.reason, {
-              userId,
-              planId,
-              existingSubscriptionId: validationResult.existingSubscription?.id,
-              existingSubscriptionStatus: validationResult.existingSubscription?.status,
-              action: 'STOPPING_EXECUTION_IMMEDIATELY'
-            })
-            
-            // Mostrar error al usuario
-            setError(userFriendlyMessage)
-            
-            // Mostrar toast de error
-            toast({
-              title: "Suscripción existente",
-              description: userFriendlyMessage,
-              variant: "destructive",
-              duration: 5000,
-            })
-            
-            // Detener procesamiento inmediatamente
-            shouldContinueProcessing = false
-            
-            // Log adicional para confirmar detención
-            logger.info(LogCategory.SUBSCRIPTION, 'EJECUCIÓN DETENIDA: No se procesará la suscripción duplicada', {
-              userId,
-              planId,
-              shouldContinueProcessing: false
-            })
-            
-            // Salir inmediatamente de la función
             return
           }
-        } else {
-          // Usar la nueva función makeExternalReference con formato correcto SUB-{userId}-{planId}-{hash8}
-          // Como no tenemos preapprovalId aquí, usamos la versión sin preapproval
-          externalReference = validationResult.externalReference || makeExternalReferenceWithoutPreapproval(userId, planId, subscriptionType || 'monthly')
+
+          // Para suscripciones pendientes, limpiar duplicadas antes de continuar
+          if (validationResult.existingSubscription?.status === 'pending') {
+            try {
+              const cleanupResponse = await fetch('/api/subscriptions/cleanup-pending', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  user_id: userId,
+                  product_id: planId,
+                  keep_latest: false // Eliminar todas las pendientes para empezar limpio
+                })
+              })
+
+              if (cleanupResponse.ok) {
+                const cleanupResult = await cleanupResponse.json()
+                if (cleanupResult.cleaned_count > 0) {
+                  logger.info(LogCategory.SUBSCRIPTION, 'Suscripciones pendientes limpiadas antes de crear nueva', {
+                    userId,
+                    productId: planId,
+                    cleanedCount: cleanupResult.cleaned_count
+                  })
+                  console.log(`✅ Se limpiaron ${cleanupResult.cleaned_count} suscripciones pendientes duplicadas`)
+                }
+              }
+            } catch (cleanupError) {
+              logger.warn(LogCategory.SUBSCRIPTION, 'Error en limpieza de suscripciones pendientes', cleanupError instanceof Error ? cleanupError.message : 'Error desconocido', {
+                userId,
+                productId: planId
+              })
+            }
+          } else {
+            // Para otros tipos de error de validación
+            logger.warn(LogCategory.SUBSCRIPTION, 'Validación de deduplicación falló', {
+              userId,
+              planId,
+              reason: validationResult.reason,
+              externalReference: validationResult.externalReference
+            })
+            
+            setError(validationResult.reason || 'Error en validación de suscripción')
+            return
+          }
         }
-      }
-      
-      // Verificación adicional de seguridad antes de continuar
-      if (!shouldContinueProcessing) {
-        logger.error(LogCategory.SUBSCRIPTION, 'VERIFICACIÓN DE SEGURIDAD: Procesamiento detenido por validación fallida', undefined, {
-          shouldContinueProcessing,
-          userId: user?.id,
-          hasSubscriptionItems,
-          subscriptionType
+        
+        // CONTINUAR CON PROCESAMIENTO NORMAL DESPUÉS DE VALIDACIÓN EXITOSA
+        // Generar external_reference único para evitar conflictos
+        const timestamp = Date.now()
+        const randomSuffix = Math.random().toString(36).substring(2, 8)
+        externalReference = `${userId}_${planId}_${subscriptionType}_${timestamp}_${randomSuffix}`
+        
+        logger.info(LogCategory.SUBSCRIPTION, 'Generando nueva suscripción con external_reference único', {
+          userId,
+          planId,
+          subscriptionType,
+          externalReference,
+          timestamp
         })
-        return
       }
-      
-      // Log de confirmación de que se continuará con el procesamiento
-      logger.info(LogCategory.SUBSCRIPTION, 'VALIDACIÓN EXITOSA: Continuando con procesamiento de suscripción', {
-        userId: user?.id,
-        shouldContinueProcessing,
-        externalReference
-      })
 
       // Si hay suscripciones, redirigir al enlace de suscripción de Mercado Pago
       // Las suscripciones SIEMPRE redirigen a MercadoPago (sandbox en modo prueba, producción en modo normal)
@@ -846,11 +626,26 @@ export function CheckoutModal() {
             externalReference
           })
 
-          // Calcular precio con descuento
+          // Calcular precio con descuento CORRECTAMENTE
+          // El subscriptionItem.price ya viene con descuento aplicado desde el carrito
+          // Necesitamos calcular el precio base original para mostrar el descuento correctamente
           const discount = getProductSubscriptionDiscount(subscriptionItem, subscriptionType)
-          const basePrice = subscriptionItem.price
+          
+          // Si hay descuento, el precio actual ya está descontado, calculamos el precio base original
+          let basePrice: number
+          let discountedPrice: number
+          
+          if (discount > 0) {
+            // El precio actual ya tiene descuento aplicado, calculamos el precio original
+            basePrice = subscriptionItem.price / (1 - discount)
+            discountedPrice = subscriptionItem.price // Ya viene con descuento
+          } else {
+            // Sin descuento, el precio es el mismo
+            basePrice = subscriptionItem.price
+            discountedPrice = subscriptionItem.price
+          }
+          
           const discountPercentage = discount * 100
-          const discountedPrice = basePrice * (1 - discount)
           const transactionAmount = discountedPrice * subscriptionItem.quantity
 
           // Calcular frequency y frequency_type basado en subscription_type
@@ -919,7 +714,8 @@ export function CheckoutModal() {
             init_point: null, // Se asignará desde MercadoPago
             end_date: null, // Suscripción sin fecha de fin por defecto
             mercadopago_subscription_id: null, // Se asignará desde webhook
-            mercadopago_plan_id: null, // Se asignará si se usa plan
+            // ELIMINADO: mercadopago_plan_id ya no se usa en el nuevo sistema
+            // mercadopago_plan_id: null, // Se asignará si se usa plan
             last_billing_date: null, // Se actualizará con el primer pago
             cancelled_at: null,
             paused_at: null,
@@ -988,49 +784,14 @@ export function CheckoutModal() {
             conflictColumns: 'user_id,product_id,external_reference'
           })
 
-          // Verificar si ya existe una suscripción pendiente para este usuario y producto
-          const { data: existingSubscription } = await supabase
+          // Crear nueva suscripción pendiente (las validaciones previas ya evitaron duplicados activos)
+          const insertResult = await supabase
             .from('unified_subscriptions')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('product_id', subscriptionItem.id)
-            .eq('subscription_type', subscriptionType)
-            .in('status', ['pending', 'active'])
-            .single()
+            .insert(subscriptionData as any)
+            .select()
 
-          let insertedData, subscriptionError
-
-          if (existingSubscription) {
-            // Si existe una suscripción pendiente o activa, actualizarla en lugar de crear una nueva
-            logger.info(LogCategory.SUBSCRIPTION, 'Actualizando suscripción existente en lugar de crear duplicado', {
-              existingId: existingSubscription.id,
-              userId: user.id,
-              productId: subscriptionItem.id,
-              subscriptionType,
-              existingStatus: existingSubscription.status
-            })
-
-            const updateResult = await supabase
-              .from('unified_subscriptions')
-              .update({
-                ...subscriptionData,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', existingSubscription.id)
-              .select()
-
-            insertedData = updateResult.data
-            subscriptionError = updateResult.error
-          } else {
-            // No existe, crear nueva suscripción
-            const insertResult = await supabase
-              .from('unified_subscriptions')
-              .insert(subscriptionData as any)
-              .select()
-
-            insertedData = insertResult.data
-            subscriptionError = insertResult.error
-          }
+          const insertedData = insertResult.data
+          const subscriptionError = insertResult.error
 
           // Logging después del upsert
           if (!subscriptionError && insertedData) {
@@ -1049,7 +810,7 @@ export function CheckoutModal() {
               errorCode: subscriptionError.code,
               errorDetails: subscriptionError.details,
               errorHint: subscriptionError.hint,
-              operation: existingSubscription ? 'update' : 'insert',
+              operation: 'insert',
               subscriptionData: {
                 productId: subscriptionItem.id,
                 productName: subscriptionItem.name,
@@ -1120,11 +881,11 @@ export function CheckoutModal() {
 
           const subscriptionId = (insertedData as any)[0].id
 
-          // SOLUCIÓN DEFINITIVA: Crear Preapproval con API de MercadoPago
-          // Esto garantiza que el external_reference sea el mismo en el pago
-          console.log('🔄 Creando Preapproval de MercadoPago con external_reference correcto')
+          // FLUJO CORRECTO: Crear preferencia de pago normal (NO preapproval)
+          // El preapproval se creará en MercadoPago solo después de confirmar el pago vía webhook
+          console.log('🔄 Creando preferencia de pago para suscripción')
           
-          logger.info(LogCategory.SUBSCRIPTION, 'Creando Preapproval con API', {
+          logger.info(LogCategory.SUBSCRIPTION, 'Creando preferencia de pago para suscripción', {
             userId: user.id,
             externalReference,
             subscriptionType,
@@ -1133,81 +894,158 @@ export function CheckoutModal() {
           })
 
           try {
-            const preapprovalResponse = await fetch('/api/mercadopago/create-subscription-preference', {
+            // Crear preferencia de pago normal con metadata de suscripción
+            const preferenceResponse = await fetch('/api/mercadopago/create-preference', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                external_reference: externalReference,  // Nuestro SUB-xxx-xxx
-                subscription_id: subscriptionId,
-                payer_email: user.email,
-                payer_first_name: customerInfo.firstName,
-                payer_last_name: customerInfo.lastName,
-                transaction_amount: transactionAmount,
-                reason: `Suscripción ${subscriptionType} - ${subscriptionItem.name} (${subscriptionItem.size || 'Standard'})`,
-                frequency: frequency,
-                frequency_type: frequency_type
+                orderId: subscriptionId,
+                userId: user.id, // Agregar userId para auto-asignación
+                items: [{
+                  id: String(subscriptionItem.id),
+                  title: `${subscriptionItem.name} - Suscripción ${subscriptionType}`,
+                  description: `Primer pago de suscripción ${subscriptionType}`,
+                  quantity: subscriptionItem.quantity,
+                  unit_price: discountedPrice,
+                  currency_id: 'MXN'
+                }],
+                // Enviar customerData en formato esperado por el endpoint
+                customerData: {
+                  firstName: customerInfo.firstName,
+                  lastName: customerInfo.lastName,
+                  email: user.email,
+                  phone: customerInfo.phone,
+                  address: {
+                    street_name: shippingInfo.address.split(' ').slice(0, -1).join(' ') || shippingInfo.address,
+                    street_number: shippingInfo.address.split(' ').pop() || 'S/N',
+                    zip_code: shippingInfo.postalCode,
+                    city: shippingInfo.city,
+                    state: shippingInfo.state,
+                    country: shippingInfo.country || 'México'
+                  }
+                },
+                externalReference: externalReference,
+                backUrls: {
+                  success: `${window.location.origin}/suscripcion/exito`,
+                  failure: `${window.location.origin}/error-pago`,
+                  pending: `${window.location.origin}/pago-pendiente`
+                },
+                metadata: {
+                  // Metadata crítica para que el webhook identifique que es una suscripción
+                  is_subscription: true,
+                  subscription_id: subscriptionId,
+                  subscription_type: subscriptionType,
+                  frequency: frequency,
+                  frequency_type: frequency_type,
+                  user_id: user.id,
+                  product_id: subscriptionItem.id,
+                  first_payment: true // Indica que es el primer pago de la suscripción
+                }
               })
             })
 
-            if (!preapprovalResponse.ok) {
-              const errorData = await preapprovalResponse.json()
-              console.error('❌ Error creando Preapproval:', errorData)
+            if (!preferenceResponse.ok) {
+              const errorData = await preferenceResponse.json()
+              console.error('❌ Error creando preferencia de pago:', errorData)
               
-              logger.error(LogCategory.SUBSCRIPTION, 'Error en API de Preapproval', errorData.error, {
+              logger.error(LogCategory.SUBSCRIPTION, 'Error en API de preferencia de pago', errorData.error, {
                 userId: user.id,
                 externalReference,
-                statusCode: preapprovalResponse.status
+                statusCode: preferenceResponse.status,
+                errorDetails: errorData
               })
               
               toast({
-                title: "Error al procesar suscripción",
-                description: "No se pudo crear el pago en MercadoPago. Inténtalo de nuevo.",
+                title: "Error al procesar pago",
+                description: "No se pudo crear la preferencia de pago. Inténtalo de nuevo.",
                 variant: "destructive"
               })
               return
             }
 
-            const preapprovalData = await preapprovalResponse.json()
+            const preferenceData = await preferenceResponse.json()
             
-            logger.info(LogCategory.SUBSCRIPTION, 'Preapproval creado exitosamente', {
+            // Extraer init_point (camelCase o snake_case)
+            const initPoint = preferenceData.sandboxInitPoint || preferenceData.initPoint || 
+                             preferenceData.sandbox_init_point || preferenceData.init_point
+            
+            logger.info(LogCategory.SUBSCRIPTION, 'Preferencia de pago creada exitosamente', {
               userId: user.id,
-              externalReference,
-              preapprovalId: preapprovalData.preapproval_id,
-              initPoint: preapprovalData.init_point,
-              externalReferenceConfirmed: preapprovalData.external_reference === externalReference
+              preferenceId: preferenceData.preferenceId || preferenceData.id,
+              init_point: initPoint,
+              externalReference
             })
 
-            console.log('✅ Preapproval creado correctamente:', {
-              preapproval_id: preapprovalData.preapproval_id,
-              external_reference: preapprovalData.external_reference,
-              match: preapprovalData.external_reference === externalReference
+            console.log('✅ Preferencia de pago creada correctamente:', {
+              preference_id: preferenceData.preferenceId || preferenceData.id,
+              init_point: initPoint,
+              sandboxInitPoint: preferenceData.sandboxInitPoint,
+              initPoint: preferenceData.initPoint
             })
 
-            // Limpiar carrito y cerrar modal
-            clearCart()
-            setShowCheckout(false)
-
-            // Redirigir al checkout de MercadoPago
-            console.log('🔄 Redirigiendo a MercadoPago:', preapprovalData.init_point)
-            window.location.href = preapprovalData.init_point
-
-            return // Salir completamente de la función después de procesar suscripción
+            // Verificar si hay init_point para redirigir a MercadoPago
+            if (initPoint) {
+              console.log('🔄 Redirigiendo a MercadoPago para completar el pago:', initPoint)
+              
+              logger.info(LogCategory.SUBSCRIPTION, 'Iniciando redirección a MercadoPago', {
+                userId: user.id,
+                subscriptionId,
+                init_point: initPoint,
+                externalReference
+              })
+              
+              // Limpiar carrito antes de redirigir
+              clearCart()
+              setShowCheckout(false)
+              
+              // Mostrar mensaje de redirección
+              toast({
+                title: "Redirigiendo a MercadoPago",
+                description: "Te estamos llevando a completar tu pago...",
+                duration: 3000,
+              })
+              
+              // Pequeño delay para asegurar que el toast se muestre
+              setTimeout(() => {
+                console.log('🚀 Ejecutando redirección a:', initPoint)
+                window.location.href = initPoint
+              }, 500)
+              
+              return
+            } else {
+              // Si no hay init_point, algo salió mal
+              console.error('⚠️ Preferencia creada sin init_point')
+              
+              logger.error(LogCategory.SUBSCRIPTION, 'Preferencia creada sin init_point', undefined, {
+                userId: user.id,
+                preferenceData,
+                externalReference
+              })
+              
+              toast({
+                title: "Error de configuración",
+                description: "No se pudo generar el enlace de pago. Contacta a soporte.",
+                variant: "destructive"
+              })
+              
+              return
+            }
 
           } catch (apiError: any) {
             const errorDetails = getErrorDetails(apiError)
             
-            logger.error(LogCategory.SUBSCRIPTION, 'Error crítico en API de Preapproval', errorDetails.message, {
+            logger.error(LogCategory.SUBSCRIPTION, 'Error crítico en API de preferencia de pago', errorDetails.message, {
               userId: user.id,
               externalReference,
               errorStack: errorDetails.stack
             })
             
-            console.error('❌ Error en API de Preapproval:', errorDetails)
+            console.error('❌ Error en API de preferencia de pago:', errorDetails)
             
             toast({
-              title: "Error al procesar suscripción",
+              title: "Error al procesar pago",
               description: "Error de conexión con el servidor. Inténtalo de nuevo.",
               variant: "destructive"
             })

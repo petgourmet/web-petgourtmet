@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     console.log("Request body parsed successfully:", JSON.stringify(body, null, 2))
     
     // Manejar ambos formatos: el nuevo (orderData) y el frontend actual (items, customerData directo)
-    let customerData, items, externalReference, backUrls
+    let customerData, items, externalReference, backUrls, userId, metadata
     
     if (body.orderData) {
       // Formato nuevo con orderData
@@ -31,15 +31,19 @@ export async function POST(request: Request) {
       items = orderData.items
       externalReference = body.externalReference
       backUrls = body.backUrls
+      userId = body.userId
+      metadata = body.metadata
     } else {
       // Formato del frontend actual
       customerData = body.customerData
       items = body.items
       externalReference = body.externalReference
       backUrls = body.backUrls
+      userId = body.userId
+      metadata = body.metadata
     }
     
-    console.log("Extracted data:", { customerData, items, externalReference, backUrls })
+    console.log("Extracted data:", { customerData, items, externalReference, backUrls, userId, metadata })
 
     // Rate limiting básico
     const clientIP = request.headers.get('x-forwarded-for') || 'unknown'
@@ -138,12 +142,18 @@ export async function POST(request: Request) {
       total: total,
       subtotal: subtotal, // Agregar el subtotal
       shipping_cost: shipping, // Agregar el costo de envío
-      user_id: null, // Se puede actualizar si hay usuario autenticado
+      user_id: userId || null, // Usar el userId si está disponible
       customer_name: `${customerData.firstName} ${customerData.lastName}`,
       customer_email: customerData.email, // Guardar el email del cliente
       customer_phone: customerData.phone,
       shipping_address: JSON.stringify(formDataForStorage), // Usar para almacenar todos los datos
       payment_intent_id: null // Se actualizará después de crear la preferencia
+    }
+    
+    if (userId) {
+      console.log(`✅ User ID provided: ${userId}, will be assigned to order`)
+    } else {
+      console.log(`ℹ️ No user ID provided, order will be created without user assignment`)
     }
 
     console.log("Order data prepared for insertion:", JSON.stringify(orderDataForDB, null, 2))
@@ -205,8 +215,14 @@ export async function POST(request: Request) {
     }
 
     // Verificar si estamos en modo de prueba
-    const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
-    console.log("Test mode check:", isTestMode)
+    // NOTA: Para suscripciones, SIEMPRE crear la preferencia real en MercadoPago
+    const isSubscription = body.metadata?.is_subscription === true
+    const isTestMode = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true" && !isSubscription
+    console.log("Test mode check:", isTestMode, "| Is subscription:", isSubscription)
+    
+    if (isSubscription) {
+      console.log("🔔 SUSCRIPCIÓN DETECTADA: El modo test será ignorado para crear preferencia real en MercadoPago")
+    }
 
     // Generar URLs de retorno
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'
@@ -220,7 +236,7 @@ export async function POST(request: Request) {
     const finalBackUrls = backUrls || defaultBackUrls
 
     if (isTestMode) {
-      // En modo de prueba, devolver una respuesta simulada
+      // En modo de prueba, devolver una respuesta simulada (solo para pagos normales, NO suscripciones)
       console.log("Test mode enabled, returning mock response")
       return NextResponse.json({
         success: true,
@@ -319,11 +335,13 @@ export async function POST(request: Request) {
         failure: finalBackUrls.failure || finalBackUrls.success,
         pending: finalBackUrls.pending || finalBackUrls.success
       },
+      auto_return: "approved", // ✅ Agregar auto_return para mostrar botón "Volver al sitio"
       binary_mode: false, // Usar el checkout estándar de MercadoPago
-      external_reference: orderId.toString(), // Usar el ID real de la orden
+      external_reference: externalReference || orderId.toString(), // Usar external_reference si está disponible
       notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
       statement_descriptor: "PETGOURMET",
       expires: false,
+      ...(metadata && { metadata }) // Agregar metadata si está disponible (para suscripciones)
     }
     
     console.log("MercadoPago preference prepared:", JSON.stringify(preference, null, 2))

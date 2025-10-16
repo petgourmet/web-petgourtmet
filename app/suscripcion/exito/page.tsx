@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Calendar, Package, CreditCard, ArrowLeft, Gift, Mail, Heart } from "lucide-react"
+import { CheckCircle, Calendar, Package, CreditCard, ArrowLeft, Gift, Mail, Heart, Clock } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
 
@@ -57,10 +57,57 @@ function ExitoSuscripcionContent() {
     try {
       setIsProcessing(true)
       
-      console.log('Procesando éxito de suscripción para usuario:', user.id)
-      console.log('Parámetros:', { externalReference, preapprovalId, status })
+      console.log('🎉 Procesando éxito de suscripción para usuario:', user.id)
+      console.log('📋 Parámetros:', { externalReference, preapprovalId, status })
 
-      // Llamar al endpoint para activar suscripciones pendientes
+      // Primero intentar buscar suscripciones del usuario (activas o pendientes)
+      console.log('🔍 Buscando suscripciones del usuario...')
+      const { data: subscriptions, error: fetchError } = await supabase
+        .from('unified_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      console.log('📊 Suscripciones encontradas:', subscriptions?.length || 0)
+      console.log('📦 Detalles:', subscriptions?.map(s => ({
+        id: s.id,
+        status: s.status,
+        product_name: s.product_name,
+        mercadopago_subscription_id: s.mercadopago_subscription_id
+      })))
+
+      if (fetchError) {
+        console.error('❌ Error buscando suscripciones:', fetchError)
+      }
+
+      // Si hay suscripciones activas recientes (últimas 24h), mostrarlas directamente
+      const recentActiveSubscriptions = subscriptions?.filter(sub => {
+        const isRecent = new Date(sub.created_at).getTime() > Date.now() - (24 * 60 * 60 * 1000)
+        return (sub.status === 'active' || sub.status === 'pending') && isRecent
+      }) || []
+
+      console.log('✅ Suscripciones activas recientes:', recentActiveSubscriptions.length)
+
+      if (recentActiveSubscriptions.length > 0) {
+        setActivatedSubscriptions(recentActiveSubscriptions as any)
+        
+        toast({
+          title: recentActiveSubscriptions.some(s => s.status === 'pending') 
+            ? "¡Pago recibido!" 
+            : "¡Bienvenido a Pet Gourmet!",
+          description: recentActiveSubscriptions.some(s => s.status === 'pending')
+            ? "Tu pago fue procesado exitosamente. Tu suscripción se activará en los próximos minutos."
+            : "Tu suscripción está activa y lista para usar.",
+        })
+        
+        setIsProcessing(false)
+        setProcessingComplete(true)
+        return
+      }
+
+      // Si no hay suscripciones activas recientes, intentar activar con el endpoint
+      console.log('🔄 No hay suscripciones activas recientes, intentando activar...')
       const response = await fetch('/api/subscriptions/activate-landing', {
         method: 'POST',
         headers: {
@@ -75,6 +122,7 @@ function ExitoSuscripcionContent() {
       })
 
       const result = await response.json()
+      console.log('📥 Respuesta del endpoint:', result)
 
       if (response.ok && result.success) {
         setActivatedSubscriptions(result.activatedSubscriptions || [])
@@ -82,22 +130,29 @@ function ExitoSuscripcionContent() {
         
         toast({
           title: "¡Bienvenido a Pet Gourmet!",
-          description: `Se ${result.activatedSubscriptions?.length === 1 ? 'ha activado tu suscripción' : 'han activado ' + (result.activatedSubscriptions?.length || 0) + ' suscripciones'} exitosamente. Se han enviado los correos de confirmación.`,
+          description: `Se ${result.activatedSubscriptions?.length === 1 ? 'ha activado tu suscripción' : 'han activado ' + (result.activatedSubscriptions?.length || 0) + ' suscripciones'} exitosamente.`,
         })
       } else {
-        console.error('Error activando suscripciones:', result.error)
-        toast({
-          title: "Información",
-          description: "No se encontraron suscripciones pendientes para activar",
-          variant: "default",
-        })
+        console.warn('⚠️ No se pudieron activar suscripciones:', result.error)
+        
+        // Mostrar las suscripciones pendientes de todos modos
+        if (recentActiveSubscriptions.length === 0 && subscriptions && subscriptions.length > 0) {
+          const pendingSubscriptions = subscriptions.filter(s => s.status === 'pending')
+          if (pendingSubscriptions.length > 0) {
+            setActivatedSubscriptions(pendingSubscriptions as any)
+            toast({
+              title: "Pago procesado",
+              description: "Tu pago fue recibido. La suscripción se está activando automáticamente.",
+            })
+          }
+        }
       }
     } catch (error) {
-      console.error('Error procesando éxito de suscripción:', error)
+      console.error('❌ Error procesando éxito de suscripción:', error)
       toast({
-        title: "Error",
-        description: "Hubo un problema al procesar tu suscripción",
-        variant: "destructive",
+        title: "Información",
+        description: "Tu pago fue procesado. Verifica tu suscripción en tu perfil.",
+        variant: "default",
       })
     } finally {
       setIsProcessing(false)
@@ -139,8 +194,9 @@ function ExitoSuscripcionContent() {
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7AB8BF] mx-auto mb-4"></div>
-            <h3 className="text-lg font-semibold mb-2">Procesando tu suscripción...</h3>
-            <p className="text-gray-600">Estamos activando tu suscripción y enviando los correos de confirmación.</p>
+            <h3 className="text-lg font-semibold mb-2">Verificando tu suscripción...</h3>
+            <p className="text-gray-600">Estamos comprobando el estado de tu pago y suscripción.</p>
+            <p className="text-sm text-gray-500 mt-2">Esto solo toma unos segundos...</p>
           </CardContent>
         </Card>
       </div>
@@ -186,10 +242,17 @@ function ExitoSuscripcionContent() {
                         Suscripción {getSubscriptionTypeText(subscription.subscription_type)}
                       </CardDescription>
                     </div>
-                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                      <Gift className="w-4 h-4 mr-1" />
-                      Activa
-                    </Badge>
+                    {subscription.status === 'active' ? (
+                      <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Activa
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-yellow-500/20 text-white border-yellow-300/30">
+                        <Clock className="w-4 h-4 mr-1" />
+                        Activando...
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
                 

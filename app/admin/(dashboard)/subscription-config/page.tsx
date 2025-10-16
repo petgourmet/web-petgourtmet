@@ -167,7 +167,7 @@ export default function SubscriptionConfigPage() {
                 <Input
                   id={`mercadopago-url-${config.id}`}
                   type="url"
-                  placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                  placeholder="URL de suscripción (sistema actualizado sin planes)"
                   value={config.mercadopago_url || ""}
                   onChange={(e) =>
                     handleConfigChange(

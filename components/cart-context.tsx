@@ -25,8 +25,7 @@ export type CartItem = {
   quarterly_discount?: number
   annual_discount?: number
   // URLs de Mercado Pago específicas del producto
-  weekly_mercadopago_url?: string
-  biweekly_mercadopago_url?: string
+
   monthly_mercadopago_url?: string
   quarterly_mercadopago_url?: string
   annual_mercadopago_url?: string

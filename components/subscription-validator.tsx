@@ -56,7 +56,7 @@ export default function SubscriptionValidator({ isAdmin = false, userId }: Subsc
 
       // 1. Validar suscripciones activas
       const { data: activeSubscriptions, error: activeError } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select(`
           id,
           user_id,
@@ -117,7 +117,7 @@ export default function SubscriptionValidator({ isAdmin = false, userId }: Subsc
 
       // 2. Validar suscripciones pendientes
       const { data: pendingSubscriptions, error: pendingError } = await supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select(`
           id,
           user_id,

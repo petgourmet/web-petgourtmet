@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import WebhookService from '@/lib/webhook-service'
+import { validateWebhookSignature } from '@/lib/checkout-validators'
 
 // Configurar para que Next.js no parsee el body automáticamente
 export const runtime = 'nodejs'
@@ -44,7 +45,9 @@ async function getRawBody(request: NextRequest): Promise<string> {
 
 // Endpoint principal para webhooks de MercadoPago
 export async function POST(request: NextRequest) {
-  console.log('🔔 Webhook recibido de MercadoPago')
+  console.log('🔔🔔🔔 ==================== WEBHOOK RECIBIDO DE MERCADOPAGO ====================')
+  console.log('🔔 Timestamp:', new Date().toISOString())
+  console.log('🔔 URL:', request.url)
   
   try {
     // Obtener headers importantes
@@ -55,7 +58,8 @@ export async function POST(request: NextRequest) {
     console.log('📋 Headers del webhook:', {
       signature: signature ? 'presente' : 'ausente',
       requestId,
-      userAgent
+      userAgent,
+      allHeaders: Object.fromEntries(request.headers.entries())
     })
 
     // Obtener el raw body para validación de firma
@@ -93,23 +97,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('📦 Datos del webhook:', {
+    console.log('📦📦📦 DATOS DEL WEBHOOK:', {
       id: webhookData.id,
       type: webhookData.type,
       action: webhookData.action,
       dataId: webhookData.data?.id,
-      liveMode: webhookData.live_mode
+      liveMode: webhookData.live_mode,
+      fullPayload: JSON.stringify(webhookData, null, 2)
     })
 
     // Validar estructura básica del webhook
-    // topic_merchant_order_wh tiene estructura diferente (id directo, no data.id)
-    const hasValidStructure = webhookData.type && (
-      webhookData.data?.id || // Estructura normal (payment, subscription)
-      (webhookData.type === 'topic_merchant_order_wh' && webhookData.id) // Estructura de merchant order
+    // Diferentes tipos de webhooks tienen estructuras diferentes:
+    // - payment: tiene data.id
+    // - subscription_preapproval: tiene id directamente y entity
+    // - merchant_order: tiene topic y resource
+    const hasValidStructure = (
+      (webhookData.type && webhookData.data?.id) || // Estructura normal (payment)
+      (webhookData.type === 'subscription_preapproval' && webhookData.id && webhookData.entity) || // Estructura de suscripción
+      (webhookData.type === 'topic_merchant_order_wh' && webhookData.id) || // Estructura de merchant order
+      (webhookData.topic && webhookData.resource) // Estructura legacy de merchant_order
     )
     
     if (!hasValidStructure) {
       console.error('❌ Estructura de webhook inválida:', webhookData)
+      console.error('📋 Estructura recibida:', {
+        hasType: !!webhookData.type,
+        hasDataId: !!webhookData.data?.id,
+        hasId: !!webhookData.id,
+        hasEntity: !!webhookData.entity,
+        hasTopic: !!webhookData.topic,
+        hasResource: !!webhookData.resource
+      })
       return NextResponse.json(
         { error: 'Estructura de webhook inválida' },
         { 
@@ -125,39 +143,47 @@ export async function POST(request: NextRequest) {
     // Inicializar el servicio de webhooks
     const webhookService = new WebhookService()
 
-    // TEMPORAL: Deshabilitar validación de firma para resolver problema inmediato
-    // TODO: Revisar configuración de webhook secret en MercadoPago y reactivar validación
-    console.log('⚠️ TEMPORAL: Validación de firma deshabilitada para resolver problema de activación automática')
+    // ✅ VALIDACIÓN DE FIRMA ACTIVADA
+    console.log('🔐 Validando firma del webhook de MercadoPago...')
     console.log('📋 Datos de firma recibidos:', {
       hasSignature: !!signature,
       signatureLength: signature?.length || 0,
       hasRequestId: !!requestId,
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV,
+      webhookSecret: process.env.MERCADOPAGO_WEBHOOK_SECRET?.substring(0, 10) + '...'
     })
     
-    // Comentado temporalmente para permitir webhooks de MercadoPago
-    /*
-    if (process.env.NODE_ENV === 'production') {
-      const isValidSignature = webhookService.validateWebhookSignature(rawBody, signature, requestId)
-      if (!isValidSignature) {
-        console.error('❌ Firma de webhook inválida')
-        return NextResponse.json(
-          { error: 'Firma inválida' },
-          { 
-            status: 401,
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'WWW-Authenticate': 'Signature realm="MercadoPago Webhook"'
-            }
+    // Validar firma del webhook con el secret correcto
+    const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
+    const isValidSignature = validateWebhookSignature(rawBody, signature, webhookSecret)
+    
+    if (!isValidSignature && process.env.NODE_ENV === 'production') {
+      console.error('❌ Firma de webhook inválida')
+      console.error('📋 Detalles de validación:', {
+        signature: signature?.substring(0, 20) + '...',
+        requestId,
+        bodyLength: rawBody.length,
+        webhookSecretConfigured: !!webhookSecret,
+        secretPrefix: webhookSecret?.substring(0, 10) + '...'
+      })
+      return NextResponse.json(
+        { error: 'Firma inválida' },
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'WWW-Authenticate': 'Signature realm="MercadoPago Webhook"'
           }
-        )
-      }
-      console.log('✅ Firma de webhook validada')
+        }
+      )
+    }
+    
+    if (isValidSignature) {
+      console.log('✅ Firma de webhook validada correctamente')
     } else {
       console.log('⚠️ Modo desarrollo - omitiendo validación de firma')
     }
-    */
 
     // Procesar según el tipo de webhook con retry automático
     let processed = false
@@ -169,27 +195,37 @@ export async function POST(request: NextRequest) {
         switch (webhookData.type) {
           case 'payment':
             console.log(`💳 Procesando webhook de pago (intento ${retryCount + 1}/${maxRetries})`)
+            console.log(`� Acción del webhook: ${webhookData.action}`)
             processed = await webhookService.processPaymentWebhook(webhookData)
             break
 
           case 'subscription_preapproval':
           case 'subscription_authorized_payment':
-            console.log(`📋 Procesando webhook de suscripción con activación automática mejorada (intento ${retryCount + 1}/${maxRetries})`)
+            console.log(`📋 Procesando webhook de suscripción (intento ${retryCount + 1}/${maxRetries})`)
             console.log('🔍 Detalles del webhook:', {
               type: webhookData.type,
               action: webhookData.action,
+              entity: webhookData.entity,
+              id: webhookData.id,
               dataId: webhookData.data?.id,
+              applicationId: webhookData.application_id,
               liveMode: webhookData.live_mode,
               timestamp: new Date().toISOString(),
               retryAttempt: retryCount + 1
             })
             
+            // Normalizar estructura - MercadoPago puede enviar diferentes formatos
+            const normalizedWebhookData = {
+              ...webhookData,
+              data: webhookData.data || { id: webhookData.id }
+            }
+            
             // Procesar con el servicio mejorado
-            processed = await webhookService.processSubscriptionWebhook(webhookData)
+            processed = await webhookService.processSubscriptionWebhook(normalizedWebhookData)
             
             // Log adicional para seguimiento
             if (processed) {
-              console.log(`✅ Webhook de suscripción procesado exitosamente con activación automática (intento ${retryCount + 1})`)
+              console.log(`✅ Webhook de suscripción procesado exitosamente (intento ${retryCount + 1})`)
             } else {
               console.warn(`⚠️ Webhook de suscripción falló en intento ${retryCount + 1}`)
             }

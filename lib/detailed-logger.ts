@@ -510,3 +510,19 @@ export function clearGlobalLogger(): void {
     loggerInstance = null;
   }
 }
+
+// Export default instance for backward compatibility
+export const detailedLogger = {
+  info: (message: string, context: Record<string, any> = {}) => {
+    console.log(`[INFO] ${message}`, context);
+  },
+  warn: (message: string, context: Record<string, any> = {}) => {
+    console.warn(`[WARN] ${message}`, context);
+  },
+  error: (message: string, context: Record<string, any> = {}) => {
+    console.error(`[ERROR] ${message}`, context);
+  },
+  trace: (message: string, context: Record<string, any> = {}) => {
+    console.log(`[TRACE] ${message}`, context);
+  }
+};

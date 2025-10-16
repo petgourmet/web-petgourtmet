@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { createClient } from "@/lib/supabase/client"
+import { useSubscriptionSync } from "@/hooks/use-subscription-sync"
 
 import RealtimeStatus from "@/components/realtime-status"
 
@@ -195,6 +196,9 @@ function PerfilPageContent() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [maxReconnectAttempts] = useState(5)
   const [isReconnecting, setIsReconnecting] = useState(false)
+
+  // 🔄 Hook de sincronización automática con MercadoPago
+  const { syncing: syncingSubscriptions, lastSync, syncNow } = useSubscriptionSync(user?.id, true)
 
   // Función para procesar URLs de imágenes
   const processImageUrl = (imageUrl: string | null | undefined): string => {

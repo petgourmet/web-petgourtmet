@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     
     const {
-      preapproval_plan_id,
+      // ELIMINADO: preapproval_plan_id ya no se usa
+      // preapproval_plan_id,
       reason,
       external_reference,
       payer_email,
@@ -41,28 +42,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validaciones para suscripciones sin plan
-    if (!preapproval_plan_id) {
-      if (!reason) {
-        return NextResponse.json(
-          { error: 'reason es requerido para suscripciones sin plan asociado' },
-          { status: 400 }
-        )
-      }
-      if (!external_reference) {
-        return NextResponse.json(
-          { error: 'external_reference es requerido para suscripciones sin plan asociado' },
-          { status: 400 }
-        )
-      }
-      if (!auto_recurring?.transaction_amount || !auto_recurring?.frequency) {
-        return NextResponse.json(
-          { 
-            error: 'auto_recurring con transaction_amount y frequency son requeridos para suscripciones sin plan' 
-          },
-          { status: 400 }
-        )
-      }
+    // Validaciones para suscripciones sin plan (NUEVO SISTEMA)
+    if (!reason) {
+      return NextResponse.json(
+        { error: 'reason es requerido para suscripciones sin plan asociado' },
+        { status: 400 }
+      )
+    }
+    
+    if (!external_reference) {
+      return NextResponse.json(
+        { error: 'external_reference es requerido para suscripciones sin plan asociado' },
+        { status: 400 }
+      )
+    }
+    
+    if (!auto_recurring?.transaction_amount || !auto_recurring?.frequency) {
+      return NextResponse.json(
+        { 
+          error: 'auto_recurring con transaction_amount y frequency son requeridos para suscripciones sin plan' 
+        },
+        { status: 400 }
+      )
     }
 
     // Generar fechas por defecto si no se proporcionan
@@ -77,25 +78,16 @@ export async function POST(request: NextRequest) {
       payer_email // Campo requerido
     }
 
-    // Campos opcionales según documentación
-    if (preapproval_plan_id) {
-      subscriptionData.preapproval_plan_id = preapproval_plan_id
-    }
-
-    if (reason || !preapproval_plan_id) {
-      subscriptionData.reason = reason || `Suscripción Pet Gourmet - ${payer_email}`
-    }
-
-    if (external_reference || !preapproval_plan_id) {
-      // Usar external_reference proporcionado o generar uno determinístico
-      // que incluya información para búsqueda posterior
-      if (external_reference) {
-        subscriptionData.external_reference = external_reference
-      } else {
-        // Generar external_reference que incluya user_id y product_id para búsqueda
-        const timestamp = Date.now().toString().slice(-8)
-        subscriptionData.external_reference = `SUB-${user_id || 'guest'}-${product_id || 'default'}-${timestamp}`
-      }
+    // Campos para suscripciones sin plan (NUEVO SISTEMA)
+    subscriptionData.reason = reason || `Suscripción Pet Gourmet - ${payer_email}`
+    
+    // Usar external_reference proporcionado o generar uno determinístico
+    if (external_reference) {
+      subscriptionData.external_reference = external_reference
+    } else {
+      // Generar external_reference que incluya user_id y product_id para búsqueda
+      const timestamp = Date.now().toString().slice(-8)
+      subscriptionData.external_reference = `SUB-${user_id || 'guest'}-${product_id || 'default'}-${timestamp}`
     }
 
     if (card_token_id) {
@@ -103,11 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // back_url es requerido para suscripciones sin plan
-    if (!preapproval_plan_id) {
-      subscriptionData.back_url = `${APP_URL}/perfil/suscripciones`
-    } else if (back_url) {
-      subscriptionData.back_url = back_url
-    }
+    subscriptionData.back_url = `${APP_URL}/perfil/suscripciones`
 
     // Status: pending (sin método de pago) o authorized (con método de pago)
     if (card_token_id) {
@@ -116,22 +104,20 @@ export async function POST(request: NextRequest) {
       subscriptionData.status = "pending"
     }
 
-    // auto_recurring para configuración de recurrencia
-    if (auto_recurring || !preapproval_plan_id) {
-      subscriptionData.auto_recurring = auto_recurring || {
-        frequency: 1,
-        frequency_type: "months" as const,
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        transaction_amount: 0,
-        currency_id: "MXN" as const
-      }
+    // auto_recurring para configuración de recurrencia (REQUERIDO en nuevo sistema)
+    subscriptionData.auto_recurring = auto_recurring || {
+      frequency: 1,
+      frequency_type: "months" as const,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      transaction_amount: 0,
+      currency_id: "MXN" as const
     }
 
-    console.log('🔄 Creando suscripción:', {
-      plan_id: subscriptionData.preapproval_plan_id,
+    console.log('🔄 Creando suscripción sin plan:', {
       email: subscriptionData.payer_email,
       external_ref: subscriptionData.external_reference,
+      reason: subscriptionData.reason,
       test_mode: IS_TEST_MODE
     })
 
@@ -162,7 +148,7 @@ export async function POST(request: NextRequest) {
           .insert({
             user_id,
             mercadopago_subscription_id: result.id,
-            preapproval_plan_id: result.preapproval_plan_id,
+            preapproval_plan_id: null, // ELIMINADO: Ya no se usan planes
             external_reference: result.external_reference,
             reason: result.reason,
             status: result.status,
@@ -206,7 +192,7 @@ export async function POST(request: NextRequest) {
         id: result.id,
         status: result.status,
         init_point: result.init_point,
-        preapproval_plan_id: result.preapproval_plan_id,
+        preapproval_plan_id: null, // ELIMINADO: Ya no se usan planes
         external_reference: result.external_reference,
         reason: result.reason,
         payer_id: result.payer_id,

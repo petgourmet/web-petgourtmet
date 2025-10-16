@@ -179,7 +179,7 @@ export class DuplicateValidator {
     try {
       // Crear query base
       let query = this.supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select('*')
         .neq('id', subscriptionData.id || 'new');
       

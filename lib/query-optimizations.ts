@@ -582,7 +582,7 @@ export async function fetchOptimizedSubscriptionsAdmin(
     const serviceClient = createServiceClient()
     
     let query = serviceClient
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .select(`
         id,
         user_id,
@@ -645,7 +645,7 @@ export async function fetchOptimizedSubscriptionsAdminLegacy(
     const [subscriptionsResult, billingHistoryResult] = await Promise.all([
       // Todas las suscripciones de la tabla unificada - SIN FILTRO DE USUARIO
       supabase
-        .from('subscriptions')
+        .from('unified_subscriptions')
         .select(`
           *,
           products (

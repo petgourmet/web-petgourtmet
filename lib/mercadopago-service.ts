@@ -1,6 +1,6 @@
 // lib/mercadopago-service.ts
 
-import { MercadoPagoConfig, Preference, Payment, PreApprovalPlan, PreApproval } from "mercadopago"
+import { MercadoPagoConfig, Preference, Payment, PreApproval } from "mercadopago"
 
 class MercadoPagoService {
   private config: MercadoPagoConfig
@@ -62,21 +62,22 @@ class MercadoPagoService {
     }
   }
 
-  // Crear plan de suscripción
-  async createSubscriptionPlan(planData: any): Promise<any> {
-    const preapprovalPlan = new PreApprovalPlan(this.config)
-    try {
-      const result = await preapprovalPlan.create({ body: planData })
-      return result
-    } catch (error) {
-      console.error("Error creating subscription plan:", error)
-      throw error
-    }
-  }
+  // ELIMINADO: Crear plan de suscripción - Ya no se usa en el nuevo sistema
+  // async createSubscriptionPlan(planData: any): Promise<any> {
+  //   const preapprovalPlan = new PreApprovalPlan(this.config)
+  //   try {
+  //     const result = await preapprovalPlan.create({ body: planData })
+  //     return result
+  //   } catch (error) {
+  //     console.error("Error creating subscription plan:", error)
+  //     throw error
+  //   }
+  // }
 
   // Crear suscripción basada en un plan o sin plan
   async createSubscription(subscriptionData: {
-    preapproval_plan_id?: string,
+    // ELIMINADO: preapproval_plan_id ya no se usa
+    // preapproval_plan_id?: string,
     reason?: string,
     external_reference?: string,
     payer_email: string,
@@ -100,9 +101,10 @@ class MercadoPagoService {
     }
 
     // Campos opcionales según documentación
-    if (subscriptionData.preapproval_plan_id) {
-      requestBody.preapproval_plan_id = subscriptionData.preapproval_plan_id
-    }
+    // ELIMINADO: preapproval_plan_id ya no se usa en el nuevo sistema
+    // if (subscriptionData.preapproval_plan_id) {
+    //   requestBody.preapproval_plan_id = subscriptionData.preapproval_plan_id
+    // }
 
     if (subscriptionData.reason) {
       requestBody.reason = subscriptionData.reason

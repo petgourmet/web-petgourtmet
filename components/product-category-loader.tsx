@@ -198,12 +198,7 @@ export function ProductCategoryLoader({
           biweekly_discount,
           monthly_discount,
           quarterly_discount,
-          annual_discount,
-          weekly_mercadopago_url,
-          biweekly_mercadopago_url,
-          monthly_mercadopago_url,
-          quarterly_mercadopago_url,
-          annual_mercadopago_url
+          annual_discount
         `)
 
         // Si tenemos un ID de categoría, filtrar por él
@@ -371,12 +366,7 @@ export function ProductCategoryLoader({
     biweekly_discount: product.biweekly_discount,
     monthly_discount: product.monthly_discount,
     quarterly_discount: product.quarterly_discount,
-    annual_discount: product.annual_discount,
-    weekly_mercadopago_url: product.weekly_mercadopago_url,
-    biweekly_mercadopago_url: product.biweekly_mercadopago_url,
-    monthly_mercadopago_url: product.monthly_mercadopago_url,
-    quarterly_mercadopago_url: product.quarterly_mercadopago_url,
-    annual_mercadopago_url: product.annual_mercadopago_url,
+         annual_discount: product.annual_discount,
     sizes: product.sizes?.map((size, index) => ({
       id: index + 1,
       product_id: product.id,

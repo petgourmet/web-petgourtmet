@@ -99,13 +99,97 @@ export async function POST(request: NextRequest) {
     }
 
     if (mpStatus && (mpStatus.status === 'authorized' || mpStatus.status === 'approved')) {
+      let preapprovalId = subscription.mercadopago_subscription_id
+      let preapprovalCreated = false
+      
+      // Si no tiene preapproval y es una suscripción recurrente, crearlo
+      if (!preapprovalId && subscription.subscription_type === 'recurring' && subscription.frequency) {
+        try {
+          logger.subscriptionEvent(subscriptionId.toString(), 'auto-verify-creating-preapproval', {
+            userId,
+            paymentId: mpStatus.paymentId,
+            frequency: subscription.frequency
+          })
+
+          // Calcular próxima fecha de pago
+          const nextPaymentDate = new Date()
+          if (subscription.frequency === 'biweekly') {
+            nextPaymentDate.setDate(nextPaymentDate.getDate() + 14)
+          } else if (subscription.frequency === 'monthly') {
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1)
+          } else if (subscription.frequency === 'quarterly') {
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 3)
+          } else if (subscription.frequency === 'annual') {
+            nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1)
+          }
+
+          // Calcular fecha de finalización (1 año después)
+          const endDate = new Date()
+          endDate.setFullYear(endDate.getFullYear() + 1)
+
+          // Crear preapproval en MercadoPago
+          const preapprovalData = {
+            reason: subscription.plan_name || 'Suscripción PetGourmet',
+            auto_recurring: {
+              frequency: subscription.frequency === 'biweekly' ? 14 : subscription.frequency === 'monthly' ? 1 : subscription.frequency === 'quarterly' ? 3 : 12,
+              frequency_type: subscription.frequency === 'biweekly' ? 'days' : 'months',
+              transaction_amount: subscription.amount || subscription.price,
+              currency_id: subscription.currency || 'ARS',
+              start_date: new Date().toISOString(),
+              end_date: endDate.toISOString()
+            },
+            payer_email: subscription.customer_email || subscription.payer_email,
+            external_reference: subscription.external_reference,
+            back_url: `${process.env.NEXT_PUBLIC_BASE_URL}/suscripcion/exito?ref=${subscription.external_reference}`,
+            status: 'authorized'
+          }
+
+          const preapprovalResponse = await fetch('https://api.mercadopago.com/preapproval', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+              'Content-Type': 'application/json',
+              'X-Idempotency-Key': `${subscription.external_reference}-preapproval-${Date.now()}`
+            },
+            body: JSON.stringify(preapprovalData)
+          })
+
+          if (preapprovalResponse.ok) {
+            const preapprovalResult = await preapprovalResponse.json()
+            preapprovalId = preapprovalResult.id
+            preapprovalCreated = true
+            
+            logger.subscriptionEvent(subscriptionId.toString(), 'auto-verify-preapproval-created', {
+              userId,
+              preapprovalId,
+              paymentId: mpStatus.paymentId
+            })
+          } else {
+            const errorData = await preapprovalResponse.json()
+            logger.subscriptionEvent(subscriptionId.toString(), 'auto-verify-preapproval-error', {
+              userId,
+              error: errorData
+            })
+          }
+        } catch (preapprovalError: any) {
+          logger.subscriptionEvent(subscriptionId.toString(), 'auto-verify-preapproval-exception', {
+            userId,
+            error: preapprovalError.message
+          })
+          // Continuar con la activación aunque falle el preapproval
+        }
+      }
+      
       // Activar la suscripción
       const { error: updateError } = await supabase
         .from('unified_subscriptions')
         .update({
           status: 'active',
+          mercadopago_subscription_id: preapprovalId || subscription.mercadopago_subscription_id,
           updated_at: new Date().toISOString(),
-          last_sync_at: new Date().toISOString()
+          last_sync_at: new Date().toISOString(),
+          last_billing_date: new Date().toISOString(),
+          charges_made: 1
         })
         .eq('id', subscriptionId)
         .eq('user_id', userId)
@@ -123,10 +207,12 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      logger.subscriptionActivationSuccess(subscriptionId.toString(), {
+      logger.subscriptionActivationSuccess(subscriptionId.toString(), 'auto-verify', subscription.status || 'pending', {
         userId,
         newStatus: 'active',
         mpStatus: mpStatus.status,
+        preapprovalId,
+        preapprovalCreated,
         duration: Date.now() - startTime
       })
 
@@ -144,8 +230,9 @@ export async function POST(request: NextRequest) {
         updated: true,
         statusChanged: true,
         message: 'Suscripción activada automáticamente',
-        subscription: { ...subscription, status: 'active' },
-        mpStatus
+        subscription: { ...subscription, status: 'active', mercadopago_subscription_id: preapprovalId },
+        mpStatus,
+        preapprovalCreated
       })
     } else if (!mpStatus) {
       // NUEVA LÓGICA: Si no se encuentra en MercadoPago, marcar como huérfana

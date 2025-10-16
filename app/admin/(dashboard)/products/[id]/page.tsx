@@ -596,8 +596,6 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         ...(selectedSubscriptionTypes.includes('quarterly') && cleanedProduct.quarterly_discount !== undefined && cleanedProduct.quarterly_discount !== null ? { quarterly_discount: Number(cleanedProduct.quarterly_discount) } : {}),
         ...(selectedSubscriptionTypes.includes('annual') && cleanedProduct.annual_discount !== undefined && cleanedProduct.annual_discount !== null ? { annual_discount: Number(cleanedProduct.annual_discount) } : {}),
         // Incluir URLs de Mercado Pago si están definidas
-        ...(cleanedProduct.weekly_mercadopago_url ? { weekly_mercadopago_url: cleanedProduct.weekly_mercadopago_url } : {}),
-        ...(cleanedProduct.biweekly_mercadopago_url ? { biweekly_mercadopago_url: cleanedProduct.biweekly_mercadopago_url } : {}),
         ...(cleanedProduct.monthly_mercadopago_url ? { monthly_mercadopago_url: cleanedProduct.monthly_mercadopago_url } : {}),
         ...(cleanedProduct.quarterly_mercadopago_url ? { quarterly_mercadopago_url: cleanedProduct.quarterly_mercadopago_url } : {}),
         ...(cleanedProduct.annual_mercadopago_url ? { annual_mercadopago_url: cleanedProduct.annual_mercadopago_url } : {}),
@@ -1404,29 +1402,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                     <div className="space-y-4">
                       <Label>URLs de Mercado Pago por Tipo de Suscripción</Label>
                       <div className="grid grid-cols-1 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="weekly_mercadopago_url">URL Mercado Pago - Semanal</Label>
-                          <Input
-                            id="weekly_mercadopago_url"
-                            name="weekly_mercadopago_url"
-                            type="url"
-                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
-                            value={product.weekly_mercadopago_url || ""}
-                            onChange={handleProductChange}
-                          />
-                        </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="biweekly_mercadopago_url">URL Mercado Pago - Quincenal</Label>
-                          <Input
-                            id="biweekly_mercadopago_url"
-                            name="biweekly_mercadopago_url"
-                            type="url"
-                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
-                            value={product.biweekly_mercadopago_url || ""}
-                            onChange={handleProductChange}
-                          />
-                        </div>
 
                         <div className="space-y-2">
                           <Label htmlFor="monthly_mercadopago_url">URL Mercado Pago - Mensual</Label>
@@ -1434,7 +1410,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                             id="monthly_mercadopago_url"
                             name="monthly_mercadopago_url"
                             type="url"
-                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            placeholder="URL de suscripción (sistema actualizado sin planes)"
                             value={product.monthly_mercadopago_url || ""}
                             onChange={handleProductChange}
                           />
@@ -1446,7 +1422,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                             id="quarterly_mercadopago_url"
                             name="quarterly_mercadopago_url"
                             type="url"
-                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            placeholder="URL de suscripción (sistema actualizado sin planes)"
                             value={product.quarterly_mercadopago_url || ""}
                             onChange={handleProductChange}
                           />
@@ -1458,7 +1434,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                             id="annual_mercadopago_url"
                             name="annual_mercadopago_url"
                             type="url"
-                            placeholder="https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=..."
+                            placeholder="URL de suscripción (sistema actualizado sin planes)"
                             value={product.annual_mercadopago_url || ""}
                             onChange={handleProductChange}
                           />

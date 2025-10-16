@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    let query = supabase.from('subscriptions').select('*')
+    let query = supabase.from('unified_subscriptions').select('*')
 
     // Buscar por external_reference (prioridad)
     if (external_reference) {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let query = supabase.from('subscriptions')
+    let query = supabase.from('unified_subscriptions')
 
     const updateData: any = {
       status,

@@ -1,28 +1,25 @@
 # SOLUCIÓN DEFINITIVA: External Reference Mismatch en Suscripciones
 
-## 🔴 PROBLEMA RAÍZ
+## 🔴 PROBLEMA RAÍZ (SISTEMA OBSOLETO)
 
-El sistema actual usa **URLs pre-generadas de MercadoPago** para las suscripciones:
+**NOTA: Este documento describe el sistema ANTERIOR que usaba planes asociados de MercadoPago. El nuevo sistema ya no utiliza `preapproval_plan_id` ni URLs pre-generadas.**
+
+El sistema anterior usaba **URLs pre-generadas de MercadoPago** para las suscripciones:
 ```
 https://www.mercadopago.com.mx/subscriptions/checkout?preapproval_plan_id=XXXXX
 ```
 
-Cuando se redirige a esta URL con `&external_reference=SUB-xxx`, MercadoPago **IGNORA** el parámetro y genera su propio `external_reference` aleatorio para el pago.
+Este enfoque causaba problemas de external_reference porque MercadoPago ignoraba el parámetro en la URL.
 
-**Resultado**: 
-- Suscripción en DB tiene: `external_reference: "SUB-2f4ec8c0-0e58-486d-9c11-a652368f7c19-73-f4da54de"`
-- Pago en MercadoPago tiene: `external_reference: "bf82cd363f9848f4845724b6e6fad5a4"` (aleatorio)
-- Webhook NO puede encontrar la suscripción ❌
+## ✅ SOLUCIÓN IMPLEMENTADA
 
-## ✅ SOLUCIÓN
+El nuevo sistema sin planes asociados resuelve este problema creando suscripciones directamente mediante la API de MercadoPago sin depender de planes preexistentes.
 
-Necesitamos crear una **Preapproval API Request** con el `external_reference` correcto en el **body de la solicitud**, no en la URL.
+### Cambios realizados:
 
-### Pasos:
-
-1. **Crear endpoint API**: `/api/mercadopago/create-subscription-preference`
-2. **Usar MercadoPago Preapproval API** con el external_reference correcto
-3. **Modificar checkout-modal.tsx** para llamar al API en lugar de redirigir directamente
+1. **Eliminado**: Sistema de planes asociados (`preapproval_plan_id`)
+2. **Implementado**: Creación directa de suscripciones sin planes
+3. **Mejorado**: Control total sobre `external_reference` en el body de la solicitud
 
 ---
 

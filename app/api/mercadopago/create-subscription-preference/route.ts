@@ -157,7 +157,8 @@ export async function POST(request: Request) {
     const { error: updateError } = await supabase
       .from('unified_subscriptions')
       .update({ 
-        preapproval_plan_id: preapproval.id,
+        // ELIMINADO: preapproval_plan_id ya no se usa en el nuevo sistema
+        // preapproval_plan_id: preapproval.id,
         init_point: preapproval.init_point,
         updated_at: new Date().toISOString(),
         metadata: {

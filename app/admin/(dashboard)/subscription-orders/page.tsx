@@ -79,7 +79,8 @@ interface AdminSubscription {
     }>
   }
   mercadopago_subscription_id?: string
-  mercadopago_plan_id?: string
+  // ELIMINADO: mercadopago_plan_id ya no se usa en el nuevo sistema
+  // mercadopago_plan_id?: string
   external_reference?: string
   reason?: string
   charges_made?: number
@@ -88,7 +89,8 @@ interface AdminSubscription {
   version?: string
   application_id?: string
   collector_id?: string
-  preapproval_plan_id?: string
+  // ELIMINADO: preapproval_plan_id ya no se usa en el nuevo sistema
+  // preapproval_plan_id?: string
   back_url?: string
   init_point?: string
   start_date?: string

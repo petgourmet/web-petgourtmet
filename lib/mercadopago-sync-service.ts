@@ -13,7 +13,8 @@ interface MercadoPagoSubscription {
   date_created: string
   last_modified: string
   next_payment_date?: string
-  preapproval_plan_id: string
+  // ELIMINADO: preapproval_plan_id ya no se usa en el nuevo sistema
+  // preapproval_plan_id: string
   reason?: string
   auto_recurring?: {
     frequency: number
@@ -135,62 +136,40 @@ export class MercadoPagoSyncService {
 
       // Si tenemos datos de suscripción, usar estrategias adicionales
       if (subscriptionData) {
-        // Estrategia 2: Buscar por Collection ID específico (para casos conocidos)
-        payment = await this.searchByCollectionId('128493659214')
-        if (payment) {
-          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 2: Collection ID específico', {
-            paymentId: payment.id,
-            status: payment.status,
-            collectionId: '128493659214'
-          })
-          return payment
-        }
-
-        // Estrategia 3: Buscar por external_reference conocido del pago
-        payment = await this.searchByExternalReference('29e2b00ced3e47f981e3bec896ef1643')
-        if (payment) {
-          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 3: external_reference del pago conocido', {
-            paymentId: payment.id,
-            status: payment.status,
-            paymentExternalRef: '29e2b00ced3e47f981e3bec896ef1643'
-          })
-          return payment
-        }
-
-        // Estrategia 4: Buscar por user_id y monto en rango de fechas
+        // Estrategia 2: Buscar por user_id y monto en rango de fechas
         payment = await this.searchByUserAndAmount(subscriptionData)
         if (payment) {
-          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 4: user_id y monto', {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 2: user_id y monto', {
             paymentId: payment.id,
             status: payment.status
           })
           return payment
         }
 
-        // Estrategia 5: Buscar por email del cliente
+        // Estrategia 3: Buscar por email del cliente
         payment = await this.searchByCustomerEmail(subscriptionData)
         if (payment) {
-          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 5: email del cliente', {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 3: email del cliente', {
             paymentId: payment.id,
             status: payment.status
           })
           return payment
         }
 
-        // Estrategia 6: Buscar por monto exacto en rango de fechas
+        // Estrategia 4: Buscar por monto exacto en rango de fechas
         payment = await this.searchByAmountAndDate(subscriptionData)
         if (payment) {
-          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 6: monto y fecha', {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 4: monto y fecha', {
             paymentId: payment.id,
             status: payment.status
           })
           return payment
         }
 
-        // Estrategia 7: Buscar por product_id en external_reference
+        // Estrategia 5: Buscar por product_id en external_reference
         payment = await this.searchByProductId(subscriptionData)
         if (payment) {
-          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 7: product_id', {
+          logger.info(LogCategory.SUBSCRIPTION, 'Pago encontrado - Estrategia 5: product_id', {
             paymentId: payment.id,
             status: payment.status
           })
@@ -259,7 +238,7 @@ export class MercadoPagoSyncService {
   }
 
   /**
-   * Estrategia 4: Buscar por user_id y monto en rango de fechas
+   * Estrategia 2: Buscar por user_id y monto en rango de fechas
    */
   private async searchByUserAndAmount(subscriptionData: any): Promise<any | null> {
     try {
@@ -268,8 +247,8 @@ export class MercadoPagoSyncService {
       if (!email) return null
 
       const createdAt = new Date(subscriptionData.created_at)
-      const startDate = new Date(createdAt.getTime() - 2 * 60 * 60 * 1000) // 2 horas antes
-      const endDate = new Date(createdAt.getTime() + 2 * 60 * 60 * 1000) // 2 horas después
+      const startDate = new Date(createdAt.getTime() - 5 * 60 * 1000) // 5 minutos antes (más preciso)
+      const endDate = new Date(createdAt.getTime() + 30 * 60 * 1000) // 30 minutos después (ventana más estrecha)
 
       const response = await fetch(
         `https://api.mercadopago.com/v1/payments/search?payer.email=${email}&begin_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Crear suscripción de prueba
     const { data: subscription, error } = await supabase
-      .from('subscriptions')
+      .from('unified_subscriptions')
       .insert({
         external_reference,
         customer_email,
