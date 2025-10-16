@@ -10,7 +10,7 @@ import { ProductGridSkeleton } from "@/components/product-card-skeleton"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
-import { enhancedCacheService } from '@/utils/cache-service'
+import { enhancedCacheService } from '@/lib/cache-service-enhanced'
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
 
@@ -145,8 +145,8 @@ export function ProductCategoryLoader({
         console.log('🔄 [ProductLoader] Iniciando carga de productos...')
         
         // Intentar obtener datos desde caché primero
-        const cachedCategories = cacheService.getCategories()
-        const cachedProducts = cacheService.getProducts(categorySlug)
+        const cachedCategories = enhancedCacheService.getCategories()
+    const cachedProducts = enhancedCacheService.getProducts(categorySlug)
         
         if (cachedProducts && cachedCategories) {
           console.log('📦 [ProductLoader] Usando datos desde caché optimizado')
@@ -177,11 +177,11 @@ export function ProductCategoryLoader({
             { id: 4, name: "Recetas" },
           ]
           setCategories(fallbackCategories)
-          cacheService.setCategories(fallbackCategories)
+          enhancedCacheService.setCategories(fallbackCategories)
         } else if (categoriesData && categoriesData.length > 0) {
           const categories = categoriesData || []
           setCategories(categories)
-          cacheService.setCategories(categories)
+          enhancedCacheService.setCategories(categories)
           console.log(`✅ [ProductLoader] ${categories.length} categorías cargadas`)
         } else {
           const fallbackCategories = [
@@ -191,7 +191,7 @@ export function ProductCategoryLoader({
             { id: 4, name: "Recetas" },
           ]
           setCategories(fallbackCategories)
-          cacheService.setCategories(fallbackCategories)
+          enhancedCacheService.setCategories(fallbackCategories)
         }
 
         // Cargar productos según la categoría
@@ -247,16 +247,33 @@ export function ProductCategoryLoader({
 
         if (productsError) {
           console.error("❌ [ProductLoader] Error al cargar productos:", productsError.message)
-          setProducts([])
-          setFilteredProducts([])
+          console.error("❌ [ProductLoader] Detalles del error:", productsError)
+          
+          // Intentar usar productos de fallback si están disponibles
+          const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
+          if (fallbackProducts.length > 0) {
+            console.log(`🔄 [ProductLoader] Usando productos de fallback para ${categorySlug}`)
+            setProducts(fallbackProducts)
+          } else {
+            setProducts([])
+          }
           setLoading(false)
           return
         }
 
         if (!productsData || productsData.length === 0) {
-          console.log("No se encontraron productos para la categoría:", categorySlug)
-          setProducts([])
-          setFilteredProducts([])
+          console.log("⚠️ [ProductLoader] No se encontraron productos para la categoría:", categorySlug)
+          
+          // Intentar usar productos de fallback si están disponibles
+          const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
+          if (fallbackProducts.length > 0) {
+            console.log(`🔄 [ProductLoader] Usando productos de fallback para ${categorySlug}`)
+            setProducts(fallbackProducts)
+            setFilteredProducts(fallbackProducts)
+          } else {
+            setProducts([])
+            setFilteredProducts([])
+          }
           setLoading(false)
           return
         }
@@ -354,7 +371,7 @@ export function ProductCategoryLoader({
         setFilteredProducts(processedProducts)
         
         // Guardar productos en caché
-        cacheService.setProducts(processedProducts, categorySlug)
+        enhancedCacheService.setProducts(processedProducts, categorySlug)
         
         // ✅ OPTIMIZACIÓN: Precargar imágenes críticas (primera fila)
         const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)

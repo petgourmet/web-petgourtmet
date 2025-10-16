@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { cacheService } from "@/utils/cache-service"
+import { enhancedCacheService } from "@/lib/cache-service-enhanced"
 import type { User } from "@supabase/supabase-js"
 
 export function useClientAuth() {
@@ -21,7 +21,7 @@ export function useClientAuth() {
     // Función simple para obtener el rol - sin timeouts ni reintentos
     const getUserRole = async (userId: string): Promise<string> => {
       // Intentar obtener desde caché primero
-      const cachedRole = cacheService.getUserRole(userId)
+      const cachedRole = enhancedCacheService.getUserRole(userId)
       if (cachedRole) {
         return cachedRole
       }
@@ -42,7 +42,7 @@ export function useClientAuth() {
         const role = (profile as any).role || 'user'
         
         // Guardar en caché para próximas consultas
-        cacheService.setUserRole(userId, role)
+        enhancedCacheService.setUserRole(userId, role)
         
         return role
       } catch (error) {
@@ -80,7 +80,7 @@ export function useClientAuth() {
     const loadInitialSession = async () => {
       try {
         // Intentar obtener sesión desde caché primero
-        const cachedSession = cacheService.getUserSession('current')
+        const cachedSession = enhancedCacheService.getUserSession('current')
         if (cachedSession) {
           setUser(cachedSession.user)
           const role = await getUserRole(cachedSession.user.id)
@@ -107,8 +107,8 @@ export function useClientAuth() {
           setUser(session.user)
           
           // Guardar sesión en caché
-          cacheService.setUserSession(session.user.id, session)
-          cacheService.setUserSession('current', session)
+          enhancedCacheService.setUserSession(session.user.id, session)
+          enhancedCacheService.setUserSession('current', session)
           
           // Obtener rol del usuario
           const role = await getUserRole(session.user.id)
@@ -118,7 +118,7 @@ export function useClientAuth() {
         } else {
           setUser(null)
           setUserRole(null)
-          cacheService.setUserSession('current', null)
+          enhancedCacheService.setUserSession('current', null)
         }
       } catch (error) {
         if (isMounted) {
@@ -156,7 +156,7 @@ export function useClientAuth() {
       setLoading(false)
       
       // Limpiar cachés
-      cacheService.clear()
+      enhancedCacheService.clear()
       
       // Cerrar sesión en Supabase
       const supabase = createClient()

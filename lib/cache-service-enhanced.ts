@@ -284,6 +284,28 @@ class EnhancedCacheService {
   }
 
   /**
+   * Cache específico para sesiones de usuario
+   */
+  getUserSession(userId: string): any | null {
+    return this.get(`user_session_${userId}`)
+  }
+
+  setUserSession(userId: string, session: any, customTtl?: number): void {
+    this.set(`user_session_${userId}`, session, customTtl)
+  }
+
+  /**
+   * Cache específico para roles de usuario
+   */
+  getUserRole(userId: string): string | null {
+    return this.get(`user_role_${userId}`)
+  }
+
+  setUserRole(userId: string, role: string, customTtl?: number): void {
+    this.set(`user_role_${userId}`, role, customTtl)
+  }
+
+  /**
    * Cache con función de respaldo (cache-aside pattern)
    */
   async getOrSet<T>(
