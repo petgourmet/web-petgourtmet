@@ -10,6 +10,9 @@ import { Eye, EyeOff, Loader2, Clock, RefreshCw } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { handleAuthError } from "@/lib/auth-error-handler"
+import { useAntiSpam } from "@/hooks/useAntiSpam"
+import { HoneypotField } from "@/components/security/HoneypotField"
+import { SecurityStatus } from "@/components/security/SecurityStatus"
 
 type AuthMode = "login" | "register"
 
@@ -25,9 +28,20 @@ export function AuthForm() {
   const [retryCount, setRetryCount] = useState(0)
   const [cooldownTime, setCooldownTime] = useState(0)
   const [acceptTerms, setAcceptTerms] = useState(false)
+  const [honeypotValue, setHoneypotValue] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  
+  // Hook anti-spam
+  const { 
+    submitWithProtection, 
+    isValidating,
+    isRecaptchaLoaded 
+  } = useAntiSpam({
+    action: mode === 'login' ? 'auth_login' : 'auth_register',
+    minRecaptchaScore: 0.6
+  })
 
   // Manejar parámetros de URL para mostrar mensajes
   useEffect(() => {
@@ -66,6 +80,7 @@ export function AuthForm() {
     setPassword("")
     setConfirmPassword("")
     setAcceptTerms(false)
+    setHoneypotValue("")
   }
 
   // Función para manejar el cooldown cuando hay rate limit
@@ -124,63 +139,47 @@ export function AuthForm() {
       return
     }
 
+    // Validaciones previas
+    if (mode === "register") {
+      if (password !== confirmPassword) {
+        toast({
+          title: "Error",
+          description: "Las contraseñas no coinciden",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (!acceptTerms) {
+        toast({
+          title: "Error",
+          description: "Debes aceptar los términos y condiciones para registrarte",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
+      // Usar el sistema anti-spam para proteger el formulario
+      const result = await submitWithProtection('/api/auth', {
+        action: mode,
+        email,
+        password,
+        confirmPassword: mode === "register" ? confirmPassword : undefined,
+        acceptTerms: mode === "register" ? acceptTerms : undefined,
+        honeypot: honeypotValue
+      })
+
+      // Reset estados de rate limit en caso de éxito
+      setRateLimited(false)
+      setRetryCount(0)
+      setCooldownTime(0)
+      setHoneypotValue('')
+
       if (mode === "register") {
-        // Validar que las contraseñas coincidan
-        if (password !== confirmPassword) {
-          toast({
-            title: "Error",
-            description: "Las contraseñas no coinciden",
-            variant: "destructive",
-          })
-          return
-        }
-
-        // Validar que se hayan aceptado los términos
-        if (!acceptTerms) {
-          toast({
-            title: "Error",
-            description: "Debes aceptar los términos y condiciones para registrarte",
-            variant: "destructive",
-          })
-          return
-        }
-
-        // Registro sin confirmación de email
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: undefined, // No enviar email de confirmación
-          }
-        })
-
-        if (error) throw error
-
-        // Si el usuario se creó exitosamente, crear el perfil manualmente
-        if (data.user && !data.user.email_confirmed_at) {
-          // Crear perfil directamente usando el service role
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              email: data.user.email!,
-              role: 'user'
-            })
-
-          if (profileError) {
-            console.warn('Error creando perfil:', profileError)
-            // No lanzar error, el trigger debería manejarlo
-          }
-        }
-
-        // Reset estados de rate limit en caso de éxito
-        setRateLimited(false)
-        setRetryCount(0)
-        setCooldownTime(0)
-
         toast({
           title: "Registro exitoso",
           description: "Tu cuenta ha sido creada exitosamente. Ya puedes iniciar sesión.",
@@ -190,19 +189,6 @@ export function AuthForm() {
         setMode("login")
         setEmail(email) // Mantener el email para facilitar el login
       } else {
-        // Iniciar sesión
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-
-        if (error) throw error
-
-        // Reset estados de rate limit en caso de éxito
-        setRateLimited(false)
-        setRetryCount(0)
-        setCooldownTime(0)
-
         toast({
           title: "Inicio de sesión exitoso",
           description: "Bienvenido de nuevo a Pet Gourmet",
@@ -212,18 +198,14 @@ export function AuthForm() {
         const redirect = searchParams.get('redirect')
         
         if (redirect) {
-          // Decodificar la URL de redirección que puede contener parámetros
           const decodedRedirect = decodeURIComponent(redirect)
-          
           console.log('🔗 Redirigiendo después del login:', {
             originalRedirect: redirect,
             decodedRedirect,
             fullUrl: decodedRedirect
           })
-          
           router.push(decodedRedirect)
         } else {
-          // Redirigir al perfil por defecto
           router.push("/perfil")
         }
       }
@@ -266,6 +248,17 @@ export function AuthForm() {
         <h2 className="text-2xl font-bold text-center mb-6">{mode === "login" ? "Iniciar Sesión" : "Crear Cuenta"}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Campo honeypot para detectar bots */}
+          <HoneypotField 
+            value={honeypotValue}
+            onChange={setHoneypotValue}
+          />
+          
+          {/* Estado de seguridad */}
+          <SecurityStatus 
+            isValidating={isValidating}
+          />
+          
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-1">
               Correo Electrónico
@@ -276,7 +269,8 @@ export function AuthForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={loading || isValidating}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
               placeholder="tu@email.com"
             />
           </div>
@@ -292,7 +286,8 @@ export function AuthForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={loading || isValidating}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                 placeholder="********"
               />
               <button
@@ -318,7 +313,8 @@ export function AuthForm() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={loading || isValidating}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     placeholder="********"
                   />
                 </div>
@@ -349,17 +345,22 @@ export function AuthForm() {
 
           <button
             type="submit"
-            disabled={loading || rateLimited || (mode === "register" && !acceptTerms)}
+            disabled={loading || isValidating || rateLimited || !isRecaptchaLoaded || (mode === "register" && !acceptTerms)}
             className={`w-full font-medium py-2 px-4 rounded-md transition-colors flex items-center justify-center ${
-              rateLimited || (mode === "register" && !acceptTerms)
+              rateLimited || !isRecaptchaLoaded || (mode === "register" && !acceptTerms)
                 ? 'bg-gray-400 cursor-not-allowed text-white' 
                 : 'bg-primary hover:bg-primary/90 text-white'
             }`}
           >
-            {loading ? (
+            {loading || isValidating ? (
               <>
                 <Loader2 className="animate-spin mr-2" size={18} />
-                {mode === "login" ? "Iniciando sesión..." : "Registrando..."}
+                {isValidating ? 'Verificando...' : (mode === "login" ? "Iniciando sesión..." : "Registrando...")}
+              </>
+            ) : !isRecaptchaLoaded ? (
+              <>
+                <Loader2 className="animate-spin mr-2" size={18} />
+                Cargando seguridad...
               </>
             ) : rateLimited ? (
               <>

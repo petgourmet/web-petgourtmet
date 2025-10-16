@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, Send } from 'lucide-react'
+import { useAntiSpam } from '@/hooks/useAntiSpam'
+import { HoneypotField } from '@/components/security/HoneypotField'
+import { SecurityStatus } from '@/components/security/SecurityStatus'
 
 export default function Newsletter() {
   const [email, setEmail] = useState('')
@@ -11,6 +14,16 @@ export default function Newsletter() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState('')
   const [subscribedEmail, setSubscribedEmail] = useState('')
+  const [honeypotValue, setHoneypotValue] = useState('')
+  
+  const { 
+    submitWithProtection, 
+    isValidating,
+    isRecaptchaLoaded 
+  } = useAntiSpam({
+    action: 'newsletter_signup',
+    minRecaptchaScore: 0.4
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,26 +31,20 @@ export default function Newsletter() {
     setError('')
 
     try {
-      const response = await fetch('/api/newsletter', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
+      // Usar el sistema anti-spam para enviar el formulario
+      const result = await submitWithProtection('/api/newsletter', {
+        email,
+        honeypot: honeypotValue
       })
 
-      const result = await response.json()
-
-      if (response.ok) {
-        setSubscribedEmail(email)
-        setIsSuccess(true)
-        setEmail('')
-      } else {
-        setError(result.error || 'Error al suscribirse')
-      }
+      setSubscribedEmail(email)
+      setIsSuccess(true)
+      setEmail('')
+      setHoneypotValue('')
+      
     } catch (error) {
       console.error('Error subscribing to newsletter:', error)
-      setError('Error de conexión. Inténtalo de nuevo.')
+      setError(error instanceof Error ? error.message : 'Error de conexión. Inténtalo de nuevo.')
     } finally {
       setIsLoading(false)
     }
@@ -70,6 +77,7 @@ export default function Newsletter() {
                     setIsSuccess(false)
                     setSubscribedEmail('')
                     setEmail('')
+                    setHoneypotValue('')
                   }}
                   className="text-white/80 hover:text-white underline text-sm transition-colors"
                 >
@@ -104,32 +112,50 @@ export default function Newsletter() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-              <Input
-                type="email"
-                placeholder="tu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-                className="bg-white/20 border-white/30 text-white placeholder:text-white/70 flex-1"
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Campo honeypot para detectar bots */}
+              <HoneypotField 
+                value={honeypotValue}
+                onChange={setHoneypotValue}
               />
-              <Button 
-                type="submit" 
-                disabled={isLoading || !email}
-                className="bg-white text-[#7BBDC5] hover:bg-white/90 font-semibold"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#7BBDC5] mr-2"></div>
-                    Suscribiendo...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Suscribirme
-                  </>
-                )}
+              
+              {/* Estado de seguridad */}
+              <SecurityStatus 
+                isValidating={isValidating}
+                className="text-white/80"
+              />
+              
+              <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+                <Input
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading || isValidating}
+                  className="bg-white/20 border-white/30 text-white placeholder:text-white/70 flex-1"
+                />
+                <Button 
+                  type="submit" 
+                  disabled={isLoading || isValidating || !email || !isRecaptchaLoaded}
+                  className="bg-white text-[#7BBDC5] hover:bg-white/90 font-semibold"
+                >
+                  {isLoading || isValidating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#7BBDC5] mr-2"></div>
+                      {isValidating ? 'Verificando...' : 'Suscribiendo...'}
+                    </>
+                  ) : !isRecaptchaLoaded ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#7BBDC5] mr-2"></div>
+                      Cargando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Suscribirme
+                    </>
+                  )}
               </Button>
             </form>
             

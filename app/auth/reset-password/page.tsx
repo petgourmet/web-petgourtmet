@@ -11,6 +11,9 @@ import { supabase } from "@/lib/supabase/client"
 import { handleAuthError } from "@/lib/auth-error-handler"
 import { useToast } from "@/components/ui/use-toast"
 import { ThemedBackground } from "@/components/themed-background"
+import { useAntiSpam } from "@/hooks/useAntiSpam"
+import { HoneypotField } from "@/components/security/HoneypotField"
+import { SecurityStatus } from "@/components/security/SecurityStatus"
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("")
@@ -18,8 +21,19 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [honeypotValue, setHoneypotValue] = useState('')
   const router = useRouter()
   const { toast } = useToast()
+  
+  // Hook anti-spam
+  const { 
+    submitWithProtection, 
+    isValidating,
+    isRecaptchaLoaded 
+  } = useAntiSpam({
+    action: 'password_reset',
+    minRecaptchaScore: 0.5
+  })
 
   // Verificar que el usuario tenga una sesión válida para restablecer contraseña
   useEffect(() => {
@@ -40,20 +54,25 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
 
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden")
-      setLoading(false)
       return
     }
 
+    setLoading(true)
+
     try {
-      const { error } = await supabase.auth.updateUser({ password })
+      // Usar el sistema anti-spam para proteger el formulario
+      const result = await submitWithProtection('/api/auth/reset-password', {
+        password,
+        confirmPassword,
+        honeypot: honeypotValue
+      })
 
-      if (error) throw error
-
+      setHoneypotValue('')
+      
       toast({
         title: "Contraseña actualizada",
         description: "Tu contraseña ha sido restablecida correctamente.",
@@ -66,7 +85,7 @@ export default function ResetPasswordPage() {
     } catch (error: any) {
       console.error("Error al restablecer contraseña:", error)
       const { message } = handleAuthError(error, "reset")
-      setError(message)
+      setError(error instanceof Error ? error.message : message)
     } finally {
       setLoading(false)
     }
@@ -94,6 +113,17 @@ export default function ResetPasswordPage() {
             {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md border border-red-200">{error}</div>}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Campo honeypot para detectar bots */}
+              <HoneypotField 
+                value={honeypotValue}
+                onChange={setHoneypotValue}
+              />
+              
+              {/* Estado de seguridad */}
+              <SecurityStatus 
+                isValidating={isValidating}
+              />
+              
               <div>
                 <label htmlFor="password" className="block text-sm font-medium mb-1">
                   Nueva Contraseña
@@ -105,7 +135,8 @@ export default function ResetPasswordPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={loading || isValidating}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     placeholder="********"
                     minLength={6}
                   />
@@ -130,7 +161,8 @@ export default function ResetPasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={loading || isValidating}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     placeholder="********"
                     minLength={6}
                   />
@@ -139,16 +171,26 @@ export default function ResetPasswordPage() {
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+                disabled={loading || isValidating || !isRecaptchaLoaded}
+                className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                {loading ? (
+                {isValidating ? (
                   <>
-                    <Loader2 className="animate-spin mr-2" size={18} />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verificando...
+                  </>
+                ) : !isRecaptchaLoaded ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cargando seguridad...
+                  </>
+                ) : loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Actualizando...
                   </>
                 ) : (
-                  "Restablecer Contraseña"
+                  "Actualizar Contraseña"
                 )}
               </button>
             </form>

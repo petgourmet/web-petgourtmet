@@ -10,6 +10,9 @@ import { ShoppingCart, CreditCard, User, MapPin, Mail, Phone, AlertTriangle } fr
 import { MercadoPagoButton } from '@/components/mercadopago-button'
 import { useCart } from '@/components/cart-context'
 import { useClientAuth } from '@/hooks/use-client-auth'
+import { useAntiSpam } from '@/hooks/useAntiSpam'
+import { HoneypotField } from '@/components/security/HoneypotField'
+import { SecurityStatus } from '@/components/security/SecurityStatus'
 import { 
   validateCompleteCheckout, 
   sanitizeCustomerData, 
@@ -63,6 +66,17 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [validationWarnings, setValidationWarnings] = useState<string[]>([])
   const [currentStep, setCurrentStep] = useState<'cart' | 'form' | 'payment'>('cart')
+  const [honeypotValue, setHoneypotValue] = useState('')
+
+  // Hook anti-spam
+  const { 
+    submitWithProtection, 
+    isValidating,
+    isRecaptchaLoaded 
+  } = useAntiSpam({
+    action: 'checkout',
+    minRecaptchaScore: 0.6
+  })
 
   const subtotal = calculateCartTotal()
   const shippingCost = subtotal >= 1000 ? 0 : 90
@@ -147,37 +161,28 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
     setError(null)
 
     try {
-      const response = await fetch('/api/mercadopago/create-preference', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Usar el sistema anti-spam para proteger el checkout
+      const result = await submitWithProtection('/api/checkout/create-preference', {
+        items: cart.map((item: any) => ({
+          id: item.id,
+          title: item.name,
+          description: item.description || `Producto de PetGourmet`,
+          picture_url: item.image,
+          quantity: item.quantity,
+          unit_price: item.isSubscription ? item.price * 0.9 : item.price,
+        })),
+        customerData: formData,
+        externalReference: `order-${Date.now()}`,
+        backUrls: {
+          success: `${window.location.origin}/checkout/success`,
+          failure: `${window.location.origin}/checkout/failure`,
+          pending: `${window.location.origin}/checkout/pending`,
         },
-        body: JSON.stringify({
-          items: cart.map((item: any) => ({
-            id: item.id,
-            title: item.name,
-            description: item.description || `Producto de PetGourmet`,
-            picture_url: item.image,
-            quantity: item.quantity,
-            unit_price: item.isSubscription ? item.price * 0.9 : item.price,
-          })),
-          customerData: formData,
-          externalReference: `order-${Date.now()}`,
-          backUrls: {
-            success: `${window.location.origin}/checkout/success`,
-            failure: `${window.location.origin}/checkout/failure`,
-            pending: `${window.location.origin}/checkout/pending`,
-          },
-        }),
+        honeypot: honeypotValue
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al crear la preferencia de pago')
-      }
-
-      const data = await response.json()
-      setPreferenceId(data.preferenceId)
+      setHoneypotValue('')
+      setPreferenceId(result.preferenceId)
       setCurrentStep('payment')
     } catch (error) {
       console.error('Error creating preference:', error)
@@ -324,6 +329,17 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Campo honeypot para detectar bots */}
+              <HoneypotField 
+                value={honeypotValue}
+                onChange={setHoneypotValue}
+              />
+              
+              {/* Estado de seguridad */}
+              <SecurityStatus 
+                isValidating={isValidating}
+              />
+              
               {/* Mostrar errores de validación */}
               {validationErrors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -361,6 +377,7 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                     placeholder="Tu nombre"
+                    disabled={isLoading || isValidating}
                   />
                 </div>
                 <div>
@@ -472,10 +489,18 @@ export default function ProductionCheckout({ onSuccess, onError, onPending }: Pr
 
               <Button 
                 onClick={createPreference} 
-                disabled={isLoading || !validateForm()}
+                disabled={isLoading || isValidating || !isRecaptchaLoaded || !validateForm()}
                 className="w-full"
               >
-                {isLoading ? 'Procesando...' : 'Continuar al Pago'}
+                {isValidating ? (
+                  'Verificando...'
+                ) : !isRecaptchaLoaded ? (
+                  'Cargando seguridad...'
+                ) : isLoading ? (
+                  'Procesando...'
+                ) : (
+                  'Continuar al Pago'
+                )}
               </Button>
             </CardContent>
           </Card>

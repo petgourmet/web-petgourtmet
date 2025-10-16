@@ -1,38 +1,130 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { checkRateLimit, getClientIP } from '@/lib/security/rate-limiter'
+import { logSecurityEvent } from '@/lib/security/security-logger'
+
+// Rutas que requieren protección anti-spam
+const PROTECTED_ROUTES = [
+  '/api/contact',
+  '/api/newsletter',
+  '/api/auth',
+  '/api/checkout',
+  '/api/subscription',
+  '/api/admin',
+  '/contacto',
+  '/auth',
+  '/checkout'
+]
+
+// Rutas de formularios que necesitan rate limiting más estricto
+const FORM_ROUTES = [
+  '/api/contact',
+  '/api/newsletter',
+  '/api/auth/register',
+  '/api/auth/login',
+  '/api/auth/reset-password'
+]
 
 export function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone()
+  const { pathname } = request.nextUrl
   
-  // CRÍTICO: Interceptar URLs de MercadoPago y redirigir a página local
-  if (url.hostname === 'www.mercadopago.com.mx' && 
-      url.pathname === '/subscriptions/checkout/congrats') {
-    
-    // Construir URL local con todos los parámetros preservados
-    const localUrl = new URL('/suscripcion', request.url)
-    
-    // Preservar todos los parámetros de la URL original
-    url.searchParams.forEach((value, key) => {
-      localUrl.searchParams.set(key, value)
-    })
-    
-    // Redirección permanente para preservar parámetros
-    return NextResponse.redirect(localUrl, 301)
+  // Verificar si la ruta necesita protección
+  const needsProtection = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
+  
+  if (!needsProtection) {
+    return NextResponse.next()
   }
   
-  // Continuar con el procesamiento normal
-  return NextResponse.next()
+  const clientIP = getClientIP(request)
+  const userAgent = request.headers.get('user-agent') || 'unknown'
+  
+  // Aplicar rate limiting más estricto para formularios
+  const isFormRoute = FORM_ROUTES.some(route => pathname.startsWith(route))
+  const endpoint = isFormRoute ? `form:${pathname}` : pathname
+  
+  const rateLimitResult = checkRateLimit(clientIP, endpoint)
+  
+  // Log del intento
+  logSecurityEvent({
+    ip: clientIP,
+    userAgent,
+    endpoint: pathname,
+    action: 'route_access',
+    severity: rateLimitResult.blocked ? 'medium' : 'low',
+    details: {
+      method: request.method,
+      rateLimitRemaining: rateLimitResult.remaining,
+      suspicious: rateLimitResult.suspicious
+    },
+    blocked: rateLimitResult.blocked,
+    rateLimitExceeded: !rateLimitResult.allowed
+  })
+  
+  // Si está bloqueado por rate limiting
+  if (rateLimitResult.blocked) {
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Demasiados intentos. Inténtalo más tarde.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+      }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-RateLimit-Limit': process.env.RATE_LIMIT_MAX_REQUESTS || '10',
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+          'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+          'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+        }
+      }
+    )
+  }
+  
+  // Si no está permitido por rate limiting
+  if (!rateLimitResult.allowed) {
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Límite de solicitudes excedido. Inténtalo más tarde.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+      }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-RateLimit-Limit': process.env.RATE_LIMIT_MAX_REQUESTS || '10',
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+          'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+          'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+        }
+      }
+    )
+  }
+  
+  // Agregar headers de rate limiting a la respuesta
+  const response = NextResponse.next()
+  response.headers.set('X-RateLimit-Limit', process.env.RATE_LIMIT_MAX_REQUESTS || '10')
+  response.headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString())
+  response.headers.set('X-RateLimit-Reset', rateLimitResult.resetTime.toString())
+  
+  // Marcar requests sospechosos
+  if (rateLimitResult.suspicious) {
+    response.headers.set('X-Security-Warning', 'suspicious-activity')
+  }
+  
+  return response
 }
 
-// Configurar en qué rutas se ejecuta el middleware
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - public folder
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

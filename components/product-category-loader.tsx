@@ -10,7 +10,7 @@ import { ProductGridSkeleton } from "@/components/product-card-skeleton"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
-import { cacheService } from '@/utils/cache-service'
+import { enhancedCacheService } from '@/utils/cache-service'
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
 

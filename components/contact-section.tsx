@@ -6,11 +6,25 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Phone, Mail, MapPin, Send, CheckCircle } from 'lucide-react'
+import { useAntiSpam } from '@/hooks/useAntiSpam'
+import { HoneypotField } from '@/components/security/HoneypotField'
+import { SecurityStatus } from '@/components/security/SecurityStatus'
 
 export default function ContactSection() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [honeypotValue, setHoneypotValue] = useState('')
+  
+  const { 
+    validateForm, 
+    submitWithProtection, 
+    isValidating,
+    isRecaptchaLoaded 
+  } = useAntiSpam({
+    action: 'contact_form',
+    minRecaptchaScore: 0.5
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,34 +37,26 @@ export default function ContactSection() {
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
       message: formData.get('message') as string,
+      honeypot: honeypotValue
     }
     
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      // Usar el sistema anti-spam para enviar el formulario
+      const result = await submitWithProtection('/api/contact', data)
       
-      const result = await response.json()
+      setIsSuccess(true)
+      // Limpiar formulario
+      ;(e.target as HTMLFormElement).reset()
+      setHoneypotValue('')
       
-      if (response.ok) {
-        setIsSuccess(true)
-        // Limpiar formulario
-        ;(e.target as HTMLFormElement).reset()
-        
-        // Resetear el éxito después de 5 segundos
-        setTimeout(() => {
-          setIsSuccess(false)
-        }, 5000)
-      } else {
-        setError(result.error || 'Error al enviar el mensaje')
-      }
+      // Resetear el éxito después de 5 segundos
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 5000)
+      
     } catch (error) {
       console.error('Error submitting form:', error)
-      setError('Error de conexión. Inténtalo de nuevo.')
+      setError(error instanceof Error ? error.message : 'Error de conexión. Inténtalo de nuevo.')
     } finally {
       setIsSubmitting(false)
     }
@@ -141,6 +147,18 @@ export default function ContactSection() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Campo honeypot para detectar bots */}
+                <HoneypotField 
+                  value={honeypotValue}
+                  onChange={setHoneypotValue}
+                />
+                
+                {/* Estado de seguridad */}
+                <SecurityStatus 
+                  isValidating={isValidating}
+                  className="mb-4"
+                />
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label htmlFor="contact-name" className="text-sm font-medium">
@@ -199,12 +217,17 @@ export default function ContactSection() {
                 <Button 
                   type="submit" 
                   className="w-full"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isValidating || !isRecaptchaLoaded}
                 >
-                  {isSubmitting ? (
+                  {isSubmitting || isValidating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Enviando...
+                      {isValidating ? 'Verificando...' : 'Enviando...'}
+                    </>
+                  ) : !isRecaptchaLoaded ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Cargando seguridad...
                     </>
                   ) : (
                     <>

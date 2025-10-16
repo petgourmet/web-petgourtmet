@@ -11,6 +11,9 @@ import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { CreditCard, Calendar, Package, Truck, Shield, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useAntiSpam } from '@/hooks/useAntiSpam'
+import { HoneypotField } from '@/components/security/HoneypotField'
+import { SecurityStatus } from '@/components/security/SecurityStatus'
 
 interface Product {
   id: number

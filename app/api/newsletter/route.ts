@@ -1,9 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendNewsletterEmail } from '@/lib/contact-email-service'
+import { getClientIP, checkRateLimit } from '@/lib/security/rate-limiter'
+import { logSecurityEvent } from '@/lib/security/security-logger'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const clientIP = getClientIP(request)
+    
+    // Validar honeypot (campo oculto para detectar bots)
+    if (body.honeypot && body.honeypot.trim() !== '') {
+      await logSecurityEvent({
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/newsletter',
+        action: 'honeypot_triggered',
+        severity: 'high',
+        blocked: true,
+        details: { honeypotValue: body.honeypot }
+      })
+      
+      return NextResponse.json(
+        { error: 'Solicitud inválida detectada' },
+        { status: 400 }
+      )
+    }
+    
+    // Verificar rate limiting
+    const rateLimitResult = await checkRateLimit(clientIP, 'newsletter', 5, 300) // 5 intentos por 5 minutos
+    if (!rateLimitResult.allowed) {
+      await logSecurityEvent({
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/newsletter',
+        action: 'rate_limit_exceeded',
+        severity: 'medium',
+        blocked: true,
+        rateLimitExceeded: true,
+        details: { attempts: rateLimitResult.attempts, resetTime: rateLimitResult.resetTime }
+      })
+      
+      return NextResponse.json(
+        { error: 'Demasiadas solicitudes. Inténtalo más tarde.' },
+        { status: 429 }
+      )
+    }
     
     // Validar email requerido
     if (!body.email) {
