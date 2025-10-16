@@ -1134,7 +1134,7 @@ export function CheckoutModal() {
             customerData,
             externalReference,
             backUrls: {
-              success: `${window.location.origin}/processing-payment`,
+              success: `${window.location.origin}/gracias-por-tu-compra`,
               failure: `${window.location.origin}/error-pago`,
               pending: `${window.location.origin}/pago-pendiente`,
             },
@@ -1221,7 +1221,7 @@ export function CheckoutModal() {
             customerData,
             externalReference,
             backUrls: {
-              success: `${window.location.origin}/processing-payment`,
+              success: `${window.location.origin}/gracias-por-tu-compra`,
               failure: `${window.location.origin}/error-pago`,
               pending: `${window.location.origin}/pago-pendiente`,
             },

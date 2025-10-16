@@ -3,13 +3,13 @@ import { createServiceClient } from '@/lib/supabase/service'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { paymentId: string } }
 ) {
   try {
-    const orderId = params.id
+    const paymentId = params.paymentId
     const supabase = createServiceClient()
 
-    // Obtener la orden con sus items
+    // Buscar la orden por payment_id
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(`
@@ -25,12 +25,12 @@ export async function GET(
           )
         )
       `)
-      .eq('id', orderId)
+      .eq('mercadopago_payment_id', paymentId)
       .single()
 
     if (orderError || !order) {
       return NextResponse.json(
-        { error: 'Orden no encontrada' },
+        { error: 'Orden no encontrada para este payment_id' },
         { status: 404 }
       )
     }
@@ -57,7 +57,7 @@ export async function GET(
 
     return NextResponse.json(orderDetails)
   } catch (error) {
-    console.error('Error fetching order details:', error)
+    console.error('Error fetching order by payment ID:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

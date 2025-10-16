@@ -238,7 +238,7 @@ export async function POST(request: Request) {
     // Generar URLs de retorno
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'
     const defaultBackUrls = {
-      success: `${baseUrl}/processing-payment`,
+      success: `${baseUrl}/gracias-por-tu-compra`,
       failure: `${baseUrl}/error-pago`,
       pending: `${baseUrl}/pago-pendiente`
     }
@@ -343,7 +343,7 @@ export async function POST(request: Request) {
         failure: finalBackUrls.failure || finalBackUrls.success,
         pending: finalBackUrls.pending || finalBackUrls.success
       },
-      auto_return: "approved", // ✅ Agregar auto_return para mostrar botón "Volver al sitio"
+      // auto_return: "approved", // ❌ Temporalmente removido para evitar error "auto_return invalid"
       binary_mode: false, // Usar el checkout estándar de MercadoPago
       external_reference: externalReference || orderId.toString(), // Usar external_reference si está disponible
       notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,

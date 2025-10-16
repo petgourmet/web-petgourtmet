@@ -82,11 +82,27 @@ class Logger {
                        console.log;
       
       // Para errores, mostrar el error real si existe, sino mostrar data
-      const logData = entry.level === LogLevel.ERROR && entry.error ? 
-                      entry.error : 
-                      (entry.data ? entry.data : '');
+      let logData = entry.level === LogLevel.ERROR && entry.error ? 
+                    entry.error : 
+                    (entry.data ? entry.data : '');
       
-      logMethod(`[${entry.timestamp}] [${entry.category.toUpperCase()}] ${entry.message}`, logData);
+      // Serializar objetos correctamente para evitar [object Object]
+      if (typeof logData === 'object' && logData !== null && !(logData instanceof Error)) {
+        try {
+          logData = JSON.stringify(logData, null, 2);
+        } catch (e) {
+          logData = String(logData);
+        }
+      }
+      
+      // Formatear el mensaje completo con los datos
+      const formattedMessage = `[${entry.timestamp}] [${entry.category.toUpperCase()}] ${entry.message}`;
+      
+      if (logData && logData !== '') {
+        logMethod(formattedMessage + '\n' + logData);
+      } else {
+        logMethod(formattedMessage);
+      }
     }
 
     // En producción, podrías enviar logs críticos a un servicio externo

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import WebhookService from '@/lib/webhook-service'
+import webhookService from '@/lib/webhook-service'
 import { validateWebhookSignature } from '@/lib/checkout-validators'
-import logger from '@/lib/logger'
+import { logger, LogCategory } from '@/lib/logger'
 
 // Configurar para que Next.js no parsee el body automáticamente
 export const runtime = 'nodejs'
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const rawBody = await getRawBody(request)
     
     if (!rawBody) {
-      logger.error('Webhook recibido con body vacío', { requestId })
+      logger.error(LogCategory.WEBHOOK, 'Webhook recibido con body vacío', undefined, { requestId })
       return NextResponse.json(
         { error: 'Body vacío' },
         { 
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     try {
       webhookData = JSON.parse(rawBody)
     } catch (error) {
-      logger.error('Error parseando JSON del webhook', { error, requestId })
+      logger.error(LogCategory.WEBHOOK, 'Error parseando JSON del webhook', error, { requestId })
       return NextResponse.json(
         { error: 'JSON inválido' },
         { 
@@ -89,12 +89,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Log de auditoría para webhook recibido
-    logger.info('Webhook MercadoPago recibido', {
+    logger.info(LogCategory.WEBHOOK, 'Webhook MercadoPago recibido', {
       type: webhookData.type,
       action: webhookData.action,
       dataId: webhookData.data?.id,
+      topic: webhookData.topic,
+      resource: webhookData.resource,
       requestId,
-      timestamp
+      timestamp,
+      fullWebhookData: JSON.stringify(webhookData, null, 2)
     })
 
     // Validar estructura básica del webhook
@@ -106,12 +109,14 @@ export async function POST(request: NextRequest) {
     )
     
     if (!hasValidStructure) {
-      logger.error('Estructura de webhook inválida', { 
-        webhookData, 
+      logger.error(LogCategory.WEBHOOK, 'Estructura de webhook inválida', undefined, { 
+        webhookData: JSON.stringify(webhookData, null, 2), 
         requestId,
         hasType: !!webhookData.type,
         hasDataId: !!webhookData.data?.id,
-        hasId: !!webhookData.id
+        hasId: !!webhookData.id,
+        hasTopic: !!webhookData.topic,
+        hasResource: !!webhookData.resource
       })
       return NextResponse.json(
         { error: 'Estructura de webhook inválida' },
@@ -125,8 +130,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Inicializar el servicio de webhooks
-    const webhookService = new WebhookService()
+    // Usar el servicio de webhooks (ya instanciado)
 
     // Validar firma del webhook
     const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET || ''
@@ -135,7 +139,7 @@ export async function POST(request: NextRequest) {
     if (signature && webhookSecret) {
       isValidSignature = validateWebhookSignature(rawBody, signature, webhookSecret)
       if (!isValidSignature) {
-        logger.warn('Firma de webhook inválida', { requestId, type: webhookData.type })
+        logger.warn(LogCategory.WEBHOOK, 'Firma de webhook inválida', { requestId, type: webhookData.type })
       }
     }
 
@@ -146,31 +150,46 @@ export async function POST(request: NextRequest) {
 
     while (!processed && retryCount < maxRetries) {
       try {
-        switch (webhookData.type) {
-          case 'payment':
-            processed = await webhookService.processPaymentWebhook(webhookData)
-            break
+        // Manejar webhooks de merchant_order (estructura legacy)
+        if (webhookData.topic === 'merchant_order' && webhookData.resource) {
+          logger.info(LogCategory.WEBHOOK, 'Procesando webhook de merchant_order (estructura legacy)', {
+            topic: webhookData.topic,
+            resource: webhookData.resource,
+            requestId
+          })
+          processed = await webhookService.processMerchantOrderWebhook(webhookData)
+        } else {
+          switch (webhookData.type) {
+            case 'payment':
+              processed = await webhookService.processPaymentWebhook(webhookData)
+              break
 
-          case 'subscription_preapproval':
-          case 'subscription_authorized_payment':
-            // Normalizar estructura - MercadoPago puede enviar diferentes formatos
-            const normalizedWebhookData = {
-              ...webhookData,
-              data: webhookData.data || { id: webhookData.id }
-            }
-            
-            processed = await webhookService.processSubscriptionWebhook(normalizedWebhookData)
-            break
+            case 'subscription_preapproval':
+            case 'subscription_authorized_payment':
+              // Normalizar estructura - MercadoPago puede enviar diferentes formatos
+              const normalizedWebhookData = {
+                ...webhookData,
+                data: webhookData.data || { id: webhookData.id }
+              }
+              
+              processed = await webhookService.processSubscriptionWebhook(normalizedWebhookData)
+              break
 
-          case 'plan':
-          case 'invoice':
-          case 'topic_merchant_order_wh':
-            processed = true // Estos tipos no requieren procesamiento especial
-            break
+            case 'plan':
+            case 'invoice':
+            case 'topic_merchant_order_wh':
+              processed = true // Estos tipos no requieren procesamiento especial
+              break
 
-          default:
-            logger.info('Tipo de webhook no manejado', { type: webhookData.type, requestId })
-            processed = true // No fallar por tipos desconocidos
+            default:
+              logger.info(LogCategory.WEBHOOK, 'Tipo de webhook no manejado', { 
+                type: webhookData.type, 
+                topic: webhookData.topic,
+                requestId,
+                fullData: JSON.stringify(webhookData, null, 2)
+              })
+              processed = true // No fallar por tipos desconocidos
+          }
         }
 
         // Si no se procesó correctamente y aún hay intentos disponibles
@@ -182,25 +201,33 @@ export async function POST(request: NextRequest) {
           break
         }
       } catch (error) {
-        logger.error('Error procesando webhook', {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
+        const errorDetails = {
           type: webhookData.type,
           dataId: webhookData.data?.id,
           attempt: retryCount + 1,
-          requestId
-        })
+          requestId,
+          errorMessage: error instanceof Error ? error.message : 'Error desconocido',
+          errorType: error?.constructor?.name || 'Unknown'
+        }
+        
+        logger.error(LogCategory.WEBHOOK, 'Error procesando webhook', error, errorDetails)
         
         if (retryCount < maxRetries - 1) {
           retryCount++
           const delayMs = Math.pow(2, retryCount) * 1000
+          logger.info(LogCategory.WEBHOOK, `Reintentando procesamiento en ${delayMs}ms`, {
+            attempt: retryCount + 1,
+            maxRetries,
+            requestId
+          })
           await new Promise(resolve => setTimeout(resolve, delayMs))
         } else {
-          logger.error('Todos los intentos de procesamiento fallaron', {
+          logger.error(LogCategory.WEBHOOK, 'Todos los intentos de procesamiento fallaron', error, {
             type: webhookData.type,
             dataId: webhookData.data?.id,
             totalAttempts: maxRetries,
-            requestId
+            requestId,
+            finalError: error instanceof Error ? error.message : 'Error desconocido'
           })
           break
         }
@@ -208,7 +235,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (processed) {
-      logger.info('Webhook procesado exitosamente', {
+      logger.info(LogCategory.WEBHOOK, 'Webhook procesado exitosamente', {
         type: webhookData.type,
         action: webhookData.action,
         requestId,
@@ -233,44 +260,71 @@ export async function POST(request: NextRequest) {
         }
       )
     } else {
-      logger.error('Error procesando webhook', {
+      const errorContext = {
         type: webhookData.type,
         action: webhookData.action,
         requestId,
-        timestamp
-      })
+        timestamp,
+        topic: webhookData.topic,
+        resource: webhookData.resource,
+        dataId: webhookData.data?.id,
+        retryAttempts: retryCount,
+        maxRetries
+      }
+      
+      logger.error(LogCategory.WEBHOOK, 'Webhook no pudo ser procesado después de todos los intentos', undefined, errorContext)
       
       return NextResponse.json(
         { 
           error: 'Error procesando webhook',
           type: webhookData.type,
           action: webhookData.action,
-          timestamp
+          timestamp,
+          retryAttempts: retryCount,
+          details: 'El webhook no pudo ser procesado después de múltiples intentos'
         },
         { 
           status: 500,
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'X-Webhook-Status': 'error'
+            'X-Webhook-Status': 'processing-failed',
+            'X-Retry-Attempts': retryCount.toString()
           }
         }
       )
     }
 
   } catch (error) {
-    logger.error('Error crítico en webhook', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp
-    })
+    // Mejorar el logging del error crítico
+    const errorDetails = {
+      timestamp,
+      errorMessage: error instanceof Error ? error.message : 'Error desconocido',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorType: error?.constructor?.name || 'Unknown',
+      requestHeaders: Object.fromEntries(request.headers.entries()),
+      requestUrl: request.url,
+      requestMethod: request.method
+    }
+    
+    logger.error(LogCategory.WEBHOOK, 'Error crítico en webhook', error, errorDetails)
+    
+    // Respuesta más informativa para debugging
+    const responseBody = {
+      error: 'Error interno del servidor',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+      timestamp,
+      // Solo incluir detalles adicionales en desarrollo
+      ...(process.env.NODE_ENV === 'development' && {
+        details: {
+          type: error?.constructor?.name,
+          stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+        }
+      })
+    }
     
     return NextResponse.json(
-      { 
-        error: 'Error interno del servidor',
-        message: error instanceof Error ? error.message : 'Error desconocido',
-        timestamp
-      },
+      responseBody,
       { 
         status: 500,
         headers: {

@@ -2,7 +2,7 @@ import { WebhookPayload } from '../lib/mercadopago/types'
 import { PaymentData } from '../lib/mercadopago/types'
 import { SubscriptionData } from '../lib/mercadopago/types'
 import { createIdempotencyService } from '../lib/idempotency/service'
-import logger from './logger'
+import { logger, LogCategory } from './logger'
 import { getMercadoPagoAccessToken } from './mercadopago-config'
 
 class WebhookService {
@@ -17,7 +17,7 @@ class WebhookService {
     subscriptionData?: any
   ): Promise<{ success: boolean; subscription?: any; mappingMethod?: string }> {
     
-    logger.info('Iniciando mapeo pago-suscripción', {
+    logger.info(LogCategory.WEBHOOK, 'Iniciando mapeo pago-suscripción', {
       paymentId: paymentData.id,
       paymentExternalRef: paymentData.external_reference,
       subscriptionId: subscriptionData?.id,
@@ -28,7 +28,7 @@ class WebhookService {
       // ESTRATEGIA 1: Mapeo directo por external_reference
       if (paymentData.external_reference && subscriptionData?.external_reference) {
         if (paymentData.external_reference === subscriptionData.external_reference) {
-          logger.info('Mapeo directo por external_reference exitoso', {
+          logger.info(LogCategory.WEBHOOK, 'Mapeo directo por external_reference exitoso', {
             externalReference: paymentData.external_reference
           })
           return { success: true, subscription: subscriptionData, mappingMethod: 'direct_external_reference' }
@@ -55,11 +55,11 @@ class WebhookService {
           .order('created_at', { ascending: false })
         
         if (!timeError && timeBasedSubs && timeBasedSubs.length > 0) {
-          logger.info('Mapeo por timestamp exitoso', {
-            email,
-            subscriptionFound: timeBasedSubs[0].id,
-            timeWindow: '10 minutos'
-          })
+          logger.info(LogCategory.WEBHOOK, 'Mapeo por timestamp exitoso', {
+          email,
+          subscriptionFound: timeBasedSubs[0].id,
+          timeWindow: '10 minutos'
+        })
           return { success: true, subscription: timeBasedSubs[0], mappingMethod: 'timestamp_email_window' }
         }
       }
@@ -91,7 +91,7 @@ class WebhookService {
         // Si tenemos user_id y product_id de ambos, verificar coincidencia
         if (paymentUserId && paymentProductId && subscriptionUserId && subscriptionProductId) {
           if (paymentUserId === subscriptionUserId && paymentProductId === subscriptionProductId) {
-            logger.info('Mapeo por user+product exitoso', {
+            logger.info(LogCategory.WEBHOOK, 'Mapeo por user+product exitoso', {
               userId: paymentUserId,
               productId: paymentProductId
             })
@@ -204,7 +204,7 @@ class WebhookService {
       
       const paymentId = webhookData.data?.id
       if (!paymentId) {
-        logger.error('ID de pago no encontrado en webhook', { webhookData })
+        logger.error(LogCategory.WEBHOOK, 'ID de pago no encontrado en webhook', undefined, { webhookData })
         return false
       }
 
@@ -223,7 +223,7 @@ class WebhookService {
 
       if (!mpResponse.ok) {
         const errorText = await mpResponse.text()
-        logger.error('Error obteniendo datos de pago de MercadoPago', {
+        logger.error(LogCategory.WEBHOOK, 'Error obteniendo datos de pago de MercadoPago', undefined, {
           status: mpResponse.status,
           payment_id: paymentId,
           error: errorText
@@ -234,7 +234,7 @@ class WebhookService {
       const paymentData = await mpResponse.json()
 
       // Log de auditoría para pago procesado
-      logger.info('Pago procesado desde webhook', {
+      logger.info(LogCategory.WEBHOOK, 'Pago procesado desde webhook', {
         paymentId: paymentData.id,
         status: paymentData.status,
         externalReference: paymentData.external_reference,
@@ -244,7 +244,7 @@ class WebhookService {
 
       // Verificar si el pago está aprobado
       if (paymentData.status !== 'approved') {
-        logger.info('Pago no aprobado, no se procesa', {
+        logger.info(LogCategory.WEBHOOK, 'Pago no aprobado, no se procesa', {
           status: paymentData.status,
           payment_id: paymentId
         })
@@ -269,20 +269,20 @@ class WebhookService {
           .single()
         
         if (pendingSubscription) {
-          logger.info('Suscripción pendiente encontrada por external_reference', {
-            subscription_id: pendingSubscription.id,
-            status: pendingSubscription.status
-          })
+          logger.info(LogCategory.WEBHOOK, 'Suscripción pendiente encontrada por external_reference', {
+          subscription_id: pendingSubscription.id,
+          status: pendingSubscription.status
+        })
           shouldProcessAsSubscription = true
         }
       }
 
       if (!shouldProcessAsSubscription) {
-        logger.info('Pago no es de suscripción o no requiere procesamiento de activación')
+        logger.info(LogCategory.WEBHOOK, 'Pago no es de suscripción o no requiere procesamiento de activación')
         return true
       }
 
-      logger.info('Activando flujo de suscripción', {
+      logger.info(LogCategory.WEBHOOK, 'Activando flujo de suscripción', {
         payment_id: paymentId,
         subscription_id: metadata.subscription_id,
         external_reference: paymentData.external_reference
@@ -330,7 +330,7 @@ class WebhookService {
       }
 
       if (subError || !subscription) {
-        logger.error('Suscripción no encontrada en DB', {
+        logger.error(LogCategory.WEBHOOK, 'Suscripción no encontrada en DB', undefined, {
           tried_subscription_id: subscriptionId,
           tried_external_reference: paymentData.external_reference,
           tried_payment_id: paymentId,
@@ -339,7 +339,7 @@ class WebhookService {
         return false
       }
 
-      logger.info('Suscripción encontrada, creando preapproval en MercadoPago', {
+      logger.info(LogCategory.WEBHOOK, 'Suscripción encontrada, creando preapproval en MercadoPago', {
         subscription_id: subscription.id,
         product_id: subscription.product_id,
         frequency: subscription.frequency,
@@ -717,6 +717,180 @@ class WebhookService {
   private createSupabaseClient() {
     const { createServiceClient } = require('../lib/supabase/service')
     return createServiceClient()
+  }
+
+  /**
+   * Procesa webhooks de merchant_order (estructura legacy)
+   * Estos webhooks se envían cuando hay cambios en las órdenes de MercadoPago
+   */
+  async processMerchantOrderWebhook(webhookData: any): Promise<boolean> {
+    try {
+      const supabase = this.createSupabaseClient()
+      
+      // Extraer el ID de la merchant order del resource URL
+      const resourceUrl = webhookData.resource
+      const merchantOrderId = resourceUrl ? resourceUrl.split('/').pop() : null
+      
+      if (!merchantOrderId) {
+        logger.error(LogCategory.WEBHOOK, 'ID de merchant order no encontrado en webhook', undefined, {
+          webhookData,
+          resource: resourceUrl,
+          topic: webhookData.topic
+        })
+        return false
+      }
+
+      logger.info(LogCategory.WEBHOOK, 'Procesando webhook de merchant_order', {
+        merchantOrderId,
+        topic: webhookData.topic,
+        resource: webhookData.resource
+      })
+
+      // Obtener datos de la merchant order de MercadoPago
+      const mpResponse = await fetch(`https://api.mercadopago.com/merchant_orders/${merchantOrderId}`, {
+        headers: {
+          'Authorization': `Bearer ${getMercadoPagoAccessToken()}`
+        }
+      })
+
+      if (!mpResponse.ok) {
+        const errorText = await mpResponse.text()
+        logger.error(LogCategory.WEBHOOK, 'Error obteniendo datos de merchant order de MercadoPago', undefined, {
+          status: mpResponse.status,
+          merchant_order_id: merchantOrderId,
+          error: errorText
+        })
+        return false
+      }
+
+      const merchantOrderData = await mpResponse.json()
+      
+      logger.info(LogCategory.WEBHOOK, 'Datos de merchant order obtenidos', {
+        id: merchantOrderData.id,
+        status: merchantOrderData.status,
+        external_reference: merchantOrderData.external_reference,
+        total_amount: merchantOrderData.total_amount,
+        payments: merchantOrderData.payments?.length || 0
+      })
+
+      // Buscar la orden local por external_reference
+      if (!merchantOrderData.external_reference) {
+        logger.warn(LogCategory.WEBHOOK, 'Merchant order sin external_reference, no se puede procesar', {
+          merchantOrderId
+        })
+        return true // No es un error, simplemente no podemos procesarla
+      }
+
+      // Intentar buscar la orden por ID (si external_reference es numérico) o por external_reference
+      let order = null
+      let orderError = null
+
+      // Primero intentar por ID si external_reference es un número
+      if (!isNaN(Number(merchantOrderData.external_reference))) {
+        const { data: orderById, error: errorById } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', Number(merchantOrderData.external_reference))
+          .single()
+        
+        if (!errorById && orderById) {
+          order = orderById
+        } else {
+          orderError = errorById
+        }
+      }
+
+      // Si no se encontró por ID, intentar por external_reference
+      if (!order) {
+        const { data: orderByRef, error: errorByRef } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('external_reference', merchantOrderData.external_reference)
+          .single()
+        
+        if (!errorByRef && orderByRef) {
+          order = orderByRef
+          orderError = null
+        } else if (!orderError) {
+          orderError = errorByRef
+        }
+      }
+
+      if (orderError || !order) {
+        logger.warn(LogCategory.WEBHOOK, 'Orden local no encontrada para merchant order', {
+          external_reference: merchantOrderData.external_reference,
+          merchantOrderId,
+          error: orderError?.message
+        })
+        return true // No es un error crítico
+      }
+
+      logger.info(LogCategory.WEBHOOK, 'Orden local encontrada', {
+        orderId: order.id,
+        currentStatus: order.payment_status,
+        orderNumber: order.order_number
+      })
+
+      // Verificar si hay pagos aprobados en la merchant order
+      const approvedPayments = merchantOrderData.payments?.filter((payment: any) => 
+        payment.status === 'approved'
+      ) || []
+
+      if (approvedPayments.length > 0) {
+        const approvedPayment = approvedPayments[0]
+        
+        logger.info(LogCategory.WEBHOOK, 'Pago aprobado encontrado en merchant order', {
+          paymentId: approvedPayment.id,
+          amount: approvedPayment.transaction_amount,
+          status: approvedPayment.status
+        })
+
+        // Actualizar la orden con el pago aprobado
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            payment_status: 'paid',
+            mercadopago_payment_id: approvedPayment.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', order.id)
+
+        if (updateError) {
+          logger.error(LogCategory.WEBHOOK, 'Error actualizando orden con pago aprobado', updateError, {
+            orderId: order.id,
+            paymentId: approvedPayment.id,
+            error: updateError.message
+          })
+          return false
+        }
+
+        logger.info(LogCategory.WEBHOOK, 'Orden actualizada exitosamente con pago aprobado', {
+          orderId: order.id,
+          paymentId: approvedPayment.id,
+          newStatus: 'paid'
+        })
+
+        // Aquí se podría enviar email de confirmación, actualizar inventario, etc.
+        // Por ahora solo loggeamos que el proceso fue exitoso
+        
+        return true
+      } else {
+        logger.info(LogCategory.WEBHOOK, 'No hay pagos aprobados en merchant order', {
+          merchantOrderId,
+          paymentsCount: merchantOrderData.payments?.length || 0,
+          orderId: order.id
+        })
+        return true // No es un error, simplemente no hay pagos aprobados aún
+      }
+
+    } catch (error) {
+      logger.error(LogCategory.WEBHOOK, 'Error procesando webhook de merchant_order', error, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        webhookData: JSON.stringify(webhookData, null, 2)
+      })
+      return false
+    }
   }
 
 }
