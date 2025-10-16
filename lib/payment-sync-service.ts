@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import logger, { LogCategory } from '@/lib/logger'
+import { getMercadoPagoAccessToken } from './mercadopago-config'
 
 /**
  * Servicio de sincronización de pagos con MercadoPago
@@ -10,7 +11,7 @@ export class PaymentSyncService {
   private mercadoPagoToken: string
 
   constructor() {
-    this.mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
+    this.mercadoPagoToken = getMercadoPagoAccessToken()
     if (!this.mercadoPagoToken) {
       throw new Error('MERCADOPAGO_ACCESS_TOKEN no configurado')
     }

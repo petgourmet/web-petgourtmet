@@ -4,6 +4,7 @@ import {
   logValidationErrors,
   type ValidationResult
 } from './checkout-validators'
+import { getMercadoPagoAccessToken } from './mercadopago-config'
 
 interface SubscriptionData {
   id: string
@@ -30,7 +31,7 @@ interface MercadoPagoPayment {
   payment_method_id?: string
 }
 
-const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
+const MP_ACCESS_TOKEN = getMercadoPagoAccessToken()
 
 export interface SubscriptionPayment {
   subscriptionId: string

@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import logger from '@/lib/logger'
 import { NotificationService } from '@/lib/notification-service'
+import { getMercadoPagoAccessToken } from './mercadopago-config'
 
 interface AutoSyncResult {
   success: boolean
@@ -43,7 +44,7 @@ class AutoSyncService {
   private notificationService: NotificationService
 
   constructor() {
-    this.mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
+    this.mercadoPagoToken = getMercadoPagoAccessToken()
     this.notificationService = new NotificationService()
   }
 

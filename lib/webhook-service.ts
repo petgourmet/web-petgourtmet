@@ -3,6 +3,7 @@ import { PaymentData } from '../lib/mercadopago/types'
 import { SubscriptionData } from '../lib/mercadopago/types'
 import { createIdempotencyService } from '../lib/idempotency/service'
 import logger from './logger'
+import { getMercadoPagoAccessToken } from './mercadopago-config'
 
 class WebhookService {
 
@@ -216,7 +217,7 @@ class WebhookService {
       // Obtener datos del pago de MercadoPago
       const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: {
-          'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`
+          'Authorization': `Bearer ${getMercadoPagoAccessToken()}`
         }
       })
 
@@ -376,7 +377,7 @@ class WebhookService {
       const preapprovalResponse = await fetch('https://api.mercadopago.com/preapproval', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${getMercadoPagoAccessToken()}`,
           'Content-Type': 'application/json',
           'X-Idempotency-Key': `${subscription.external_reference}-preapproval-${Date.now()}`
         },
@@ -624,7 +625,7 @@ class WebhookService {
     try {
       const response = await fetch(`https://api.mercadopago.com/preapproval/${subscriptionId}`, {
         headers: {
-          'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${getMercadoPagoAccessToken()}`,
           'Content-Type': 'application/json'
         }
       })

@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { MercadoPagoConfig, PreApproval } from 'mercadopago'
+import { getMercadoPagoAccessToken } from './mercadopago-config'
 
 interface SubscriptionSyncResult {
   subscription_id: number
@@ -27,7 +28,7 @@ export class SubscriptionSyncService {
     this.client = createServiceClient()
     
     const mercadoPagoClient = new MercadoPagoConfig({
-      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
+      accessToken: getMercadoPagoAccessToken(),
       options: {
         timeout: 5000,
         idempotencyKey: 'sync-service'

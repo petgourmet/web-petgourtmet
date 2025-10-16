@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { logger, LogCategory } from '@/lib/logger'
+import { logger, LogCategory } from '../logger'
+import { getMercadoPagoAccessToken, isTestMode } from '../mercadopago-config'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -69,8 +70,8 @@ export class DynamicSubscriptionService {
   private isTestMode: boolean
 
   constructor() {
-    this.mercadoPagoAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN!
-    this.isTestMode = process.env.NODE_ENV !== 'production'
+    this.mercadoPagoAccessToken = getMercadoPagoAccessToken()
+    this.isTestMode = isTestMode()
     
     if (!this.mercadoPagoAccessToken) {
       throw new Error('MERCADOPAGO_ACCESS_TOKEN no configurado')
