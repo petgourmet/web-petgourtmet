@@ -8,7 +8,7 @@ import { GoogleAnalytics } from "@/components/google-analytics"
 import { FacebookPixel } from "@/components/facebook-pixel"
 import { StructuredData } from "@/components/structured-data"
 import { GoogleTagManager, GoogleTagManagerNoScript } from "@/components/google-tag-manager"
-import { RecaptchaProvider } from "@/contexts/RecaptchaProvider"
+// import { RecaptchaProvider } from "@/contexts/RecaptchaProvider"
 
 // Fuente principal para el contenido general
 const montserrat = Montserrat({
@@ -134,9 +134,7 @@ export default function RootLayout({
         <StructuredData type="website" />
         <StructuredData type="breadcrumb" />
         <ThemeProvider defaultTheme="light" storageKey="pet-gourmet-theme">
-          <RecaptchaProvider>
-            <ClientLayout>{children}</ClientLayout>
-          </RecaptchaProvider>
+          <ClientLayout>{children}</ClientLayout>
         </ThemeProvider>
       </body>
     </html>

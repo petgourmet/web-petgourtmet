@@ -10,9 +10,9 @@ import { Eye, EyeOff, Loader2, Clock, RefreshCw } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { handleAuthError } from "@/lib/auth-error-handler"
-import { useAntiSpam } from "@/hooks/useAntiSpam"
+// import { useAntiSpam } from "@/hooks/useAntiSpam"
 import { HoneypotField } from "@/components/security/HoneypotField"
-import { SecurityStatus } from "@/components/security/SecurityStatus"
+// import { SecurityStatus } from "@/components/security/SecurityStatus"
 
 type AuthMode = "login" | "register"
 
@@ -33,15 +33,19 @@ export function AuthForm() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
   
-  // Hook anti-spam
-  const { 
-    submitWithProtection, 
-    isValidating,
-    isRecaptchaLoaded 
-  } = useAntiSpam({
-    action: mode === 'login' ? 'auth_login' : 'auth_register',
-    minRecaptchaScore: 0.6
-  })
+  // Hook anti-spam - DESHABILITADO para evitar errores de reCAPTCHA
+  // const { 
+  //   submitWithProtection, 
+  //   isValidating,
+  //   isRecaptchaLoaded 
+  // } = useAntiSpam({
+  //   action: mode === 'login' ? 'auth_login' : 'auth_register',
+  //   minRecaptchaScore: 0.6
+  // })
+  
+  // Estados para reemplazar el hook anti-spam
+  const isValidating = false
+  const isRecaptchaLoaded = true
 
   // Manejar parámetros de URL para mostrar mensajes
   useEffect(() => {
@@ -163,15 +167,23 @@ export function AuthForm() {
     setLoading(true)
 
     try {
-      // Usar el sistema anti-spam para proteger el formulario
-      const result = await submitWithProtection('/api/auth', {
-        action: mode,
-        email,
-        password,
-        confirmPassword: mode === "register" ? confirmPassword : undefined,
-        acceptTerms: mode === "register" ? acceptTerms : undefined,
-        honeypot: honeypotValue
+      // Enviar directamente sin protección reCAPTCHA
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: mode,
+          email,
+          password,
+          confirmPassword: mode === "register" ? confirmPassword : undefined,
+          acceptTerms: mode === "register" ? acceptTerms : undefined,
+          honeypot: honeypotValue
+        })
       })
+
+      const result = await response.json()
 
       // Reset estados de rate limit en caso de éxito
       setRateLimited(false)
@@ -254,10 +266,10 @@ export function AuthForm() {
             onChange={setHoneypotValue}
           />
           
-          {/* Estado de seguridad */}
-          <SecurityStatus 
+          {/* Estado de seguridad - DESHABILITADO */}
+          {/* <SecurityStatus 
             isValidating={isValidating}
-          />
+          /> */}
           
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-1">

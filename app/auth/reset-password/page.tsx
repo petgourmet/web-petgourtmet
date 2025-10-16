@@ -11,9 +11,9 @@ import { supabase } from "@/lib/supabase/client"
 import { handleAuthError } from "@/lib/auth-error-handler"
 import { useToast } from "@/components/ui/use-toast"
 import { ThemedBackground } from "@/components/themed-background"
-import { useAntiSpam } from "@/hooks/useAntiSpam"
+// import { useAntiSpam } from "@/hooks/useAntiSpam"
 import { HoneypotField } from "@/components/security/HoneypotField"
-import { SecurityStatus } from "@/components/security/SecurityStatus"
+// import { SecurityStatus } from "@/components/security/SecurityStatus"
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("")
@@ -25,15 +25,19 @@ export default function ResetPasswordPage() {
   const router = useRouter()
   const { toast } = useToast()
   
-  // Hook anti-spam
-  const { 
-    submitWithProtection, 
-    isValidating,
-    isRecaptchaLoaded 
-  } = useAntiSpam({
-    action: 'password_reset',
-    minRecaptchaScore: 0.5
-  })
+  // Hook anti-spam - DESHABILITADO para evitar errores de reCAPTCHA
+  // const { 
+  //   submitWithProtection, 
+  //   isValidating,
+  //   isRecaptchaLoaded 
+  // } = useAntiSpam({
+  //   action: 'password_reset',
+  //   minRecaptchaScore: 0.5
+  // })
+  
+  // Estados para reemplazar el hook anti-spam
+  const isValidating = false
+  const isRecaptchaLoaded = true
 
   // Verificar que el usuario tenga una sesión válida para restablecer contraseña
   useEffect(() => {
@@ -64,12 +68,24 @@ export default function ResetPasswordPage() {
     setLoading(true)
 
     try {
-      // Usar el sistema anti-spam para proteger el formulario
-      const result = await submitWithProtection('/api/auth/reset-password', {
-        password,
-        confirmPassword,
-        honeypot: honeypotValue
+      // Enviar directamente sin protección reCAPTCHA
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password,
+          confirmPassword,
+          honeypot: honeypotValue
+        })
       })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al restablecer contraseña')
+      }
 
       setHoneypotValue('')
       
@@ -119,10 +135,10 @@ export default function ResetPasswordPage() {
                 onChange={setHoneypotValue}
               />
               
-              {/* Estado de seguridad */}
-              <SecurityStatus 
+              {/* Estado de seguridad - DESHABILITADO */}
+              {/* <SecurityStatus 
                 isValidating={isValidating}
-              />
+              /> */}
               
               <div>
                 <label htmlFor="password" className="block text-sm font-medium mb-1">

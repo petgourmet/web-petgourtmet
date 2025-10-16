@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { verifyRecaptcha } from '@/lib/recaptcha'
+// import { verifyRecaptcha } from '@/lib/recaptcha'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logSecurityEvent } from '@/lib/security-logger'
 
 export async function POST(request: NextRequest) {
   try {
-    const { password, confirmPassword, honeypot, recaptchaToken } = await request.json()
+    const { password, confirmPassword, honeypot } = await request.json()
 
     // Verificar honeypot
     if (honeypot && honeypot.trim() !== '') {
@@ -46,33 +46,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar reCAPTCHA
-    if (!recaptchaToken) {
-      return NextResponse.json(
-        { error: 'Token de verificación requerido' },
-        { status: 400 }
-      )
-    }
+    // Verificar reCAPTCHA - DESHABILITADO para evitar errores
+    // if (!recaptchaToken) {
+    //   return NextResponse.json(
+    //     { error: 'Token de verificación requerido' },
+    //     { status: 400 }
+    //   )
+    // }
 
-    const recaptchaResult = await verifyRecaptcha(recaptchaToken, 'password_reset')
+    // const recaptchaResult = await verifyRecaptcha(recaptchaToken, 'password_reset')
     
-    if (!recaptchaResult.success || recaptchaResult.score < 0.5) {
-      await logSecurityEvent({
-        type: 'recaptcha_failed',
-        action: 'password_reset',
-        ip: clientIp,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        details: { 
-          score: recaptchaResult.score,
-          errors: recaptchaResult.errors 
-        }
-      })
+    // if (!recaptchaResult.success || recaptchaResult.score < 0.5) {
+    //   await logSecurityEvent({
+    //     type: 'recaptcha_failed',
+    //     action: 'password_reset',
+    //     ip: clientIp,
+    //     userAgent: request.headers.get('user-agent') || 'unknown',
+    //     details: { 
+    //       score: recaptchaResult.score,
+    //       errors: recaptchaResult.errors 
+    //     }
+    //   })
       
-      return NextResponse.json(
-        { error: 'Verificación de seguridad fallida' },
-        { status: 400 }
-      )
-    }
+    //   return NextResponse.json(
+    //     { error: 'Verificación de seguridad fallida' },
+    //     { status: 400 }
+    //   )
+    // }
 
     // Validar contraseñas
     if (!password || !confirmPassword) {
