@@ -14,6 +14,10 @@ import { cacheService } from '@/utils/cache-service'
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
 
+// Configuración de paginación
+const PRODUCTS_PER_PAGE = 12 // Cargar 12 productos por página
+const INITIAL_LOAD = 6 // Cargar solo 6 productos inicialmente para mejorar el tiempo de carga
+
 // Configuración de timeouts
 const QUERY_TIMEOUT_MS = 6000 // 6 segundos timeout para consultas
 
@@ -89,6 +93,10 @@ export function ProductCategoryLoader({
 }: ProductCategoryLoaderProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]) // Para paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMoreProducts, setHasMoreProducts] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
@@ -101,6 +109,28 @@ export function ProductCategoryLoader({
     features: [],
     sortBy: "relevance",
   })
+
+  // Función para actualizar productos mostrados con paginación
+  const updateDisplayedProducts = (allProducts: Product[], page: number = 1) => {
+    const startIndex = 0
+    const endIndex = page * PRODUCTS_PER_PAGE
+    const productsToShow = allProducts.slice(startIndex, endIndex)
+    
+    setDisplayedProducts(productsToShow)
+    setHasMoreProducts(endIndex < allProducts.length)
+    setCurrentPage(page)
+  }
+
+  // Función para cargar más productos
+  const loadMoreProducts = () => {
+    if (loadingMore || !hasMoreProducts) return
+    
+    setLoadingMore(true)
+    setTimeout(() => {
+      updateDisplayedProducts(filteredProducts, currentPage + 1)
+      setLoadingMore(false)
+    }, 300) // Pequeño delay para mejor UX
+  }
 
   // Timeout handling is now managed by CacheService
 

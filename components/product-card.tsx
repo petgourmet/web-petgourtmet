@@ -3,6 +3,7 @@ import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import type { ProductSize } from "@/lib/supabase/types"
+import { LazyImage } from "@/components/lazy-image"
 
 export type ProductFeature = {
   name: string
@@ -102,18 +103,15 @@ export function ProductCard({
           className="absolute inset-0 transition-opacity duration-300"
           style={{ backgroundColor: spotlightColor, opacity: isHovered ? 0.2 : 0 }}
         ></div>
-        <Image
+        <LazyImage
           src={image || "/placeholder.svg"}
           alt={name}
-          fill
-          className={`object-cover transition-transform duration-500 ${
+          className={`w-full h-full object-cover transition-transform duration-500 ${
             isHovered ? "scale-110 brightness-[0.1]" : "scale-100"
           }`}
-          loading="lazy"
-          placeholder="blur"
-          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          quality={85}
+          width={400}
+          height={300}
+          priority={false}
         />
         {isHovered && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -213,3 +211,4 @@ export function ProductCard({
     </div>
   )
 }
+
