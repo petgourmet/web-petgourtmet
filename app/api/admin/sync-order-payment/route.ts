@@ -14,12 +14,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    if (!mercadoPagoToken) {
-      return NextResponse.json(
-        { error: 'Token de MercadoPago no configurado' },
-        { status: 500 }
-      )
+    let mercadoPagoToken: string;
+    try {
+      const { getMercadoPagoAccessToken } = await import('@/lib/mercadopago-config');
+      mercadoPagoToken = getMercadoPagoAccessToken();
+    } catch (error) {
+      logger.error('MercadoPago access token not configured', 'SYNC', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+      return NextResponse.json({ 
+        error: 'MercadoPago access token not configured',
+        details: error instanceof Error ? error.message : String(error)
+      }, { status: 500 })
     }
 
     const supabase = createServiceClient()

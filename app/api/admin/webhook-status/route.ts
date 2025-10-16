@@ -5,8 +5,18 @@ import { logger, LogCategory } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
     const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`
-    const mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET
+    let mercadoPagoToken: string | undefined;
+    let webhookSecret: string | undefined;
+    
+    try {
+      const { getMercadoPagoAccessToken, getMercadoPagoWebhookSecret } = await import('@/lib/mercadopago-config');
+      mercadoPagoToken = getMercadoPagoAccessToken();
+      webhookSecret = getMercadoPagoWebhookSecret();
+    } catch (error) {
+      // Si falla la configuración dinámica, usar las variables de entorno directas como fallback
+      mercadoPagoToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+      webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+    }
     
     const status = {
       webhook: {

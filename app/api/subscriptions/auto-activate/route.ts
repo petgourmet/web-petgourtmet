@@ -169,9 +169,11 @@ async function checkMercadoPagoStatus(externalReference: string): Promise<{
   preapprovals?: MercadoPagoPreapproval[]
 }> {
   try {
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    
-    if (!accessToken) {
+    let accessToken: string;
+    try {
+      const { getMercadoPagoAccessToken } = await import('@/lib/mercadopago-config');
+      accessToken = getMercadoPagoAccessToken();
+    } catch (error) {
       return {
         shouldActivate: false,
         status: 'error',

@@ -32,25 +32,47 @@ export async function POST(request: NextRequest) {
     
     // Primero intentar buscar por payment_id directamente
     try {
-      searchResponse = await fetch(
-        `https://api.mercadopago.com/v1/payments/${operation_id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`
-          }
+      let accessToken: string;
+        try {
+          const { getMercadoPagoAccessToken } = await import('@/lib/mercadopago-config');
+          accessToken = getMercadoPagoAccessToken();
+        } catch (error) {
+          return NextResponse.json(
+            { error: 'MercadoPago access token no configurado' },
+            { status: 500 }
+          );
         }
-      )
+
+        searchResponse = await fetch(
+          `https://api.mercadopago.com/v1/payments/${operation_id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            }
+          }
+        )
       
       if (searchResponse.ok) {
         const paymentData = await searchResponse.json()
         searchData = { results: [paymentData] }
       } else {
         // Si no funciona, intentar buscar por external_reference
+        let accessToken: string;
+        try {
+          const { getMercadoPagoAccessToken } = await import('@/lib/mercadopago-config');
+          accessToken = getMercadoPagoAccessToken();
+        } catch (error) {
+          return NextResponse.json(
+            { error: 'MercadoPago access token no configurado' },
+            { status: 500 }
+          );
+        }
+
         searchResponse = await fetch(
           `https://api.mercadopago.com/v1/payments/search?external_reference=${operation_id}`,
           {
             headers: {
-              'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`
+              'Authorization': `Bearer ${accessToken}`
             }
           }
         )

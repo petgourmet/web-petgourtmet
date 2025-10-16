@@ -9,11 +9,14 @@ export async function GET(
   try {
     const paymentId = params.id
 
-    // Verificar que tenemos el token de acceso
-    const mercadoPagoAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    if (!mercadoPagoAccessToken) {
+    // Verificar que tenemos el token de acceso usando configuración dinámica
+    let mercadoPagoAccessToken: string
+    try {
+      const { getMercadoPagoAccessToken } = await import('@/lib/mercadopago-config')
+      mercadoPagoAccessToken = getMercadoPagoAccessToken()
+    } catch (error) {
       return NextResponse.json(
-        { error: "MercadoPago access token not configured" },
+        { error: "MercadoPago access token not configured", details: error instanceof Error ? error.message : String(error) },
         { status: 500 }
       )
     }

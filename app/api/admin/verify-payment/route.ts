@@ -57,9 +57,11 @@ async function verifyAdminAccess(): Promise<boolean> {
 // Obtener información del pago desde MercadoPago
 async function getMercadoPagoPayment(paymentId: string) {
   try {
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-    
-    if (!accessToken) {
+    let accessToken: string;
+    try {
+      const { getMercadoPagoAccessToken } = await import('@/lib/mercadopago-config');
+      accessToken = getMercadoPagoAccessToken();
+    } catch (error) {
       throw new Error('MercadoPago access token no configurado');
     }
 
