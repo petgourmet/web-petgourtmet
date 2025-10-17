@@ -122,7 +122,6 @@ export async function GET() {
 
 // Auto-iniciar el monitoreo cuando se carga el módulo
 if (process.env.NODE_ENV === 'production' && !isMonitoring) {
-  console.log('🔄 Auto-iniciando monitoreo de pagos en producción...')
   setTimeout(() => {
     validatePendingPayments()
     monitoringInterval = setInterval(validatePendingPayments, MONITOR_INTERVAL)

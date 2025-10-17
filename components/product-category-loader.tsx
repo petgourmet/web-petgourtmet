@@ -142,14 +142,11 @@ export function ProductCategoryLoader({
     async function loadProductsByCategory() {
       setLoading(true)
       try {
-        console.log('🔄 [ProductLoader] Iniciando carga de productos...')
-        
         // Intentar obtener datos desde caché primero
         const cachedCategories = enhancedCacheService.getCategories()
     const cachedProducts = enhancedCacheService.getProducts(categorySlug)
         
         if (cachedProducts && cachedCategories) {
-          console.log('📦 [ProductLoader] Usando datos desde caché optimizado')
           setCategories(cachedCategories)
           setProducts(cachedProducts)
           setFilteredProducts(cachedProducts)
@@ -160,7 +157,6 @@ export function ProductCategoryLoader({
 
 
         // Cargar categorías para el filtro con timeout
-        console.log('📂 [ProductLoader] Obteniendo categorías...')
         const categoriesPromise = supabase
           .from("categories")
           .select("id, name")
@@ -169,7 +165,6 @@ export function ProductCategoryLoader({
         const { data: categoriesData, error: categoriesError } = await categoriesPromise
 
         if (categoriesError) {
-          console.error("❌ [ProductLoader] Error al cargar categorías:", categoriesError.message)
           const fallbackCategories = [
             { id: 1, name: "Celebrar" },
             { id: 2, name: "Premiar" },
@@ -182,7 +177,6 @@ export function ProductCategoryLoader({
           const categories = categoriesData || []
           setCategories(categories)
           enhancedCacheService.setCategories(categories)
-          console.log(`✅ [ProductLoader] ${categories.length} categorías cargadas`)
         } else {
           const fallbackCategories = [
             { id: 1, name: "Celebrar" },
@@ -208,18 +202,12 @@ export function ProductCategoryLoader({
 
           const { data: categoryData, error: categoryError } = await categoryPromise
 
-          if (categoryError) {
-            console.error("❌ [ProductLoader] Error al obtener la categoría:", categoryError.message)
-          } else if (categoryData && categoryData.length > 0) {
+          if (!categoryError && categoryData && categoryData.length > 0) {
             categoryId = categoryData[0].id
-            console.log(`✅ [ProductLoader] Categoría encontrada: ${categoryData[0].name} (ID: ${categoryId})`)
-          } else {
-            console.warn(`⚠️ [ProductLoader] No se encontró categoría con nombre: ${categoryInfo.searchPattern}`)
           }
         }
 
-        // Ejecutar la consulta de productos con timeout
-        console.log('🛍️ [ProductLoader] Ejecutando consulta de productos...')
+        // Ejecutar la consulta de productos
         let productsQuery = supabase.from("products").select(`
           *,
           categories(name),
@@ -246,39 +234,21 @@ export function ProductCategoryLoader({
         const { data: productsData, error: productsError } = await productsPromise
 
         if (productsError) {
-          console.error("❌ [ProductLoader] Error al cargar productos:", productsError.message)
-          console.error("❌ [ProductLoader] Detalles del error:", productsError)
-          
           // Intentar usar productos de fallback si están disponibles
           const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
-          if (fallbackProducts.length > 0) {
-            console.log(`🔄 [ProductLoader] Usando productos de fallback para ${categorySlug}`)
-            setProducts(fallbackProducts)
-          } else {
-            setProducts([])
-          }
+          setProducts(fallbackProducts.length > 0 ? fallbackProducts : [])
           setLoading(false)
           return
         }
 
         if (!productsData || productsData.length === 0) {
-          console.log("⚠️ [ProductLoader] No se encontraron productos para la categoría:", categorySlug)
-          
           // Intentar usar productos de fallback si están disponibles
           const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
-          if (fallbackProducts.length > 0) {
-            console.log(`🔄 [ProductLoader] Usando productos de fallback para ${categorySlug}`)
-            setProducts(fallbackProducts)
-            setFilteredProducts(fallbackProducts)
-          } else {
-            setProducts([])
-            setFilteredProducts([])
-          }
+          setProducts(fallbackProducts)
+          setFilteredProducts(fallbackProducts)
           setLoading(false)
           return
         }
-
-        console.log(`✅ [ProductLoader] ${productsData.length} productos cargados`)
 
         // ✅ OPTIMIZACIÓN: Una sola consulta JOIN en lugar de N+1 queries
         const productIds = productsData.map(p => p.id)
@@ -312,8 +282,7 @@ export function ProductCategoryLoader({
           if (typeof product.subscription_types === 'string') {
             try {
               parsedSubscriptionTypes = JSON.parse(product.subscription_types)
-            } catch (error) {
-              console.error('Error parsing subscription_types for product', product.id, ':', error)
+            } catch {
               parsedSubscriptionTypes = []
             }
           }
@@ -376,16 +345,7 @@ export function ProductCategoryLoader({
         // ✅ OPTIMIZACIÓN: Precargar imágenes críticas (primera fila)
         const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)
         preloadCriticalImages(criticalImages)
-        
-        console.log('🎉 [ProductLoader] Carga completada exitosamente')
       } catch (error) {
-        console.error("💥 [ProductLoader] Error al cargar productos:", error)
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-        
-        if (errorMessage.includes('Timeout')) {
-          console.error('⏰ [ProductLoader] Timeout detectado - La carga está tardando más de lo esperado')
-        }
-        
         setProducts([])
         setFilteredProducts([])
       } finally {

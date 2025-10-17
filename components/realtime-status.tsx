@@ -23,13 +23,11 @@ export function RealtimeStatus({ showLabel = true, className = '' }: RealtimeSta
     const channel = supabase.channel('connection_status')
     
     channel.on('system', {}, (payload) => {
-      console.log('🔗 Estado de conexión:', payload)
       setIsConnected(payload.status === 'SUBSCRIBED')
       setLastUpdate(new Date())
     })
 
     channel.subscribe((status) => {
-      console.log('📡 Supabase Realtime status:', status)
       setIsConnected(status === 'SUBSCRIBED')
       setLastUpdate(new Date())
     })

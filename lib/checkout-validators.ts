@@ -351,14 +351,16 @@ export const validateWebhookSignature = (payload: string, signature: string, sec
   }
 }
 
-// Utilidades de logging para producción
+// Utilidades de logging para producción (solo en desarrollo)
 export const logValidationErrors = (context: string, validation: ValidationResult) => {
-  if (!validation.isValid) {
-    console.error(`❌ Errores de validación en ${context}:`, validation.errors)
-  }
-  
-  if (validation.warnings && validation.warnings.length > 0) {
-    console.warn(`⚠️ Advertencias en ${context}:`, validation.warnings)
+  if (process.env.NODE_ENV === 'development') {
+    if (!validation.isValid) {
+      console.error(`❌ Errores de validación en ${context}:`, validation.errors)
+    }
+    
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.warn(`⚠️ Advertencias en ${context}:`, validation.warnings)
+    }
   }
 }
 
