@@ -137,9 +137,15 @@ export async function POST(request: NextRequest) {
     
     let isValidSignature = false
     if (signature && webhookSecret) {
-      isValidSignature = validateWebhookSignature(rawBody, signature, webhookSecret)
-      if (!isValidSignature) {
-        logger.warn(LogCategory.WEBHOOK, 'Firma de webhook inválida', { requestId, type: webhookData.type })
+      // En desarrollo, permitir firmas de prueba
+      if (process.env.NODE_ENV === 'development' && signature.includes('test-signature')) {
+        isValidSignature = true
+        logger.info(LogCategory.WEBHOOK, 'Usando firma de prueba en desarrollo', { requestId, type: webhookData.type })
+      } else {
+        isValidSignature = validateWebhookSignature(rawBody, signature, webhookSecret)
+        if (!isValidSignature) {
+          logger.warn(LogCategory.WEBHOOK, 'Firma de webhook inválida', { requestId, type: webhookData.type })
+        }
       }
     }
 
