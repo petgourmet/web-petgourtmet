@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { WebhookValidationService } from '@/lib/services/webhook-validation-service';
 import { detailedLogger } from '@/lib/detailed-logger';
+import { getMercadoPagoAccessToken } from '@/lib/mercadopago-config';
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -113,7 +114,7 @@ async function processSubscriptionWebhook(webhookInfo: any) {
     // Obtener información actualizada de MercadoPago
     const mpResponse = await fetch(`https://api.mercadopago.com/preapproval/${webhookInfo.resourceId}`, {
       headers: {
-        'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+        'Authorization': `Bearer ${getMercadoPagoAccessToken()}`,
       },
     });
 
@@ -219,7 +220,7 @@ async function processPaymentWebhook(webhookInfo: any) {
     // Obtener información del pago de MercadoPago
     const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${webhookInfo.resourceId}`, {
       headers: {
-        'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+        'Authorization': `Bearer ${getMercadoPagoAccessToken()}`,
       },
     });
 

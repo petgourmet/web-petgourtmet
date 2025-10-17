@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { detailedLogger } from '@/lib/detailed-logger';
+import { getMercadoPagoAccessToken } from '@/lib/mercadopago-config';
 
 interface ManageSubscriptionRequest {
   subscriptionId: string;
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
         const mercadoPagoResponse = await fetch(`https://api.mercadopago.com/preapproval/${subscription.preapproval_plan_id}`, {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+            'Authorization': `Bearer ${getMercadoPagoAccessToken()}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import MercadoPagoService from '@/lib/mercadopago-service'
 import { logger, LogCategory } from '@/lib/logger'
+import { getMercadoPagoAccessToken } from '@/lib/mercadopago-config'
 
 // Configuración de MercadoPago (solo lectura de preapprovals)
-const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || ''
+const MERCADOPAGO_ACCESS_TOKEN = getMercadoPagoAccessToken()
 
 // Tipos mínimos esperados en unified_subscriptions
 type UnifiedSubscription = {

@@ -9,14 +9,11 @@ import DynamicDiscountService, { SubscriptionType } from '@/lib/dynamic-discount
 import { logger, LogCategory } from '@/lib/logger'
 import { subscriptionDeduplicationService } from '@/lib/subscription-deduplication-service'
 import { createEnhancedIdempotencyServiceServer } from '@/lib/enhanced-idempotency-service.server'
+import { getMercadoPagoAccessToken, isTestMode } from '@/lib/mercadopago-config'
 
-const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
-const IS_TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === "true"
+const MP_ACCESS_TOKEN = getMercadoPagoAccessToken()
+const IS_TEST_MODE = isTestMode()
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'
-
-if (!MP_ACCESS_TOKEN) {
-  throw new Error('MERCADOPAGO_ACCESS_TOKEN is required')
-}
 
 // Configurar MercadoPago (usar mock en modo de prueba)
 const USE_MOCK = process.env.USE_MERCADOPAGO_MOCK === 'true'

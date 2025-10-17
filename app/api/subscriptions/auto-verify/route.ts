@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { MercadoPagoSyncService } from '@/lib/mercadopago-sync-service'
 import { logger, LogCategory } from '@/lib/logger'
+import { getMercadoPagoAccessToken } from '@/lib/mercadopago-config'
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
           const preapprovalResponse = await fetch('https://api.mercadopago.com/preapproval', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+              'Authorization': `Bearer ${getMercadoPagoAccessToken()}`,
               'Content-Type': 'application/json',
               'X-Idempotency-Key': `${subscription.external_reference}-preapproval-${Date.now()}`
             },
