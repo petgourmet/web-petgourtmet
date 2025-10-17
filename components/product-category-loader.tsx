@@ -6,11 +6,9 @@ import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
-import { ProductGridSkeleton } from "@/components/product-card-skeleton"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
-import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
-import { enhancedCacheService } from '@/lib/cache-service-enhanced'
+import { getOptimizedImageUrl } from "@/lib/image-optimization"
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
 
@@ -142,21 +140,7 @@ export function ProductCategoryLoader({
     async function loadProductsByCategory() {
       setLoading(true)
       try {
-        // Intentar obtener datos desde caché primero
-        const cachedCategories = enhancedCacheService.getCategories()
-        const cachedProducts = enhancedCacheService.getProducts(categorySlug)
-        
-        if (cachedProducts && cachedCategories) {
-          setCategories(cachedCategories)
-          setProducts(cachedProducts)
-          setFilteredProducts(cachedProducts)
-          setLoading(false)
-          return
-        }
-        
-
-
-        // Cargar categorías para el filtro con timeout
+        // Cargar categorías para el filtro
         const categoriesPromise = supabase
           .from("categories")
           .select("id, name")
@@ -172,11 +156,8 @@ export function ProductCategoryLoader({
             { id: 4, name: "Recetas" },
           ]
           setCategories(fallbackCategories)
-          enhancedCacheService.setCategories(fallbackCategories)
         } else if (categoriesData && categoriesData.length > 0) {
-          const categories = categoriesData || []
-          setCategories(categories)
-          enhancedCacheService.setCategories(categories)
+          setCategories(categoriesData)
         } else {
           const fallbackCategories = [
             { id: 1, name: "Celebrar" },
@@ -185,7 +166,6 @@ export function ProductCategoryLoader({
             { id: 4, name: "Recetas" },
           ]
           setCategories(fallbackCategories)
-          enhancedCacheService.setCategories(fallbackCategories)
         }
 
         // Cargar productos según la categoría
@@ -338,13 +318,6 @@ export function ProductCategoryLoader({
 
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
-        
-        // Guardar productos en caché
-        enhancedCacheService.setProducts(processedProducts, categorySlug)
-        
-        // ✅ OPTIMIZACIÓN: Precargar imágenes críticas (primera fila)
-        const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)
-        preloadCriticalImages(criticalImages)
       } catch (error) {
         setProducts([])
         setFilteredProducts([])
@@ -432,7 +405,9 @@ export function ProductCategoryLoader({
 
       {/* Grid de productos */}
       {loading ? (
-        <ProductGridSkeleton />
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
           {filteredProducts.length === 0 ? (

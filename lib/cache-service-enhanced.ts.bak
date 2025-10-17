@@ -105,6 +105,8 @@ class EnhancedCacheService {
     this.cache.set(key, item)
     this.stats.size = this.cache.size
 
+    console.log(`💾 [Cache] SET: ${key} (TTL: ${ttl}ms)`)
+
     // Limpiar cache si excede el tamaño máximo
     if (this.cache.size > this.MAX_CACHE_SIZE) {
       this.evictOldest()
@@ -125,6 +127,7 @@ class EnhancedCacheService {
 
     keysToDelete.forEach(key => {
       this.cache.delete(key)
+      console.log(`🗑️ [Cache] INVALIDATED: ${key}`)
     })
 
     this.stats.size = this.cache.size
@@ -145,10 +148,15 @@ class EnhancedCacheService {
 
     keysToDelete.forEach(key => {
       this.cache.delete(key)
+      console.log(`🧹 [Cache] CLEANED: ${key}`)
     })
 
     this.stats.size = this.cache.size
     this.stats.lastCleanup = now
+
+    if (keysToDelete.length > 0) {
+      console.log(`🧹 [Cache] Cleanup completed: ${keysToDelete.length} items removed`)
+    }
   }
 
   /**
@@ -167,6 +175,7 @@ class EnhancedCacheService {
 
     if (oldestKey) {
       this.cache.delete(oldestKey)
+      console.log(`🚮 [Cache] EVICTED: ${oldestKey}`)
     }
   }
 
@@ -181,6 +190,7 @@ class EnhancedCacheService {
         version: this.CACHE_VERSION,
         timestamp: Date.now()
       }))
+      console.log('💾 [Cache] Saved to localStorage')
     } catch (error) {
       console.warn('⚠️ [Cache] Failed to save to localStorage:', error)
     }
@@ -199,12 +209,14 @@ class EnhancedCacheService {
       // Verificar versión y que no sea muy antiguo (máximo 1 hora)
       if (version !== this.CACHE_VERSION || Date.now() - timestamp > 60 * 60 * 1000) {
         localStorage.removeItem('petgourmet_cache')
+        console.log('🔄 [Cache] Cleared outdated localStorage cache')
         return
       }
 
       // Restaurar cache
       this.cache = new Map(data)
       this.stats.size = this.cache.size
+      console.log(`📥 [Cache] Loaded ${this.cache.size} items from localStorage`)
       
       // Limpiar elementos expirados después de cargar
       this.cleanup()
@@ -236,6 +248,8 @@ class EnhancedCacheService {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('petgourmet_cache')
     }
+    
+    console.log('🧹 [Cache] Cleared all cache')
   }
 
   /**
@@ -303,6 +317,7 @@ class EnhancedCacheService {
 
     // Si no está en cache, ejecutar función y guardar resultado
     try {
+      console.log(`🔄 [Cache] Fetching data for: ${key}`)
       const data = await fetchFunction()
       this.set(key, data, customTtl)
       return data
