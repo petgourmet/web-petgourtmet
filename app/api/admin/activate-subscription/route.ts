@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import WebhookService from '@/lib/webhook-service'
+import webhookService from '@/lib/webhook-service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient()
-    const webhookService = WebhookService
 
     // 1. Obtener la suscripción actual
     const { data: subscription, error: fetchError } = await supabase

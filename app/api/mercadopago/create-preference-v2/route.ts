@@ -122,6 +122,13 @@ export async function POST(request: Request) {
       auto_return: "approved",
       external_reference: externalReference,
       notification_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
+      // Configuración de métodos de pago
+      payment_methods: {
+        excluded_payment_types: [],
+        excluded_payment_methods: [],
+        installments: 12,
+        default_installments: 1
+      }
     }
 
     console.log("Creating MercadoPago preference:", JSON.stringify(preference, null, 2))

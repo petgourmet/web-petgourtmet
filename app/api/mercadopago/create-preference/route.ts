@@ -346,12 +346,19 @@ export async function POST(request: Request) {
         failure: finalBackUrls.failure || finalBackUrls.success,
         pending: finalBackUrls.pending || finalBackUrls.success
       },
-      // auto_return: "approved", // ❌ Temporalmente removido para evitar error "auto_return invalid"
+      auto_return: "approved", // ✅ Habilitado para mejor UX
       binary_mode: false, // Usar el checkout estándar de MercadoPago
       external_reference: externalReference || orderId.toString(), // Usar external_reference si está disponible
       notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/api/mercadopago/webhook`,
       statement_descriptor: "PETGOURMET",
       expires: false,
+      // Configuración de métodos de pago
+      payment_methods: {
+        excluded_payment_types: [], // Permitir todos los tipos de pago
+        excluded_payment_methods: [], // No excluir ningún método específico
+        installments: 12, // Permitir hasta 12 cuotas
+        default_installments: 1 // Por defecto, pago en 1 cuota
+      },
       ...(metadata && { metadata }) // Agregar metadata si está disponible (para suscripciones)
     }
 

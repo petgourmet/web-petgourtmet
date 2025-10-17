@@ -1,9 +1,16 @@
-import { WebhookPayload } from '../lib/mercadopago/types'
-import { PaymentData } from '../lib/mercadopago/types'
-import { SubscriptionData } from '../lib/mercadopago/types'
-import { createIdempotencyService } from '../lib/idempotency/service'
 import { logger, LogCategory } from './logger'
 import { getMercadoPagoAccessToken } from './mercadopago-config'
+
+// Tipos locales para el servicio
+interface WebhookPayload {
+  type: string
+  action?: string
+  data?: { id: string }
+  id?: string
+  entity?: string
+  topic?: string
+  resource?: string
+}
 
 class WebhookService {
 
@@ -715,7 +722,7 @@ class WebhookService {
 
   // Método auxiliar: Crear cliente de Supabase
   private createSupabaseClient() {
-    const { createServiceClient } = require('../lib/supabase/service')
+    const { createServiceClient } = require('./supabase/service')
     return createServiceClient()
   }
 

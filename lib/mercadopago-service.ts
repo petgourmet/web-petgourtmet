@@ -51,6 +51,13 @@ class MercadoPagoService {
       statement_descriptor: "PETGOURMET",
       binary_mode: false,
       expires: false,
+      // Configuración de métodos de pago
+      payment_methods: {
+        excluded_payment_types: [],
+        excluded_payment_methods: [],
+        installments: 12,
+        default_installments: 1
+      }
     }
 
     try {
