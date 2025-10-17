@@ -144,7 +144,7 @@ export function ProductCategoryLoader({
       try {
         // Intentar obtener datos desde caché primero
         const cachedCategories = enhancedCacheService.getCategories()
-    const cachedProducts = enhancedCacheService.getProducts(categorySlug)
+        const cachedProducts = enhancedCacheService.getProducts(categorySlug)
         
         if (cachedProducts && cachedCategories) {
           setCategories(cachedCategories)
