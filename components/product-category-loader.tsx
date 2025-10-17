@@ -6,9 +6,11 @@ import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductDetailModal } from "@/components/product-detail-modal"
+import { ProductGridSkeleton } from "@/components/product-card-skeleton"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
-import { getOptimizedImageUrl } from "@/lib/image-optimization"
+import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
+import { enhancedCacheService } from '@/lib/cache-service-enhanced'
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
 
@@ -138,9 +140,28 @@ export function ProductCategoryLoader({
   // Cargar productos por categoría
   useEffect(() => {
     async function loadProductsByCategory() {
+      console.log('🔄 [INICIO] Cargando productos para categoría:', categorySlug)
       setLoading(true)
       try {
-        // Cargar categorías para el filtro
+        // Intentar obtener datos desde caché primero
+        console.log('📦 Verificando caché...')
+        const cachedCategories = enhancedCacheService.getCategories()
+    const cachedProducts = enhancedCacheService.getProducts(categorySlug)
+        
+        if (cachedProducts && cachedCategories) {
+          console.log('✅ Usando productos del caché:', cachedProducts.length)
+          setCategories(cachedCategories)
+          setProducts(cachedProducts)
+          setFilteredProducts(cachedProducts)
+          setLoading(false)
+          console.log('🏁 [CACHE] Loading = false')
+          return
+        }
+        
+        console.log('❌ No hay caché, cargando desde Supabase...')
+
+
+        // Cargar categorías para el filtro con timeout
         const categoriesPromise = supabase
           .from("categories")
           .select("id, name")
@@ -156,8 +177,11 @@ export function ProductCategoryLoader({
             { id: 4, name: "Recetas" },
           ]
           setCategories(fallbackCategories)
+          enhancedCacheService.setCategories(fallbackCategories)
         } else if (categoriesData && categoriesData.length > 0) {
-          setCategories(categoriesData)
+          const categories = categoriesData || []
+          setCategories(categories)
+          enhancedCacheService.setCategories(categories)
         } else {
           const fallbackCategories = [
             { id: 1, name: "Celebrar" },
@@ -166,6 +190,7 @@ export function ProductCategoryLoader({
             { id: 4, name: "Recetas" },
           ]
           setCategories(fallbackCategories)
+          enhancedCacheService.setCategories(fallbackCategories)
         }
 
         // Cargar productos según la categoría
@@ -316,13 +341,27 @@ export function ProductCategoryLoader({
           }
         })
 
+        console.log('✅ Productos procesados exitosamente:', processedProducts.length)
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
+        
+        // Guardar productos en caché
+        enhancedCacheService.setProducts(processedProducts, categorySlug)
+        
+        // ✅ OPTIMIZACIÓN: Precargar imágenes críticas (primera fila)
+        const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)
+        preloadCriticalImages(criticalImages)
+        
+        console.log('🎯 Productos y filteredProducts actualizados')
       } catch (error) {
+        console.error('❌ Error en loadProductsByCategory:', error)
         setProducts([])
         setFilteredProducts([])
       } finally {
+        console.log('🏁 Finally ejecutándose - setLoading(false)')
         setLoading(false)
+        console.log('🔍 Estado después de setLoading(false):')
+        // El log del estado será en el siguiente render
       }
     }
 
@@ -394,6 +433,13 @@ export function ProductCategoryLoader({
   // Encontrar el precio máximo para el filtro
   const maxPrice = Math.max(...products.map((product) => product.price), 100)
 
+  // Log de debugging para el render
+  console.log('🎨 RENDER - Estado:', {
+    loading,
+    productsCount: products.length,
+    filteredProductsCount: filteredProducts.length
+  })
+
   return (
     <>
       {/* Controles de filtro */}
@@ -405,9 +451,7 @@ export function ProductCategoryLoader({
 
       {/* Grid de productos */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <ProductGridSkeleton />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
           {filteredProducts.length === 0 ? (
