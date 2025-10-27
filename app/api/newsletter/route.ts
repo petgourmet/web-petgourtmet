@@ -3,12 +3,40 @@ import { sendNewsletterEmail } from '@/lib/contact-email-service'
 import { getClientIP, checkRateLimit } from '@/lib/security/rate-limiter'
 import { logSecurityEvent } from '@/lib/security/security-logger'
 
+// Dominios de email sospechosos
+const SUSPICIOUS_EMAIL_DOMAINS = [
+  'tempmail', 'throwaway', 'guerrillamail', 'mailinator', 
+  'maildrop', '10minutemail', 'yopmail', 'temp-mail',
+  'fakeinbox', 'sharklasers', 'guerrillamail', 'dispostable',
+  'trashmail', 'getnada', 'spamgourmet'
+]
+
+function validateEmail(email: string): { isValid: boolean; reason?: string } {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    return { isValid: false, reason: 'Formato de email inválido' }
+  }
+
+  // Verificar dominios sospechosos
+  const domain = email.split('@')[1]?.toLowerCase()
+  if (domain && SUSPICIOUS_EMAIL_DOMAINS.some(suspicious => domain.includes(suspicious))) {
+    return { isValid: false, reason: 'Dominio de email no permitido' }
+  }
+
+  // Verificar patrones sospechosos en el email
+  if (email.includes('test') || email.includes('fake') || email.includes('spam')) {
+    return { isValid: false, reason: 'Email sospechoso' }
+  }
+
+  return { isValid: true }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const clientIP = getClientIP(request)
     
-    // Validar honeypot (campo oculto para detectar bots)
+    // 1. Validar honeypot (campo oculto para detectar bots)
     if (body.honeypot && body.honeypot.trim() !== '') {
       await logSecurityEvent({
         ip: clientIP,
@@ -17,17 +45,87 @@ export async function POST(request: NextRequest) {
         action: 'honeypot_triggered',
         severity: 'high',
         blocked: true,
+        rateLimitExceeded: false,
+        honeypotTriggered: true,
         details: { honeypotValue: body.honeypot }
       })
       
+      // Respuesta genérica para no alertar al bot
       return NextResponse.json(
-        { error: 'Solicitud inválida detectada' },
+        { success: true, message: 'Suscripción registrada correctamente' },
+        { status: 200 }
+      )
+    }
+
+    // 2. Verificar reCAPTCHA token
+    if (!body.recaptchaToken) {
+      await logSecurityEvent({
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/newsletter',
+        action: 'missing_recaptcha',
+        severity: 'high',
+        blocked: true,
+        rateLimitExceeded: false,
+        details: {}
+      })
+      
+      return NextResponse.json(
+        { error: 'Verificación de seguridad requerida' },
+        { status: 400 }
+      )
+    }
+
+    // 3. Verificar el token de reCAPTCHA
+    const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/security/verify-recaptcha`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: body.recaptchaToken,
+        action: 'newsletter_signup'
+      })
+    })
+
+    if (!verifyResponse.ok) {
+      await logSecurityEvent({
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/newsletter',
+        action: 'recaptcha_failed',
+        severity: 'high',
+        blocked: true,
+        rateLimitExceeded: false,
+        details: {}
+      })
+      
+      return NextResponse.json(
+        { error: 'Verificación de seguridad fallida' },
+        { status: 400 }
+      )
+    }
+
+    const recaptchaResult = await verifyResponse.json()
+    if (!recaptchaResult.success || recaptchaResult.score < 0.4) {
+      await logSecurityEvent({
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/newsletter',
+        action: 'low_recaptcha_score',
+        severity: 'high',
+        blocked: true,
+        rateLimitExceeded: false,
+        recaptchaScore: recaptchaResult.score,
+        details: { score: recaptchaResult.score }
+      })
+      
+      return NextResponse.json(
+        { error: 'Verificación de seguridad fallida. Inténtalo de nuevo.' },
         { status: 400 }
       )
     }
     
-    // Verificar rate limiting
-    const rateLimitResult = await checkRateLimit(clientIP, 'newsletter', 5, 300) // 5 intentos por 5 minutos
+    // 4. Verificar rate limiting (máximo 5 intentos)
+    const rateLimitResult = checkRateLimit(clientIP, 'newsletter_submit')
     if (!rateLimitResult.allowed) {
       await logSecurityEvent({
         ip: clientIP,
@@ -37,7 +135,7 @@ export async function POST(request: NextRequest) {
         severity: 'medium',
         blocked: true,
         rateLimitExceeded: true,
-        details: { attempts: rateLimitResult.attempts, resetTime: rateLimitResult.resetTime }
+        details: { remaining: rateLimitResult.remaining, resetTime: rateLimitResult.resetTime }
       })
       
       return NextResponse.json(
@@ -46,7 +144,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Validar email requerido
+    // 5. Validar email requerido
     if (!body.email) {
       return NextResponse.json(
         { error: 'El email es requerido' },
@@ -54,13 +152,24 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    // 6. Validar formato de email y dominios sospechosos
     const email = body.email.trim().toLowerCase()
+    const emailValidation = validateEmail(email)
     
-    if (!emailRegex.test(email)) {
+    if (!emailValidation.isValid) {
+      await logSecurityEvent({
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/newsletter',
+        action: 'invalid_email',
+        severity: 'medium',
+        blocked: true,
+        rateLimitExceeded: false,
+        details: { reason: emailValidation.reason, email }
+      })
+      
       return NextResponse.json(
-        { error: 'El formato del email es inválido' },
+        { error: emailValidation.reason || 'Email inválido' },
         { status: 400 }
       )
     }

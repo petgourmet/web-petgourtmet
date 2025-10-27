@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Phone, Mail, MapPin, Send, CheckCircle } from 'lucide-react'
 import { useAntiSpam } from '@/hooks/useAntiSpam'
+import { useFormTimer } from '@/hooks/useFormTimer'
 import { HoneypotField } from '@/components/security/HoneypotField'
 import { SecurityStatus } from '@/components/security/SecurityStatus'
 
@@ -26,10 +27,21 @@ export default function ContactSection() {
     minRecaptchaScore: 0.5
   })
 
+  // Nuevo: validación de tiempo mínimo (5 segundos)
+  const { isReady, validateSubmissionTime } = useFormTimer(5)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     setError('')
+    
+    // Validar tiempo mínimo antes de enviar
+    const timeValidation = validateSubmissionTime()
+    if (!timeValidation.isValid) {
+      setError(timeValidation.reason || 'Por favor, espera unos segundos antes de enviar')
+      setIsSubmitting(false)
+      return
+    }
     
     const formData = new FormData(e.target as HTMLFormElement)
     const data = {
@@ -37,7 +49,8 @@ export default function ContactSection() {
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
       message: formData.get('message') as string,
-      honeypot: honeypotValue
+      honeypot: honeypotValue,
+      formLoadedAt: Date.now() // Incluir timestamp para validación en el servidor
     }
     
     try {
@@ -217,7 +230,7 @@ export default function ContactSection() {
                 <Button 
                   type="submit" 
                   className="w-full"
-                  disabled={isSubmitting || isValidating || !isRecaptchaLoaded}
+                  disabled={isSubmitting || isValidating || !isRecaptchaLoaded || !isReady}
                 >
                   {isSubmitting || isValidating ? (
                     <>
@@ -228,6 +241,11 @@ export default function ContactSection() {
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                       Cargando seguridad...
+                    </>
+                  ) : !isReady ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Preparando...
                     </>
                   ) : (
                     <>

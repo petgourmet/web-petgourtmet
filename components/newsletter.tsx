@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, Send } from 'lucide-react'
 import { useAntiSpam } from '@/hooks/useAntiSpam'
+import { useFormTimer } from '@/hooks/useFormTimer'
 import { HoneypotField } from '@/components/security/HoneypotField'
 import { SecurityStatus } from '@/components/security/SecurityStatus'
 
@@ -25,10 +26,21 @@ export default function Newsletter() {
     minRecaptchaScore: 0.4
   })
 
+  // Nuevo: validación de tiempo mínimo (3 segundos)
+  const { isReady, validateSubmissionTime } = useFormTimer(3)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+
+    // Validar tiempo mínimo antes de enviar
+    const timeValidation = validateSubmissionTime()
+    if (!timeValidation.isValid) {
+      setError(timeValidation.reason || 'Por favor, espera unos segundos antes de enviar')
+      setIsLoading(false)
+      return
+    }
 
     try {
       // Usar el sistema anti-spam para enviar el formulario
@@ -137,7 +149,7 @@ export default function Newsletter() {
                 />
                 <Button 
                   type="submit" 
-                  disabled={isLoading || isValidating || !email || !isRecaptchaLoaded}
+                  disabled={isLoading || isValidating || !email || !isRecaptchaLoaded || !isReady}
                   className="bg-white text-[#7BBDC5] hover:bg-white/90 font-semibold"
                 >
                   {isLoading || isValidating ? (
@@ -150,13 +162,19 @@ export default function Newsletter() {
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#7BBDC5] mr-2"></div>
                       Cargando...
                     </>
+                  ) : !isReady ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#7BBDC5] mr-2"></div>
+                      Preparando...
+                    </>
                   ) : (
                     <>
                       <Send className="mr-2 h-4 w-4" />
                       Suscribirme
                     </>
                   )}
-              </Button>
+                </Button>
+              </div>
             </form>
             
             <p className="text-white/70 text-sm mt-4">
