@@ -238,9 +238,9 @@ export async function POST(request: Request) {
     // Generar URLs de retorno
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'
     const defaultBackUrls = {
-      success: `${baseUrl}/gracias-por-tu-compra`,
-      failure: `${baseUrl}/error-pago`,
-      pending: `${baseUrl}/pago-pendiente`
+      success: `${baseUrl}/checkout/success`,
+      failure: `${baseUrl}/checkout/failure`,
+      pending: `${baseUrl}/checkout/pending`
     }
     
     // Usar las URLs del frontend si están disponibles, sino usar las por defecto

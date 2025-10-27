@@ -116,8 +116,8 @@ export async function POST(request: Request) {
       },
       back_urls: {
         success: `${backUrls.success}?order_id=${externalReference}&order_number=${orderNumber}&payment_id={{payment_id}}`,
-        failure: `${backUrls.failure || '/error-pago'}?order_id=${externalReference}&order_number=${orderNumber}&error={{error}}`,
-        pending: `${backUrls.pending || '/pago-pendiente'}?order_id=${externalReference}&order_number=${orderNumber}&payment_id={{payment_id}}`
+        failure: `${backUrls.failure || '/checkout/failure'}?order_id=${externalReference}&order_number=${orderNumber}&error={{error}}`,
+        pending: `${backUrls.pending || '/checkout/pending'}?order_id=${externalReference}&order_number=${orderNumber}&payment_id={{payment_id}}`
       },
       auto_return: "approved",
       external_reference: externalReference,
