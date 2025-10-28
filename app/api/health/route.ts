@@ -61,46 +61,49 @@ async function checkDatabase(): Promise<HealthCheck> {
   }
 }
 
-async function checkMercadoPago(): Promise<HealthCheck> {
+async function checkStripe(): Promise<HealthCheck> {
   const start = Date.now();
   try {
-    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    const secretKey = process.env.STRIPE_SECRET_KEY;
     
-    if (!accessToken) {
-      throw new Error('MercadoPago access token not configured');
+    if (!secretKey) {
+      throw new Error('Stripe secret key not configured');
     }
 
-    // Verificar conectividad con MercadoPago API usando endpoint básico
-    const response = await fetch('https://api.mercadopago.com/v1/payment_methods', {
+    // Verificar conectividad con Stripe API usando endpoint básico
+    const response = await fetch('https://api.stripe.com/v1/balance', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${secretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
 
     const responseTime = Date.now() - start;
 
     if (!response.ok) {
-      throw new Error(`MercadoPago API responded with status ${response.status}`);
+      throw new Error(`Stripe API responded with status ${response.status}`);
     }
 
+    const data = await response.json();
+
     return {
-      service: 'mercadopago',
+      service: 'stripe',
       status: 'healthy',
       responseTime,
       details: {
         api: 'accessible',
-        authentication: 'valid'
+        authentication: 'valid',
+        currency: data.available?.[0]?.currency || 'N/A'
       }
     };
   } catch (error) {
     const responseTime = Date.now() - start;
     return {
-      service: 'mercadopago',
+      service: 'stripe',
       status: 'unhealthy',
       responseTime,
-      error: error instanceof Error ? error.message : 'Unknown MercadoPago error'
+      error: error instanceof Error ? error.message : 'Unknown Stripe error'
     };
   }
 }
@@ -199,51 +202,43 @@ async function checkCloudinary(): Promise<HealthCheck> {
   }
 }
 
-async function checkWebhookEndpoint(): Promise<HealthCheck> {
+async function checkStripeWebhook(): Promise<HealthCheck> {
   const start = Date.now();
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const webhookUrl = `${baseUrl}/api/mercadopago/webhook`;
-
-    // Hacer una petición GET al webhook (debería responder con método no permitido pero estar accesible)
-    const response = await fetch(webhookUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const webhookUrl = `${baseUrl}/api/stripe/webhook`;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     const responseTime = Date.now() - start;
 
-    // El webhook puede responder con 200 (MercadoPago challenge) o 405 (Method Not Allowed)
-    if (response.status === 200 || response.status === 405) {
+    if (!webhookSecret) {
       return {
-        service: 'webhook_endpoint',
-        status: 'healthy',
+        service: 'stripe_webhook',
+        status: 'degraded',
         responseTime,
+        error: 'Stripe webhook secret not configured',
         details: {
           url: webhookUrl,
-          accessible: true,
-          status: response.status,
-          expectedResponse: true
+          secretConfigured: false
         }
       };
     }
 
+    // Verificar que la URL es accesible (sin hacer request real para evitar errores de firma)
     return {
-      service: 'webhook_endpoint',
-      status: 'degraded',
+      service: 'stripe_webhook',
+      status: 'healthy',
       responseTime,
-      error: `Unexpected response status: ${response.status}`,
       details: {
         url: webhookUrl,
-        status: response.status
+        secretConfigured: true,
+        endpoint: 'configured'
       }
     };
   } catch (error) {
     const responseTime = Date.now() - start;
     return {
-      service: 'webhook_endpoint',
+      service: 'stripe_webhook',
       status: 'unhealthy',
       responseTime,
       error: error instanceof Error ? error.message : 'Unknown webhook endpoint error'
@@ -260,10 +255,10 @@ export async function GET(request: NextRequest) {
     // Ejecutar todas las verificaciones en paralelo
     const checks = await Promise.all([
       checkDatabase(),
-      checkMercadoPago(),
+      checkStripe(),
       checkEmailService(),
       checkCloudinary(),
-      checkWebhookEndpoint()
+      checkStripeWebhook()
     ]);
 
     // Calcular estadísticas

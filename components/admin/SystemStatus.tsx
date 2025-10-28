@@ -74,14 +74,14 @@ const getServiceIcon = (service: string) => {
   switch (service) {
     case 'database':
       return <Database className="h-4 w-4" />;
-    case 'mercadopago':
+    case 'stripe':
       return <CreditCard className="h-4 w-4" />;
+    case 'stripe_webhook':
+      return <Webhook className="h-4 w-4" />;
     case 'email':
       return <Mail className="h-4 w-4" />;
     case 'cloudinary':
       return <Image className="h-4 w-4" />;
-    case 'webhook_endpoint':
-      return <Webhook className="h-4 w-4" />;
     default:
       return <Server className="h-4 w-4" />;
   }
