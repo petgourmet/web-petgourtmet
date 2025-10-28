@@ -182,19 +182,23 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   } else if (session.mode === 'subscription') {
     // Suscripción - Crear/actualizar suscripción
     const subscriptionId = session.subscription as string
-    const subscriptionData = await stripe.subscriptions.retrieve(subscriptionId) as any
+    
+    // Expandir la suscripción para obtener todos los datos
+    const subscriptionData = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['latest_invoice', 'default_payment_method']
+    }) as any
 
     console.log('✅ Subscription data retrieved:', {
       id: subscriptionData.id,
       status: subscriptionData.status,
       current_period_start: subscriptionData.current_period_start,
-      current_period_end: subscriptionData.current_period_end
+      current_period_end: subscriptionData.current_period_end,
+      billing_cycle_anchor: subscriptionData.billing_cycle_anchor
     })
 
-    // Si no hay current_period_start/end, usar valores por defecto
-    const now = Math.floor(Date.now() / 1000)
-    const currentPeriodStart = subscriptionData.current_period_start || now
-    const currentPeriodEnd = subscriptionData.current_period_end || (now + 30 * 24 * 60 * 60) // +30 días por defecto
+    // Obtener timestamps de período actual
+    const currentPeriodStart = subscriptionData.current_period_start || subscriptionData.billing_cycle_anchor || Math.floor(Date.now() / 1000)
+    const currentPeriodEnd = subscriptionData.current_period_end || subscriptionData.current_period_start + (30 * 24 * 60 * 60) // +30 días por defecto
 
     // Obtener información del producto desde line items
     const subscriptionLineItem = lineItems.data[0]

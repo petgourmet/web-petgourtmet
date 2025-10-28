@@ -175,32 +175,55 @@ function getCustomerEmail(order: Order): string {
   return 'No especificado'
 }
 
-function getShippingAddress(order: Order): string {
-  if (order.shipping_address) {
-    try {
-      const shippingData = typeof order.shipping_address === 'string' 
-        ? JSON.parse(order.shipping_address) 
-        : order.shipping_address
-      
-      // Intentar diferentes formatos de dirección
-      if (shippingData.shipping?.address) {
-        const s = shippingData.shipping
-        return `${s.address}, ${s.city}, ${s.state}, ${s.postalCode}, ${s.country || 'México'}`
-      }
-      
-      if (shippingData.address) {
-        return shippingData.address
-      }
-      
-      if (shippingData.street) {
-        return `${shippingData.street} ${shippingData.city || ''} ${shippingData.state || ''}`.trim()
-      }
-    } catch (e) {
-      console.warn('Error parsing shipping address:', e)
-    }
-  }
+function formatShippingAddress(shippingAddress: any): string {
+  if (!shippingAddress) return 'No disponible'
   
-  return 'No disponible'
+  try {
+    const shippingData = typeof shippingAddress === 'string' 
+      ? JSON.parse(shippingAddress) 
+      : shippingAddress
+    
+    // Formato: calle, ciudad, estado CP, país
+    const parts = []
+    
+    if (shippingData.address) {
+      parts.push(shippingData.address)
+    } else if (shippingData.shipping?.address) {
+      parts.push(shippingData.shipping.address)
+    } else if (shippingData.street) {
+      parts.push(shippingData.street)
+    }
+    
+    const city = shippingData.city || shippingData.shipping?.city
+    const state = shippingData.state || shippingData.shipping?.state
+    const postalCode = shippingData.postalCode || shippingData.shipping?.postalCode
+    const country = shippingData.country || shippingData.shipping?.country
+    
+    if (city) {
+      parts.push(city)
+    }
+    
+    if (state && postalCode) {
+      parts.push(`${state} ${postalCode}`)
+    } else if (state) {
+      parts.push(state)
+    } else if (postalCode) {
+      parts.push(postalCode)
+    }
+    
+    if (country) {
+      parts.push(country)
+    }
+    
+    return parts.length > 0 ? parts.join(', ') : 'No disponible'
+  } catch (e) {
+    console.warn('Error parsing shipping address:', e)
+    return 'No disponible'
+  }
+}
+
+function getShippingAddress(order: Order): string {
+  return formatShippingAddress(order.shipping_address)
 }
 
 function PerfilPageContent() {
@@ -357,13 +380,29 @@ function PerfilPageContent() {
     if (!user) return
     
     try {
-      const response = await fetch('/api/user/subscriptions')
-      if (!response.ok) {
-        throw new Error('Error al cargar suscripciones')
+      // Usar cliente de Supabase directamente
+      const { data: subscriptionsData, error } = await supabase
+        .from('unified_subscriptions')
+        .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching subscriptions:', error)
+        setSubscriptions([])
+        return
       }
-      
-      const data = await response.json()
-      setSubscriptions(data.subscriptions || [])
+
+      console.log('✅ Suscripciones cargadas:', subscriptionsData?.length || 0)
+      setSubscriptions(subscriptionsData || [])
     } catch (error) {
       console.error('Error loading subscriptions:', error)
       toast.error('No se pudieron cargar las suscripciones')
@@ -904,9 +943,7 @@ function PerfilPageContent() {
                                 Dirección de Envío:
                               </span>
                               <p className="text-gray-900">
-                                {typeof subscription.shipping_address === 'string' 
-                                  ? subscription.shipping_address 
-                                  : JSON.stringify(subscription.shipping_address)}
+                                {formatShippingAddress(subscription.shipping_address)}
                               </p>
                             </div>
                           )}

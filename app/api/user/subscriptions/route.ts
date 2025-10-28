@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
     const supabase = await createClient()
     
     // Obtener usuario autenticado
