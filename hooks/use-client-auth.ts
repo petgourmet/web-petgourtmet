@@ -17,6 +17,7 @@ export function useClientAuth() {
     let authSubscription: any = null
     let storageListener: any = null
     
+    // Crear instancia fresca del cliente de Supabase
     const supabase = createClient()
 
     // Función simple para obtener el rol - sin timeouts ni reintentos
@@ -56,7 +57,7 @@ export function useClientAuth() {
     const handleAuthChange = async (event: string, session: any) => {
       if (!isMounted) return
       
-      console.log('🔐 Auth event:', event, 'User:', session?.user?.email)
+      console.log('🔐 Auth event:', event, 'User:', session?.user?.email, 'Session exists:', !!session)
       
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user)
@@ -77,6 +78,14 @@ export function useClientAuth() {
             setUserRole(role)
           }
         }
+      } else if (event === 'INITIAL_SESSION' && session?.user) {
+        // Manejar sesión inicial
+        setUser(session.user)
+        const role = await getUserRole(session.user.id)
+        if (isMounted) {
+          setUserRole(role)
+          setLoading(false)
+        }
       }
     }
     
@@ -87,30 +96,29 @@ export function useClientAuth() {
       // Detectar cambios en las keys de Supabase Auth
       if (e.key && e.key.includes('supabase.auth.token')) {
         console.log('🔄 Storage change detected, reloading session...')
+        setLoading(true)
         await loadInitialSession()
       }
     }
     
     const loadInitialSession = async () => {
       try {
-        // Intentar obtener sesión desde caché primero
-        const cachedSession = enhancedCacheService.getUserSession('current')
-        if (cachedSession) {
-          setUser(cachedSession.user)
-          const role = await getUserRole(cachedSession.user.id)
-          if (isMounted) {
-            setUserRole(role)
-            setLoading(false)
-          }
-          return
-        }
+        console.log('🔍 Loading initial session...')
         
         // Obtener sesión desde Supabase de manera directa
         const { data: { session }, error } = await supabase.auth.getSession()
         
+        console.log('📊 Session response:', { 
+          hasSession: !!session, 
+          hasUser: !!session?.user, 
+          email: session?.user?.email,
+          error: error?.message 
+        })
+        
         if (!isMounted) return
         
         if (error) {
+          console.error('❌ Error loading session:', error)
           setUser(null)
           setUserRole(null)
           setLoading(false)
@@ -131,11 +139,13 @@ export function useClientAuth() {
             setUserRole(role)
           }
         } else {
+          console.log('ℹ️ No active session found')
           setUser(null)
           setUserRole(null)
           enhancedCacheService.setUserSession('current', null)
         }
       } catch (error) {
+        console.error('❌ Error in loadInitialSession:', error)
         if (isMounted) {
           setUser(null)
           setUserRole(null)
