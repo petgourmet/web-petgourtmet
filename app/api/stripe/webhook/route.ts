@@ -40,20 +40,58 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   if (session.mode === 'payment') {
     // Pago único - Crear orden
+    
+    // Preparar datos del cliente desde session
+    let customerEmail = session.customer_email || session.customer_details?.email || null
+    let customerPhone = session.customer_details?.phone || null
+    
+    // Intentar extraer del metadata si está disponible
+    let shippingData = null
+    try {
+      if (metadata.shipping_address) {
+        shippingData = typeof metadata.shipping_address === 'string' 
+          ? JSON.parse(metadata.shipping_address) 
+          : metadata.shipping_address
+      }
+    } catch (e) {
+      console.error('Error parsing shipping_address:', e)
+    }
+
+    // Construir objeto completo de shipping_address con todos los datos
+    const fullShippingAddress = {
+      customer: {
+        name: customerName || session.customer_details?.name,
+        email: customerEmail,
+        phone: customerPhone,
+      },
+      shipping: shippingData || shippingAddress,
+      items: lineItems.data.map((item: any) => ({
+        id: item.id,
+        product_id: item.price?.product?.metadata?.product_id || null,
+        name: item.description,
+        quantity: item.quantity,
+        price: (item.amount_total || 0) / 100 / (item.quantity || 1),
+        unit_price: (item.amount_total || 0) / 100 / (item.quantity || 1),
+        product_name: item.description,
+        product_image: item.price?.product?.images?.[0] || null,
+      }))
+    }
+
     const { data: order, error } = await supabaseAdmin
       .from('orders')
       .insert({
         user_id: userId || null,
-        customer_email: session.customer_email || session.customer_details?.email,
-        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_name: customerName || session.customer_details?.name,
+        customer_phone: customerPhone,
         total: (session.amount_total || 0) / 100,
         currency: session.currency?.toUpperCase() || 'MXN',
         payment_status: 'paid',
+        status: 'pending',
         stripe_session_id: session.id,
         stripe_payment_intent_id: session.payment_intent as string,
         stripe_customer_id: session.customer as string,
-        shipping_address: shippingAddress,
-        line_items: JSON.stringify(lineItems.data),
+        shipping_address: fullShippingAddress,
         metadata: metadata,
       })
       .select()
@@ -65,6 +103,81 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     }
 
     console.log('Orden creada:', order.id)
+
+    // Crear order_items individuales
+    const orderItems = []
+    for (const item of lineItems.data) {
+      // Extraer product_id del metadata del producto de Stripe
+      const productMetadata = (item.price?.product as any)?.metadata || {}
+      const productId = productMetadata.product_id
+
+      if (!productId) {
+        console.warn('Line item sin product_id:', item.id, item.description)
+        continue
+      }
+
+      // Obtener la imagen del producto desde Stripe
+      const product = item.price?.product as any
+      let productImage = product?.images?.[0] || null
+      
+      // Si no hay imagen en Stripe, obtenerla de la base de datos
+      if (!productImage) {
+        const { data: productData } = await supabaseAdmin
+          .from('products')
+          .select('image')
+          .eq('id', parseInt(productId))
+          .single()
+        
+        productImage = productData?.image || ''
+      }
+
+      orderItems.push({
+        order_id: order.id,
+        product_id: parseInt(productId),
+        product_name: item.description,
+        product_image: productImage,
+        quantity: item.quantity || 1,
+        price: (item.amount_total || 0) / 100 / (item.quantity || 1),
+        size: productMetadata.size || null,
+      })
+    }
+
+    if (orderItems.length > 0) {
+      const { error: itemsError } = await supabaseAdmin
+        .from('order_items')
+        .insert(orderItems)
+
+      if (itemsError) {
+        console.error('Error al crear order_items:', itemsError)
+      } else {
+        console.log(`${orderItems.length} order_items creados para orden ${order.id}`)
+      }
+    }
+
+    // Enviar email de confirmación al cliente
+    try {
+      const { sendOrderStatusEmail } = await import('@/lib/email-service')
+      
+      if (customerEmail) {
+        // Preparar datos para el email
+        const orderDataForEmail = {
+          id: order.id,
+          total: order.total,
+          products: orderItems.map(item => ({
+            name: item.product_name,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          shipping_address: fullShippingAddress?.shipping || null
+        }
+
+        await sendOrderStatusEmail('pending', customerEmail, orderDataForEmail)
+        console.log('✅ Email de confirmación enviado a:', customerEmail)
+      }
+    } catch (emailError) {
+      console.error('❌ Error enviando email de confirmación:', emailError)
+      // No lanzar error, solo registrar
+    }
 
   } else if (session.mode === 'subscription') {
     // Suscripción - Crear/actualizar suscripción

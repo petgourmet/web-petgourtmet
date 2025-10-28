@@ -42,11 +42,6 @@ export type ProductCardProps = {
   quarterly_discount?: number
   annual_discount?: number
   purchase_types?: string[]
-  // URLs de MercadoPago específicas del producto
-
-  monthly_mercadopago_url?: string
-  quarterly_mercadopago_url?: string
-  annual_mercadopago_url?: string
   onShowDetail?: (product: any) => void
 }
 

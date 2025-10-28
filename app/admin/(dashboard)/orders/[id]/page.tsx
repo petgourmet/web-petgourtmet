@@ -16,7 +16,6 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
-  const [checkingPayment, setCheckingPayment] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -29,10 +28,21 @@ export default function OrderDetailPage() {
       setLoading(true)
       setError(null)
 
-      // Obtener detalles del pedido (sin join con profiles que no existe)
+      // Obtener detalles del pedido con los items
       const { data, error } = await supabase
         .from("orders")
-        .select("*")
+        .select(`
+          *,
+          order_items (
+            id,
+            product_id,
+            product_name,
+            product_image,
+            quantity,
+            price,
+            size
+          )
+        `)
         .eq("id", orderId)
         .single()
 
@@ -93,109 +103,6 @@ export default function OrderDetailPage() {
       })
     } finally {
       setUpdating(false)
-    }
-  }
-
-  async function checkPaymentStatus() {
-    if (!order || !order.mercadopago_payment_id) {
-      toast.error("No hay ID de pago de MercadoPago para verificar")
-      return
-    }
-
-    try {
-      setCheckingPayment(true)
-      
-      const response = await fetch(`/api/mercadopago/payment/${order.mercadopago_payment_id}`)
-      const paymentData = await response.json()
-
-      if (!response.ok) {
-        throw new Error(paymentData.error || 'Error al verificar el pago')
-      }
-
-      // Actualizar el estado del pago si ha cambiado
-      if (paymentData.status !== order.payment_status) {
-        // Actualizar en la base de datos
-        const updateResponse = await fetch('/api/mercadopago/payment-status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            payment_id: order.mercadopago_payment_id,
-            external_reference: order.external_reference,
-            payment_type: paymentData.payment_type_id,
-            status: paymentData.status
-          })
-        })
-
-        if (updateResponse.ok) {
-          // Recargar los datos de la orden
-          await fetchOrderDetails(order.id)
-          toast.success("Estado del pago actualizado", {
-            description: `Nuevo estado: ${paymentData.status}`,
-            duration: 5000,
-          })
-        } else {
-          throw new Error('Error al actualizar el estado en la base de datos')
-        }
-      } else {
-        toast.info("El estado del pago está actualizado", {
-          description: `Estado actual: ${paymentData.status}`,
-          duration: 3000,
-        })
-      }
-
-    } catch (error: any) {
-      console.error("Error al verificar estado del pago:", error)
-      toast.error("Error al verificar el pago", {
-        description: error.message,
-        duration: 5000,
-      })
-    } finally {
-      setCheckingPayment(false)
-    }
-  }
-
-  async function verifyPaymentManually() {
-    if (!order) return
-
-    try {
-      setCheckingPayment(true)
-      
-      const response = await fetch('/api/admin/verify-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: order.id,
-          paymentId: order.mercadopago_payment_id,
-          externalReference: order.external_reference
-        })
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al verificar el pago')
-      }
-
-      // Recargar los datos de la orden
-      await fetchOrderDetails(order.id)
-      
-      toast.success("Verificación completada", {
-        description: result.message || "El pago ha sido verificado exitosamente",
-        duration: 5000,
-      })
-
-    } catch (error: any) {
-      console.error("Error al verificar pago manualmente:", error)
-      toast.error("Error en la verificación", {
-        description: error.message,
-        duration: 5000,
-      })
-    } finally {
-      setCheckingPayment(false)
     }
   }
 
@@ -383,38 +290,6 @@ export default function OrderDetailPage() {
                   <PaymentStatusBadge status={order.payment_status || 'pending'} />
                   <p className="text-2xl font-bold mt-2">${order.total}</p>
                   <p className="text-sm text-muted-foreground">Total del pedido</p>
-                  
-                  {/* Botones para verificar estado del pago */}
-                  <div className="mt-3 flex flex-col gap-2">
-                    {order.mercadopago_payment_id && (
-                      <button
-                        onClick={checkPaymentStatus}
-                        disabled={checkingPayment}
-                        className="inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                      >
-                        {checkingPayment ? (
-                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Clock className="mr-1 h-4 w-4" />
-                        )}
-                        {checkingPayment ? 'Verificando...' : 'Verificar Estado'}
-                      </button>
-                    )}
-                    
-                    {/* Botón de verificación manual mejorada */}
-                    <button
-                      onClick={verifyPaymentManually}
-                      disabled={checkingPayment}
-                      className="inline-flex items-center rounded-md bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50 transition-colors"
-                    >
-                      {checkingPayment ? (
-                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle className="mr-1 h-4 w-4" />
-                      )}
-                      {checkingPayment ? 'Verificando...' : 'Verificación Manual'}
-                    </button>
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -435,103 +310,43 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-sm text-muted-foreground font-medium">Método de pago</p>
-                  <p className="font-semibold">{order.payment_method || "No especificado"}</p>
+                  <p className="font-semibold">
+                    {order.stripe_session_id || order.stripe_payment_intent ? "Stripe" : (order.payment_method || "No especificado")}
+                  </p>
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-sm text-muted-foreground font-medium">Estado del Pago</p>
                   <PaymentStatusBadge status={order.payment_status || 'pending'} />
                 </div>
               </div>
-              
-              {/* Información adicional de pago de MercadoPago */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-medium mb-3 text-blue-900 flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Información de Pago - MercadoPago
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                  {/* Payment ID - CRÍTICO */}
-                  <div className="p-3 bg-white rounded border border-red-200">
-                    <p className="text-red-700 font-medium">🔴 Payment ID (CRÍTICO):</p>
-                    <p className="font-mono font-semibold text-red-800">
-                      {order.mercadopago_payment_id || '❌ NO ASIGNADO'}
-                    </p>
-                    {!order.mercadopago_payment_id && (
-                      <p className="text-xs text-red-600 mt-1">⚠️ Sin ID de pago - Webhook no procesado</p>
-                    )}
-                  </div>
-                  
-                  {/* Preference ID */}
-                  <div className="p-3 bg-white rounded border">
-                    <p className="text-blue-700 font-medium">Preference ID:</p>
-                    <p className="font-mono font-semibold text-blue-800">
-                      {order.payment_intent_id || 'No disponible'}
-                    </p>
-                  </div>
-                  
-                  {/* External Reference */}
-                  <div className="p-3 bg-white rounded border">
-                    <p className="text-blue-700 font-medium">External Reference:</p>
-                    <p className="font-mono font-semibold text-blue-800">
-                      {order.external_reference || order.id}
-                    </p>
-                  </div>
-                  
-                  {/* Payment Type */}
-                  <div className="p-3 bg-white rounded border">
-                    <p className="text-blue-700 font-medium">Tipo de Pago:</p>
-                    <p className="font-semibold text-blue-800">
-                      {order.payment_type || 'No especificado'}
-                    </p>
-                  </div>
-                  
-                  {/* Payment Method */}
-                  <div className="p-3 bg-white rounded border">
-                    <p className="text-blue-700 font-medium">Método de Pago:</p>
-                    <p className="font-semibold text-blue-800">
-                      {order.payment_method || 'No especificado'}
-                    </p>
-                  </div>
-                  
-                  {/* Collection ID */}
-                  {order.collection_id && (
-                    <div className="p-3 bg-white rounded border">
-                      <p className="text-blue-700 font-medium">Collection ID:</p>
-                      <p className="font-mono font-semibold text-blue-800">{order.collection_id}</p>
-                    </div>
-                  )}
-                  
-                  {/* Merchant Order ID */}
-                  {order.merchant_order_id && (
-                    <div className="p-3 bg-white rounded border">
-                      <p className="text-blue-700 font-medium">Merchant Order ID:</p>
-                        <p className="font-mono font-semibold text-blue-800">{order.merchant_order_id}</p>
+
+              {/* Información de pago de Stripe */}
+              {(order.stripe_session_id || order.stripe_payment_intent) && (
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium mb-3 text-blue-900 flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Información de Pago - Stripe
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    {order.stripe_session_id && (
+                      <div className="p-3 bg-white rounded border">
+                        <p className="text-blue-700 font-medium">Session ID:</p>
+                        <p className="font-mono text-xs font-semibold text-blue-800">
+                          {order.stripe_session_id}
+                        </p>
                       </div>
                     )}
-                    {order.preference_id && (
+                    {order.stripe_payment_intent && (
                       <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">Preference ID:</p>
-                        <p className="font-mono text-xs font-semibold text-blue-800">{order.preference_id}</p>
-                      </div>
-                    )}
-                    {order.external_reference && (
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">External Reference:</p>
-                        <p className="font-mono font-semibold text-blue-800">{order.external_reference}</p>
-                      </div>
-                    )}
-                    {order.payment_type && (
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">Tipo de Pago:</p>
-                        <p className="font-semibold text-green-700">{order.payment_type === 'credit_card' ? 'Tarjeta de Crédito' : 
-                           order.payment_type === 'debit_card' ? 'Tarjeta de Débito' : 
-                           order.payment_type === 'bank_transfer' ? 'Transferencia Bancaria' : 
-                           order.payment_type}</p>
+                        <p className="text-blue-700 font-medium">Payment Intent:</p>
+                        <p className="font-mono text-xs font-semibold text-blue-800">
+                          {order.stripe_payment_intent}
+                        </p>
                       </div>
                     )}
                   </div>
                 </div>
-              )
+              )}
 
               <div className="mb-6">
                 <h3 className="mb-2 font-medium">Productos</h3>
@@ -546,81 +361,67 @@ export default function OrderDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(() => {
-                        // Intentar obtener items desde shipping_address o desde items directamente
-                        let items = []
-                        
-                        try {
-                          if (order.items && Array.isArray(order.items)) {
-                            items = order.items
-                          } else if (order.shipping_address) {
-                            let metadata = null
-                            if (typeof order.shipping_address === 'string') {
-                              metadata = JSON.parse(order.shipping_address)
-                            } else if (typeof order.shipping_address === 'object') {
-                              metadata = order.shipping_address
-                            }
-                            items = metadata?.items || []
-                          } else if (order.items && typeof order.items === 'string') {
-                            items = JSON.parse(order.items)
-                          }
-                        } catch (e) {
-                          console.error('Error parsing items:', e)
-                          items = []
-                        }
-
-                        if (items && items.length > 0) {
-                          return items.map((item: any, index: number) => (
-                            <tr key={index} className="border-b">
-                              <td className="p-2">
+                      {order.order_items && order.order_items.length > 0 ? (
+                        order.order_items.map((item: any, index: number) => (
+                          <tr key={index} className="border-b">
+                            <td className="p-2">
+                              <div className="flex items-center gap-3">
+                                {item.product_image && (
+                                  <img
+                                    src={item.product_image}
+                                    alt={item.product_name}
+                                    className="h-12 w-12 rounded-md object-cover"
+                                  />
+                                )}
                                 <div>
-                                  <p className="font-medium">{item.title || item.name || "Producto sin nombre"}</p>
-                                  {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
-                                  {item.variant && <p className="text-sm text-muted-foreground">{item.variant}</p>}
+                                  <p className="font-medium">{item.product_name || "Producto"}</p>
+                                  {item.size && <p className="text-sm text-muted-foreground">Tamaño: {item.size}</p>}
                                 </div>
-                              </td>
-                              <td className="p-2 text-center">{item.quantity || 1}</td>
-                              <td className="p-2 text-right">{formatCurrency(item.unit_price || item.price || 0)}</td>
-                              <td className="p-2 text-right">{formatCurrency((item.unit_price || item.price || 0) * (item.quantity || 1))}</td>
-                            </tr>
-                          ))
-                        } else {
-                          return (
-                            <tr>
-                              <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                                No hay productos en este pedido
-                              </td>
-                            </tr>
-                          )
-                        }
-                      })()}
+                              </div>
+                            </td>
+                            <td className="p-2 text-center">{item.quantity || 1}</td>
+                            <td className="p-2 text-right">{formatCurrency(item.price)}</td>
+                            <td className="p-2 text-right">{formatCurrency(item.price * item.quantity)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="p-4 text-center text-muted-foreground">
+                            No hay productos en este pedido
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                     <tfoot>
                       <tr className="border-t">
                         <td colSpan={3} className="p-2 text-right font-medium">
                           Subtotal
                         </td>
-                        <td className="p-2 text-right">{formatCurrency(order.subtotal || 0)}</td>
+                        <td className="p-2 text-right">
+                          {formatCurrency(
+                            order.order_items?.reduce((sum: number, item: any) => 
+                              sum + (item.price * item.quantity), 0
+                            ) || 0
+                          )}
+                        </td>
                       </tr>
                       <tr>
                         <td colSpan={3} className="p-2 text-right font-medium">
                           Envío
                         </td>
-                        <td className="p-2 text-right">{formatCurrency(order.shipping_cost || 0)}</td>
+                        <td className="p-2 text-right">
+                          {formatCurrency(
+                            order.total - (order.order_items?.reduce((sum: number, item: any) => 
+                              sum + (item.price * item.quantity), 0
+                            ) || 0)
+                          )}
+                        </td>
                       </tr>
-                      {order.discount > 0 && (
-                        <tr>
-                          <td colSpan={3} className="p-2 text-right font-medium">
-                            Descuento
-                          </td>
-                          <td className="p-2 text-right">-{formatCurrency(order.discount || 0)}</td>
-                        </tr>
-                      )}
                       <tr className="border-t">
                         <td colSpan={3} className="p-2 text-right font-bold">
                           Total con Envío
                         </td>
-                        <td className="p-2 text-right font-bold">{formatCurrency((order.subtotal || 0) + (order.shipping_cost || 0) - (order.discount || 0))}</td>
+                        <td className="p-2 text-right font-bold">{formatCurrency(order.total)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -729,285 +530,126 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nombre</p>
+                  <p className="font-medium">{order.customer_name || "No especificado"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <p className="font-medium">{order.customer_email || "No especificado"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Teléfono</p>
+                  <p className="font-medium">{order.customer_phone || "No especificado"}</p>
+                </div>
+
+                {/* Dirección de Envío */}
+                <div className="mt-6">
+                  <h3 className="mb-2 font-medium">Dirección de Envío</h3>
+                  <div className="rounded-md bg-muted p-3">
+                    {(() => {
+                      try {
+                        let shippingData = null
+                        if (order.shipping_address) {
+                          if (typeof order.shipping_address === 'string') {
+                            const parsed = JSON.parse(order.shipping_address)
+                            shippingData = parsed.shipping || parsed
+                          } else {
+                            shippingData = order.shipping_address.shipping || order.shipping_address
+                          }
+                        }
+
+                        if (shippingData && (shippingData.address || shippingData.street)) {
+                          return (
+                            <>
+                              <p>{shippingData.address || `${shippingData.street} ${shippingData.number || ''}`}</p>
+                              {shippingData.city && (
+                                <p>{shippingData.city}{shippingData.state ? `, ${shippingData.state}` : ''}</p>
+                              )}
+                              {shippingData.postalCode && <p>CP: {shippingData.postalCode}</p>}
+                              {shippingData.country && <p>{shippingData.country}</p>}
+                            </>
+                          )
+                        }
+                        return <p className="text-muted-foreground">No hay dirección de envío</p>
+                      } catch (e) {
+                        console.error('Error parsing shipping address:', e)
+                        return <p className="text-muted-foreground">Error al cargar dirección</p>
+                      }
+                    })()}
+                  </div>
+                </div>
+
+                {/* Datos Completos del Pedido */}
                 {(() => {
-                  // Intentar parsear los datos del formulario desde shipping_address
-                  let orderMetadata = null
-                  let customerData = null
-                  
                   try {
+                    let metadata = null
                     if (order.shipping_address) {
                       if (typeof order.shipping_address === 'string') {
-                        orderMetadata = JSON.parse(order.shipping_address)
-                      } else if (typeof order.shipping_address === 'object') {
-                        orderMetadata = order.shipping_address
+                        metadata = JSON.parse(order.shipping_address)
+                      } else {
+                        metadata = order.shipping_address
                       }
-                      customerData = orderMetadata?.customer_data || orderMetadata
                     }
-                  } catch (e) {
-                    console.error('Error parsing order metadata:', e)
-                    console.error('shipping_address content:', order.shipping_address)
-                  }
 
-                  if (customerData && (customerData.firstName || customerData.customer_name || customerData.email)) {
-                    // Mostrar datos del formulario de checkout
-                    const fullName = extractCustomerName(order)
+                    if (metadata && metadata.items) {
+                      const subtotal = metadata.items.reduce((sum: number, item: any) => 
+                        sum + ((item.price || item.unit_price || 0) * (item.quantity || 1)), 0
+                      )
 
-                    return (
-                      <>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Nombre Completo</p>
-                          <p className="font-medium">{fullName}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{extractCustomerEmail(order)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Teléfono</p>
-                          <p className="font-medium">{customerData.phone || order.customer_phone || "No especificado"}</p>
-                        </div>
-                        {customerData.address && typeof customerData.address === 'object' && (
-                          <>
-                            <div className="mt-6">
-                              <h3 className="mb-2 font-medium">Dirección de Envío</h3>
-                              <div className="rounded-md bg-muted p-3">
-                                <p>{customerData.address.street_name} {customerData.address.street_number}</p>
-                                {customerData.address.city && <p>{customerData.address.city}, {customerData.address.state} {customerData.address.zip_code}</p>}
-                                {customerData.address.country && <p>{customerData.address.country}</p>}
+                      return (
+                        <div className="mt-6">
+                          <h3 className="mb-2 font-medium">Datos Completos del Pedido</h3>
+                          <div className="rounded-md bg-muted p-3">
+                            <div className="grid grid-cols-1 gap-2 text-sm">
+                              <div>
+                                <p className="font-medium text-muted-foreground">Número de Orden:</p>
+                                <p className="font-mono">#{order.id}</p>
+                              </div>
+                              <div>
+                                <p className="font-medium text-muted-foreground">Subtotal:</p>
+                                <p>{formatCurrency(subtotal)}</p>
+                              </div>
+                              <div>
+                                <p className="font-medium text-muted-foreground">Productos:</p>
+                                <ul className="list-disc list-inside">
+                                  {metadata.items.map((item: any, index: number) => (
+                                    <li key={index}>
+                                      Cantidad: {item.quantity} - Precio: {formatCurrency(item.price || item.unit_price || 0)}
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
                             </div>
-                          </>
-                        )}
-                        {orderMetadata && orderMetadata.frequency && orderMetadata.frequency !== 'none' && (
-                          <>
-                            <SubscriptionInfo 
-                              orderId={order.id}
-                              frequency={orderMetadata.frequency}
-                              orderNumber={orderMetadata.order_number}
-                            />
-                          </>
-                        )}
-                      </>
-                    )
-                  } else {
-                    // Fallback a datos básicos de la orden
-                    return (
-                      <>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Nombre</p>
-                          <p className="font-medium">{order.customer_name || "Cliente anónimo"}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{order.user_email || "No especificado"}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Teléfono</p>
-                          <p className="font-medium">{order.customer_phone || "No especificado"}</p>
-                        </div>
-                      </>
-                    )
+                      )
+                    }
+                    return null
+                  } catch (e) {
+                    console.error('Error parsing order metadata:', e)
+                    return null
                   }
                 })()}
               </div>
-
-              <div className="mt-6">
-                <h3 className="mb-2 font-medium">Dirección de Envío</h3>
-                <div className="rounded-md bg-muted p-3">
-                  {(() => {
-                    try {
-                      if (!order.shipping_address) {
-                        return <p className="text-muted-foreground">No hay dirección de envío</p>
-                      }
-
-                      let metadata = null
-                      if (typeof order.shipping_address === 'string' && order.shipping_address.startsWith('{')) {
-                        try {
-                          metadata = JSON.parse(order.shipping_address)
-                        } catch (e) {
-                          console.error('Error parsing shipping_address:', e)
-                        }
-                      } else if (typeof order.shipping_address === 'object') {
-                        metadata = order.shipping_address
-                      }
-
-                      const address = metadata?.customer_data?.address || metadata?.address
-
-                      if (address && typeof address === 'object') {
-                        return (
-                          <>
-                            <p>{address.street_name || ''} {address.street_number || ''}</p>
-                            {(address.city || address.state || address.zip_code) && (
-                              <p>{address.city || ''}{address.state ? `, ${address.state}` : ''} {address.zip_code || ''}</p>
-                            )}
-                            {address.country && <p>{address.country}</p>}
-                          </>
-                        )
-                      } else if (typeof order.shipping_address === 'string' && !order.shipping_address.startsWith('{')) {
-                        return <p>{order.shipping_address}</p>
-                      } else {
-                        return <p className="text-muted-foreground">No hay dirección de envío</p>
-                      }
-                    } catch (e) {
-                      console.error('Error parsing shipping address:', e)
-                      return <p className="text-muted-foreground">Error al cargar dirección</p>
-                    }
-                  })()}
-                </div>
-              </div>
-
-              {/* Sección para mostrar datos completos del formulario */}
-              {(() => {
-                let metadata = null
-                try {
-                  if (order.shipping_address) {
-                        if (typeof order.shipping_address === 'string') {
-                          try {
-                            metadata = JSON.parse(order.shipping_address)
-                          } catch (e) {
-                            console.error('Error parsing shipping_address:', e)
-                            metadata = null
-                          }
-                        } else if (typeof order.shipping_address === 'object') {
-                          metadata = order.shipping_address
-                        }
-                      } else {
-                        metadata = null
-                      }
-                } catch (e) {
-                  console.error('Error parsing metadata:', e)
-                }
-
-                if (metadata && metadata.items) {
-                  return (
-                    <div className="mt-6">
-                      <h3 className="mb-2 font-medium">Datos Completos del Pedido</h3>
-                      <div className="rounded-md bg-muted p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="font-medium text-muted-foreground">Número de Orden:</p>
-                            <p>{metadata.order_number}</p>
-                          </div>
-                          <div>
-                            <p className="font-medium text-muted-foreground">Subtotal:</p>
-                            <p>${metadata.subtotal}</p>
-                          </div>
-                        </div>
-                        {metadata.items && metadata.items.length > 0 && (
-                          <div className="mt-4">
-                            <p className="font-medium text-muted-foreground mb-2">Productos:</p>
-                            <div className="space-y-2">
-                              {metadata.items.map((item: any, index: number) => (
-                                <div key={index} className="text-sm">
-                                  <span className="font-medium">{item.title}</span> - 
-                                  Cantidad: {item.quantity} - 
-                                  Precio: ${item.unit_price}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              })()}
-
-              {/* Información de suscripción si aplica */}
-              {(() => {
-                let formData = null
-                try {
-                  if (order.notes) {
-                    if (typeof order.notes === 'string') {
-                      try {
-                        formData = JSON.parse(order.notes)
-                      } catch (e) {
-                        console.error('Error parsing notes:', e)
-                        formData = null
-                      }
-                    } else if (typeof order.notes === 'object') {
-                      formData = order.notes
-                    }
-                  } else {
-                    formData = null
-                  }
-                } catch (e) {
-                  console.error("Error parsing form data:", e)
-                }
-                
-                const isSubscription = formData?.frequency && formData?.frequency !== "none"
-                
-                if (isSubscription) {
-                  return (
-                    <div className="mb-6">
-                      <h3 className="mb-3 font-medium text-blue-600">Información de Suscripción</h3>
-                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-blue-600 font-medium">Frecuencia</p>
-                            <p className="text-blue-700">
-                              {formData.frequency === "weekly" ? "Semanal" :
-                               formData.frequency === "monthly" ? "Mensual" :
-                               formData.frequency === "quarterly" ? "Trimestral" :
-                               formData.frequency === "annual" ? "Anual" : formData.frequency}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-blue-600 font-medium">Estado</p>
-                            <p className="text-blue-700">
-                              {order.payment_status === "approved" ? "Activa" : "Pendiente de activación"}
-                            </p>
-                          </div>
-                          {formData.subscriptionStartDate && (
-                            <div>
-                              <p className="text-sm text-blue-600 font-medium">Fecha de inicio</p>
-                              <p className="text-blue-700">{new Date(formData.subscriptionStartDate).toLocaleDateString()}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-3 rounded bg-blue-100 p-3">
-                          <p className="text-sm text-blue-700">
-                            <strong>Nota:</strong> Este pedido generará una suscripción automática que se procesará 
-                            según la frecuencia seleccionada una vez que el pago sea confirmado.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              })()}
             </CardContent>
           </Card>
         </div>
       </div>
     </AuthGuard>
   )
-  } catch (renderError) {
-    console.error('Error rendering order details:', renderError)
-    return (
-      <div className="p-6">
-        <button
-          onClick={() => router.back()}
-          className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          Volver
-        </button>
-        <div className="rounded-md bg-red-50 p-4 text-red-800">
-          <p>Error al cargar los detalles del pedido</p>
-          <p className="text-sm mt-2">Por favor, intenta recargar la página.</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-2 rounded-md bg-red-100 px-3 py-1 text-sm font-medium text-red-800"
-          >
-            Recargar página
-          </button>
-        </div>
+} catch (renderError: any) {
+  console.error("Error rendering order page:", renderError)
+  return (
+    <div className="p-6">
+      <div className="rounded-md bg-red-50 p-4 text-red-800">
+        <h2 className="font-bold mb-2">Error al renderizar la página</h2>
+        <p>{renderError.message}</p>
+        <pre className="mt-2 text-xs overflow-auto">{renderError.stack}</pre>
       </div>
-    )
-  }
+    </div>
+  )
+}
 }
 
 // Componente para mostrar el estado del pedido

@@ -73,59 +73,67 @@ export async function POST(request: NextRequest) {
     // Enviar email si está habilitado
     if (sendEmail) {
       try {
-        // Extraer información del cliente del shipping_address
-        let customerData = null
-        let orderNumber = null
+        // Extraer información del cliente y orden
+        let customerEmail = currentOrder.customer_email
+        let customerName = currentOrder.customer_name
+        let customerPhone = currentOrder.customer_phone
+        let shippingInfo = null
         
+        // Intentar extraer más detalles desde shipping_address
         if (currentOrder.shipping_address) {
           try {
             const shippingData = typeof currentOrder.shipping_address === 'string' 
               ? JSON.parse(currentOrder.shipping_address) 
               : currentOrder.shipping_address
             
-            customerData = shippingData.customer_data
-            orderNumber = shippingData.order_number
+            // Extraer datos del cliente
+            if (shippingData.customer) {
+              customerEmail = shippingData.customer.email || customerEmail
+              customerName = shippingData.customer.name || customerName
+              customerPhone = shippingData.customer.phone || customerPhone
+            }
+            
+            // Extraer dirección de envío
+            if (shippingData.shipping) {
+              shippingInfo = shippingData.shipping
+            }
           } catch (e) {
             console.error('Error parsing shipping_address:', e)
           }
         }
         
-        if (customerData?.email) {
-          const customerName = customerData.firstName && customerData.lastName 
-            ? `${customerData.firstName} ${customerData.lastName}`
-            : customerData.firstName || customerData.email
-          
-          const finalOrderNumber = orderNumber || `PG-${currentOrder.id}`
+        if (customerEmail) {
+          const orderNumber = `PG-${currentOrder.id}`
           
           console.log('Sending email:', { 
             status: newStatus, 
-            email: customerData.email, 
+            email: customerEmail, 
             name: customerName, 
-            orderNumber: finalOrderNumber 
+            orderNumber 
           })
           
           // Preparar datos completos de la orden para el email
           const orderDataForEmail = {
-            id: finalOrderNumber,
+            id: orderNumber,
             status: newStatus,
             total: currentOrder.total,
             products: currentOrder.products || [],
             shipping_address: {
-              full_name: customerName,
-              email: customerData.email,
-              address_line_1: customerData.address || '',
-              city: customerData.city || '',
-              state: customerData.state || '',
-              postal_code: customerData.postalCode || '',
-              phone: customerData.phone || ''
+              full_name: customerName || 'Cliente',
+              email: customerEmail,
+              address_line_1: shippingInfo?.address || '',
+              city: shippingInfo?.city || '',
+              state: shippingInfo?.state || '',
+              postal_code: shippingInfo?.postalCode || '',
+              phone: customerPhone || ''
             },
-            customer_name: customerName,
+            customer_name: customerName || 'Cliente',
             created_at: currentOrder.created_at
           }
           
           const emailResult = await sendOrderStatusEmail(
             newStatus as 'pending' | 'processing' | 'completed' | 'cancelled',
-            customerData.email,
+            customerEmail,
             orderDataForEmail
           )
           

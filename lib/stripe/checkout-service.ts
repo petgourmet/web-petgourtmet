@@ -93,6 +93,25 @@ export async function createOneTimeCheckoutSession(
     quantity: item.quantity,
   }))
 
+  // Calcular subtotal para determinar costo de envío
+  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  const shippingCost = subtotal >= 1000 ? 0 : 100
+
+  // Agregar envío como line item si no es gratis
+  if (shippingCost > 0) {
+    lineItems.push({
+      price_data: {
+        currency: stripeConfig.currency,
+        product_data: {
+          name: 'Envío',
+          description: 'Costo de envío a domicilio',
+        },
+        unit_amount: Math.round(shippingCost * 100),
+      },
+      quantity: 1,
+    })
+  }
+
   // Crear o encontrar cliente en Stripe
   let stripeCustomerId: string | undefined
 
@@ -128,7 +147,7 @@ export async function createOneTimeCheckoutSession(
     line_items: lineItems,
     customer: stripeCustomerId,
     customer_email: stripeCustomerId ? undefined : customer.email,
-    success_url: successUrl || stripeConfig.successUrl,
+    success_url: successUrl || `${stripeConfig.successUrl.oneTime}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: cancelUrl || stripeConfig.cancelUrl,
     shipping_address_collection: {
       allowed_countries: ['MX'], // México
@@ -233,7 +252,7 @@ export async function createSubscriptionCheckoutSession(
     mode: 'subscription',
     line_items: lineItems,
     customer: stripeCustomerId,
-    success_url: `${successUrl || stripeConfig.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${successUrl || stripeConfig.successUrl.subscription}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: cancelUrl || stripeConfig.cancelUrl,
     shipping_address_collection: {
       allowed_countries: ['MX'],
@@ -308,7 +327,7 @@ export async function createCustomerPortalSession(
 ): Promise<{ url: string }> {
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
-    return_url: returnUrl || stripeConfig.successUrl,
+    return_url: returnUrl || stripeConfig.successUrl.subscription,
   })
 
   return {

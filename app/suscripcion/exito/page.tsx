@@ -35,32 +35,39 @@ function ExitoSuscripcionContent() {
   const [emailsSent, setEmailsSent] = useState(false)
   const [processingComplete, setProcessingComplete] = useState(false)
 
-  const externalReference = searchParams.get('external_reference')
-  const preapprovalId = searchParams.get('preapproval_id')
-  const status = searchParams.get('status')
+  const sessionId = searchParams.get('session_id')
 
   useEffect(() => {
     if (!loading && !user) {
       const currentUrl = `/suscripcion/exito?${searchParams.toString()}`
-      router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`)
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentUrl)}`)
       return
     }
 
-    if (user && !processingComplete) {
+    if (user && !processingComplete && sessionId) {
       processSubscriptionSuccess()
     }
-  }, [user, loading, router, processingComplete])
+  }, [user, loading, router, processingComplete, sessionId])
 
   const processSubscriptionSuccess = async () => {
-    if (!user?.id) return
+    if (!user?.id || !sessionId) return
 
     try {
       setIsProcessing(true)
       
       console.log('🎉 Procesando éxito de suscripción para usuario:', user.id)
-      console.log('📋 Parámetros:', { externalReference, preapprovalId, status })
+      console.log('📋 Session ID:', sessionId)
 
-      // Primero intentar buscar suscripciones del usuario (activas o pendientes)
+      // Obtener detalles de la sesión de Stripe
+      const sessionResponse = await fetch(`/api/stripe/session/${sessionId}`)
+      if (!sessionResponse.ok) {
+        throw new Error('No se pudo obtener la información de la suscripción')
+      }
+
+      const sessionData = await sessionResponse.json()
+      console.log('📊 Datos de sesión:', sessionData)
+
+      // Buscar suscripciones del usuario
       console.log('🔍 Buscando suscripciones del usuario...')
       const { data: subscriptions, error: fetchError } = await supabase
         .from('unified_subscriptions')
@@ -70,19 +77,13 @@ function ExitoSuscripcionContent() {
         .limit(5)
 
       console.log('📊 Suscripciones encontradas:', subscriptions?.length || 0)
-      console.log('📦 Detalles:', subscriptions?.map(s => ({
-        id: s.id,
-        status: s.status,
-        product_name: s.product_name,
-        mercadopago_subscription_id: s.mercadopago_subscription_id
-      })))
 
       if (fetchError) {
         console.error('❌ Error buscando suscripciones:', fetchError)
       }
 
-      // Si hay suscripciones activas recientes (últimas 24h), mostrarlas directamente
-      const recentActiveSubscriptions = subscriptions?.filter(sub => {
+      // Filtrar suscripciones activas recientes (últimas 24h)
+      const recentActiveSubscriptions = (subscriptions as any[])?.filter(sub => {
         const isRecent = new Date(sub.created_at).getTime() > Date.now() - (24 * 60 * 60 * 1000)
         return (sub.status === 'active' || sub.status === 'pending') && isRecent
       }) || []
@@ -106,46 +107,32 @@ function ExitoSuscripcionContent() {
         return
       }
 
-      // Si no hay suscripciones activas recientes, intentar activar con el endpoint
-      console.log('🔄 No hay suscripciones activas recientes, intentando activar...')
-      const response = await fetch('/api/subscriptions/activate-landing', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          external_reference: externalReference,
-          preapproval_id: preapprovalId,
-          status: status
-        })
-      })
+      // Si no hay suscripciones activas recientes, buscar por stripe_subscription_id
+      console.log('🔄 Buscando suscripción por session_id en metadata...')
+      
+      // Esperar un momento para que el webhook procese la suscripción
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // Volver a buscar suscripciones
+      const { data: updatedSubscriptions } = await supabase
+        .from('unified_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
 
-      const result = await response.json()
-      console.log('📥 Respuesta del endpoint:', result)
-
-      if (response.ok && result.success) {
-        setActivatedSubscriptions(result.activatedSubscriptions || [])
-        setEmailsSent(result.emailsSent || false)
+      if (updatedSubscriptions && updatedSubscriptions.length > 0) {
+        setActivatedSubscriptions(updatedSubscriptions as any)
         
         toast({
           title: "¡Bienvenido a Pet Gourmet!",
-          description: `Se ${result.activatedSubscriptions?.length === 1 ? 'ha activado tu suscripción' : 'han activado ' + (result.activatedSubscriptions?.length || 0) + ' suscripciones'} exitosamente.`,
+          description: "Tu suscripción ha sido activada exitosamente.",
         })
       } else {
-        console.warn('⚠️ No se pudieron activar suscripciones:', result.error)
-        
-        // Mostrar las suscripciones pendientes de todos modos
-        if (recentActiveSubscriptions.length === 0 && subscriptions && subscriptions.length > 0) {
-          const pendingSubscriptions = subscriptions.filter(s => s.status === 'pending')
-          if (pendingSubscriptions.length > 0) {
-            setActivatedSubscriptions(pendingSubscriptions as any)
-            toast({
-              title: "Pago procesado",
-              description: "Tu pago fue recibido. La suscripción se está activando automáticamente.",
-            })
-          }
-        }
+        toast({
+          title: "Pago procesado",
+          description: "Tu pago fue recibido. La suscripción se está activando automáticamente.",
+        })
       }
     } catch (error) {
       console.error('❌ Error procesando éxito de suscripción:', error)

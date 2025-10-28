@@ -102,7 +102,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
       size: sizeWeight,
       quantity,
       isSubscription: purchaseType === 'subscription',
-      subscriptionType: selectedSubscriptionType,
+      subscriptionType: selectedSubscriptionType || undefined,
       subscriptionDiscount: selectedSubscriptionType ? getSubscriptionDiscount(selectedSubscriptionType) : undefined,
       // Agregar campos de descuento del producto
       weekly_discount: product.weekly_discount,
@@ -110,10 +110,6 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
       monthly_discount: product.monthly_discount,
       quarterly_discount: product.quarterly_discount,
       annual_discount: product.annual_discount,
-      // Incluir URLs de MercadoPago específicas del producto
-      monthly_mercadopago_url: product.monthly_mercadopago_url,
-      quarterly_mercadopago_url: product.quarterly_mercadopago_url,
-      annual_mercadopago_url: product.annual_mercadopago_url,
     })
 
     onClose()

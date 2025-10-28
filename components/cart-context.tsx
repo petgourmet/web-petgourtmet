@@ -24,11 +24,6 @@ export type CartItem = {
   monthly_discount?: number
   quarterly_discount?: number
   annual_discount?: number
-  // URLs de Mercado Pago específicas del producto
-
-  monthly_mercadopago_url?: string
-  quarterly_mercadopago_url?: string
-  annual_mercadopago_url?: string
 }
 
 type CartContextType = {

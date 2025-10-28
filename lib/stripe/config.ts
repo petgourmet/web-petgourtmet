@@ -26,7 +26,10 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 // Configuración de la aplicación
 export const stripeConfig = {
   currency: process.env.NEXT_PUBLIC_STRIPE_CURRENCY || 'mxn',
-  successUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/gracias-por-tu-compra`,
+  successUrl: {
+    oneTime: `${process.env.NEXT_PUBLIC_SITE_URL}/gracias-por-tu-compra`,
+    subscription: `${process.env.NEXT_PUBLIC_SITE_URL}/suscripcion/exito`,
+  },
   cancelUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout`,
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
 }

@@ -1,99 +1,72 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { CheckCircleIcon, ShoppingBagIcon, HomeIcon } from '@heroicons/react/24/solid'
+import { useSearchParams } from 'next/navigation'
+import { CheckCircle, Package, Mail, User, MapPin, CreditCard, Home, ShoppingBag, Phone } from 'lucide-react'
 import Link from 'next/link'
+import { useClientAuth } from '@/hooks/use-client-auth'
+import Image from 'next/image'
 
 interface OrderDetails {
   orderId: string
   orderNumber: string
-  paymentId: string
   total: number
+  subtotal: number
+  shipping: number
   items: any[]
   customerEmail: string
+  customerName: string
+  shippingAddress: any
 }
 
 export default function GraciasPorTuCompra() {
   const searchParams = useSearchParams()
-  const router = useRouter()
+  const { user } = useClientAuth()
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  // Obtener parámetros de la URL
-  const orderId = searchParams.get('order_id')
-  const orderNumber = searchParams.get('order_number')
-  const paymentId = searchParams.get('payment_id')
-  const collection_id = searchParams.get('collection_id')
-  const collection_status = searchParams.get('collection_status')
-  const payment_type = searchParams.get('payment_type')
-  const merchant_order_id = searchParams.get('merchant_order_id')
-  const preference_id = searchParams.get('preference_id')
-  const site_id = searchParams.get('site_id')
-  const processing_mode = searchParams.get('processing_mode')
-  const merchant_account_id = searchParams.get('merchant_account_id')
+  const sessionId = searchParams.get('session_id')
 
   useEffect(() => {
-    // Registrar el evento de conversión para Google Analytics
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'purchase', {
-        transaction_id: orderId || paymentId,
-        value: orderDetails?.total || 0,
-        currency: 'MXN',
-        items: orderDetails?.items || []
-      })
-    }
-
-    // Registrar el evento de conversión para Facebook Pixel
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'Purchase', {
-        value: orderDetails?.total || 0,
-        currency: 'MXN',
-        content_ids: orderDetails?.items?.map(item => item.id) || [],
-        content_type: 'product'
-      })
-    }
-
-    // Si tenemos orderId, obtener los detalles de la orden
-    if (orderId) {
-      fetchOrderDetails(orderId)
-    } else if (paymentId || collection_id) {
-      // Si no tenemos orderId pero sí paymentId, intentar obtener la orden por payment_id
-      fetchOrderByPaymentId(paymentId || collection_id)
+    if (sessionId) {
+      fetchOrderDetails(sessionId)
     } else {
       setLoading(false)
-      setError('No se encontraron datos de la compra')
     }
-  }, [orderId, paymentId, collection_id, orderDetails])
+  }, [sessionId])
 
-  const fetchOrderDetails = async (id: string) => {
+  const fetchOrderDetails = async (session_id: string) => {
     try {
-      const response = await fetch(`/api/orders/${id}`)
+      const response = await fetch(`/api/stripe/order-details?session_id=${session_id}`)
       if (response.ok) {
         const data = await response.json()
         setOrderDetails(data)
-      } else {
-        setError('No se pudieron obtener los detalles de la compra')
-      }
-    } catch (err) {
-      setError('Error al obtener los detalles de la compra')
-    } finally {
-      setLoading(false)
-    }
-  }
 
-  const fetchOrderByPaymentId = async (id: string) => {
-    try {
-      const response = await fetch(`/api/orders/by-payment/${id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setOrderDetails(data)
-      } else {
-        setError('No se pudieron obtener los detalles de la compra')
+        // Google Analytics
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'purchase', {
+            transaction_id: data.orderId,
+            value: data.total,
+            currency: 'MXN',
+            items: data.items.map((item: any) => ({
+              id: item.product_id,
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            }))
+          })
+        }
+
+        // Facebook Pixel
+        if (typeof window !== 'undefined' && (window as any).fbq) {
+          (window as any).fbq('track', 'Purchase', {
+            value: data.total,
+            currency: 'MXN'
+          })
+        }
       }
-    } catch (err) {
-      setError('Error al obtener los detalles de la compra')
+    } catch (error) {
+      console.error('Error:', error)
     } finally {
       setLoading(false)
     }
@@ -101,140 +74,252 @@ export default function GraciasPorTuCompra() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Procesando información de tu compra...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-500 border-t-transparent mx-auto mb-6"></div>
+          <p className="text-lg text-gray-700 font-medium">Cargando tu pedido...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          {/* Mensaje de éxito */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <div className="text-center">
-              <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                ¡Gracias por tu compra!
-              </h1>
-              <p className="text-lg text-gray-600 mb-6">
-                Tu pedido ha sido procesado exitosamente
-              </p>
-              
-              {/* Información del pago */}
-              <div className="bg-green-50 rounded-lg p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  {orderId && (
-                    <div>
-                      <span className="font-semibold text-gray-700">ID de Orden:</span>
-                      <p className="text-gray-900">{orderId}</p>
-                    </div>
-                  )}
-                  {orderNumber && (
-                    <div>
-                      <span className="font-semibold text-gray-700">Número de Orden:</span>
-                      <p className="text-gray-900">{orderNumber}</p>
-                    </div>
-                  )}
-                  {(paymentId || collection_id) && (
-                    <div>
-                      <span className="font-semibold text-gray-700">ID de Pago:</span>
-                      <p className="text-gray-900">{paymentId || collection_id}</p>
-                    </div>
-                  )}
-                  {collection_status && (
-                    <div>
-                      <span className="font-semibold text-gray-700">Estado:</span>
-                      <p className="text-gray-900 capitalize">{collection_status}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header de Éxito */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 text-center border-t-4 border-green-500">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
+            <CheckCircle className="w-12 h-12 text-green-600" />
+          </div>
+          
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+            ¡Compra Exitosa!
+          </h1>
+          
+          <p className="text-xl text-gray-600 mb-6">
+            Tu pedido ha sido confirmado y está siendo preparado con mucho cuidado
+          </p>
 
-              {/* Detalles de la orden si están disponibles */}
-              {orderDetails && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">Detalles de tu pedido</h3>
-                  <div className="text-left space-y-2">
-                    {orderDetails.items?.map((item, index) => (
-                      <div key={index} className="flex justify-between">
-                        <span>{item.title} x{item.quantity}</span>
-                        <span>${item.unit_price * item.quantity}</span>
+          {orderDetails && (
+            <div className="inline-block bg-green-50 px-6 py-3 rounded-full border-2 border-green-200">
+              <p className="text-sm font-medium text-green-800">Número de Pedido</p>
+              <p className="text-2xl font-bold text-green-600">
+                #PG-{orderDetails.orderId}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-6">
+          {/* Email Confirmación */}
+          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-blue-500">
+            <Mail className="w-10 h-10 text-blue-500 mx-auto mb-3" />
+            <h3 className="font-semibold text-gray-900 mb-2">Email Enviado</h3>
+            <p className="text-sm text-gray-600">
+              Recibirás la confirmación en tu email en unos minutos
+            </p>
+          </div>
+
+          {/* Proceso */}
+          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-purple-500">
+            <Package className="w-10 h-10 text-purple-500 mx-auto mb-3" />
+            <h3 className="font-semibold text-gray-900 mb-2">Preparando Pedido</h3>
+            <p className="text-sm text-gray-600">
+              Tu pedido será enviado en 1-2 días hábiles
+            </p>
+          </div>
+
+          {/* Perfil */}
+          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-orange-500">
+            <User className="w-10 h-10 text-orange-500 mx-auto mb-3" />
+            <h3 className="font-semibold text-gray-900 mb-2">
+              {user ? 'Ver en Perfil' : 'Email de Seguimiento'}
+            </h3>
+            <p className="text-sm text-gray-600">
+              {user 
+                ? 'Revisa el estado en tu perfil' 
+                : 'Te enviaremos actualizaciones por email'}
+            </p>
+          </div>
+        </div>
+
+        {/* Detalles del Pedido */}
+        {orderDetails && (
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <ShoppingBag className="w-6 h-6 text-green-600" />
+              Resumen de tu Compra
+            </h2>
+
+            {/* Productos */}
+            <div className="space-y-4 mb-6">
+              {orderDetails.items.map((item: any, index: number) => (
+                <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-white flex-shrink-0">
+                    {item.image ? (
+                      <Image 
+                        src={item.image} 
+                        alt={item.name} 
+                        fill 
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-green-100 to-blue-200 flex items-center justify-center">
+                        <Package className="w-8 h-8 text-green-600" />
                       </div>
-                    ))}
-                    <div className="border-t pt-2 font-semibold flex justify-between">
-                      <span>Total:</span>
-                      <span>${orderDetails.total}</span>
-                    </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                    <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
+                  </div>
+                  
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">${item.price} c/u</p>
+                    <p className="font-bold text-gray-900">${item.price * item.quantity}</p>
                   </div>
                 </div>
-              )}
+              ))}
+            </div>
 
-              {error && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                  <p className="text-yellow-800">{error}</p>
-                  <p className="text-sm text-yellow-600 mt-2">
-                    No te preocupes, tu pago fue procesado correctamente. 
-                    Recibirás un email de confirmación en breve.
-                  </p>
-                </div>
-              )}
-
-              {/* Información adicional */}
-              <div className="text-left bg-blue-50 rounded-lg p-4 mb-6">
-                <h3 className="font-semibold text-blue-900 mb-2">¿Qué sigue?</h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Recibirás un email de confirmación en los próximos minutos</li>
-                  <li>• Tu pedido será procesado y enviado en 1-2 días hábiles</li>
-                  <li>• Te notificaremos cuando tu pedido esté en camino</li>
-                  <li>• Si tienes preguntas, contáctanos en soporte@petgourmet.mx</li>
-                </ul>
+            {/* Totales */}
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between text-gray-700">
+                <span>Subtotal:</span>
+                <span className="font-medium">${orderDetails.subtotal}</span>
               </div>
-
-              {/* Botones de acción */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  href="/"
-                  className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
-                >
-                  <HomeIcon className="h-5 w-5 mr-2" />
-                  Volver al inicio
-                </Link>
-                <Link
-                  href="/productos"
-                  className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                >
-                  <ShoppingBagIcon className="h-5 w-5 mr-2" />
-                  Seguir comprando
-                </Link>
+              <div className="flex justify-between text-gray-700">
+                <span>Envío:</span>
+                <span className="font-medium">
+                  {orderDetails.shipping > 0 ? `$${orderDetails.shipping}` : 'Gratis'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t">
+                <span>Total:</span>
+                <span className="text-green-600">${orderDetails.total} MXN</span>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Información de contacto */}
-          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-            <h3 className="font-semibold text-gray-900 mb-2">¿Necesitas ayuda?</h3>
-            <p className="text-gray-600 mb-4">
-              Nuestro equipo de soporte está aquí para ayudarte
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center text-sm">
-              <a
-                href="mailto:soporte@petgourmet.mx"
-                className="text-blue-600 hover:text-blue-800"
-              >
-                soporte@petgourmet.mx
-              </a>
-              <a
-                href="tel:+525555555555"
-                className="text-blue-600 hover:text-blue-800"
-              >
-                (55) 5555-5555
-              </a>
+        {/* Información del Cliente */}
+        {orderDetails && (
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-600" />
+                Información del Cliente
+              </h3>
+              <div className="space-y-2 text-sm">
+                <p><span className="font-medium">Nombre:</span> {orderDetails.customerName}</p>
+                <p className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-gray-400" />
+                  {orderDetails.customerEmail}
+                </p>
+              </div>
             </div>
+
+            {orderDetails.shippingAddress && (
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-green-600" />
+                  Dirección de Envío
+                </h3>
+                <div className="text-sm text-gray-700">
+                  <p>{orderDetails.shippingAddress.address}</p>
+                  <p>{orderDetails.shippingAddress.city}, {orderDetails.shippingAddress.state}</p>
+                  <p>CP: {orderDetails.shippingAddress.postalCode}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Próximos Pasos */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-xl p-8 mb-6 text-white">
+          <h3 className="text-2xl font-bold mb-4">📋 ¿Qué sigue ahora?</h3>
+          <ul className="space-y-3">
+            <li className="flex items-start gap-3">
+              <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Email de Confirmación</p>
+                <p className="text-blue-100 text-sm">Recibirás un correo con todos los detalles de tu pedido en los próximos minutos</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Preparación del Pedido</p>
+                <p className="text-blue-100 text-sm">Nuestro equipo comenzará a preparar tu pedido con mucho cuidado</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Envío y Seguimiento</p>
+                <p className="text-blue-100 text-sm">Te notificaremos cuando tu pedido esté en camino y podrás rastrearlo</p>
+              </div>
+            </li>
+            {user && (
+              <li className="flex items-start gap-3">
+                <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Revisa tu Perfil</p>
+                  <p className="text-blue-100 text-sm">Puedes ver el estado de tu pedido en cualquier momento desde tu perfil</p>
+                </div>
+              </li>
+            )}
+          </ul>
+        </div>
+
+        {/* Botones de Acción */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          {user ? (
+            <Link
+              href="/perfil?tab=orders"
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg"
+            >
+              <User className="w-5 h-5" />
+              Ver mis Pedidos
+            </Link>
+          ) : (
+            <div className="flex-1 bg-blue-50 border-2 border-blue-200 text-blue-800 font-medium py-4 px-6 rounded-xl text-center">
+              <p className="text-sm mb-1">✉️ Revisa tu email</p>
+              <p className="text-xs">Te enviamos toda la información de tu pedido</p>
+            </div>
+          )}
+          
+          <Link
+            href="/productos"
+            className="flex-1 bg-white hover:bg-gray-50 text-gray-900 font-semibold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md border-2 border-gray-200"
+          >
+            <ShoppingBag className="w-5 h-5" />
+            Seguir Comprando
+          </Link>
+          
+          <Link
+            href="/"
+            className="flex-1 bg-white hover:bg-gray-50 text-gray-900 font-semibold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md border-2 border-gray-200"
+          >
+            <Home className="w-5 h-5" />
+            Ir al Inicio
+          </Link>
+        </div>
+
+        {/* Soporte */}
+        <div className="bg-white rounded-2xl shadow-md p-6 text-center">
+          <h3 className="font-bold text-gray-900 mb-3">¿Necesitas Ayuda?</h3>
+          <p className="text-gray-600 mb-4">Nuestro equipo está disponible para ayudarte</p>
+          <div className="flex flex-wrap justify-center gap-4 text-sm">
+            <a href="mailto:soporte@petgourmet.mx" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium">
+              <Mail className="w-4 h-4" />
+              soporte@petgourmet.mx
+            </a>
+            <a href="tel:+525555555555" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium">
+              <Phone className="w-4 h-4" />
+              (55) 5555-5555
+            </a>
           </div>
         </div>
       </div>
