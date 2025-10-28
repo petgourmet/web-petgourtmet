@@ -216,9 +216,11 @@ export function AuthForm() {
             decodedRedirect,
             fullUrl: decodedRedirect
           })
-          router.push(decodedRedirect)
+          // Usar window.location.href para forzar recarga y actualizar estado de auth
+          window.location.href = decodedRedirect
         } else {
-          router.push("/perfil")
+          // Usar window.location.href para forzar recarga y actualizar estado de auth
+          window.location.href = "/perfil"
         }
       }
     } catch (error: any) {

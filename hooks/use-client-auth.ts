@@ -15,6 +15,7 @@ export function useClientAuth() {
   useEffect(() => {
     let isMounted = true
     let authSubscription: any = null
+    let storageListener: any = null
     
     const supabase = createClient()
 
@@ -55,6 +56,8 @@ export function useClientAuth() {
     const handleAuthChange = async (event: string, session: any) => {
       if (!isMounted) return
       
+      console.log('🔐 Auth event:', event, 'User:', session?.user?.email)
+      
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user)
         const role = await getUserRole(session.user.id)
@@ -74,6 +77,17 @@ export function useClientAuth() {
             setUserRole(role)
           }
         }
+      }
+    }
+    
+    // Listener de storage para detectar cambios de sesión en otras pestañas o después de login
+    const handleStorageChange = async (e: StorageEvent) => {
+      if (!isMounted) return
+      
+      // Detectar cambios en las keys de Supabase Auth
+      if (e.key && e.key.includes('supabase.auth.token')) {
+        console.log('🔄 Storage change detected, reloading session...')
+        await loadInitialSession()
       }
     }
     
@@ -104,6 +118,7 @@ export function useClientAuth() {
         }
         
         if (session?.user) {
+          console.log('✅ Session loaded:', session.user.email)
           setUser(session.user)
           
           // Guardar sesión en caché
@@ -136,6 +151,12 @@ export function useClientAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange)
     authSubscription = subscription
     
+    // Configurar listener de storage
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange)
+      storageListener = handleStorageChange
+    }
+    
     // Cargar sesión inicial
     loadInitialSession()
     
@@ -144,6 +165,9 @@ export function useClientAuth() {
       if (authSubscription) {
         authSubscription.unsubscribe()
         authSubscription = null
+      }
+      if (storageListener && typeof window !== 'undefined') {
+        window.removeEventListener('storage', storageListener)
       }
     }
   }, [])
