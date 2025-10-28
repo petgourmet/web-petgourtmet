@@ -3,7 +3,7 @@
 import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Package, ShoppingBag, LogOut, LayoutDashboard, Tag, FileText, Clock, CreditCard } from "lucide-react"
+import { Package, ShoppingBag, LogOut, LayoutDashboard, Tag, FileText, CreditCard } from "lucide-react"
 
 export function AdminSidebar() {
   const { signOut, user } = useAuth()
@@ -43,11 +43,6 @@ export function AdminSidebar() {
       title: "Suscripciones",
       href: "/admin/subscription-orders",
       icon: <CreditCard size={20} />,
-    },
-    {
-      title: "Próximos Cobros",
-      href: "/admin/upcoming-payments",
-      icon: <Clock size={20} />,
     },
   ]
 
