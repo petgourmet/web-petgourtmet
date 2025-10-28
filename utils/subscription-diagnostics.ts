@@ -1,6 +1,6 @@
 /**
  * Utilidades de diagnóstico y corrección de suscripciones
- * Basado en el análisis de problemas de sincronización con MercadoPago
+ * Herramientas para análisis y resolución de problemas de suscripciones
  */
 
 import { supabase } from '@/lib/supabase/client';
@@ -150,7 +150,7 @@ async function analyzePendingSubscription(subscription: any): Promise<Subscripti
   
   if (daysSinceCreation > 7) {
     issues.push(`Suscripción pendiente por ${Math.floor(daysSinceCreation)} días`);
-    recommendations.push('Revisar estado en MercadoPago o cancelar');
+    recommendations.push('Revisar estado del pago o cancelar suscripción');
   }
 
   return {

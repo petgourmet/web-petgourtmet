@@ -112,8 +112,6 @@ export const PRODUCTION_CONFIG = {
 
   // Variables de entorno requeridas
   REQUIRED_ENV_VARS: [
-    'MERCADOPAGO_ACCESS_TOKEN',
-    'NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY',
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY'
@@ -121,7 +119,6 @@ export const PRODUCTION_CONFIG = {
 
   // Variables de entorno opcionales pero recomendadas para producción
   RECOMMENDED_ENV_VARS: [
-    'MERCADOPAGO_WEBHOOK_SECRET',
     'NEXT_PUBLIC_SITE_URL',
     'DATABASE_URL'
   ]
@@ -154,8 +151,8 @@ export function validateProductionConfig(): {
 
   // Validar configuración específica de producción
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.MERCADOPAGO_WEBHOOK_SECRET) {
-      errors.push('MERCADOPAGO_WEBHOOK_SECRET es requerido en producción')
+    if (!process.env.NEXT_PUBLIC_SITE_URL?.startsWith('https://')) {
+      warnings.push('NEXT_PUBLIC_SITE_URL debería usar HTTPS en producción')
     }
     
     if (!process.env.NEXT_PUBLIC_SITE_URL) {

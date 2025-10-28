@@ -4,7 +4,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { PRODUCTION_CONFIG, validateProductionConfig } from '@/lib/production-config'
-import { checkRateLimit } from '@/lib/checkout-validators'
 
 /**
  * Obtener IP del cliente
@@ -37,22 +36,8 @@ export function securityMiddleware(request: NextRequest) {
       )
     }
 
-    // 2. Rate limiting
-    let rateLimit
-    if (pathname.includes('/webhook')) {
-      rateLimit = PRODUCTION_CONFIG.RATE_LIMITS.WEBHOOK
-    } else if (pathname.includes('/checkout') || pathname.includes('/mercadopago')) {
-      rateLimit = PRODUCTION_CONFIG.RATE_LIMITS.CHECKOUT
-    } else {
-      rateLimit = PRODUCTION_CONFIG.RATE_LIMITS.API_GENERAL
-    }
-
-    if (!checkRateLimit(clientIP, rateLimit.maxRequests, rateLimit.windowMs)) {
-      return NextResponse.json(
-        { error: 'Demasiadas solicitudes, intenta más tarde' },
-        { status: 429 }
-      )
-    }
+    // 2. Rate limiting básico (se puede implementar con upstash/redis en el futuro)
+    // Removido checkRateLimit ya que dependía de checkout-validators eliminado
 
     // 3. Validar headers de seguridad
     const contentType = request.headers.get('content-type')
@@ -202,10 +187,6 @@ export function validateSecuritySetup(): {
 
   // Validaciones adicionales de seguridad
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.MERCADOPAGO_WEBHOOK_SECRET) {
-      errors.push('MERCADOPAGO_WEBHOOK_SECRET es crítico para la seguridad en producción')
-    }
-    
     if (!process.env.NEXT_PUBLIC_SITE_URL?.startsWith('https://')) {
       warnings.push('NEXT_PUBLIC_SITE_URL debería usar HTTPS en producción')
     }

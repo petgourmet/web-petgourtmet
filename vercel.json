@@ -1,69 +1,17 @@
 {
   "crons": [
     {
-      "path": "/api/cron/auto-validate-payments",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/validate-payments",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/process-subscriptions",
-      "schedule": "0 */12 * * *"
-    },
-    {
-      "path": "/api/cron/subscription-payments",
-      "schedule": "0 2 * * *"
-    },
-    {
       "path": "/api/cron/subscription-notifications",
       "schedule": "*/5 * * * *"
     }
   ],
   "functions": {
-    "app/api/cron/auto-validate-payments/route.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/validate-payments/route.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/process-subscriptions/route.ts": {
-      "maxDuration": 300
-    },
-    "app/api/cron/subscription-payments/route.ts": {
-      "maxDuration": 300
-    },
     "app/api/cron/subscription-notifications/route.ts": {
       "maxDuration": 180
     },
     "app/api/admin/subscription-notifications/route.ts": {
       "maxDuration": 180
-    },
-    "app/api/mercadopago/webhook/route.ts": {
-      "maxDuration": 60
-    },
-    "app/api/admin/sync-payments/route.ts": {
-      "maxDuration": 180
     }
   },
-  "headers": [
-    {
-      "source": "/api/mercadopago/webhook",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "POST, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization, x-signature, x-request-id"
-        }
-      ]
-    }
-  ]
+  "headers": []
 }

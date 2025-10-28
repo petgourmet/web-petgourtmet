@@ -215,15 +215,6 @@ class Logger {
     this.info(LogCategory.SUBSCRIPTION, `${emoji} TIEMPO REAL: ${status.toUpperCase()} - Suscripción ${subscriptionId}`, data, { subscriptionId });
   }
 
-  mercadoPagoSyncAttempt(subscriptionId: string, externalReference: string, data?: any) {
-    this.info(LogCategory.PAYMENT, `🔄 MP SYNC: Verificando suscripción ${subscriptionId} con ref ${externalReference}`, data, { subscriptionId });
-  }
-
-  mercadoPagoSyncResult(subscriptionId: string, mpStatus: string, updated: boolean, data?: any) {
-    const emoji = updated ? '✅' : '⏳';
-    this.info(LogCategory.PAYMENT, `${emoji} MP SYNC RESULTADO: Suscripción ${subscriptionId} - MP Status: ${mpStatus}, Actualizada: ${updated}`, data, { subscriptionId });
-  }
-
   orderStatusChanged(orderId: string, oldStatus: string, newStatus: string, userId?: string) {
     this.info(LogCategory.ORDER, `Estado de orden cambiado: ${oldStatus} -> ${newStatus}`, 
              { orderId, oldStatus, newStatus }, { orderId, userId });

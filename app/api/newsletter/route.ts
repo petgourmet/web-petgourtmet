@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendNewsletterEmail } from '@/lib/contact-email-service'
 import { getClientIP, checkRateLimit } from '@/lib/security/rate-limiter'
 import { logSecurityEvent } from '@/lib/security/security-logger'
+import { isIPBlocked, recordViolation } from '@/lib/security/ip-blocker'
 
 // Dominios de email sospechosos
 const SUSPICIOUS_EMAIL_DOMAINS = [
@@ -36,8 +37,40 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const clientIP = getClientIP(request)
     
+    // 0. Verificar si la IP está bloqueada
+    const blockCheck = isIPBlocked(clientIP)
+    if (blockCheck.blocked) {
+      await logSecurityEvent({
+        ip: clientIP,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        endpoint: '/api/newsletter',
+        action: 'blocked_ip_attempt',
+        severity: 'high',
+        blocked: true,
+        rateLimitExceeded: false,
+        details: {
+          reason: blockCheck.entry?.reason,
+          blockedUntil: blockCheck.entry?.blockedUntil
+        }
+      })
+      
+      return NextResponse.json(
+        { error: 'Tu acceso ha sido temporalmente bloqueado.' },
+        { status: 403 }
+      )
+    }
+    
     // 1. Validar honeypot (campo oculto para detectar bots)
     if (body.honeypot && body.honeypot.trim() !== '') {
+      // Registrar violación crítica
+      recordViolation({
+        ip: clientIP,
+        type: 'honeypot',
+        severity: 'high',
+        timestamp: Date.now(),
+        details: { honeypotValue: body.honeypot }
+      })
+      
       await logSecurityEvent({
         ip: clientIP,
         userAgent: request.headers.get('user-agent') || 'unknown',
@@ -106,6 +139,15 @@ export async function POST(request: NextRequest) {
 
     const recaptchaResult = await verifyResponse.json()
     if (!recaptchaResult.success || recaptchaResult.score < 0.4) {
+      // Registrar violación de reCAPTCHA
+      recordViolation({
+        ip: clientIP,
+        type: 'low_recaptcha',
+        severity: 'medium',
+        timestamp: Date.now(),
+        details: { score: recaptchaResult.score }
+      })
+      
       await logSecurityEvent({
         ip: clientIP,
         userAgent: request.headers.get('user-agent') || 'unknown',
@@ -127,6 +169,14 @@ export async function POST(request: NextRequest) {
     // 4. Verificar rate limiting (máximo 5 intentos)
     const rateLimitResult = checkRateLimit(clientIP, 'newsletter_submit')
     if (!rateLimitResult.allowed) {
+      // Registrar violación de rate limit
+      recordViolation({
+        ip: clientIP,
+        type: 'rate_limit',
+        severity: 'low',
+        timestamp: Date.now()
+      })
+      
       await logSecurityEvent({
         ip: clientIP,
         userAgent: request.headers.get('user-agent') || 'unknown',
