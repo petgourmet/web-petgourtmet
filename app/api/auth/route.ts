@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/client'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { logSecurityEvent } from '@/lib/security/security-logger'
-
-// Cliente de Supabase con service role para operaciones administrativas
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // Helper para obtener la IP del request
 function getClientIp(request: NextRequest): string {
@@ -48,6 +42,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Crear cliente de Supabase con manejo de cookies del servidor
+    const supabase = await createClient()
 
     if (action === 'register') {
       // Validaciones para registro
@@ -98,13 +95,14 @@ export async function POST(request: NextRequest) {
 
       // Si el usuario se creó exitosamente, crear el perfil manualmente
       if (data.user && !data.user.email_confirmed_at) {
+        const supabaseAdmin = createServiceClient()
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
           .insert({
             id: data.user.id,
             email: data.user.email!,
             role: 'user'
-          })
+          } as any)
 
         if (profileError) {
           console.warn('Error creando perfil:', profileError)
@@ -136,7 +134,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Iniciar sesión con Supabase
+      // Iniciar sesión con Supabase - esto establecerá las cookies automáticamente
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -156,6 +154,11 @@ export async function POST(request: NextRequest) {
         
         throw error
       }
+
+      console.log('✅ Login successful in API route:', { 
+        email: data.user?.email,
+        sessionExists: !!data.session 
+      })
 
       await logSecurityEvent({
         ip: getClientIp(request),

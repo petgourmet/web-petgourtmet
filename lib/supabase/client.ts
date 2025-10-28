@@ -17,28 +17,43 @@ export const createClient = () => {
       cookies: {
         get(name: string) {
           if (typeof document === 'undefined') return undefined
-          const value = document.cookie
-            .split('; ')
-            .find((row) => row.startsWith(`${name}=`))
-            ?.split('=')[1]
-          return value ? decodeURIComponent(value) : undefined
+          
+          // Buscar la cookie en document.cookie
+          const cookies = document.cookie.split('; ')
+          const cookie = cookies.find((row) => row.startsWith(`${name}=`))
+          
+          if (!cookie) {
+            console.log(`🍪 Cookie "${name}" not found. Available:`, cookies.map(c => c.split('=')[0]))
+            return undefined
+          }
+          
+          const value = cookie.split('=')[1]
+          const decoded = value ? decodeURIComponent(value) : undefined
+          console.log(`🍪 Cookie "${name}" found:`, decoded ? 'YES' : 'NO')
+          return decoded
         },
         set(name: string, value: string, options: any) {
           if (typeof document === 'undefined') return
-          const expires = options?.maxAge
-            ? new Date(Date.now() + options.maxAge * 1000).toUTCString()
-            : options?.expires
-          document.cookie = `${name}=${encodeURIComponent(value)}; path=/; ${
-            expires ? `expires=${expires};` : ''
-          } ${options?.sameSite ? `SameSite=${options.sameSite};` : 'SameSite=Lax;'} ${
-            options?.secure ? 'Secure;' : ''
-          }`
+          
+          // Configurar cookie con valores seguros
+          const cookieOptions = [
+            `${name}=${encodeURIComponent(value)}`,
+            'path=/',
+            options?.maxAge ? `max-age=${options.maxAge}` : '',
+            options?.expires ? `expires=${options.expires}` : '',
+            `SameSite=${options?.sameSite || 'Lax'}`,
+            // En producción siempre usar Secure
+            location.protocol === 'https:' ? 'Secure' : ''
+          ].filter(Boolean).join('; ')
+          
+          document.cookie = cookieOptions
+          console.log(`🍪 Cookie "${name}" set:`, cookieOptions)
         },
         remove(name: string, options: any) {
           if (typeof document === 'undefined') return
-          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; ${
-            options?.sameSite ? `SameSite=${options.sameSite};` : 'SameSite=Lax;'
-          }`
+          
+          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=${options?.sameSite || 'Lax'}`
+          console.log(`🍪 Cookie "${name}" removed`)
         },
       },
     }
