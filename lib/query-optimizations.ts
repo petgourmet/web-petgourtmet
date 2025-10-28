@@ -532,7 +532,17 @@ export async function fetchOptimizedOrdersAdmin(
             ? JSON.parse(order.shipping_address)
             : order.shipping_address
           
-          if (parsedShippingAddress?.customer_data) {
+          // Intentar obtener del objeto customer primero (nuevo formato)
+          if (parsedShippingAddress?.customer) {
+            const customerData = parsedShippingAddress.customer
+            customerInfo = {
+              name: customerData.name || 'Cliente anónimo',
+              email: customerData.email || 'No especificado',
+              phone: customerData.phone || 'No especificado'
+            }
+          }
+          // Fallback: intentar con customer_data (formato antiguo)
+          else if (parsedShippingAddress?.customer_data) {
             const customerData = parsedShippingAddress.customer_data
             customerInfo = {
               name: customerData.firstName && customerData.lastName
@@ -551,8 +561,9 @@ export async function fetchOptimizedOrdersAdmin(
         ...order,
         items: order.order_items || [],
         total_items: order.order_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0,
-        customer_name: customerInfo?.name || 'Cliente anónimo',
-        customer_email: customerInfo?.email || 'No especificado',
+        // Usar los campos de la base de datos si existen, sino usar los parseados
+        customer_name: order.customer_name || customerInfo?.name || 'Cliente anónimo',
+        customer_email: order.customer_email || customerInfo?.email || 'No especificado',
         customer_phone: customerInfo?.phone || 'No especificado',
         source_table: 'orders',
         shipping_address: parsedShippingAddress || {}

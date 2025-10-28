@@ -74,9 +74,9 @@ export default function GraciasPorTuCompra() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#78b7bf]/5 via-[#78b7bf]/10 to-white flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-500 border-t-transparent mx-auto mb-6"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#78b7bf] border-t-transparent mx-auto mb-6"></div>
           <p className="text-lg text-gray-700 font-medium">Cargando tu pedido...</p>
         </div>
       </div>
@@ -84,12 +84,12 @@ export default function GraciasPorTuCompra() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#78b7bf]/5 via-[#78b7bf]/10 to-white py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header de Éxito */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 text-center border-t-4 border-green-500">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
-            <CheckCircle className="w-12 h-12 text-green-600" />
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 text-center border-t-4 border-[#78b7bf]">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#78b7bf]/10 rounded-full mb-6">
+            <CheckCircle className="w-12 h-12 text-[#78b7bf]" />
           </div>
           
           <h1 className="text-4xl font-bold text-gray-900 mb-3">
@@ -100,10 +100,10 @@ export default function GraciasPorTuCompra() {
             Tu pedido ha sido confirmado y está siendo preparado con mucho cuidado
           </p>
 
-          {orderDetails && (
-            <div className="inline-block bg-green-50 px-6 py-3 rounded-full border-2 border-green-200">
-              <p className="text-sm font-medium text-green-800">Número de Pedido</p>
-              <p className="text-2xl font-bold text-green-600">
+          {orderData && (
+            <div className="inline-block bg-[#78b7bf]/10 px-6 py-3 rounded-full border-2 border-[#78b7bf]/30">
+              <p className="text-sm font-medium text-[#78b7bf]">Número de Pedido</p>
+              <p className="text-2xl font-bold text-[#6aa5ad]">
                 #PG-{orderDetails.orderId}
               </p>
             </div>
@@ -112,8 +112,8 @@ export default function GraciasPorTuCompra() {
 
         <div className="grid md:grid-cols-3 gap-6 mb-6">
           {/* Email Confirmación */}
-          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-blue-500">
-            <Mail className="w-10 h-10 text-blue-500 mx-auto mb-3" />
+          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-[#78b7bf]">
+            <Mail className="w-10 h-10 text-[#78b7bf] mx-auto mb-3" />
             <h3 className="font-semibold text-gray-900 mb-2">Email Enviado</h3>
             <p className="text-sm text-gray-600">
               Recibirás la confirmación en tu email en unos minutos
@@ -121,8 +121,8 @@ export default function GraciasPorTuCompra() {
           </div>
 
           {/* Proceso */}
-          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-purple-500">
-            <Package className="w-10 h-10 text-purple-500 mx-auto mb-3" />
+          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-[#6aa5ad]">
+            <Package className="w-10 h-10 text-[#6aa5ad] mx-auto mb-3" />
             <h3 className="font-semibold text-gray-900 mb-2">Preparando Pedido</h3>
             <p className="text-sm text-gray-600">
               Tu pedido será enviado en 1-2 días hábiles
@@ -130,8 +130,8 @@ export default function GraciasPorTuCompra() {
           </div>
 
           {/* Perfil */}
-          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-orange-500">
-            <User className="w-10 h-10 text-orange-500 mx-auto mb-3" />
+          <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-[#5c9ca4]">
+            <User className="w-10 h-10 text-[#5c9ca4] mx-auto mb-3" />
             <h3 className="font-semibold text-gray-900 mb-2">
               {user ? 'Ver en Perfil' : 'Email de Seguimiento'}
             </h3>
@@ -147,7 +147,7 @@ export default function GraciasPorTuCompra() {
         {orderDetails && (
           <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <ShoppingBag className="w-6 h-6 text-green-600" />
+              <ShoppingBag className="w-6 h-6 text-[#78b7bf]" />
               Resumen de tu Compra
             </h2>
 
@@ -197,7 +197,7 @@ export default function GraciasPorTuCompra() {
               </div>
               <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t">
                 <span>Total:</span>
-                <span className="text-green-600">${orderDetails.total} MXN</span>
+                <span className="text-[#78b7bf]">${orderDetails.total} MXN</span>
               </div>
             </div>
           </div>
@@ -208,7 +208,7 @@ export default function GraciasPorTuCompra() {
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             <div className="bg-white rounded-xl shadow-md p-6">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-600" />
+                <User className="w-5 h-5 text-[#78b7bf]" />
                 Información del Cliente
               </h3>
               <div className="space-y-2 text-sm">
@@ -223,7 +223,7 @@ export default function GraciasPorTuCompra() {
             {orderDetails.shippingAddress && (
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-green-600" />
+                  <MapPin className="w-5 h-5 text-[#78b7bf]" />
                   Dirección de Envío
                 </h3>
                 <div className="text-sm text-gray-700">
@@ -237,28 +237,28 @@ export default function GraciasPorTuCompra() {
         )}
 
         {/* Próximos Pasos */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-xl p-8 mb-6 text-white">
+        <div className="bg-gradient-to-r from-[#78b7bf] to-[#6aa5ad] rounded-2xl shadow-xl p-8 mb-6 text-white">
           <h3 className="text-2xl font-bold mb-4">📋 ¿Qué sigue ahora?</h3>
           <ul className="space-y-3">
             <li className="flex items-start gap-3">
               <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium">Email de Confirmación</p>
-                <p className="text-blue-100 text-sm">Recibirás un correo con todos los detalles de tu pedido en los próximos minutos</p>
+                <p className="text-white/90 text-sm">Recibirás un correo con todos los detalles de tu pedido en los próximos minutos</p>
               </div>
             </li>
             <li className="flex items-start gap-3">
               <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium">Preparación del Pedido</p>
-                <p className="text-blue-100 text-sm">Nuestro equipo comenzará a preparar tu pedido con mucho cuidado</p>
+                <p className="text-white/90 text-sm">Nuestro equipo comenzará a preparar tu pedido con mucho cuidado</p>
               </div>
             </li>
             <li className="flex items-start gap-3">
               <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium">Envío y Seguimiento</p>
-                <p className="text-blue-100 text-sm">Te notificaremos cuando tu pedido esté en camino y podrás rastrearlo</p>
+                <p className="text-white/90 text-sm">Te notificaremos cuando tu pedido esté en camino y podrás rastrearlo</p>
               </div>
             </li>
             {user && (
@@ -266,7 +266,7 @@ export default function GraciasPorTuCompra() {
                 <CheckCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="font-medium">Revisa tu Perfil</p>
-                  <p className="text-blue-100 text-sm">Puedes ver el estado de tu pedido en cualquier momento desde tu perfil</p>
+                  <p className="text-white/90 text-sm">Puedes ver el estado de tu pedido en cualquier momento desde tu perfil</p>
                 </div>
               </li>
             )}
@@ -278,13 +278,13 @@ export default function GraciasPorTuCompra() {
           {user ? (
             <Link
               href="/perfil?tab=orders"
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg"
+              className="flex-1 bg-[#78b7bf] hover:bg-[#6aa5ad] text-white font-semibold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg"
             >
               <User className="w-5 h-5" />
               Ver mis Pedidos
             </Link>
           ) : (
-            <div className="flex-1 bg-blue-50 border-2 border-blue-200 text-blue-800 font-medium py-4 px-6 rounded-xl text-center">
+            <div className="flex-1 bg-[#78b7bf]/10 border-2 border-[#78b7bf]/30 text-[#5c9ca4] font-medium py-4 px-6 rounded-xl text-center">
               <p className="text-sm mb-1">✉️ Revisa tu email</p>
               <p className="text-xs">Te enviamos toda la información de tu pedido</p>
             </div>
@@ -312,11 +312,11 @@ export default function GraciasPorTuCompra() {
           <h3 className="font-bold text-gray-900 mb-3">¿Necesitas Ayuda?</h3>
           <p className="text-gray-600 mb-4">Nuestro equipo está disponible para ayudarte</p>
           <div className="flex flex-wrap justify-center gap-4 text-sm">
-            <a href="mailto:soporte@petgourmet.mx" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium">
+            <a href="mailto:soporte@petgourmet.mx" className="flex items-center gap-2 text-[#78b7bf] hover:text-[#6aa5ad] font-medium">
               <Mail className="w-4 h-4" />
               soporte@petgourmet.mx
             </a>
-            <a href="tel:+525555555555" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium">
+            <a href="tel:+525555555555" className="flex items-center gap-2 text-[#78b7bf] hover:text-[#6aa5ad] font-medium">
               <Phone className="w-4 h-4" />
               (55) 5555-5555
             </a>
