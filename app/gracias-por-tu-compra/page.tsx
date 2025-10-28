@@ -100,7 +100,7 @@ export default function GraciasPorTuCompra() {
             Tu pedido ha sido confirmado y está siendo preparado con mucho cuidado
           </p>
 
-          {orderData && (
+          {orderDetails && (
             <div className="inline-block bg-[#78b7bf]/10 px-6 py-3 rounded-full border-2 border-[#78b7bf]/30">
               <p className="text-sm font-medium text-[#78b7bf]">Número de Pedido</p>
               <p className="text-2xl font-bold text-[#6aa5ad]">

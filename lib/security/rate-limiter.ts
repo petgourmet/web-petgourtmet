@@ -11,11 +11,19 @@ interface RateLimitEntry {
 const rateLimitStore = new Map<string, RateLimitEntry>()
 
 // Configuración del rate limiter
+const isDevelopment = process.env.NODE_ENV === 'development'
+
 const RATE_LIMIT_CONFIG = {
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutos por defecto
-  maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10'), // 10 requests por defecto
-  blockDurationMs: 30 * 60 * 1000, // 30 minutos de bloqueo
-  suspiciousThreshold: 5, // Umbral para marcar como sospechoso
+  windowMs: isDevelopment 
+    ? 60000 // 1 minuto en desarrollo
+    : parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutos en producción
+  maxRequests: isDevelopment
+    ? 100 // 100 requests en desarrollo
+    : parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10'), // 10 requests en producción
+  blockDurationMs: isDevelopment
+    ? 60000 // 1 minuto de bloqueo en desarrollo
+    : 30 * 60 * 1000, // 30 minutos de bloqueo en producción
+  suspiciousThreshold: isDevelopment ? 50 : 5, // Umbral para marcar como sospechoso
 }
 
 export interface RateLimitResult {
@@ -36,7 +44,8 @@ export function getClientIP(request: NextRequest): string {
   if (realIP) return realIP
   if (forwarded) return forwarded.split(',')[0].trim()
   
-  return request.ip || 'unknown'
+  // En desarrollo, usar una IP por defecto
+  return process.env.NODE_ENV === 'development' ? '127.0.0.1' : 'unknown'
 }
 
 export function checkRateLimit(clientIP: string, endpoint: string = 'default'): RateLimitResult {

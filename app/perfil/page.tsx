@@ -19,7 +19,9 @@ import {
   Edit3,
   Calendar,
   DollarSign,
-  Truck
+  Truck,
+  RefreshCw,
+  Clock
 } from "lucide-react"
 
 interface UserProfile {
@@ -53,6 +55,38 @@ interface Order {
   stripe_session_id?: string
   stripe_payment_intent?: string
   items?: OrderItem[]
+}
+
+interface Subscription {
+  id: string
+  user_id?: string
+  customer_email?: string
+  customer_name?: string
+  product_id?: number
+  product_name?: string
+  product_image?: string
+  subscription_type: string
+  status: string
+  base_price?: number
+  discounted_price?: number
+  discount_percentage?: number
+  transaction_amount?: number
+  size?: string
+  frequency?: number
+  frequency_type?: string
+  next_billing_date?: string
+  last_billing_date?: string
+  current_period_start?: string
+  current_period_end?: string
+  stripe_subscription_id?: string
+  stripe_customer_id?: string
+  stripe_price_id?: string
+  currency?: string
+  shipping_address?: any
+  cart_items?: any[]
+  metadata?: any
+  created_at: string
+  updated_at?: string
 }
 
 function formatCurrency(amount: number) {
@@ -176,10 +210,11 @@ function PerfilPageContent() {
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'profile' | 'orders'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions'>('profile')
 
   useEffect(() => {
     const verified = searchParams.get('verified')
@@ -204,7 +239,8 @@ function PerfilPageContent() {
     try {
       await Promise.all([
         fetchUserProfile(),
-        fetchOrders()
+        fetchOrders(),
+        fetchSubscriptions()
       ])
     } catch (error) {
       console.error('Error en initializeData:', error)
@@ -314,6 +350,23 @@ function PerfilPageContent() {
     } catch (error) {
       console.error('Error loading orders:', error)
       toast.error('No se pudieron cargar las compras')
+    }
+  }
+
+  const fetchSubscriptions = async () => {
+    if (!user) return
+    
+    try {
+      const response = await fetch('/api/user/subscriptions')
+      if (!response.ok) {
+        throw new Error('Error al cargar suscripciones')
+      }
+      
+      const data = await response.json()
+      setSubscriptions(data.subscriptions || [])
+    } catch (error) {
+      console.error('Error loading subscriptions:', error)
+      toast.error('No se pudieron cargar las suscripciones')
     }
   }
 
@@ -429,6 +482,14 @@ function PerfilPageContent() {
             >
               <Package className="h-4 w-4" />
               Mis Compras ({orders.length})
+            </Button>
+            <Button
+              variant={activeTab === 'subscriptions' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('subscriptions')}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Suscripciones ({subscriptions.length})
             </Button>
           </div>
         </div>
@@ -727,6 +788,207 @@ function PerfilPageContent() {
                             </div>
                           </div>
                         </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'subscriptions' && (
+          <div className="space-y-6">
+            {subscriptions.length === 0 ? (
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <RefreshCw className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    No tienes suscripciones activas
+                  </h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Suscríbete a productos para recibirlos periódicamente con descuentos especiales
+                  </p>
+                  <Button onClick={() => window.location.href = '/productos'} size="lg">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Ver Productos
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6">
+                {subscriptions.map((subscription) => {
+                  const cartItems = subscription.cart_items || []
+                  const nextBilling = subscription.next_billing_date 
+                    ? new Date(subscription.next_billing_date)
+                    : null
+                  
+                  return (
+                    <Card key={subscription.id} className="overflow-hidden hover:shadow-lg transition-all duration-200 border-l-4 border-l-orange-500">
+                      {/* Header de la suscripción */}
+                      <div className="bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 border-b">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <h3 className="font-bold text-xl text-gray-900">
+                                Suscripción #{String(subscription.id).slice(-8)}
+                              </h3>
+                              <Badge 
+                                variant={subscription.status === 'active' ? 'default' : 'secondary'}
+                                className={`${
+                                  subscription.status === 'active' ? 'bg-green-100 text-green-800' :
+                                  subscription.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {subscription.status === 'active' ? '✅ Activa' : 
+                                 subscription.status === 'paused' ? '⏸️ Pausada' : 
+                                 '❌ Cancelada'}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                Desde {formatDate(subscription.created_at)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <RefreshCw className="h-4 w-4" />
+                                {subscription.subscription_type === 'weekly' ? 'Semanal' :
+                                 subscription.subscription_type === 'biweekly' ? 'Quincenal' :
+                                 subscription.subscription_type === 'monthly' ? 'Mensual' :
+                                 subscription.subscription_type === 'quarterly' ? 'Trimestral' :
+                                 subscription.subscription_type === 'annual' ? 'Anual' : 
+                                 subscription.subscription_type}
+                              </span>
+                            </div>
+                            {nextBilling && subscription.status === 'active' && (
+                              <div className="flex items-center gap-1 text-sm text-orange-600 font-medium">
+                                <Clock className="h-4 w-4" />
+                                Próximo pago: {formatDate(nextBilling.toISOString())}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <p className="text-2xl font-bold text-orange-600">
+                              {formatCurrency(subscription.discounted_price || subscription.transaction_amount || 0)}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">por período</p>
+                            {subscription.discount_percentage && subscription.discount_percentage > 0 && (
+                              <p className="text-sm text-green-600 font-medium">
+                                {subscription.discount_percentage}% de descuento
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Información del Cliente */}
+                      <CardContent className="p-6 border-b">
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Información
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-700">Nombre:</span>
+                            <p className="text-gray-900">{subscription.customer_name || 'No especificado'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Email:</span>
+                            <p className="text-gray-900">{subscription.customer_email}</p>
+                          </div>
+                          {subscription.shipping_address && (
+                            <div className="md:col-span-2">
+                              <span className="font-medium text-gray-700 flex items-center gap-1">
+                                <Truck className="h-4 w-4" />
+                                Dirección de Envío:
+                              </span>
+                              <p className="text-gray-900">
+                                {typeof subscription.shipping_address === 'string' 
+                                  ? subscription.shipping_address 
+                                  : JSON.stringify(subscription.shipping_address)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+
+                      {/* Productos */}
+                      <CardContent className="p-6">
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          Productos
+                        </h4>
+                        {cartItems.length > 0 ? (
+                          <div className="space-y-3">
+                            {cartItems.map((item: any, index: number) => (
+                              <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                                <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                                  {item.image || item.product_image ? (
+                                    <Image 
+                                      src={item.image || item.product_image} 
+                                      alt={item.name || item.product_name || 'Producto'} 
+                                      fill 
+                                      className="object-cover" 
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-orange-100 to-amber-200 flex items-center justify-center">
+                                      <Package className="w-8 h-8 text-orange-600" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900">
+                                    {item.name || item.product_name || subscription.product_name || 'Producto'}
+                                  </p>
+                                  {item.size && (
+                                    <p className="text-sm text-gray-500">Tamaño: {item.size}</p>
+                                  )}
+                                  <p className="text-sm text-gray-600">
+                                    Cantidad: {item.quantity || 1}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-medium">{formatCurrency(item.price || 0)}</p>
+                                  <p className="text-sm text-gray-500">c/u</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : subscription.product_name ? (
+                          <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                            <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                              {subscription.product_image ? (
+                                <Image 
+                                  src={subscription.product_image} 
+                                  alt={subscription.product_name} 
+                                  fill 
+                                  className="object-cover" 
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-orange-100 to-amber-200 flex items-center justify-center">
+                                  <Package className="w-8 h-8 text-orange-600" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">
+                                {subscription.product_name}
+                              </p>
+                              {subscription.size && (
+                                <p className="text-sm text-gray-500">Tamaño: {subscription.size}</p>
+                              )}
+                            </div>
+                            <div className="text-right font-bold">
+                              {formatCurrency(subscription.discounted_price || subscription.transaction_amount || 0)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Package className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                            <p>No se encontró información del producto</p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   )

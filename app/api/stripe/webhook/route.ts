@@ -182,7 +182,97 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   } else if (session.mode === 'subscription') {
     // Suscripción - Crear/actualizar suscripción
     const subscriptionId = session.subscription as string
-    const subscriptionData = await stripe.subscriptions.retrieve(subscriptionId)
+    const subscriptionData = await stripe.subscriptions.retrieve(subscriptionId) as any
+
+    console.log('✅ Subscription data retrieved:', {
+      id: subscriptionData.id,
+      status: subscriptionData.status,
+      current_period_start: subscriptionData.current_period_start,
+      current_period_end: subscriptionData.current_period_end
+    })
+
+    // Si no hay current_period_start/end, usar valores por defecto
+    const now = Math.floor(Date.now() / 1000)
+    const currentPeriodStart = subscriptionData.current_period_start || now
+    const currentPeriodEnd = subscriptionData.current_period_end || (now + 30 * 24 * 60 * 60) // +30 días por defecto
+
+    // Obtener información del producto desde line items
+    const subscriptionLineItem = lineItems.data[0]
+    const product = subscriptionLineItem.price?.product as any
+    const productMetadata = product?.metadata || {}
+    const productId = productMetadata.product_id
+
+    // Calcular precio base y con descuento
+    const unitAmount = subscriptionLineItem.price?.unit_amount || 0
+    const priceInMXN = unitAmount / 100
+
+    // Obtener información adicional del producto desde la BD
+    let productFromDB = null
+    let basePrice = priceInMXN
+    let discountPercentage = 0
+    
+    if (productId) {
+      const { data: productData } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .eq('id', parseInt(productId))
+        .single()
+      
+      if (productData) {
+        productFromDB = productData
+        basePrice = productData.price
+        
+        // Calcular descuento según el tipo de suscripción
+        const subscriptionType = metadata.subscription_type || 'monthly'
+        switch (subscriptionType) {
+          case 'weekly':
+            discountPercentage = productData.weekly_discount || 0
+            break
+          case 'biweekly':
+            discountPercentage = productData.biweekly_discount || 0
+            break
+          case 'monthly':
+            discountPercentage = productData.monthly_discount || 0
+            break
+          case 'quarterly':
+            discountPercentage = productData.quarterly_discount || 0
+            break
+          case 'annual':
+            discountPercentage = productData.annual_discount || 0
+            break
+          default:
+            discountPercentage = productData.monthly_discount || 0
+        }
+      }
+    }
+
+    // Determinar frequency y frequency_type según subscription_type
+    const subscriptionType = metadata.subscription_type || 'monthly'
+    let frequency = 1
+    let frequencyType = 'months'
+    
+    switch (subscriptionType) {
+      case 'weekly':
+        frequency = 1
+        frequencyType = 'weeks'
+        break
+      case 'biweekly':
+        frequency = 2
+        frequencyType = 'weeks'
+        break
+      case 'monthly':
+        frequency = 1
+        frequencyType = 'months'
+        break
+      case 'quarterly':
+        frequency = 3
+        frequencyType = 'months'
+        break
+      case 'annual':
+        frequency = 12
+        frequencyType = 'months'
+        break
+    }
 
     const { data: subs, error } = await supabaseAdmin
       .from('unified_subscriptions')
@@ -190,17 +280,49 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         user_id: userId || null,
         customer_email: session.customer_email || session.customer_details?.email,
         customer_name: customerName,
-        subscription_type: metadata.subscription_type || 'monthly',
+        customer_phone: session.customer_details?.phone || null,
+        product_id: productId ? parseInt(productId) : null,
+        product_name: subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet',
+        product_image: product?.images?.[0] || productFromDB?.image || null,
+        subscription_type: subscriptionType,
         status: 'active',
-        current_period_start: new Date((subscriptionData as any).current_period_start * 1000).toISOString(),
-        current_period_end: new Date((subscriptionData as any).current_period_end * 1000).toISOString(),
+        base_price: basePrice,
+        discounted_price: priceInMXN,
+        discount_percentage: discountPercentage,
+        transaction_amount: priceInMXN,
+        size: productMetadata.size || null,
+        frequency: frequency,
+        frequency_type: frequencyType,
+        next_billing_date: new Date(currentPeriodEnd * 1000).toISOString(),
+        last_billing_date: new Date(currentPeriodStart * 1000).toISOString(),
+        current_period_start: new Date(currentPeriodStart * 1000).toISOString(),
+        current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
         stripe_subscription_id: subscriptionId,
         stripe_customer_id: session.customer as string,
         stripe_price_id: subscriptionData.items.data[0].price.id,
-        amount: (subscriptionData.items.data[0].price.unit_amount || 0) / 100,
-        currency: (subscriptionData as any).currency.toUpperCase(),
         shipping_address: shippingAddress,
+        customer_data: {
+          email: session.customer_email || session.customer_details?.email,
+          firstName: customerName?.split(' ')[0] || '',
+          lastName: customerName?.split(' ').slice(1).join(' ') || '',
+          phone: session.customer_details?.phone || null,
+          address: shippingAddress
+        },
+        cart_items: [{
+          product_id: productId ? parseInt(productId) : null,
+          product_name: subscriptionLineItem.description || productFromDB?.name,
+          name: subscriptionLineItem.description || productFromDB?.name,
+          image: product?.images?.[0] || productFromDB?.image,
+          price: priceInMXN,
+          quantity: subscriptionLineItem.quantity || 1,
+          size: productMetadata.size || null,
+          isSubscription: true,
+          subscriptionType: subscriptionType
+        }],
         metadata: metadata,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        processed_at: new Date().toISOString()
       })
       .select()
       .single()
@@ -210,7 +332,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       throw error
     }
 
-    console.log('Suscripción creada:', subs.id)
+    console.log('✅ Suscripción creada con todos los campos:', subs.id)
+    
+    // TODO: Enviar email de confirmación de suscripción
+    // Implementar sendSubscriptionWelcomeEmail en email-service.ts
   }
 }
 

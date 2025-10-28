@@ -28,6 +28,11 @@ const FORM_ROUTES = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
+  // En desarrollo, desactivar rate limiting
+  if (process.env.NODE_ENV === 'development') {
+    return NextResponse.next()
+  }
+  
   // Verificar si la ruta necesita protección
   const needsProtection = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
   

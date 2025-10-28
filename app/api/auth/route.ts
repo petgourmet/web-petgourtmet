@@ -9,6 +9,22 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Helper para obtener la IP del request
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  const realIp = request.headers.get('x-real-ip')
+  
+  if (forwarded) {
+    return forwarded.split(',')[0].trim()
+  }
+  
+  if (realIp) {
+    return realIp
+  }
+  
+  return 'unknown'
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -17,10 +33,14 @@ export async function POST(request: NextRequest) {
     // Verificar honeypot
     if (honeypot && honeypot.trim() !== '') {
       await logSecurityEvent({
-        type: 'honeypot_triggered',
-        ip: request.ip || 'unknown',
+        ip: getClientIp(request),
         userAgent: request.headers.get('user-agent') || 'unknown',
-        details: { email, action }
+        endpoint: '/api/auth',
+        action: 'honeypot_triggered',
+        severity: 'high',
+        details: { email, action },
+        blocked: true,
+        rateLimitExceeded: false
       })
       
       return NextResponse.json(
@@ -63,10 +83,14 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         await logSecurityEvent({
-          type: 'auth_failure',
-          ip: request.ip || 'unknown',
+          ip: getClientIp(request),
           userAgent: request.headers.get('user-agent') || 'unknown',
-          details: { email, action: 'register', error: error.message }
+          endpoint: '/api/auth',
+          action: 'auth_failure',
+          severity: 'medium',
+          details: { email, action: 'register', error: error.message },
+          blocked: false,
+          rateLimitExceeded: false
         })
         
         throw error
@@ -88,10 +112,14 @@ export async function POST(request: NextRequest) {
       }
 
       await logSecurityEvent({
-        type: 'auth_success',
-        ip: request.ip || 'unknown',
+        ip: getClientIp(request),
         userAgent: request.headers.get('user-agent') || 'unknown',
-        details: { email, action: 'register' }
+        endpoint: '/api/auth',
+        action: 'auth_success',
+        severity: 'low',
+        details: { email, action: 'register' },
+        blocked: false,
+        rateLimitExceeded: false
       })
 
       return NextResponse.json({
@@ -116,20 +144,28 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         await logSecurityEvent({
-          type: 'auth_failure',
-          ip: request.ip || 'unknown',
+          ip: getClientIp(request),
           userAgent: request.headers.get('user-agent') || 'unknown',
-          details: { email, action: 'login', error: error.message }
+          endpoint: '/api/auth',
+          action: 'auth_failure',
+          severity: 'medium',
+          details: { email, action: 'login', error: error.message },
+          blocked: false,
+          rateLimitExceeded: false
         })
         
         throw error
       }
 
       await logSecurityEvent({
-        type: 'auth_success',
-        ip: request.ip || 'unknown',
+        ip: getClientIp(request),
         userAgent: request.headers.get('user-agent') || 'unknown',
-        details: { email, action: 'login' }
+        endpoint: '/api/auth',
+        action: 'auth_success',
+        severity: 'low',
+        details: { email, action: 'login' },
+        blocked: false,
+        rateLimitExceeded: false
       })
 
       return NextResponse.json({

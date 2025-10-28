@@ -58,7 +58,16 @@ export async function POST(request: NextRequest) {
 
     // Crear URLs con el dominio correcto
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    const successUrl = body.successUrl || `${baseUrl}/gracias-por-tu-compra`
+    
+    // Detectar si hay suscripciones en el carrito
+    const hasSubscription = body.items.some(item => item.isSubscription)
+    
+    // Usar URL correcta según el tipo de compra
+    const successUrl = body.successUrl || (
+      hasSubscription 
+        ? `${baseUrl}/suscripcion/exito`
+        : `${baseUrl}/gracias-por-tu-compra`
+    )
     const cancelUrl = body.cancelUrl || `${baseUrl}/checkout`
 
     // Crear sesión de Checkout
