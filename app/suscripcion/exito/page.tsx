@@ -24,6 +24,7 @@ interface ActivatedSubscription {
   size?: string
   discount_percentage?: number
   original_price?: number
+  base_price?: number
 }
 
 function ExitoSuscripcionContent() {
@@ -248,25 +249,52 @@ function ExitoSuscripcionContent() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-5 h-5 text-[#7AB8BF]" />
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {formatPrice(subscription.discounted_price)}
-                          </p>
-                          {subscription.original_price && subscription.original_price > subscription.discounted_price && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-gray-500 line-through">
-                                {formatPrice(subscription.original_price)}
-                              </span>
-                              {subscription.discount_percentage && (
-                                <Badge variant="destructive" className="text-xs">
-                                  -{subscription.discount_percentage}%
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                          <p className="text-sm text-gray-600">
-                            {getFrequencyText(subscription.frequency, subscription.frequency_type)}
-                          </p>
+                        <div className="w-full">
+                          {(() => {
+                            const basePrice = subscription.original_price || subscription.base_price || 0
+                            const discountPercentage = subscription.discount_percentage || 0
+                            const discountAmount = basePrice * (discountPercentage / 100)
+                            const priceAfterDiscount = basePrice - discountAmount
+                            const shippingCost = basePrice >= 1000 ? 0 : 100
+                            const totalPerPeriod = priceAfterDiscount + shippingCost
+                            
+                            return (
+                              <>
+                                <p className="font-semibold text-gray-900 text-lg">
+                                  {formatPrice(totalPerPeriod)}
+                                </p>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  Cada {subscription.frequency} {subscription.frequency_type === 'weeks' ? 'semana(s)' : 'mes(es)'}
+                                </p>
+                                
+                                {/* Desglose de precio */}
+                                <div className="mt-3 pt-3 border-t border-gray-200 space-y-1 text-xs">
+                                  {basePrice > 0 && (
+                                    <>
+                                      <div className="flex justify-between text-gray-600">
+                                        <span>Precio base:</span>
+                                        <span>{formatPrice(basePrice)}</span>
+                                      </div>
+                                      {discountPercentage > 0 && (
+                                        <div className="flex justify-between text-green-600">
+                                          <span>Descuento ({discountPercentage}%):</span>
+                                          <span>-{formatPrice(discountAmount)}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between text-gray-600">
+                                        <span>Envío:</span>
+                                        <span>{shippingCost === 0 ? <span className="text-green-600">Gratis</span> : formatPrice(shippingCost)}</span>
+                                      </div>
+                                      <div className="flex justify-between font-semibold text-gray-900 pt-2 border-t border-gray-300">
+                                        <span>Total:</span>
+                                        <span className="text-[#7AB8BF]">{formatPrice(totalPerPeriod)}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </>
+                            )
+                          })()}
                         </div>
                       </div>
                       

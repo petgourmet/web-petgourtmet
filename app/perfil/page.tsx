@@ -1027,6 +1027,62 @@ function PerfilPageContent() {
                           </div>
                         )}
                       </CardContent>
+
+                      {/* Desglose de Precios */}
+                      <CardContent className="p-6 bg-gray-50">
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Desglose del Precio
+                        </h4>
+                        {(() => {
+                          const basePrice = subscription.base_price || 0
+                          const discountPercentage = subscription.discount_percentage || 0
+                          const discountAmount = basePrice * (discountPercentage / 100)
+                          const priceAfterDiscount = basePrice - discountAmount
+                          const shippingCost = basePrice >= 1000 ? 0 : 100
+                          const totalPerPeriod = priceAfterDiscount + shippingCost
+                          
+                          return (
+                            <div className="space-y-3">
+                              {basePrice > 0 && (
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Precio base:</span>
+                                  <span className="font-medium">{formatCurrency(basePrice)}</span>
+                                </div>
+                              )}
+                              {discountPercentage > 0 && (
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-green-600">Descuento ({discountPercentage}%):</span>
+                                  <span className="font-medium text-green-600">
+                                    -{formatCurrency(discountAmount)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600 flex items-center gap-1">
+                                  <Truck className="h-3 w-3" />
+                                  Envío:
+                                </span>
+                                <span className="font-medium">
+                                  {shippingCost === 0 ? (
+                                    <span className="text-green-600">Gratis</span>
+                                  ) : (
+                                    formatCurrency(shippingCost)
+                                  )}
+                                </span>
+                              </div>
+                              <div className="border-t pt-3">
+                                <div className="flex justify-between">
+                                  <span className="font-bold text-gray-900">Total por período:</span>
+                                  <span className="font-bold text-orange-600 text-lg">
+                                    {formatCurrency(totalPerPeriod)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </CardContent>
                     </Card>
                   )
                 })}

@@ -177,21 +177,29 @@ export async function createSubscriptionCheckoutSession(
 ): Promise<Stripe.Checkout.Session> {
   const { items, customer, shipping, successUrl, cancelUrl, metadata = {} } = params
 
-  // Solo debe haber un item para suscripciones
-  const subscriptionItem = items.find(item => item.isSubscription)
+  // Filtrar items de suscripción
+  const subscriptionItems = items.filter(item => item.isSubscription)
   
-  if (!subscriptionItem) {
-    throw new Error('No se encontró un item de suscripción')
+  if (subscriptionItems.length === 0) {
+    throw new Error('No se encontraron items de suscripción')
   }
 
-  if (items.length > 1) {
-    throw new Error('Las suscripciones deben procesarse individualmente')
+  // Nota: Stripe solo permite crear una suscripción a la vez en Checkout
+  // Si hay múltiples items, se procesará solo el primero
+  const subscriptionItem = subscriptionItems[0]
+  
+  if (subscriptionItems.length > 1) {
+    console.warn('⚠️ Múltiples suscripciones detectadas. Stripe Checkout solo permite una suscripción por sesión. Procesando solo la primera.')
   }
 
   // Obtener intervalo de facturación
   const { interval, interval_count } = getSubscriptionInterval(
     subscriptionItem.subscriptionType || 'monthly'
   )
+
+  // Calcular subtotal para determinar costo de envío
+  const subtotal = subscriptionItem.price * subscriptionItem.quantity
+  const shippingCost = subtotal >= 1000 ? 0 : 100
 
   // Crear o encontrar cliente en Stripe
   let stripeCustomerId: string
@@ -246,6 +254,25 @@ export async function createSubscriptionCheckoutSession(
       quantity: subscriptionItem.quantity,
     },
   ]
+
+  // Agregar envío como line item recurrente si no es gratis
+  if (shippingCost > 0) {
+    lineItems.push({
+      price_data: {
+        currency: stripeConfig.currency,
+        product_data: {
+          name: 'Envío',
+          description: 'Costo de envío a domicilio (recurrente)',
+        },
+        unit_amount: Math.round(shippingCost * 100),
+        recurring: {
+          interval,
+          interval_count,
+        },
+      },
+      quantity: 1,
+    })
+  }
 
   // Crear sesión de Checkout para suscripción
   const session = await stripe.checkout.sessions.create({

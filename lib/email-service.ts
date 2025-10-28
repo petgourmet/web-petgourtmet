@@ -872,8 +872,146 @@ function getOrderStatusTemplate(status: string, orderData: any) {
 }
 
 function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
+  const typeMessages = {
+    created: {
+      subject: '🎉 ¡Bienvenido a Pet Gourmet! Tu suscripción está activa',
+      title: '🎉 ¡Suscripción Activada!',
+      message: 'Gracias por suscribirte a Pet Gourmet. Tu suscripción ha sido activada exitosamente y recibirás tu primer envío pronto.',
+      color: '#10b981',
+      icon: '✅'
+    },
+    payment: {
+      subject: '💳 Pago de suscripción procesado - Pet Gourmet',
+      title: '💳 Pago Procesado',
+      message: 'Tu pago de suscripción ha sido procesado exitosamente. Tu próximo envío está en camino.',
+      color: '#3b82f6',
+      icon: '💳'
+    },
+    cancelled: {
+      subject: '❌ Suscripción cancelada - Pet Gourmet',
+      title: '❌ Suscripción Cancelada',
+      message: 'Tu suscripción ha sido cancelada. Esperamos verte de nuevo pronto.',
+      color: '#ef4444',
+      icon: '❌'
+    }
+  };
+
+  const typeInfo = typeMessages[type as keyof typeof typeMessages] || typeMessages.created;
+  
+  // Formatear tipo de suscripción
+  const frequencyText = {
+    weekly: 'Semanal',
+    biweekly: 'Quincenal',
+    monthly: 'Mensual',
+    quarterly: 'Trimestral',
+    annual: 'Anual'
+  }[data.subscription_type] || data.subscription_type;
+
   return {
-    subject: `Suscripción ${type}`,
-    html: `<h1>Suscripción ${type}</h1><p>Hola ${data.user_name}, tu suscripción ${data.subscription_type} ha sido ${type}.</p>`
+    subject: typeInfo.subject,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${typeInfo.title}</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">
+                🐾 Pet Gourmet
+              </h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 30px 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="background-color: ${typeInfo.color}; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;">
+                  ${typeInfo.title}
+                </div>
+              </div>
+              
+              <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
+                Hola <strong>${data.user_name}</strong>,
+              </p>
+              
+              <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
+                ${typeInfo.message}
+              </p>
+              
+              <!-- Detalles de la suscripción -->
+              <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #374151; text-align: center;">📦 Detalles de tu Suscripción</h3>
+                
+                <div style="margin: 15px 0; padding: 15px; background-color: white; border-radius: 8px;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Tipo de suscripción:</td>
+                      <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151;">Suscripción ${frequencyText}</td>
+                    </tr>
+                    ${data.plan_description ? `
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Plan:</td>
+                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.plan_description}</td>
+                      </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Monto por período:</td>
+                      <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;">$${data.amount.toFixed(2)} MXN</td>
+                    </tr>
+                    ${data.next_payment_date ? `
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Próximo cobro:</td>
+                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${data.next_payment_date}</td>
+                      </tr>
+                    ` : ''}
+                  </table>
+                </div>
+              </div>
+              
+              <!-- Beneficios -->
+              ${type === 'created' ? `
+                <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #065f46; text-align: center;">🎁 Beneficios de tu Suscripción</h3>
+                  <ul style="list-style: none; padding: 0; margin: 0;">
+                    <li style="padding: 8px 0; color: #047857;">✓ Nutrición premium para tu mascota</li>
+                    <li style="padding: 8px 0; color: #047857;">✓ Entrega automática cada período</li>
+                    <li style="padding: 8px 0; color: #047857;">✓ Descuentos exclusivos de suscriptor</li>
+                    <li style="padding: 8px 0; color: #047857;">✓ Soporte prioritario</li>
+                    <li style="padding: 8px 0; color: #047857;">✓ Cancela o pausa cuando quieras</li>
+                  </ul>
+                </div>
+              ` : ''}
+              
+              <!-- Acciones -->
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/perfil" 
+                   style="background-color: #7AB8BF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                  Ver Mi Suscripción
+                </a>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="color: #6b7280; font-size: 14px; margin-bottom: 10px;">¿Tienes alguna pregunta? Contáctanos:</p>
+                <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📧 soporte@petgourmet.mx</p>
+                <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📱 WhatsApp: +52 123 456 7890</p>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                © 2025 Pet Gourmet. Todos los derechos reservados.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
+                Este correo fue enviado a ${data.user_email}
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
   };
 }

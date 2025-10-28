@@ -181,6 +181,18 @@ export function CheckoutModal() {
       return
     }
 
+    // Verificar si hay múltiples suscripciones
+    const subscriptionItems = cart.filter(item => item.isSubscription)
+    if (subscriptionItems.length > 1) {
+      setError("Solo puedes comprar una suscripción a la vez. Por favor, elimina las suscripciones adicionales del carrito.")
+      toast({
+        title: "Múltiples suscripciones detectadas",
+        description: "Stripe solo permite procesar una suscripción por compra. Por favor, compra las suscripciones por separado.",
+        variant: "destructive"
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {

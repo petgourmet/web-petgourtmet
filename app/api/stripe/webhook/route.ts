@@ -196,9 +196,44 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       billing_cycle_anchor: subscriptionData.billing_cycle_anchor
     })
 
-    // Obtener timestamps de período actual
-    const currentPeriodStart = subscriptionData.current_period_start || subscriptionData.billing_cycle_anchor || Math.floor(Date.now() / 1000)
-    const currentPeriodEnd = subscriptionData.current_period_end || subscriptionData.current_period_start + (30 * 24 * 60 * 60) // +30 días por defecto
+    // Obtener timestamps de período actual (con múltiples fallbacks)
+    let currentPeriodStart = subscriptionData.current_period_start || subscriptionData.billing_cycle_anchor
+    let currentPeriodEnd = subscriptionData.current_period_end
+    
+    // Si no hay current_period_end, calcularlo basado en el tipo de suscripción
+    if (!currentPeriodStart || !currentPeriodEnd) {
+      const now = Math.floor(Date.now() / 1000)
+      currentPeriodStart = currentPeriodStart || now
+      
+      // Calcular período basado en el tipo de suscripción
+      const subscriptionType = metadata.subscription_type || 'monthly'
+      let daysToAdd = 30 // Por defecto mensual
+      
+      switch (subscriptionType) {
+        case 'weekly':
+          daysToAdd = 7
+          break
+        case 'biweekly':
+          daysToAdd = 14
+          break
+        case 'monthly':
+          daysToAdd = 30
+          break
+        case 'quarterly':
+          daysToAdd = 90
+          break
+        case 'annual':
+          daysToAdd = 365
+          break
+      }
+      
+      currentPeriodEnd = currentPeriodEnd || (currentPeriodStart + (daysToAdd * 24 * 60 * 60))
+    }
+    
+    console.log('📅 Calculated periods:', {
+      start: new Date(currentPeriodStart * 1000).toISOString(),
+      end: new Date(currentPeriodEnd * 1000).toISOString()
+    })
 
     // Obtener información del producto desde line items
     const subscriptionLineItem = lineItems.data[0]
@@ -206,7 +241,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     const productMetadata = product?.metadata || {}
     const productId = productMetadata.product_id
 
-    // Calcular precio base y con descuento
+    // Calcular precio TOTAL de la suscripción (incluye todos los line items: producto + envío)
+    const totalAmount = lineItems.data.reduce((sum, item) => {
+      return sum + ((item.price?.unit_amount || 0) / 100) * (item.quantity || 1)
+    }, 0)
+
+    // Precio base del producto (sin envío)
     const unitAmount = subscriptionLineItem.price?.unit_amount || 0
     const priceInMXN = unitAmount / 100
 
@@ -293,7 +333,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         base_price: basePrice,
         discounted_price: priceInMXN,
         discount_percentage: discountPercentage,
-        transaction_amount: priceInMXN,
+        transaction_amount: totalAmount, // Total incluyendo producto + envío
         size: productMetadata.size || null,
         frequency: frequency,
         frequency_type: frequencyType,
@@ -338,8 +378,30 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
     console.log('✅ Suscripción creada con todos los campos:', subs.id)
     
-    // TODO: Enviar email de confirmación de suscripción
-    // Implementar sendSubscriptionWelcomeEmail en email-service.ts
+    // Enviar email de confirmación de suscripción
+    try {
+      const { sendSubscriptionEmail } = await import('@/lib/email-service')
+      
+      const subscriptionEmailData = {
+        user_email: session.customer_email || session.customer_details?.email || '',
+        user_name: customerName,
+        subscription_type: subscriptionType,
+        amount: totalAmount,
+        next_payment_date: new Date(currentPeriodEnd * 1000).toLocaleDateString('es-MX', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        plan_description: `${subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet'} - Cada ${frequency} ${frequencyType === 'weeks' ? 'semana(s)' : 'mes(es)'}`,
+        external_reference: subscriptionId
+      }
+
+      await sendSubscriptionEmail('created', subscriptionEmailData)
+      console.log('✅ Email de confirmación de suscripción enviado a:', subscriptionEmailData.user_email)
+    } catch (emailError) {
+      console.error('❌ Error enviando email de confirmación de suscripción:', emailError)
+      // No lanzar error, solo registrar
+    }
   }
 }
 
