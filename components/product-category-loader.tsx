@@ -214,14 +214,24 @@ export function ProductCategoryLoader({
 
         // Ejecutar la consulta de productos
         let productsQuery = supabase.from("products").select(`
-          *,
+          id,
+          name,
+          slug,
+          description,
+          price,
+          image,
+          stock,
+          created_at,
+          category_id,
+          rating,
           categories(name),
           subscription_available,
           subscription_types,
           biweekly_discount,
           monthly_discount,
           quarterly_discount,
-          annual_discount
+          annual_discount,
+          weekly_discount
         `)
 
         // Si tenemos un ID de categoría, filtrar por él
@@ -239,14 +249,17 @@ export function ProductCategoryLoader({
         const { data: productsData, error: productsError } = await productsPromise
 
         if (productsError) {
+          console.error('❌ Error cargando productos:', productsError)
           // Intentar usar productos de fallback si están disponibles
           const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
           setProducts(fallbackProducts.length > 0 ? fallbackProducts : [])
+          setFilteredProducts(fallbackProducts.length > 0 ? fallbackProducts : [])
           setLoading(false)
           return
         }
 
         if (!productsData || productsData.length === 0) {
+          console.log('ℹ️ No se encontraron productos')
           // Intentar usar productos de fallback si están disponibles
           const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
           setProducts(fallbackProducts)
@@ -255,30 +268,10 @@ export function ProductCategoryLoader({
           return
         }
 
-        // ✅ OPTIMIZACIÓN: Una sola consulta JOIN en lugar de N+1 queries
-        const productIds = productsData.map(p => p.id)
-        
-        // Obtener todas las características de una vez
-        const { data: allFeatures } = await supabase
-          .from("product_features")
-          .select("product_id, name, color")
-          .in("product_id", productIds)
-        
-        // Obtener todas las imágenes de una vez
-        const { data: allImages } = await supabase
-          .from("product_images")
-          .select("product_id, url, alt, display_order")
-          .in("product_id", productIds)
-          .order("display_order", { ascending: true })
-        
-        // Obtener todos los tamaños de una vez
-        const { data: allSizes } = await supabase
-          .from("product_sizes")
-          .select("product_id, weight, price")
-          .in("product_id", productIds)
+        console.log('📦 Productos cargados desde DB:', productsData.length)
 
-        // Procesar productos con datos ya cargados
-        const processedProducts = productsData.map((product) => {
+        // Procesar productos - sin consultas adicionales
+        const processedProducts = (productsData as any[]).map((product: any) => {
           // Obtener la categoría del producto
           const categoryName = product.categories?.name || categoryInfo.displayName
 
@@ -292,28 +285,14 @@ export function ProductCategoryLoader({
             }
           }
 
-          // Filtrar características para este producto
-          const features = allFeatures?.filter(f => f.product_id === product.id) || []
-
           // ✅ OPTIMIZACIÓN: Usar función optimizada para URLs de imágenes
           const imageUrl = getOptimizedImageUrl(product.image, 400, 85)
 
-          // Filtrar imágenes para este producto
-          const gallery = allImages?.filter(img => img.product_id === product.id)
-            .map(img => ({
-              src: img.url,
-              alt: img.alt || `Imagen del producto ${product.name}`
-            })) || []
-
-          // Filtrar tamaños para este producto
-          let sizes = allSizes?.filter(size => size.product_id === product.id) || []
-          if (sizes.length === 0) {
-            // Tamaños predeterminados si no hay datos
-            sizes = [
-              { weight: "200g", price: product.price },
-              { weight: "500g", price: product.price * 2.2 },
-            ]
-          }
+          // Tamaños predeterminados
+          const sizes = [
+            { weight: "200g", price: product.price },
+            { weight: "500g", price: product.price * 2.2 },
+          ]
 
           // Determinar el color de spotlight según la categoría
           let spotlightColor = "rgba(249, 215, 232, 0.08)"
@@ -331,14 +310,14 @@ export function ProductCategoryLoader({
             ...product,
             image: imageUrl,
             category: categoryName,
-            features,
+            features: [], // Sin features para mejorar rendimiento
             rating: product.rating || 4.5,
-            reviews: product.reviews || Math.floor(Math.random() * 100) + 50,
+            reviews: 0, // Sin reviews para mejorar rendimiento
             sizes,
-            gallery,
+            gallery: [], // Sin gallery para mejorar rendimiento
             spotlightColor,
             subscription_types: parsedSubscriptionTypes,
-          }
+          } as Product
         })
 
         console.log('✅ Productos procesados exitosamente:', processedProducts.length)
