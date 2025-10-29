@@ -252,7 +252,10 @@ function PerfilPageContent() {
 
   useEffect(() => {
     // Si auth está cargando, esperar
-    if (loading) return
+    if (loading) {
+      setIsLoading(true)
+      return
+    }
     
     // Si no hay usuario, terminar loading
     if (!user) {

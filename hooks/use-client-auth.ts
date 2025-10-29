@@ -96,22 +96,28 @@ export function useClientAuth() {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         
-        if (!isMounted) return
-        
-        if (error || !session?.user) {
-          setUser(null)
-          setUserRole(null)
+        if (!isMounted) {
           setLoading(false)
           return
         }
         
-        setUser(session.user)
+        if (error || !session?.user) {
+          if (isMounted) {
+            setUser(null)
+            setUserRole(null)
+            setLoading(false)
+          }
+          return
+        }
         
-        // Guardar sesión en caché
-        enhancedCacheService.setUserSession(session.user.id, session)
+        if (isMounted) {
+          setUser(session.user)
+          enhancedCacheService.setUserSession(session.user.id, session)
+        }
         
         // Obtener rol del usuario
         const role = await getUserRole(session.user.id)
+        
         if (isMounted) {
           setUserRole(role)
           setLoading(false)
@@ -121,10 +127,6 @@ export function useClientAuth() {
         if (isMounted) {
           setUser(null)
           setUserRole(null)
-          setLoading(false)
-        }
-      } finally {
-        if (isMounted) {
           setLoading(false)
         }
       }
