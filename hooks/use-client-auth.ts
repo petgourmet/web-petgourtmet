@@ -24,23 +24,39 @@ export function useClientAuth() {
     const getUserRole = async (userId: string): Promise<string> => {
       console.log('🔵 [getUserRole] Obteniendo rol para:', userId)
       try {
-        // Consulta directa sin caché
-        const { data: profile, error } = await supabase
+        // Crear un timeout de 5 segundos
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout obteniendo rol')), 5000)
+        })
+        
+        // Consulta directa sin caché con timeout
+        const queryPromise = supabase
           .from('profiles')
           .select('role')
           .eq('id', userId)
           .single()
+        
+        const { data: profile, error } = await Promise.race([
+          queryPromise,
+          timeoutPromise
+        ]) as any
           
-        if (error || !profile) {
-          console.log('⚠️ [getUserRole] Error o sin perfil, usando rol por defecto')
+        if (error) {
+          console.log('⚠️ [getUserRole] Error:', error.message)
+          return 'user'
+        }
+        
+        if (!profile) {
+          console.log('⚠️ [getUserRole] Sin perfil, usando rol por defecto')
           return 'user'
         }
         
         const role = (profile as any).role || 'user'
         console.log('✅ [getUserRole] Rol obtenido:', role)
         return role
-      } catch (error) {
-        console.error('❌ [getUserRole] Error:', error)
+      } catch (error: any) {
+        console.error('❌ [getUserRole] Error:', error.message)
+        // Si hay timeout o cualquier error, retornar 'user' por defecto
         return 'user'
       }
     }
@@ -55,13 +71,22 @@ export function useClientAuth() {
         console.log('✅ [handleAuthChange] Usuario detectado:', session.user.email)
         setUser(session.user)
         
-        // Cargar el rol
-        const role = await getUserRole(session.user.id)
-        if (isMounted) {
-          setUserRole(role)
-          setLoading(false) // SIEMPRE terminar la carga después de obtener el rol
-          console.log('✅ [handleAuthChange] Loading establecido a FALSE')
-        }
+        // Cargar el rol en segundo plano, no bloquear
+        getUserRole(session.user.id).then(role => {
+          if (isMounted) {
+            console.log('✅ [handleAuthChange] Rol establecido:', role)
+            setUserRole(role)
+          }
+        }).catch(err => {
+          console.error('❌ [handleAuthChange] Error obteniendo rol:', err)
+          if (isMounted) {
+            setUserRole('user') // Rol por defecto si falla
+          }
+        })
+        
+        // TERMINAR CARGA INMEDIATAMENTE, no esperar el rol
+        setLoading(false)
+        console.log('✅ [handleAuthChange] Loading establecido a FALSE')
       } else if (event === 'SIGNED_OUT') {
         console.log('🔴 [handleAuthChange] Usuario cerró sesión')
         setUser(null)
@@ -98,11 +123,21 @@ export function useClientAuth() {
           setUser(session.user)
         }
         
-        // Obtener rol del usuario
-        const role = await getUserRole(session.user.id)
+        // Cargar rol en segundo plano, no bloquear
+        getUserRole(session.user.id).then(role => {
+          if (isMounted) {
+            console.log('✅ [loadInitialSession] Rol establecido:', role)
+            setUserRole(role)
+          }
+        }).catch(err => {
+          console.error('❌ [loadInitialSession] Error obteniendo rol:', err)
+          if (isMounted) {
+            setUserRole('user') // Rol por defecto
+          }
+        })
         
+        // TERMINAR CARGA INMEDIATAMENTE
         if (isMounted) {
-          setUserRole(role)
           setLoading(false)
           console.log('✅ [loadInitialSession] Todo listo, loading = FALSE')
         }
