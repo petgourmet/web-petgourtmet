@@ -139,13 +139,18 @@ export function ProductCategoryLoader({
 
   // Cargar productos por categoría
   useEffect(() => {
+    let isMounted = true
+    
     async function loadProductsByCategory() {
+      if (!isMounted) return
       setLoading(true)
+      
       try {
         // Intentar caché primero
         const cachedProducts = enhancedCacheService.getProducts(categorySlug)
         
         if (cachedProducts && Array.isArray(cachedProducts) && cachedProducts.length > 0) {
+          if (!isMounted) return
           setProducts(cachedProducts)
           setFilteredProducts(cachedProducts)
           setLoading(false)
@@ -175,6 +180,8 @@ export function ProductCategoryLoader({
 
         const { data: productsData, error: productsError } = await productsQuery
 
+        if (!isMounted) return
+        
         if (productsError || !productsData || productsData.length === 0) {
           setProducts([])
           setFilteredProducts([])
@@ -221,6 +228,8 @@ export function ProductCategoryLoader({
           } as Product
         })
 
+        if (!isMounted) return
+        
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
         
@@ -233,14 +242,23 @@ export function ProductCategoryLoader({
         
       } catch (error) {
         console.error('Error cargando productos:', error)
-        setProducts([])
-        setFilteredProducts([])
+        if (isMounted) {
+          setProducts([])
+          setFilteredProducts([])
+          setLoading(false)
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadProductsByCategory()
+    
+    return () => {
+      isMounted = false
+    }
   }, [categorySlug])
 
   const router = useRouter()

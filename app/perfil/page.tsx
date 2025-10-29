@@ -251,21 +251,18 @@ function PerfilPageContent() {
   }, [searchParams])
 
   useEffect(() => {
-    if (!loading && user) {
-      initializeData()
-    } else if (!loading && !user) {
+    // Si auth está cargando, esperar
+    if (loading) return
+    
+    // Si no hay usuario, terminar loading
+    if (!user) {
       setIsLoading(false)
+      return
     }
     
-    // Timeout de seguridad: si después de 5 segundos sigue loading, forzar a false
-    const timeout = setTimeout(() => {
-      if (loading) {
-        setIsLoading(false)
-      }
-    }, 5000)
-    
-    return () => clearTimeout(timeout)
-  }, [user?.id, loading])
+    // Si hay usuario, cargar datos
+    initializeData()
+  }, [user, loading])
 
   const initializeData = async () => {
     setIsLoading(true)

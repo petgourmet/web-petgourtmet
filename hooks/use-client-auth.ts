@@ -123,6 +123,10 @@ export function useClientAuth() {
           setUserRole(null)
           setLoading(false)
         }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
     
