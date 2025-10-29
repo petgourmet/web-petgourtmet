@@ -21,7 +21,6 @@ type ProductDetailModalProps = {
 }
 
 export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: ProductDetailModalProps) {
-  const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null)
   const [quantity, setQuantity] = useState(1)
   const [purchaseType, setPurchaseType] = useState<'single' | 'subscription'>('single')
   const [selectedSubscriptionType, setSelectedSubscriptionType] = useState<SubscriptionType | null>(null)
@@ -36,7 +35,6 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   // Reiniciar estados cuando cambie el producto
   useEffect(() => {
     if (product) {
-      setSelectedSize(product.sizes ? product.sizes[0] : null)
       setQuantity(1)
       setPurchaseType('single')
       setSelectedSubscriptionType(null)
@@ -77,7 +75,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
 
   // Calcular precio con descuento
   const calculatePrice = () => {
-    const basePrice = selectedSize ? selectedSize.price : product.price || 0
+    const basePrice = product.price || 0
     if (purchaseType === 'subscription' && selectedSubscriptionType) {
       const discount = getSubscriptionDiscount(selectedSubscriptionType)
       return basePrice * (1 - discount / 100)
@@ -90,7 +88,6 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   const handleAddToCart = () => {
     if (!product) return
 
-    const sizeWeight = selectedSize ? selectedSize.weight : "Único"
     // Usar calculatePrice() que ya aplica el descuento correctamente
     const finalPrice = calculatePrice()
 
@@ -99,7 +96,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
       name: product.name,
       price: finalPrice,
       image: product.image,
-      size: sizeWeight,
+      size: "Único",
       quantity,
       isSubscription: purchaseType === 'subscription',
       subscriptionType: selectedSubscriptionType || undefined,
@@ -202,33 +199,6 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                 </div>
               )}
             </div>
-
-            {/* Selección de tamaño */}
-            {product.sizes && product.sizes.length > 0 && (
-              <div>
-                <h3 className="font-bold mb-3 text-lg">Tamaño</h3>
-                <div className="flex flex-wrap gap-3">
-                  {product.sizes.map((size, idx) => (
-                    <Button
-                      key={size.id || idx} // Usar size.id como key si está disponible, sino idx
-                      variant={
-                        (selectedSize && size.id && selectedSize.id === size.id) || selectedSize === size
-                          ? "default"
-                          : "outline"
-                      } // Comparar por id si es posible, sino por referencia de objeto
-                      className={`rounded-full px-6 py-3 ${
-                        (selectedSize && size.id && selectedSize.id === size.id) || selectedSize === size
-                          ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                          : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                      }`}
-                      onClick={() => setSelectedSize(size)}
-                    >
-                      {size.weight} - ${size.price.toFixed(2)} MXN
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Tipo de compra */}
             <div>
@@ -333,7 +303,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                   <p className="text-sm text-gray-600 dark:text-gray-400">Precio total:</p>
                   {purchaseType === 'subscription' && selectedSubscriptionType && (
                     <p className="text-sm text-gray-500 line-through">
-                      ${((selectedSize ? selectedSize.price : product.price || 0) * quantity).toFixed(2)} MXN
+                      ${((product.price || 0) * quantity).toFixed(2)} MXN
                     </p>
                   )}
                   <p className="text-lg font-bold text-[#7BBDC5]">
