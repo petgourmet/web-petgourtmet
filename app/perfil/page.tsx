@@ -256,6 +256,15 @@ function PerfilPageContent() {
     } else if (!loading && !user) {
       setIsLoading(false)
     }
+    
+    // Timeout de seguridad: si después de 5 segundos sigue loading, forzar a false
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setIsLoading(false)
+      }
+    }, 5000)
+    
+    return () => clearTimeout(timeout)
   }, [user?.id, loading])
 
   const initializeData = async () => {

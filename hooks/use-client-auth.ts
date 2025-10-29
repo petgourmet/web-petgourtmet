@@ -98,36 +98,29 @@ export function useClientAuth() {
         
         if (!isMounted) return
         
-        if (error) {
+        if (error || !session?.user) {
           setUser(null)
           setUserRole(null)
           setLoading(false)
           return
         }
         
-        if (session?.user) {
-          setUser(session.user)
-          
-          // Guardar sesión en caché
-          enhancedCacheService.setUserSession(session.user.id, session)
-          
-          // Obtener rol del usuario
-          const role = await getUserRole(session.user.id)
-          if (isMounted) {
-            setUserRole(role)
-          }
-        } else {
-          setUser(null)
-          setUserRole(null)
+        setUser(session.user)
+        
+        // Guardar sesión en caché
+        enhancedCacheService.setUserSession(session.user.id, session)
+        
+        // Obtener rol del usuario
+        const role = await getUserRole(session.user.id)
+        if (isMounted) {
+          setUserRole(role)
+          setLoading(false)
         }
       } catch (error) {
-        console.error('❌ Error in loadInitialSession:', error)
+        console.error('Error cargando sesión:', error)
         if (isMounted) {
           setUser(null)
           setUserRole(null)
-        }
-      } finally {
-        if (isMounted) {
           setLoading(false)
         }
       }
