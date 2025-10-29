@@ -38,10 +38,11 @@ export default function PremiarPage() {
       {/* Banner de categoría a ancho completo */}
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
-          src="https://trae-api-us.mchost.guru/api/ide/v1/text_to_image?prompt=delicious%20dog%20treats%20rewards%20snacks%20happy%20pet%20training%20orange%20background%20professional%20pet%20food&image_size=landscape_16_9"
+          src="/happy-dog-treat.png"
           alt="Productos para premiar"
           fill
           className="object-cover saturate-90 brightness-60"
+          priority
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/60 flex flex-col justify-center items-center text-center">
           <div className="w-full px-4 md:px-8 lg:px-16 flex-1 flex flex-col justify-center">
