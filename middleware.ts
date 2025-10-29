@@ -4,26 +4,21 @@ import { createServerClient } from '@supabase/ssr'
 import { checkRateLimit, getClientIP } from '@/lib/security/rate-limiter'
 import { logSecurityEvent } from '@/lib/security/security-logger'
 
-// Rutas que requieren protección anti-spam
+// Rutas que requieren protección anti-spam (sin incluir /api/auth)
 const PROTECTED_ROUTES = [
   '/api/contact',
   '/api/newsletter',
-  '/api/auth',
   '/api/checkout',
   '/api/subscription',
   '/api/admin',
   '/contacto',
-  '/auth',
   '/checkout'
 ]
 
-// Rutas de formularios que necesitan rate limiting más estricto
+// Rutas de formularios que necesitan rate limiting más estricto (sin auth)
 const FORM_ROUTES = [
   '/api/contact',
-  '/api/newsletter',
-  '/api/auth/register',
-  '/api/auth/login',
-  '/api/auth/reset-password'
+  '/api/newsletter'
 ]
 
 export async function middleware(request: NextRequest) {
