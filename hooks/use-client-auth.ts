@@ -15,11 +15,14 @@ export function useClientAuth() {
     let isMounted = true
     let authSubscription: any = null
     
+    console.log('🔵 [useClientAuth] Iniciando hook...')
+    
     // Crear instancia fresca del cliente de Supabase
     const supabase = createClient()
 
     // Función simple para obtener el rol - SIN CACHÉ
     const getUserRole = async (userId: string): Promise<string> => {
+      console.log('🔵 [getUserRole] Obteniendo rol para:', userId)
       try {
         // Consulta directa sin caché
         const { data: profile, error } = await supabase
@@ -29,21 +32,27 @@ export function useClientAuth() {
           .single()
           
         if (error || !profile) {
+          console.log('⚠️ [getUserRole] Error o sin perfil, usando rol por defecto')
           return 'user'
         }
         
-        return (profile as any).role || 'user'
+        const role = (profile as any).role || 'user'
+        console.log('✅ [getUserRole] Rol obtenido:', role)
+        return role
       } catch (error) {
+        console.error('❌ [getUserRole] Error:', error)
         return 'user'
       }
     }
     
     // Función para manejar cambios de autenticación
     const handleAuthChange = async (event: string, session: any) => {
+      console.log('🔵 [handleAuthChange] Evento:', event, 'Session:', !!session)
       if (!isMounted) return
       
       // Manejar cualquier evento con sesión válida
       if (session?.user) {
+        console.log('✅ [handleAuthChange] Usuario detectado:', session.user.email)
         setUser(session.user)
         
         // Cargar el rol
@@ -51,8 +60,10 @@ export function useClientAuth() {
         if (isMounted) {
           setUserRole(role)
           setLoading(false) // SIEMPRE terminar la carga después de obtener el rol
+          console.log('✅ [handleAuthChange] Loading establecido a FALSE')
         }
       } else if (event === 'SIGNED_OUT') {
+        console.log('🔴 [handleAuthChange] Usuario cerró sesión')
         setUser(null)
         setUserRole(null)
         setLoading(false)
@@ -60,15 +71,20 @@ export function useClientAuth() {
     }
     
     const loadInitialSession = async () => {
+      console.log('🔵 [loadInitialSession] Cargando sesión inicial...')
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         
+        console.log('🔵 [loadInitialSession] Session obtenida:', !!session, 'Error:', !!error)
+        
         if (!isMounted) {
+          console.log('⚠️ [loadInitialSession] Componente desmontado, abortando')
           setLoading(false)
           return
         }
         
         if (error || !session?.user) {
+          console.log('⚠️ [loadInitialSession] Sin sesión o error, estableciendo loading a false')
           if (isMounted) {
             setUser(null)
             setUserRole(null)
@@ -77,6 +93,7 @@ export function useClientAuth() {
           return
         }
         
+        console.log('✅ [loadInitialSession] Usuario encontrado:', session.user.email)
         if (isMounted) {
           setUser(session.user)
         }
@@ -87,9 +104,10 @@ export function useClientAuth() {
         if (isMounted) {
           setUserRole(role)
           setLoading(false)
+          console.log('✅ [loadInitialSession] Todo listo, loading = FALSE')
         }
       } catch (error) {
-        console.error('Error cargando sesión:', error)
+        console.error('❌ [loadInitialSession] Error:', error)
         if (isMounted) {
           setUser(null)
           setUserRole(null)

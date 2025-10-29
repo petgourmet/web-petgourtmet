@@ -250,20 +250,43 @@ function PerfilPageContent() {
   }, [searchParams])
 
   useEffect(() => {
-    // Si auth está cargando, esperar
-    if (loading) {
+    let isMounted = true
+    
+    const loadData = async () => {
+      // Si auth está cargando, esperar
+      if (loading) {
+        setIsLoading(true)
+        return
+      }
+      
+      // Si no hay usuario, terminar loading
+      if (!user) {
+        setIsLoading(false)
+        return
+      }
+      
+      // Si hay usuario, cargar datos
       setIsLoading(true)
-      return
+      try {
+        await Promise.all([
+          fetchUserProfile(),
+          fetchOrders(),
+          fetchSubscriptions()
+        ])
+      } catch (error) {
+        console.error('Error cargando datos:', error)
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
     }
     
-    // Si no hay usuario, terminar loading
-    if (!user) {
-      setIsLoading(false)
-      return
-    }
+    loadData()
     
-    // Si hay usuario, cargar datos
-    initializeData()
+    return () => {
+      isMounted = false
+    }
   }, [user, loading])
 
   const initializeData = async () => {
