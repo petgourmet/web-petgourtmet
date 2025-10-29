@@ -11,7 +11,9 @@ import { useClientAuth } from "@/hooks/use-client-auth"
 export function CartModal() {
   const { cart, removeFromCart, updateCartItemQuantity, calculateCartTotal, setShowCart, setShowCheckout } = useCart()
   const router = useRouter()
-  const { user } = useClientAuth()
+  const { user, loading } = useClientAuth()
+
+  console.log('🛒 CartModal - User:', user?.email, 'Loading:', loading)
 
   const hasSubscriptions = cart.some((item) => item.isSubscription)
 

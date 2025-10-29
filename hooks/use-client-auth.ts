@@ -59,33 +59,28 @@ export function useClientAuth() {
       
       console.log('🔐 Auth event:', event, 'User:', session?.user?.email, 'Session exists:', !!session)
       
-      if (event === 'SIGNED_IN' && session?.user) {
+      // Manejar cualquier evento con sesión válida
+      if (session?.user) {
         setUser(session.user)
-        const role = await getUserRole(session.user.id)
-        if (isMounted) {
-          setUserRole(role)
-          setLoading(false)
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null)
-        setUserRole(null)
-        setLoading(false)
-      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        setUser(session.user)
+        
+        // Solo cargar el rol si no lo tenemos aún
         if (!userRole) {
           const role = await getUserRole(session.user.id)
           if (isMounted) {
             setUserRole(role)
           }
         }
-      } else if (event === 'INITIAL_SESSION' && session?.user) {
-        // Manejar sesión inicial
-        setUser(session.user)
-        const role = await getUserRole(session.user.id)
-        if (isMounted) {
-          setUserRole(role)
-          setLoading(false)
+        
+        // Marcar como no cargando si estamos en SIGNED_IN o INITIAL_SESSION
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          if (isMounted) {
+            setLoading(false)
+          }
         }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setUserRole(null)
+        setLoading(false)
       }
     }
     

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 import { checkRateLimit, getClientIP } from '@/lib/security/rate-limiter'
 import { logSecurityEvent } from '@/lib/security/security-logger'
 
@@ -25,19 +26,52 @@ const FORM_ROUTES = [
   '/api/auth/reset-password'
 ]
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  
+  // IMPORTANTE: Refrescar la sesión de Supabase en cada request
+  // Esto asegura que las cookies de autenticación se mantengan sincronizadas
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+
+  // Refrescar la sesión (importante para mantener las cookies actualizadas)
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  if (session) {
+    console.log('🔐 Middleware - Session found for:', session.user.email)
+  }
   
   // En desarrollo, desactivar rate limiting
   if (process.env.NODE_ENV === 'development') {
-    return NextResponse.next()
+    return response
   }
   
   // Verificar si la ruta necesita protección
   const needsProtection = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
   
   if (!needsProtection) {
-    return NextResponse.next()
+    return response
   }
   
   const clientIP = getClientIP(request)
@@ -108,7 +142,6 @@ export function middleware(request: NextRequest) {
   }
   
   // Agregar headers de rate limiting a la respuesta
-  const response = NextResponse.next()
   response.headers.set('X-RateLimit-Limit', process.env.RATE_LIMIT_MAX_REQUESTS || '10')
   response.headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString())
   response.headers.set('X-RateLimit-Reset', rateLimitResult.resetTime.toString())

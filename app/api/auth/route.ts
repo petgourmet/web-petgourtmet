@@ -171,11 +171,17 @@ export async function POST(request: NextRequest) {
         rateLimitExceeded: false
       })
 
-      return NextResponse.json({
+      // Crear respuesta con las cookies establecidas
+      const response = NextResponse.json({
         success: true,
         message: 'Inicio de sesión exitoso',
-        user: data.user
+        user: data.user,
+        session: data.session
       })
+
+      // Las cookies ya están establecidas por el cliente de servidor de Supabase
+      // pero nos aseguramos de que se envíen en la respuesta
+      return response
 
     } else {
       return NextResponse.json(
