@@ -61,19 +61,11 @@ export function useClientAuth() {
       if (session?.user) {
         setUser(session.user)
         
-        // Solo cargar el rol si no lo tenemos aún
-        if (!userRole) {
-          const role = await getUserRole(session.user.id)
-          if (isMounted) {
-            setUserRole(role)
-          }
-        }
-        
-        // Marcar como no cargando
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          if (isMounted) {
-            setLoading(false)
-          }
+        // Cargar el rol
+        const role = await getUserRole(session.user.id)
+        if (isMounted) {
+          setUserRole(role)
+          setLoading(false) // SIEMPRE terminar la carga después de obtener el rol
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null)
