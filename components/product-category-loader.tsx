@@ -10,7 +10,6 @@ import { ProductGridSkeleton } from "@/components/product-card-skeleton"
 import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
-import { enhancedCacheService } from '@/lib/cache-service-enhanced'
 import type { ProductFeature } from "@/components/product-card"
 import { useRouter } from "next/navigation"
 
@@ -146,18 +145,7 @@ export function ProductCategoryLoader({
       setLoading(true)
       
       try {
-        // Intentar caché primero
-        const cachedProducts = enhancedCacheService.getProducts(categorySlug)
-        
-        if (cachedProducts && Array.isArray(cachedProducts) && cachedProducts.length > 0) {
-          if (!isMounted) return
-          setProducts(cachedProducts)
-          setFilteredProducts(cachedProducts)
-          setLoading(false)
-          return
-        }
-
-        // Cargar desde base de datos
+        // Cargar DIRECTAMENTE desde base de datos - SIN CACHÉ
         let productsQuery = supabase.from("products").select(`
           id, name, slug, description, price, image, stock, category_id,
           rating, subscription_available, subscription_types,
@@ -232,9 +220,6 @@ export function ProductCategoryLoader({
         
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
-        
-        // Guardar en caché
-        enhancedCacheService.setProducts(processedProducts, categorySlug)
         
         // Precargar imágenes críticas
         const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)

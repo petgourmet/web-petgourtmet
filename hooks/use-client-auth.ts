@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { enhancedCacheService } from "@/lib/cache-service-enhanced"
 import type { User } from "@supabase/supabase-js"
 
 export function useClientAuth() {
@@ -15,21 +14,14 @@ export function useClientAuth() {
   useEffect(() => {
     let isMounted = true
     let authSubscription: any = null
-    let storageListener: any = null
     
     // Crear instancia fresca del cliente de Supabase
     const supabase = createClient()
 
-    // Función simple para obtener el rol - sin timeouts ni reintentos
+    // Función simple para obtener el rol - SIN CACHÉ
     const getUserRole = async (userId: string): Promise<string> => {
-      // Intentar obtener desde caché primero
-      const cachedRole = enhancedCacheService.getUserRole(userId)
-      if (cachedRole) {
-        return cachedRole
-      }
-
       try {
-        // Consulta directa sin timeouts artificiales
+        // Consulta directa sin caché
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('role')
@@ -37,18 +29,11 @@ export function useClientAuth() {
           .single()
           
         if (error || !profile) {
-          // Si hay error, usar 'user' por defecto sin hacer ruido
           return 'user'
         }
         
-        const role = (profile as any).role || 'user'
-        
-        // Guardar en caché para próximas consultas
-        enhancedCacheService.setUserRole(userId, role)
-        
-        return role
+        return (profile as any).role || 'user'
       } catch (error) {
-        // Cualquier error, retornar rol por defecto
         return 'user'
       }
     }
@@ -74,16 +59,6 @@ export function useClientAuth() {
       }
     }
     
-    // Listener de storage para detectar cambios de sesión
-    const handleStorageChange = async (e: StorageEvent) => {
-      if (!isMounted) return
-      
-      if (e.key && e.key.includes('supabase.auth.token')) {
-        setLoading(true)
-        await loadInitialSession()
-      }
-    }
-    
     const loadInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -104,7 +79,6 @@ export function useClientAuth() {
         
         if (isMounted) {
           setUser(session.user)
-          enhancedCacheService.setUserSession(session.user.id, session)
         }
         
         // Obtener rol del usuario
@@ -128,12 +102,6 @@ export function useClientAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange)
     authSubscription = subscription
     
-    // Configurar listener de storage
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', handleStorageChange)
-      storageListener = handleStorageChange
-    }
-    
     // Cargar sesión inicial
     loadInitialSession()
     
@@ -142,9 +110,6 @@ export function useClientAuth() {
       if (authSubscription) {
         authSubscription.unsubscribe()
         authSubscription = null
-      }
-      if (storageListener && typeof window !== 'undefined') {
-        window.removeEventListener('storage', storageListener)
       }
     }
   }, [])
@@ -156,17 +121,15 @@ export function useClientAuth() {
       setUserRole(null)
       setLoading(false)
       
-      // Limpiar cachés
-      enhancedCacheService.clear()
-      
       // Cerrar sesión en Supabase
       const supabase = createClient()
       await supabase.auth.signOut()
       
-      router.push('/')
+      // Forzar recarga completa de la página para limpiar TODO
+      window.location.href = '/'
     } catch (error) {
       // Siempre redirigir aunque haya error
-      router.push('/')
+      window.location.href = '/'
     }
   }
 

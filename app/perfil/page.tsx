@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { createClient } from "@/lib/supabase/client"
-import { enhancedCacheService } from "@/lib/cache-service-enhanced"
 import Image from "next/image"
 
 import { 
@@ -286,14 +285,7 @@ function PerfilPageContent() {
     if (!user) return
     
     try {
-      // Verificar caché
-      const cachedProfile = enhancedCacheService.get<UserProfile>(`profile_${user.id}`)
-      if (cachedProfile) {
-        setProfile(cachedProfile)
-        return
-      }
-      
-      // Cargar desde base de datos
+      // Cargar SIEMPRE desde base de datos - SIN CACHÉ
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -310,12 +302,9 @@ function PerfilPageContent() {
             address: ''
           }
           setProfile(newProfile)
-          enhancedCacheService.set(`profile_${user.id}`, newProfile)
         }
       } else {
         setProfile(data)
-        // Guardar en caché
-        enhancedCacheService.set(`profile_${user.id}`, data)
       }
     } catch (error) {
       console.error('Error cargando perfil:', error)
