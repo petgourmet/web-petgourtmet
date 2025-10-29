@@ -133,27 +133,21 @@ export function AuthForm() {
       if (mode === "register") {
         // Verificar si el registro hizo auto-login
         if (result.autoLogin) {
-          // Registro exitoso con auto-login, redirigir como si fuera login
+          // Registro exitoso con auto-login, redirigir
           const redirect = searchParams.get('redirect')
           const subscription = searchParams.get('subscription')
-          
-          console.log('🎉 Registro exitoso con auto-login, redirigiendo...', { redirect, subscription })
           
           toast({
             title: "¡Bienvenido!",
             description: "Tu cuenta ha sido creada exitosamente.",
           })
           
-          // Si viene de suscripción, ir al checkout
+          // Redirigir según corresponda
           if (subscription === 'true' && redirect) {
-            console.log('➡️ Redirigiendo a checkout:', redirect)
             window.location.href = decodeURIComponent(redirect)
           } else if (redirect) {
-            console.log('➡️ Redirigiendo a:', redirect)
             window.location.href = decodeURIComponent(redirect)
           } else {
-            // Por defecto ir a perfil
-            console.log('➡️ Redirigiendo a perfil')
             window.location.href = "/perfil"
           }
         } else {
@@ -186,18 +180,12 @@ export function AuthForm() {
         const redirect = searchParams.get('redirect')
         const subscription = searchParams.get('subscription')
         
-        console.log('🔗 Login exitoso, redirigiendo...', { redirect, subscription })
-        
-        // Si viene de suscripción, ir al checkout
+        // Redirigir según corresponda
         if (subscription === 'true' && redirect) {
-          console.log('➡️ Redirigiendo a checkout:', redirect)
           window.location.href = decodeURIComponent(redirect)
         } else if (redirect) {
-          console.log('➡️ Redirigiendo a:', redirect)
           window.location.href = decodeURIComponent(redirect)
         } else {
-          // Por defecto ir a perfil
-          console.log('➡️ Redirigiendo a perfil')
           window.location.href = "/perfil"
         }
       }

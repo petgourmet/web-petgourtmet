@@ -69,8 +69,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const openCheckout = urlParams.get('openCheckout')
     
     if (openCheckout === 'true') {
-      console.log('🛒 Abriendo checkout automáticamente después del login')
-      // Pequeño delay para asegurar que la autenticación esté lista
+      // Delay para asegurar que la autenticación esté lista
       setTimeout(() => {
         setShowCheckout(true)
         // Limpiar el parámetro de la URL

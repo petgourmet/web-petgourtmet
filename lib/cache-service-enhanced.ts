@@ -182,7 +182,7 @@ class EnhancedCacheService {
         timestamp: Date.now()
       }))
     } catch (error) {
-      console.warn('⚠️ [Cache] Failed to save to localStorage:', error)
+      // Silencioso - no hacer ruido si falla
     }
   }
 
@@ -209,7 +209,7 @@ class EnhancedCacheService {
       // Limpiar elementos expirados después de cargar
       this.cleanup()
     } catch (error) {
-      console.warn('⚠️ [Cache] Failed to load from localStorage:', error)
+      // Silencioso - simplemente limpiar si hay error
       localStorage.removeItem('petgourmet_cache')
     }
   }
@@ -302,14 +302,9 @@ class EnhancedCacheService {
     }
 
     // Si no está en cache, ejecutar función y guardar resultado
-    try {
-      const data = await fetchFunction()
-      this.set(key, data, customTtl)
-      return data
-    } catch (error) {
-      console.error(`❌ [Cache] Failed to fetch data for: ${key}`, error)
-      throw error
-    }
+    const data = await fetchFunction()
+    this.set(key, data, customTtl)
+    return data
   }
 }
 

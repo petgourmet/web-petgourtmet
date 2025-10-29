@@ -51,11 +51,7 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refrescar la sesión (importante para mantener las cookies actualizadas)
-  const { data: { session } } = await supabase.auth.getSession()
-  
-  if (session) {
-    console.log('🔐 Middleware - Session found for:', session.user.email)
-  }
+  await supabase.auth.getSession()
   
   // En desarrollo, desactivar rate limiting
   if (process.env.NODE_ENV === 'development') {

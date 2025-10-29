@@ -140,96 +140,57 @@ export function ProductCategoryLoader({
   // Cargar productos por categoría
   useEffect(() => {
     async function loadProductsByCategory() {
-      console.log('🔄 [INICIO] Cargando productos para categoría:', categorySlug)
       setLoading(true)
       try {
-        // Intentar obtener datos desde caché primero
-        console.log('📦 Verificando caché...')
+        // Intentar caché primero
         const cachedProducts = enhancedCacheService.getProducts(categorySlug)
         
         if (cachedProducts && Array.isArray(cachedProducts) && cachedProducts.length > 0) {
-          console.log('✅ Usando productos del caché:', cachedProducts.length)
           setProducts(cachedProducts)
           setFilteredProducts(cachedProducts)
           setLoading(false)
-          console.log('🏁 [CACHE] Loading = false')
           return
         }
-        
-        console.log('❌ No hay caché, cargando desde Supabase...')
 
-        // Cargar productos según la categoría - sin JOIN para máxima velocidad
+        // Cargar desde base de datos
         let productsQuery = supabase.from("products").select(`
-          id,
-          name,
-          slug,
-          description,
-          price,
-          image,
-          stock,
-          category_id,
-          rating,
-          subscription_available,
-          subscription_types,
-          biweekly_discount,
-          monthly_discount,
-          quarterly_discount,
-          annual_discount,
-          weekly_discount
+          id, name, slug, description, price, image, stock, category_id,
+          rating, subscription_available, subscription_types,
+          biweekly_discount, monthly_discount, quarterly_discount,
+          annual_discount, weekly_discount
         `)
 
-        // Si no es "all", filtrar por categoría usando el mapeo directo
+        // Filtrar por categoría si no es "all"
         if (categorySlug !== "all") {
-          // Mapeo directo de slug a category_id para evitar consultas adicionales
           const categoryIdMap: Record<string, number> = {
-            'celebrar': 2,     // Para Celebrar
-            'complementar': 3, // Para Complementar
-            'premiar': 1,      // Para Premiar
-            'recetas': 4       // Nuestras Recetas
+            'celebrar': 2, 'complementar': 3, 'premiar': 1, 'recetas': 4
           }
-          
           const categoryId = categoryIdMap[categorySlug]
           if (categoryId) {
             productsQuery = productsQuery.eq("category_id", categoryId)
           }
         }
 
-        // Filtrar solo productos con stock mayor a 0
         productsQuery = productsQuery.gt('stock', 0).order("created_at", { ascending: false })
 
         const { data: productsData, error: productsError } = await productsQuery
 
-        if (productsError) {
-          console.error('❌ Error cargando productos:', productsError)
+        if (productsError || !productsData || productsData.length === 0) {
           setProducts([])
           setFilteredProducts([])
           setLoading(false)
           return
         }
 
-        if (!productsData || productsData.length === 0) {
-          console.log('ℹ️ No se encontraron productos')
-          setProducts([])
-          setFilteredProducts([])
-          setLoading(false)
-          return
-        }
-
-        console.log('📦 Productos cargados desde DB:', productsData.length)
-
-        // Procesar productos - mínimo procesamiento para máxima velocidad
+        // Procesar productos
         const processedProducts = (productsData as any[]).map((product: any) => {
-          // Parsear subscription_types si es un string JSON
           let parsedSubscriptionTypes = product.subscription_types || []
           if (typeof product.subscription_types === 'string') {
             try {
               parsedSubscriptionTypes = JSON.parse(product.subscription_types)
-            } catch {
-              parsedSubscriptionTypes = []
-            }
+            } catch { parsedSubscriptionTypes = [] }
           }
 
-          // ✅ OPTIMIZACIÓN: Usar función optimizada para URLs de imágenes
           const imageUrl = getOptimizedImageUrl(product.image, 400, 85)
 
           return {
@@ -260,27 +221,22 @@ export function ProductCategoryLoader({
           } as Product
         })
 
-        console.log('✅ Productos procesados exitosamente:', processedProducts.length)
         setProducts(processedProducts)
         setFilteredProducts(processedProducts)
         
-        // Guardar productos en caché
+        // Guardar en caché
         enhancedCacheService.setProducts(processedProducts, categorySlug)
         
-        // ✅ OPTIMIZACIÓN: Precargar imágenes críticas (primera fila)
+        // Precargar imágenes críticas
         const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)
         preloadCriticalImages(criticalImages)
         
-        console.log('🎯 Productos y filteredProducts actualizados')
       } catch (error) {
-        console.error('❌ Error en loadProductsByCategory:', error)
+        console.error('Error cargando productos:', error)
         setProducts([])
         setFilteredProducts([])
       } finally {
-        console.log('🏁 Finally ejecutándose - setLoading(false)')
         setLoading(false)
-        console.log('🔍 Estado después de setLoading(false):')
-        // El log del estado será en el siguiente render
       }
     }
 

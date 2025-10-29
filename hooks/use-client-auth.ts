@@ -57,8 +57,6 @@ export function useClientAuth() {
     const handleAuthChange = async (event: string, session: any) => {
       if (!isMounted) return
       
-      console.log('🔐 Auth event:', event, 'User:', session?.user?.email, 'Session exists:', !!session)
-      
       // Manejar cualquier evento con sesión válida
       if (session?.user) {
         setUser(session.user)
@@ -71,7 +69,7 @@ export function useClientAuth() {
           }
         }
         
-        // Marcar como no cargando si estamos en SIGNED_IN o INITIAL_SESSION
+        // Marcar como no cargando
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
           if (isMounted) {
             setLoading(false)
@@ -84,13 +82,11 @@ export function useClientAuth() {
       }
     }
     
-    // Listener de storage para detectar cambios de sesión en otras pestañas o después de login
+    // Listener de storage para detectar cambios de sesión
     const handleStorageChange = async (e: StorageEvent) => {
       if (!isMounted) return
       
-      // Detectar cambios en las keys de Supabase Auth
       if (e.key && e.key.includes('supabase.auth.token')) {
-        console.log('🔄 Storage change detected, reloading session...')
         setLoading(true)
         await loadInitialSession()
       }
@@ -98,22 +94,11 @@ export function useClientAuth() {
     
     const loadInitialSession = async () => {
       try {
-        console.log('🔍 Loading initial session...')
-        
-        // Obtener sesión desde Supabase de manera directa
         const { data: { session }, error } = await supabase.auth.getSession()
-        
-        console.log('📊 Session response:', { 
-          hasSession: !!session, 
-          hasUser: !!session?.user, 
-          email: session?.user?.email,
-          error: error?.message 
-        })
         
         if (!isMounted) return
         
         if (error) {
-          console.error('❌ Error loading session:', error)
           setUser(null)
           setUserRole(null)
           setLoading(false)
@@ -121,12 +106,10 @@ export function useClientAuth() {
         }
         
         if (session?.user) {
-          console.log('✅ Session loaded:', session.user.email)
           setUser(session.user)
           
           // Guardar sesión en caché
           enhancedCacheService.setUserSession(session.user.id, session)
-          enhancedCacheService.setUserSession('current', session)
           
           // Obtener rol del usuario
           const role = await getUserRole(session.user.id)
@@ -134,10 +117,8 @@ export function useClientAuth() {
             setUserRole(role)
           }
         } else {
-          console.log('ℹ️ No active session found')
           setUser(null)
           setUserRole(null)
-          enhancedCacheService.setUserSession('current', null)
         }
       } catch (error) {
         console.error('❌ Error in loadInitialSession:', error)

@@ -13,8 +13,6 @@ export function CartModal() {
   const router = useRouter()
   const { user, loading } = useClientAuth()
 
-  console.log('🛒 CartModal - User:', user?.email, 'Loading:', loading)
-
   const hasSubscriptions = cart.some((item) => item.isSubscription)
 
   return (
