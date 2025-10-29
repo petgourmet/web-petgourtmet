@@ -120,10 +120,32 @@ export async function POST(request: NextRequest) {
         rateLimitExceeded: false
       })
 
-      return NextResponse.json({
-        success: true,
-        message: 'Registro exitoso'
+      // Hacer login automático después del registro para mejorar UX
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
+
+      if (loginError) {
+        console.warn('Error en login automático después del registro:', loginError)
+        // Aún así devolver éxito del registro
+        return NextResponse.json({
+          success: true,
+          message: 'Registro exitoso. Por favor, inicia sesión.',
+          autoLoginFailed: true
+        })
+      }
+
+      // Crear respuesta con sesión establecida
+      const response = NextResponse.json({
+        success: true,
+        message: 'Registro exitoso. Sesión iniciada automáticamente.',
+        user: loginData.user,
+        session: loginData.session,
+        autoLogin: true
+      })
+
+      return response
 
     } else if (action === 'login') {
       // Validaciones para login

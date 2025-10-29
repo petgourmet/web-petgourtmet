@@ -131,26 +131,74 @@ export function AuthForm() {
       setHoneypotValue('')
 
       if (mode === "register") {
-        toast({
-          title: "Registro exitoso",
-          description: "Tu cuenta ha sido creada exitosamente. Ya puedes iniciar sesión.",
-        })
+        // Verificar si el registro hizo auto-login
+        if (result.autoLogin) {
+          // Registro exitoso con auto-login, redirigir como si fuera login
+          const redirect = searchParams.get('redirect')
+          const subscription = searchParams.get('subscription')
+          
+          console.log('🎉 Registro exitoso con auto-login, redirigiendo...', { redirect, subscription })
+          
+          toast({
+            title: "¡Bienvenido!",
+            description: "Tu cuenta ha sido creada exitosamente.",
+          })
+          
+          // Si viene de suscripción, ir al checkout
+          if (subscription === 'true' && redirect) {
+            console.log('➡️ Redirigiendo a checkout:', redirect)
+            window.location.href = decodeURIComponent(redirect)
+          } else if (redirect) {
+            console.log('➡️ Redirigiendo a:', redirect)
+            window.location.href = decodeURIComponent(redirect)
+          } else {
+            // Por defecto ir a perfil
+            console.log('➡️ Redirigiendo a perfil')
+            window.location.href = "/perfil"
+          }
+        } else {
+          // Registro exitoso pero sin auto-login (fallback)
+          toast({
+            title: "Registro exitoso",
+            description: "Tu cuenta ha sido creada exitosamente. Ya puedes iniciar sesión.",
+          })
 
-        setMode("login")
-        setEmail(email)
+          // Si venía desde una suscripción, mantener los parámetros
+          const redirect = searchParams.get('redirect')
+          const subscription = searchParams.get('subscription')
+          
+          // Cambiar a modo login pero mantener los parámetros de redirección
+          setMode("login")
+          setEmail(email)
+          
+          // Si venía de suscripción, mostrar mensaje adicional
+          if (subscription === 'true') {
+            setTimeout(() => {
+              toast({
+                title: "Ahora inicia sesión",
+                description: "Inicia sesión para continuar con tu suscripción",
+              })
+            }, 1000)
+          }
+        }
       } else {
         // Login exitoso
         const redirect = searchParams.get('redirect')
         const subscription = searchParams.get('subscription')
         
+        console.log('🔗 Login exitoso, redirigiendo...', { redirect, subscription })
+        
         // Si viene de suscripción, ir al checkout
         if (subscription === 'true' && redirect) {
+          console.log('➡️ Redirigiendo a checkout:', redirect)
           window.location.href = decodeURIComponent(redirect)
         } else if (redirect) {
+          console.log('➡️ Redirigiendo a:', redirect)
           window.location.href = decodeURIComponent(redirect)
         } else {
-          // Por defecto ir al home, no al perfil
-          window.location.href = "/"
+          // Por defecto ir a perfil
+          console.log('➡️ Redirigiendo a perfil')
+          window.location.href = "/perfil"
         }
       }
     } catch (error: any) {

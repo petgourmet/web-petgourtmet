@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useEffect } from "react"
 import { toast } from "@/components/ui/use-toast"
 import { useGoogleAnalytics } from "@/hooks/use-google-analytics"
 import { useFacebookPixel } from "@/hooks/use-facebook-pixel"
+import { useSearchParams } from "next/navigation"
 
 import type { SubscriptionType } from "./product-card"
 
@@ -47,6 +48,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [showCheckout, setShowCheckout] = useState(false)
   const { trackAddToCart, trackBeginCheckout } = useGoogleAnalytics()
   const { trackAddToCart: fbTrackAddToCart, trackInitiateCheckout } = useFacebookPixel()
+  const searchParams = useSearchParams()
 
   // Cargar carrito del localStorage al iniciar
   useEffect(() => {
@@ -59,6 +61,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [])
+
+  // Verificar si debe abrir el checkout después del login
+  useEffect(() => {
+    const openCheckout = searchParams.get('openCheckout')
+    if (openCheckout === 'true' && cart.length > 0) {
+      console.log('🛒 Abriendo checkout automáticamente después del login')
+      // Pequeño delay para asegurar que la autenticación esté lista
+      setTimeout(() => {
+        setShowCheckout(true)
+        // Limpiar el parámetro de la URL
+        const url = new URL(window.location.href)
+        url.searchParams.delete('openCheckout')
+        url.searchParams.delete('subscription')
+        window.history.replaceState({}, '', url.toString())
+      }, 500)
+    }
+  }, [searchParams, cart.length])
 
   // Guardar carrito en localStorage cuando cambia
   useEffect(() => {

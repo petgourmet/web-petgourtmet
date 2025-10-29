@@ -205,8 +205,9 @@ export function CartModal() {
                       if (hasSubscriptions && !user) {
                         // Cerrar el modal del carrito
                         setShowCart(false)
-                        // Redirigir al login con mensaje sobre suscripciones
-                        router.push("/auth/login?redirect=checkout&subscription=true")
+                        // Redirigir al login y después volver a esta página para que abra el checkout
+                        const currentPath = window.location.pathname
+                        router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}&subscription=true&openCheckout=true`)
                         return
                       }
 
