@@ -145,12 +145,10 @@ export function ProductCategoryLoader({
       try {
         // Intentar obtener datos desde caché primero
         console.log('📦 Verificando caché...')
-        const cachedCategories = enhancedCacheService.getCategories()
-    const cachedProducts = enhancedCacheService.getProducts(categorySlug)
+        const cachedProducts = enhancedCacheService.getProducts(categorySlug)
         
-        if (cachedProducts && cachedCategories) {
+        if (cachedProducts && Array.isArray(cachedProducts) && cachedProducts.length > 0) {
           console.log('✅ Usando productos del caché:', cachedProducts.length)
-          setCategories(cachedCategories)
           setProducts(cachedProducts)
           setFilteredProducts(cachedProducts)
           setLoading(false)
@@ -160,59 +158,7 @@ export function ProductCategoryLoader({
         
         console.log('❌ No hay caché, cargando desde Supabase...')
 
-
-        // Cargar categorías para el filtro con timeout
-        const categoriesPromise = supabase
-          .from("categories")
-          .select("id, name")
-          .order("name")
-
-        const { data: categoriesData, error: categoriesError } = await categoriesPromise
-
-        if (categoriesError) {
-          const fallbackCategories = [
-            { id: 1, name: "Celebrar" },
-            { id: 2, name: "Premiar" },
-            { id: 3, name: "Complementar" },
-            { id: 4, name: "Recetas" },
-          ]
-          setCategories(fallbackCategories)
-          enhancedCacheService.setCategories(fallbackCategories)
-        } else if (categoriesData && categoriesData.length > 0) {
-          const categories = categoriesData || []
-          setCategories(categories)
-          enhancedCacheService.setCategories(categories)
-        } else {
-          const fallbackCategories = [
-            { id: 1, name: "Celebrar" },
-            { id: 2, name: "Premiar" },
-            { id: 3, name: "Complementar" },
-            { id: 4, name: "Recetas" },
-          ]
-          setCategories(fallbackCategories)
-          enhancedCacheService.setCategories(fallbackCategories)
-        }
-
-        // Cargar productos según la categoría
-        let categoryId = null
-
-        // Si no es "all", filtrar por categoría
-        if (categorySlug !== "all") {
-          // Obtener el ID de la categoría con timeout
-          const categoryPromise = supabase
-            .from("categories")
-            .select("id, name")
-            .eq("name", categoryInfo.searchPattern)
-            .limit(1)
-
-          const { data: categoryData, error: categoryError } = await categoryPromise
-
-          if (!categoryError && categoryData && categoryData.length > 0) {
-            categoryId = categoryData[0].id
-          }
-        }
-
-        // Ejecutar la consulta de productos
+        // Cargar productos según la categoría - sin JOIN para máxima velocidad
         let productsQuery = supabase.from("products").select(`
           id,
           name,
@@ -221,10 +167,8 @@ export function ProductCategoryLoader({
           price,
           image,
           stock,
-          created_at,
           category_id,
           rating,
-          categories(name),
           subscription_available,
           subscription_types,
           biweekly_discount,
@@ -234,47 +178,47 @@ export function ProductCategoryLoader({
           weekly_discount
         `)
 
-        // Si tenemos un ID de categoría, filtrar por él
-        if (categoryId !== null) {
-          productsQuery = productsQuery.eq("category_id", categoryId)
+        // Si no es "all", filtrar por categoría usando el mapeo directo
+        if (categorySlug !== "all") {
+          // Mapeo directo de slug a category_id para evitar consultas adicionales
+          const categoryIdMap: Record<string, number> = {
+            'celebrar': 2,     // Para Celebrar
+            'complementar': 3, // Para Complementar
+            'premiar': 1,      // Para Premiar
+            'recetas': 4       // Nuestras Recetas
+          }
+          
+          const categoryId = categoryIdMap[categorySlug]
+          if (categoryId) {
+            productsQuery = productsQuery.eq("category_id", categoryId)
+          }
         }
 
         // Filtrar solo productos con stock mayor a 0
-        productsQuery = productsQuery.gt('stock', 0)
+        productsQuery = productsQuery.gt('stock', 0).order("created_at", { ascending: false })
 
-        const productsPromise = productsQuery.order("created_at", {
-          ascending: false,
-        })
-
-        const { data: productsData, error: productsError } = await productsPromise
+        const { data: productsData, error: productsError } = await productsQuery
 
         if (productsError) {
           console.error('❌ Error cargando productos:', productsError)
-          // Intentar usar productos de fallback si están disponibles
-          const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
-          setProducts(fallbackProducts.length > 0 ? fallbackProducts : [])
-          setFilteredProducts(fallbackProducts.length > 0 ? fallbackProducts : [])
+          setProducts([])
+          setFilteredProducts([])
           setLoading(false)
           return
         }
 
         if (!productsData || productsData.length === 0) {
           console.log('ℹ️ No se encontraron productos')
-          // Intentar usar productos de fallback si están disponibles
-          const fallbackProducts = FALLBACK_PRODUCTS[categorySlug] || []
-          setProducts(fallbackProducts)
-          setFilteredProducts(fallbackProducts)
+          setProducts([])
+          setFilteredProducts([])
           setLoading(false)
           return
         }
 
         console.log('📦 Productos cargados desde DB:', productsData.length)
 
-        // Procesar productos - sin consultas adicionales
+        // Procesar productos - mínimo procesamiento para máxima velocidad
         const processedProducts = (productsData as any[]).map((product: any) => {
-          // Obtener la categoría del producto
-          const categoryName = product.categories?.name || categoryInfo.displayName
-
           // Parsear subscription_types si es un string JSON
           let parsedSubscriptionTypes = product.subscription_types || []
           if (typeof product.subscription_types === 'string') {
@@ -288,35 +232,31 @@ export function ProductCategoryLoader({
           // ✅ OPTIMIZACIÓN: Usar función optimizada para URLs de imágenes
           const imageUrl = getOptimizedImageUrl(product.image, 400, 85)
 
-          // Tamaños predeterminados
-          const sizes = [
-            { weight: "200g", price: product.price },
-            { weight: "500g", price: product.price * 2.2 },
-          ]
-
-          // Determinar el color de spotlight según la categoría
-          let spotlightColor = "rgba(249, 215, 232, 0.08)"
-          if (categorySlug === "celebrar") {
-            spotlightColor = "rgba(255, 236, 179, 0.08)"
-          } else if (categorySlug === "complementar") {
-            spotlightColor = "rgba(217, 245, 232, 0.3)"
-          } else if (categorySlug === "premiar") {
-            spotlightColor = "rgba(122, 184, 191, 0.2)"
-          } else if (categorySlug === "recetas") {
-            spotlightColor = "rgba(249, 215, 232, 0.3)"
-          }
-
           return {
-            ...product,
+            id: product.id,
+            name: product.name,
+            slug: product.slug,
+            description: product.description,
+            price: product.price,
             image: imageUrl,
-            category: categoryName,
-            features: [], // Sin features para mejorar rendimiento
+            stock: product.stock,
+            category_id: product.category_id,
+            created_at: product.created_at,
             rating: product.rating || 4.5,
-            reviews: 0, // Sin reviews para mejorar rendimiento
-            sizes,
-            gallery: [], // Sin gallery para mejorar rendimiento
-            spotlightColor,
+            reviews: 0,
+            features: [],
+            sizes: [
+              { weight: "200g", price: product.price },
+              { weight: "500g", price: product.price * 2.2 },
+            ],
+            gallery: [],
+            subscription_available: product.subscription_available,
             subscription_types: parsedSubscriptionTypes,
+            biweekly_discount: product.biweekly_discount,
+            monthly_discount: product.monthly_discount,
+            quarterly_discount: product.quarterly_discount,
+            annual_discount: product.annual_discount,
+            weekly_discount: product.weekly_discount,
           } as Product
         })
 
