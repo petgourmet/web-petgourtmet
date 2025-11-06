@@ -4,6 +4,23 @@ import { useState, useEffect } from 'react'
 import { Receipt, Download, Eye, Calendar, CreditCard, Package } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Helper para formatear fechas de forma segura
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'No disponible'
+  
+  try {
+    const date = new Date(dateString)
+    // Validar que la fecha es válida
+    if (isNaN(date.getTime())) {
+      return 'Fecha inválida'
+    }
+    return date.toLocaleDateString('es-MX')
+  } catch (error) {
+    console.error('Error formateando fecha:', dateString, error)
+    return 'Error en fecha'
+  }
+}
+
 interface BillingHistoryItem {
   id: string | number
   billing_date: string
@@ -155,7 +172,7 @@ export default function UserBillingHistory({ userId, userEmail }: UserBillingHis
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="h-4 w-4" />
-                    <span>{new Date(invoice.billing_date).toLocaleDateString('es-MX')}</span>
+                    <span>{formatDate(invoice.billing_date)}</span>
                   </div>
                   
                   <div className="flex items-center gap-2 text-gray-600">
@@ -240,7 +257,7 @@ export default function UserBillingHistory({ userId, userEmail }: UserBillingHis
                 <div>
                   <span className="font-medium text-gray-700">Fecha:</span>
                   <div className="text-gray-900">
-                    {new Date(selectedInvoice.billing_date).toLocaleDateString('es-MX')}
+                    {formatDate(selectedInvoice.billing_date)}
                   </div>
                 </div>
                 <div>

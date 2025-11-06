@@ -171,67 +171,92 @@ export const getNextPaymentDate = (subscription: SubscriptionData): Date | null 
     const lastPaymentDate = subscription.last_payment?.created_at || subscription.created_at
     if (!lastPaymentDate) return null
     
-    const baseDate = new Date(lastPaymentDate)
-    const now = new Date()
-    
-    // Usar frequency y frequency_type si están disponibles (datos del webhook)
-    if (subscription.frequency && subscription.frequency_type) {
-      const frequency = subscription.frequency
-      const type = subscription.frequency_type
+    try {
+      const baseDate = new Date(lastPaymentDate)
       
-      // Calcular la próxima fecha válida
+      // Validar que la fecha base sea válida
+      if (isNaN(baseDate.getTime())) {
+        console.warn('Fecha base inválida:', lastPaymentDate)
+        return null
+      }
+      
+      const now = new Date()
+      
+      // Usar frequency y frequency_type si están disponibles (datos del webhook)
+      if (subscription.frequency && subscription.frequency_type) {
+        const frequency = subscription.frequency
+        const type = subscription.frequency_type
+        
+        // Calcular la próxima fecha válida
+        while (baseDate <= now) {
+          if (type === 'days') {
+            baseDate.setDate(baseDate.getDate() + frequency)
+          } else if (type === 'weeks') {
+            baseDate.setDate(baseDate.getDate() + (frequency * 7))
+          } else if (type === 'months') {
+            baseDate.setMonth(baseDate.getMonth() + frequency)
+          }
+        }
+        
+        // Remover console.debug para producción
+        
+        return baseDate
+      }
+      
+      // Fallback usando subscription_type
       while (baseDate <= now) {
-        if (type === 'days') {
-          baseDate.setDate(baseDate.getDate() + frequency)
-        } else if (type === 'weeks') {
-          baseDate.setDate(baseDate.getDate() + (frequency * 7))
-        } else if (type === 'months') {
-          baseDate.setMonth(baseDate.getMonth() + frequency)
+        switch (subscription.subscription_type) {
+          case 'weekly':
+            baseDate.setDate(baseDate.getDate() + 7)
+            break
+          case 'biweekly':
+            baseDate.setDate(baseDate.getDate() + 14)
+            break
+          case 'monthly':
+            baseDate.setMonth(baseDate.getMonth() + 1)
+            break
+          case 'quarterly':
+            baseDate.setMonth(baseDate.getMonth() + 3)
+            break
+          case 'annual':
+            baseDate.setFullYear(baseDate.getFullYear() + 1)
+            break
+          default:
+            return null
         }
       }
       
       // Remover console.debug para producción
       
       return baseDate
+    } catch (error) {
+      console.error('Error calculando próxima fecha de pago:', error)
+      return null
     }
-    
-    // Fallback usando subscription_type
-    while (baseDate <= now) {
-      switch (subscription.subscription_type) {
-        case 'weekly':
-          baseDate.setDate(baseDate.getDate() + 7)
-          break
-        case 'biweekly':
-          baseDate.setDate(baseDate.getDate() + 14)
-          break
-        case 'monthly':
-          baseDate.setMonth(baseDate.getMonth() + 1)
-          break
-        case 'quarterly':
-          baseDate.setMonth(baseDate.getMonth() + 3)
-          break
-        case 'annual':
-          baseDate.setFullYear(baseDate.getFullYear() + 1)
-          break
-        default:
-          return null
-      }
-    }
-    
-    // Remover console.debug para producción
-    
-    return baseDate
   }
   
-  const nextBillingDate = new Date(subscription.next_billing_date)
-  const now = new Date()
-  
-  // Si la fecha de próximo cobro ya pasó, calcular la siguiente
-  if (nextBillingDate <= now && subscription.status === 'active') {
-    return getNextPaymentDate({ ...subscription, next_billing_date: undefined })
+  // Validar que next_billing_date sea una fecha válida
+  try {
+    const nextBillingDate = new Date(subscription.next_billing_date)
+    
+    // Verificar que la fecha sea válida
+    if (isNaN(nextBillingDate.getTime())) {
+      console.warn('next_billing_date inválida:', subscription.next_billing_date)
+      return null
+    }
+    
+    const now = new Date()
+    
+    // Si la fecha de próximo cobro ya pasó, calcular la siguiente
+    if (nextBillingDate <= now && subscription.status === 'active') {
+      return getNextPaymentDate({ ...subscription, next_billing_date: undefined })
+    }
+    
+    return nextBillingDate
+  } catch (error) {
+    console.error('Error procesando next_billing_date:', subscription.next_billing_date, error)
+    return null
   }
-  
-  return nextBillingDate
 }
 
 /**

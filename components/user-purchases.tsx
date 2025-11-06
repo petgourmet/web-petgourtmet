@@ -4,6 +4,23 @@ import { useState, useEffect } from 'react'
 import { ShoppingBag, Calendar, Package, Truck, Eye, Star } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Helper para formatear fechas de forma segura
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'No disponible'
+  
+  try {
+    const date = new Date(dateString)
+    // Validar que la fecha es válida
+    if (isNaN(date.getTime())) {
+      return 'Fecha inválida'
+    }
+    return date.toLocaleDateString('es-MX')
+  } catch (error) {
+    console.error('Error formateando fecha:', dateString, error)
+    return 'Error en fecha'
+  }
+}
+
 interface PurchaseItem {
   id: string | number
   order_number: string
@@ -220,7 +237,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar className="h-4 w-4" />
-                      <span>{new Date(purchase.created_at).toLocaleDateString('es-MX')}</span>
+                      <span>{formatDate(purchase.created_at)}</span>
                     </div>
                     
                     <div className="flex items-center gap-2 text-gray-600">
@@ -288,7 +305,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
 
                   {purchase.estimated_delivery && (
                     <div className="text-sm text-gray-600">
-                      <span className="font-medium">Entrega estimada:</span> {new Date(purchase.estimated_delivery).toLocaleDateString('es-MX')}
+                      <span className="font-medium">Entrega estimada:</span> {formatDate(purchase.estimated_delivery)}
                     </div>
                   )}
                 </div>
@@ -373,7 +390,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
                 <div>
                   <span className="font-medium text-gray-700">Fecha de compra:</span>
                   <div className="text-gray-900">
-                    {new Date(selectedPurchase.created_at).toLocaleDateString('es-MX')}
+                    {formatDate(selectedPurchase.created_at)}
                   </div>
                 </div>
                 <div>
@@ -394,7 +411,7 @@ export default function UserPurchases({ userId, userEmail }: UserPurchasesProps)
                   <div>
                     <span className="font-medium text-gray-700">Entrega estimada:</span>
                     <div className="text-gray-900">
-                      {new Date(selectedPurchase.estimated_delivery).toLocaleDateString('es-MX')}
+                      {formatDate(selectedPurchase.estimated_delivery)}
                     </div>
                   </div>
                 )}

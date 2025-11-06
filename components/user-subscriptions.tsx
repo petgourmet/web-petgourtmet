@@ -4,6 +4,23 @@ import { useState, useEffect } from 'react'
 import { Calendar, CreditCard, Package, AlertCircle, CheckCircle, XCircle, PauseCircle, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Helper para formatear fechas de forma segura
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'No disponible'
+  
+  try {
+    const date = new Date(dateString)
+    // Validar que la fecha es válida
+    if (isNaN(date.getTime())) {
+      return 'Fecha inválida'
+    }
+    return date.toLocaleDateString('es-MX')
+  } catch (error) {
+    console.error('Error formateando fecha:', dateString, error)
+    return 'Error en fecha'
+  }
+}
+
 interface Subscription {
   id: string
   mercadopago_subscription_id: string
@@ -251,7 +268,7 @@ export default function UserSubscriptions({ userId }: UserSubscriptionsProps) {
                         <div className="flex items-center gap-2 text-gray-600">
                           <AlertCircle className="h-4 w-4" />
                           <span>
-                            Próximo cobro: {new Date(subscription.next_payment_date).toLocaleDateString('es-MX')}
+                            Próximo cobro: {formatDate(subscription.next_payment_date)}
                           </span>
                         </div>
                       )}
@@ -331,7 +348,7 @@ export default function UserSubscriptions({ userId }: UserSubscriptionsProps) {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
                     <div>
-                      <span className="font-medium">Creada:</span> {new Date(subscription.created_at).toLocaleDateString('es-MX')}
+                      <span className="font-medium">Creada:</span> {formatDate(subscription.created_at)}
                     </div>
                     <div>
                       <span className="font-medium">ID:</span> {subscription.id.substring(0, 8)}...

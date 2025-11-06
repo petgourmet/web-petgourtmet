@@ -204,7 +204,9 @@ export function SubscriptionCard({
                   {(() => {
                     if (getNextPaymentDate) {
                       const nextDate = getNextPaymentDate(subscription)
-                      return nextDate ? formatDate(nextDate.toISOString()) : "No programado"
+                      if (nextDate && nextDate instanceof Date && !isNaN(nextDate.getTime())) {
+                        return formatDate(nextDate.toISOString())
+                      }
                     }
                     return "No programado"
                   })()}
