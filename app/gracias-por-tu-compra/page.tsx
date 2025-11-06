@@ -6,6 +6,7 @@ import { CheckCircle, Package, Mail, User, MapPin, CreditCard, Home, ShoppingBag
 import Link from 'next/link'
 import { useClientAuth } from '@/hooks/use-client-auth'
 import Image from 'next/image'
+import { trackPurchase } from '@/utils/analytics'
 
 interface OrderDetails {
   orderId: string
@@ -42,6 +43,22 @@ export default function GraciasPorTuCompra() {
         const data = await response.json()
         setOrderDetails(data)
 
+        // ===== ANALYTICS TRACKING =====
+        // Usar la función centralizada que maneja todos los servicios de analytics
+        trackPurchase({
+          orderId: data.orderId,
+          orderNumber: data.orderNumber,
+          total: data.total,
+          subtotal: data.subtotal,
+          shipping: data.shipping,
+          tax: 0, // Agregar si tienes impuestos
+          coupon: '', // Agregar si tienes cupón aplicado
+          items: data.items,
+          customerEmail: data.customerEmail,
+          customerName: data.customerName,
+        })
+
+        // Mantener los eventos legacy por compatibilidad (opcional)
         // Google Analytics
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'purchase', {
