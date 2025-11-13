@@ -1,42 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Image from "next/image"
 import { Toaster } from "@/components/toaster"
-import { ProductDetailModal } from "@/components/product-detail-modal"
-import { useCart } from "@/components/cart-context"
-import { supabase } from "@/lib/supabase/client"
-import type { ProductFeature } from "@/components/product-card"
 import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-// Tipo para los productos desde la base de datos
-type Product = {
-  id: number
-  name: string
-  description: string
-  price: number
-  image: string
-  stock: number
-  created_at: string
-  features?: ProductFeature[]
-  rating?: number
-  reviews?: number
-  sizes?: { weight: string; price: number }[]
-  category?: string
-  gallery?: { src: string; alt: string }[]
-}
-
 export default function CelebrarPage() {
-  const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [activeCategory, setActiveCategory] = useState("celebrar")
-  const { addToCart } = useCart()
-
-  const handleShowDetail = (product: Product) => {
-    setSelectedProduct(product)
-    setShowDetail(true)
-  }
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
@@ -151,20 +122,6 @@ export default function CelebrarPage() {
           </div>
         </div>
       </div>
-
-      {/* Modal de detalle del producto */}
-      {showDetail && selectedProduct && (
-        <ProductDetailModal
-          product={{
-            ...selectedProduct,
-            category: "Para Celebrar",
-          }}
-          isOpen={showDetail}
-          onClose={() => setShowDetail(false)}
-          onAddToCart={addToCart}
-        />
-      )}
-
 
       <Toaster />
     </div>

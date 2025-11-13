@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import type { ProductSize } from "@/lib/supabase/types"
 import { LazyImage } from "@/components/lazy-image"
+import { useRouter } from "next/navigation"
 
 export type ProductFeature = {
   name: string
@@ -20,6 +21,7 @@ export type SubscriptionType = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' |
 export type ProductCardProps = {
   id: number
   name: string
+  slug?: string
   description: string
   image: string
   rating?: number
@@ -48,6 +50,7 @@ export type ProductCardProps = {
 export function ProductCard({
   id,
   name,
+  slug,
   description,
   image,
   rating,
@@ -60,6 +63,7 @@ export function ProductCard({
   gallery,
   onShowDetail,
 }: ProductCardProps) {
+  const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
 
   // Determinar el precio a mostrar (precio directo o el más bajo de los tamaños)
@@ -111,8 +115,44 @@ export function ProductCard({
         {isHovered && (
           <div className="absolute inset-0 flex items-center justify-center">
             <button
-              onClick={() =>
-                onShowDetail &&
+              onClick={() => {
+                if (slug) {
+                  router.push(`/producto/${slug}`)
+                } else {
+                  // Fallback al modal si no hay slug (compatibilidad)
+                  onShowDetail &&
+                    onShowDetail({
+                      id,
+                      name,
+                      description,
+                      image,
+                      rating,
+                      reviews,
+                      price,
+                      sizes,
+                      features,
+                      category,
+                      gallery,
+                    })
+                }
+              }}
+              className="bg-white text-primary hover:bg-primary hover:text-white transition-colors duration-300 font-medium py-2 px-4 rounded-full"
+            >
+              Ver detalles
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Contenido del producto */}
+      <div className="p-4 flex flex-col flex-grow">
+        <h2 
+          className="font-bold text-sm mb-2 cursor-pointer hover:text-primary transition-colors duration-200"
+          onClick={() => {
+            if (slug) {
+              router.push(`/producto/${slug}`)
+            } else {
+              onShowDetail &&
                 onShowDetail({
                   id,
                   name,
@@ -126,56 +166,33 @@ export function ProductCard({
                   category,
                   gallery,
                 })
-              }
-              className="bg-white text-primary hover:bg-primary hover:text-white transition-colors duration-300 font-medium py-2 px-4 rounded-full"
-            >
-              Ver detalles
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Contenido del producto */}
-      <div className="p-4 flex flex-col flex-grow">
-        <h2 
-          className="font-bold text-sm mb-2 cursor-pointer hover:text-primary transition-colors duration-200"
-          onClick={() =>
-            onShowDetail &&
-            onShowDetail({
-              id,
-              name,
-              description,
-              image,
-              rating,
-              reviews,
-              price,
-              sizes,
-              features,
-              category,
-              gallery,
-            })
-          }
+            }
+          }}
         >
           {name}
         </h2>
         <p 
           className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2 cursor-pointer hover:text-primary transition-colors duration-200"
-          onClick={() =>
-            onShowDetail &&
-            onShowDetail({
-              id,
-              name,
-              description,
-              image,
-              rating,
-              reviews,
-              price,
-              sizes,
-              features,
-              category,
-              gallery,
-            })
-          }
+          onClick={() => {
+            if (slug) {
+              router.push(`/producto/${slug}`)
+            } else {
+              onShowDetail &&
+                onShowDetail({
+                  id,
+                  name,
+                  description,
+                  image,
+                  rating,
+                  reviews,
+                  price,
+                  sizes,
+                  features,
+                  category,
+                  gallery,
+                })
+            }
+          }}
         >
           {description}
         </p>

@@ -3,35 +3,12 @@
 import { useState } from "react"
 import Image from "next/image"
 import { Toaster } from "@/components/toaster"
-import { ProductDetailModal } from "@/components/product-detail-modal"
-import { useCart } from "@/components/cart-context"
-import type { ProductFeature } from "@/components/product-card"
 import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Heart, Shield, Star } from "lucide-react"
 
-// Tipo para los productos desde la base de datos
-type Product = {
-  id: number
-  name: string
-  description: string
-  price: number
-  image: string
-  stock: number
-  created_at: string
-  features?: ProductFeature[]
-  rating?: number
-  reviews?: number
-  sizes?: { weight: string; price: number }[]
-  category?: string
-  gallery?: { src: string; alt: string }[]
-}
-
 export default function PremiarPage() {
-  const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [activeCategory, setActiveCategory] = useState("premiar")
-  const { addToCart } = useCart()
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
@@ -146,20 +123,7 @@ export default function PremiarPage() {
         </div>
       </div>
 
-      {/* Modal de detalle del producto */}
-       {showDetail && selectedProduct && (
-         <ProductDetailModal
-           product={{
-             ...selectedProduct,
-             category: "Para Premiar",
-           }}
-           isOpen={showDetail}
-           onClose={() => setShowDetail(false)}
-           onAddToCart={addToCart}
-         />
-       )}
-
-       <Toaster />
-     </div>
-   )
+      <Toaster />
+    </div>
+  )
 }

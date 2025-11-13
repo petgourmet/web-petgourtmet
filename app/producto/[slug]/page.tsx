@@ -354,7 +354,8 @@ export default function ProductDetailPage() {
           </Link>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden">
+        {/* Contenedor con diseño similar al modal */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6">
             {/* Galería de imágenes */}
             <div className="space-y-4">

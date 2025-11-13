@@ -3,46 +3,18 @@
 import { useState } from "react"
 import Image from "next/image"
 import { Toaster } from "@/components/toaster"
-import { ProductDetailModal } from "@/components/product-detail-modal"
-import { useCart } from "@/components/cart-context"
-import type { ProductFeature } from "@/components/product-card"
 import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-// Tipo para los productos desde la base de datos
-type Product = {
-  id: number
-  name: string
-  description: string
-  price: number
-  image: string
-  stock: number
-  created_at: string
-  features?: ProductFeature[]
-  rating?: number
-  reviews?: number
-  sizes?: { weight: string; price: number }[]
-  category?: string
-  gallery?: { src: string; alt: string }[]
-}
-
 export default function ComplementarPage() {
-  const [showDetail, setShowDetail] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [activeCategory, setActiveCategory] = useState("complementar")
-  const { addToCart } = useCart()
-
-  const handleShowDetail = (product: Product) => {
-    setSelectedProduct(product)
-    setShowDetail(true)
-  }
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
       {/* Banner de categoría a ancho completo */}
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
-          src="/complementar-dog-treat.webp"
+          src="/happy-dog-nutrition.png"
           alt="Productos para complementar"
           fill
           className="object-cover saturate-90 brightness-60"
@@ -58,8 +30,8 @@ export default function ComplementarPage() {
             <div className="max-w-4xl mx-auto text-center">
               <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">Para Complementar</h2>
               <p className="text-white/90 text-lg">
-                Suplementos y complementos nutricionales para asegurar la salud óptima de tu mascota.
-                Productos formulados con ingredientes naturales de la más alta calidad.
+                Complementos nutricionales que enriquecen la dieta de tu mascota. 
+                Ingredientes premium que aportan los nutrientes esenciales para una vida saludable.
               </p>
             </div>
           </div>
@@ -116,35 +88,35 @@ export default function ComplementarPage() {
 
           {/* Sección de beneficios */}
           <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
-            <h2 className="text-2xl font-bold mb-6 text-green-700 font-display text-center">
-              Beneficios de nuestros suplementos
+            <h2 className="text-2xl font-bold mb-6 text-primary font-display text-center">
+              ¿Por qué complementar la dieta de tu mascota?
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/simple-dog-paw.png" alt="Salud óptima" width={32} height={32} />
+                <div className="w-16 h-16 bg-pastel-green rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/green-leaf-icon.png" alt="Ingredientes naturales" width={32} height={32} />
                 </div>
-                <h3 className="font-bold mb-2">Salud óptima</h3>
-                <p className="text-gray-600 dark:text-white">
-                  Formulados para cubrir todas las necesidades nutricionales de tu mascota.
+                <h3 className="font-bold mb-2">100% Natural</h3>
+                <p className="text-gray-600">
+                  Ingredientes naturales y orgánicos seleccionados cuidadosamente para la salud de tu mascota.
                 </p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/golden-grain-icon.png" alt="Ingredientes naturales" width={32} height={32} />
+                <div className="w-16 h-16 bg-pastel-blue rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/vitamins-icon.png" alt="Rico en nutrientes" width={32} height={32} />
                 </div>
-                <h3 className="font-bold mb-2">Ingredientes naturales</h3>
-                <p className="text-gray-600 dark:text-white">
-                  Elaborados con ingredientes de la más alta calidad, sin aditivos artificiales.
+                <h3 className="font-bold mb-2">Rico en nutrientes</h3>
+                <p className="text-gray-600">
+                  Formulado con vitaminas, minerales y antioxidantes esenciales para el bienestar integral.
                 </p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/assorted-vegetables-icon.png" alt="Fácil administración" width={32} height={32} />
+                <div className="w-16 h-16 bg-pastel-yellow rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Image src="/heart-health-icon.png" alt="Mejora la salud" width={32} height={32} />
                 </div>
-                <h3 className="font-bold mb-2">Fácil administración</h3>
-                <p className="text-gray-600 dark:text-white">
-                  Diseñados para ser fáciles de administrar y con sabor agradable para tu mascota.
+                <h3 className="font-bold mb-2">Mejora la salud</h3>
+                <p className="text-gray-600">
+                  Contribuye a una mejor digestión, pelaje brillante y sistema inmunológico fuerte.
                 </p>
               </div>
             </div>
@@ -152,17 +124,6 @@ export default function ComplementarPage() {
         </div>
       </div>
 
-
-
-      {/* Modal de detalle del producto */}
-      {showDetail && selectedProduct && (
-        <ProductDetailModal
-          product={selectedProduct}
-          isOpen={showDetail}
-          onClose={() => setShowDetail(false)}
-          onAddToCart={addToCart}
-        />
-      )}
       <Toaster />
     </div>
   )

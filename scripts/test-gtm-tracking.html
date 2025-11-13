@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test GTM Tracking - Pet Gourmet</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #7BBDC5;
+      margin-bottom: 10px;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-weight: 600;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .status.warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    button {
+      background: #7BBDC5;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin: 10px 10px 10px 0;
+    }
+    button:hover {
+      background: #6aacb4;
+    }
+    .data-layer-event {
+      background: #f8f9fa;
+      border-left: 4px solid #7BBDC5;
+      padding: 15px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .check-list {
+      list-style: none;
+      padding: 0;
+    }
+    .check-list li {
+      padding: 8px;
+      margin: 5px 0;
+    }
+    .check-list li::before {
+      content: "❌ ";
+    }
+    .check-list li.success::before {
+      content: "✅ ";
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Test GTM Tracking - Pet Gourmet</h1>
+    <p>Esta herramienta te ayuda a validar que Google Tag Manager y el Data Layer estén funcionando correctamente.</p>
+
+    <div class="section">
+      <h2>📋 Checklist de Validación</h2>
+      <ul class="check-list" id="checklist">
+        <li id="check-gtm">Google Tag Manager cargado</li>
+        <li id="check-datalayer">Data Layer inicializado</li>
+        <li id="check-events">Eventos del Data Layer detectados</li>
+        <li id="check-product">Datos de producto disponibles</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>🎯 Acciones de Prueba</h2>
+      <button onclick="testProductView()">Simular Vista de Producto</button>
+      <button onclick="testAddToCart()">Simular Agregar al Carrito</button>
+      <button onclick="testPurchase()">Simular Compra</button>
+      <button onclick="showDataLayer()">Ver Data Layer Completo</button>
+      <button onclick="clearResults()">Limpiar Resultados</button>
+    </div>
+
+    <div id="results"></div>
+
+    <div class="section">
+      <h2>📊 Eventos del Data Layer (Últimos 10)</h2>
+      <div id="data-layer-events"></div>
+    </div>
+
+    <div class="section">
+      <h2>💡 Instrucciones para Tag Assistant</h2>
+      <ol>
+        <li><strong>Abre tu sitio en localhost:</strong> <code>http://localhost:3000</code></li>
+        <li><strong>Abre Chrome DevTools:</strong> Presiona F12 o Ctrl+Shift+I</li>
+        <li><strong>Ve a la pestaña "Tag Assistant"</strong> (puede estar en el menú >>)</li>
+        <li><strong>Haz clic en "Connect"</strong> para comenzar a grabar</li>
+        <li><strong>Navega a una página de producto</strong></li>
+        <li><strong>Verifica en Tag Assistant:</strong>
+          <ul>
+            <li>Google Tag Manager debe aparecer</li>
+            <li>Debe mostrar eventos del Data Layer</li>
+            <li>Debe detectar datos estructurados (JSON-LD)</li>
+          </ul>
+        </li>
+      </ol>
+
+      <h3>🔍 Verificación Manual en la Consola</h3>
+      <p>Abre la consola de Chrome (F12 → Console) y ejecuta:</p>
+      <div class="data-layer-event">
+        <pre>// Ver todo el Data Layer
+dataLayer
+
+// Ver el último evento
+dataLayer[dataLayer.length - 1]
+
+// Filtrar eventos de producto
+dataLayer.filter(event => event.productName)</pre>
+      </div>
+
+      <h3>⚠️ Problemas Comunes</h3>
+      <ul>
+        <li><strong>Tag Assistant no detecta GTM:</strong> Verifica que el ID sea GTM-WMCL7Z6H</li>
+        <li><strong>No aparecen eventos:</strong> Asegúrate de que estás en una página con tracking activo</li>
+        <li><strong>Datos vacíos:</strong> Verifica que los productos se carguen correctamente desde Supabase</li>
+        <li><strong>Error de CORS:</strong> Usa el dominio de producción o configura CORS en desarrollo</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Inicializar Data Layer si no existe
+    window.dataLayer = window.dataLayer || [];
+
+    // Función para verificar el estado
+    function checkStatus() {
+      const results = {
+        gtm: false,
+        dataLayer: false,
+        events: false,
+        product: false
+      };
+
+      // Verificar GTM
+      if (window.google_tag_manager && window.google_tag_manager['GTM-WMCL7Z6H']) {
+        results.gtm = true;
+        document.getElementById('check-gtm').classList.add('success');
+      }
+
+      // Verificar Data Layer
+      if (window.dataLayer && Array.isArray(window.dataLayer) && window.dataLayer.length > 0) {
+        results.dataLayer = true;
+        document.getElementById('check-datalayer').classList.add('success');
+      }
+
+      // Verificar eventos
+      if (window.dataLayer && window.dataLayer.length > 1) {
+        results.events = true;
+        document.getElementById('check-events').classList.add('success');
+      }
+
+      // Verificar datos de producto
+      const productEvents = window.dataLayer.filter(event => event.productName || event.productNameC);
+      if (productEvents.length > 0) {
+        results.product = true;
+        document.getElementById('check-product').classList.add('success');
+      }
+
+      updateDataLayerEvents();
+    }
+
+    // Mostrar eventos del Data Layer
+    function updateDataLayerEvents() {
+      const container = document.getElementById('data-layer-events');
+      const events = window.dataLayer.slice(-10).reverse();
+
+      if (events.length === 0) {
+        container.innerHTML = '<p style="color: #999;">No hay eventos en el Data Layer todavía.</p>';
+        return;
+      }
+
+      container.innerHTML = events.map((event, index) => {
+        return `
+          <div class="data-layer-event">
+            <strong>Evento ${events.length - index}:</strong>
+            <pre>${JSON.stringify(event, null, 2)}</pre>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Simular vista de producto
+    function testProductView() {
+      window.dataLayer.push({
+        event: 'product_view',
+        productCategory: 'Celebrar',
+        productCategoryC: 'Celebrar',
+        productName: 'Galletas de Cumpleaños Premium',
+        productNameC: 'Galletas de Cumpleaños Premium',
+        productPrice: 299.99,
+        productPriceC: 299.99,
+        productQuantityC: 1,
+        productSKUC: 'TEST-123',
+        productos: 1
+      });
+
+      showStatus('success', '✅ Evento de vista de producto enviado al Data Layer');
+      updateDataLayerEvents();
+      checkStatus();
+    }
+
+    // Simular agregar al carrito
+    function testAddToCart() {
+      window.dataLayer.push({
+        event: 'add_to_cart',
+        ecommerce: {
+          items: [{
+            item_name: 'Galletas de Cumpleaños Premium',
+            item_id: 'TEST-123',
+            price: 299.99,
+            item_brand: 'Pet Gourmet',
+            item_category: 'Celebrar',
+            quantity: 1
+          }]
+        }
+      });
+
+      showStatus('success', '✅ Evento de agregar al carrito enviado al Data Layer');
+      updateDataLayerEvents();
+      checkStatus();
+    }
+
+    // Simular compra
+    function testPurchase() {
+      window.dataLayer.push({
+        event: 'purchase',
+        ecommerce: {
+          transaction_id: 'TEST-' + Date.now(),
+          value: 299.99,
+          currency: 'MXN',
+          items: [{
+            item_name: 'Galletas de Cumpleaños Premium',
+            item_id: 'TEST-123',
+            price: 299.99,
+            item_brand: 'Pet Gourmet',
+            item_category: 'Celebrar',
+            quantity: 1
+          }]
+        }
+      });
+
+      showStatus('success', '✅ Evento de compra enviado al Data Layer');
+      updateDataLayerEvents();
+      checkStatus();
+    }
+
+    // Mostrar Data Layer completo
+    function showDataLayer() {
+      const container = document.getElementById('results');
+      container.innerHTML = `
+        <div class="section">
+          <h3>📊 Data Layer Completo</h3>
+          <div class="data-layer-event">
+            <pre>${JSON.stringify(window.dataLayer, null, 2)}</pre>
+          </div>
+        </div>
+      `;
+    }
+
+    // Mostrar mensaje de estado
+    function showStatus(type, message) {
+      const container = document.getElementById('results');
+      const statusDiv = document.createElement('div');
+      statusDiv.className = `status ${type}`;
+      statusDiv.textContent = message;
+      container.insertBefore(statusDiv, container.firstChild);
+
+      // Auto-eliminar después de 5 segundos
+      setTimeout(() => {
+        statusDiv.remove();
+      }, 5000);
+    }
+
+    // Limpiar resultados
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      showStatus('warning', '🧹 Resultados limpiados');
+    }
+
+    // Verificar estado al cargar
+    setTimeout(checkStatus, 1000);
+
+    // Actualizar cada 5 segundos
+    setInterval(() => {
+      updateDataLayerEvents();
+      checkStatus();
+    }, 5000);
+
+    console.log('🔍 GTM Test Tool cargado');
+    console.log('📊 Data Layer actual:', window.dataLayer);
+  </script>
+</body>
+</html>

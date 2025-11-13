@@ -1,15 +1,26 @@
 import type { Metadata } from 'next'
 import { supabase } from '@/lib/supabase/client'
 
-interface Props {
-  params: { slug: string }
-  searchParams: { id?: string }
+type Product = {
+  id: number
+  name: string
+  slug: string
+  description: string
+  price: number
+  image: string
+  stock: number
+  categories?: { name: string }
 }
 
-export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
-  const productId = searchParams.id
+interface Props {
+  params: Promise<{ slug: string }>
+  searchParams: { [key: string]: string | string[] | undefined }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
   
-  if (!productId) {
+  if (!slug) {
     return {
       title: 'Producto no encontrado | Pet Gourmet',
       description: 'El producto solicitado no fue encontrado.',
@@ -20,8 +31,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     const { data: product, error } = await supabase
       .from('products')
       .select('*, categories(name)')
-      .eq('id', productId)
-      .single()
+      .eq('slug', slug)
+      .single<Product>()
 
     if (error || !product) {
       return {
@@ -59,8 +70,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       openGraph: {
         title,
         description,
-        type: 'product',
-        url: `/producto/${params.slug}?id=${productId}`,
+        type: 'website',
+        url: `/producto/${slug}`,
         siteName: 'Pet Gourmet',
         images: imageUrl ? [
           {
@@ -79,7 +90,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         images: imageUrl ? [imageUrl] : [],
       },
       alternates: {
-        canonical: `/producto/${params.slug}?id=${productId}`,
+        canonical: `/producto/${slug}`,
       },
       other: {
         'product:price:amount': product.price?.toString() || '0',
