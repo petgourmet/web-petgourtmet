@@ -54,14 +54,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Cancelar en Stripe
-    const canceledStripeSubscription = await stripe.subscriptions.cancel(
-      subscription.stripe_subscription_id,
-      {
-        invoice_now: false, // No facturar inmediatamente
-        prorate: false, // No prorratear
+    // Verificar si la suscripción ya está cancelada en Stripe antes de intentar cancelar
+    let canceledStripeSubscription
+    try {
+      // Intentar obtener la suscripción de Stripe primero
+      const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id) as any
+      
+      if (stripeSubscription.status === 'canceled') {
+        console.log('⚠️ Suscripción ya cancelada en Stripe:', subscription.stripe_subscription_id)
+        // No intentar cancelar de nuevo, solo actualizar BD
+      } else if (stripeSubscription.cancel_at_period_end === true) {
+        console.log('⚠️ Suscripción ya programada para cancelarse al final del período:', subscription.stripe_subscription_id)
+        // Ya está programada para cancelarse, no hacer nada más
+      } else {
+        // Cancelar en Stripe INMEDIATAMENTE (no al final del período)
+        console.log('🔄 Cancelando suscripción en Stripe:', subscription.stripe_subscription_id)
+        canceledStripeSubscription = await stripe.subscriptions.update(
+          subscription.stripe_subscription_id,
+          {
+            cancel_at_period_end: true, // Cancelar al final del período pagado
+          }
+        )
+        console.log('✅ Suscripción cancelada en Stripe (cancel_at_period_end: true)')
       }
-    )
+    } catch (stripeError: any) {
+      // Si el error es que no existe la suscripción, continuar con la actualización en BD
+      if (stripeError.code === 'resource_missing') {
+        console.log('⚠️ Suscripción no encontrada en Stripe (ya fue eliminada):', subscription.stripe_subscription_id)
+      } else {
+        console.error('Error cancelando en Stripe:', stripeError)
+        throw stripeError
+      }
+    }
 
     // Actualizar en la base de datos
     const { data: updated, error: updateError } = await supabaseAdmin
