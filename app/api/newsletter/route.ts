@@ -3,34 +3,7 @@ import { sendNewsletterEmail } from '@/lib/contact-email-service'
 import { getClientIP, checkRateLimit } from '@/lib/security/rate-limiter'
 import { logSecurityEvent } from '@/lib/security/security-logger'
 import { isIPBlocked, recordViolation } from '@/lib/security/ip-blocker'
-
-// Dominios de email sospechosos
-const SUSPICIOUS_EMAIL_DOMAINS = [
-  'tempmail', 'throwaway', 'guerrillamail', 'mailinator', 
-  'maildrop', '10minutemail', 'yopmail', 'temp-mail',
-  'fakeinbox', 'sharklasers', 'guerrillamail', 'dispostable',
-  'trashmail', 'getnada', 'spamgourmet'
-]
-
-function validateEmail(email: string): { isValid: boolean; reason?: string } {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(email)) {
-    return { isValid: false, reason: 'Formato de email inválido' }
-  }
-
-  // Verificar dominios sospechosos
-  const domain = email.split('@')[1]?.toLowerCase()
-  if (domain && SUSPICIOUS_EMAIL_DOMAINS.some(suspicious => domain.includes(suspicious))) {
-    return { isValid: false, reason: 'Dominio de email no permitido' }
-  }
-
-  // Verificar patrones sospechosos en el email
-  if (email.includes('test') || email.includes('fake') || email.includes('spam')) {
-    return { isValid: false, reason: 'Email sospechoso' }
-  }
-
-  return { isValid: true }
-}
+import { performAntiSpamCheck, validateEmailSecurity } from '@/lib/security/anti-spam-validator'
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,83 +63,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Verificar reCAPTCHA token
-    if (!body.recaptchaToken) {
-      await logSecurityEvent({
-        ip: clientIP,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        endpoint: '/api/newsletter',
-        action: 'missing_recaptcha',
-        severity: 'high',
-        blocked: true,
-        rateLimitExceeded: false,
-        details: {}
-      })
-      
-      return NextResponse.json(
-        { error: 'Verificación de seguridad requerida' },
-        { status: 400 }
-      )
-    }
-
-    // 3. Verificar el token de reCAPTCHA
-    const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/security/verify-recaptcha`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: body.recaptchaToken,
-        action: 'newsletter_signup'
-      })
-    })
-
-    if (!verifyResponse.ok) {
-      await logSecurityEvent({
-        ip: clientIP,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        endpoint: '/api/newsletter',
-        action: 'recaptcha_failed',
-        severity: 'high',
-        blocked: true,
-        rateLimitExceeded: false,
-        details: {}
-      })
-      
-      return NextResponse.json(
-        { error: 'Verificación de seguridad fallida' },
-        { status: 400 }
-      )
-    }
-
-    const recaptchaResult = await verifyResponse.json()
-    if (!recaptchaResult.success || recaptchaResult.score < 0.4) {
-      // Registrar violación de reCAPTCHA
-      recordViolation({
-        ip: clientIP,
-        type: 'low_recaptcha',
-        severity: 'medium',
-        timestamp: Date.now(),
-        details: { score: recaptchaResult.score }
-      })
-      
-      await logSecurityEvent({
-        ip: clientIP,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        endpoint: '/api/newsletter',
-        action: 'low_recaptcha_score',
-        severity: 'high',
-        blocked: true,
-        rateLimitExceeded: false,
-        recaptchaScore: recaptchaResult.score,
-        details: { score: recaptchaResult.score }
-      })
-      
-      return NextResponse.json(
-        { error: 'Verificación de seguridad fallida. Inténtalo de nuevo.' },
-        { status: 400 }
-      )
+    // 2. Validar tiempo de envío (anti-bot: mínimo 2 segundos desde que cargó la página)
+    const submissionTime = body.submissionTime
+    if (submissionTime) {
+      const timeDiff = Date.now() - submissionTime
+      if (timeDiff < 2000) {
+        // Submission demasiado rápida - probablemente un bot
+        recordViolation({
+          ip: clientIP,
+          type: 'fast_submission',
+          severity: 'high',
+          timestamp: Date.now(),
+          details: { timeDiff }
+        })
+        
+        await logSecurityEvent({
+          ip: clientIP,
+          userAgent: request.headers.get('user-agent') || 'unknown',
+          endpoint: '/api/newsletter',
+          action: 'fast_submission',
+          severity: 'high',
+          blocked: true,
+          rateLimitExceeded: false,
+          details: { timeDiff }
+        })
+        
+        return NextResponse.json(
+          { error: 'Por favor, espera unos segundos antes de enviar' },
+          { status: 400 }
+        )
+      }
     }
     
-    // 4. Verificar rate limiting (máximo 5 intentos)
+    // 4. Verificar rate limiting (máximo 5 intentos en 1 hora)
     const rateLimitResult = checkRateLimit(clientIP, 'newsletter_submit')
     if (!rateLimitResult.allowed) {
       // Registrar violación de rate limit
@@ -202,9 +131,9 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // 6. Validar formato de email y dominios sospechosos
+    // 6. Validación adicional de email
     const email = body.email.trim().toLowerCase()
-    const emailValidation = validateEmail(email)
+    const emailValidation = validateEmailSecurity(email)
     
     if (!emailValidation.isValid) {
       await logSecurityEvent({
@@ -215,7 +144,7 @@ export async function POST(request: NextRequest) {
         severity: 'medium',
         blocked: true,
         rateLimitExceeded: false,
-        details: { reason: emailValidation.reason, email }
+        details: { reason: emailValidation.reason, email, score: emailValidation.score }
       })
       
       return NextResponse.json(

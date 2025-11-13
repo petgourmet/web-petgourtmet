@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { WebhookValidationService } from '@/lib/services/webhook-validation-service'
-import { DynamicSubscriptionService } from '@/lib/services/dynamic-subscription-service'
-import { NotificationService } from '@/lib/services/notification-service'
+import { SubscriptionPaymentService } from '@/lib/services/subscription-payment-service'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -10,8 +9,7 @@ const supabase = createClient(
 )
 
 const webhookValidation = new WebhookValidationService()
-const subscriptionService = new DynamicSubscriptionService()
-const notificationService = new NotificationService()
+const paymentService = new SubscriptionPaymentService()
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -84,21 +82,25 @@ export async function POST(request: NextRequest) {
     await webhookValidation.markWebhookProcessed(
       webhookId,
       processingResult.success,
-      processingResult.error
+      'error' in processingResult ? processingResult.error : undefined
     )
 
     const endTime = Date.now()
     const processingTime = endTime - startTime
 
+    const resultMessage = 'message' in processingResult 
+      ? processingResult.message 
+      : (processingResult.success ? 'Processed successfully' : processingResult.error)
+
     console.log(`Webhook processed in ${processingTime}ms:`, {
       webhookId,
       success: processingResult.success,
-      message: processingResult.message
+      message: resultMessage
     })
 
     return NextResponse.json({
       success: true,
-      message: processingResult.message,
+      message: resultMessage,
       processing_time: processingTime
     })
 
@@ -195,19 +197,19 @@ async function processSubscriptionWebhook(payload: any) {
       console.log(`Subscription ${subscription.id} status updated to ${newStatus}`)
     }
 
-    // Send notification to user
-    if (notificationMessage) {
-      await notificationService.sendSubscriptionNotification(
-        subscription.user_id,
-        'subscription_update',
-        notificationMessage,
-        {
-          subscription_id: subscription.id,
-          action,
-          status: newStatus
-        }
-      )
-    }
+    // Opcional: Send notification to user (commented out for now)
+    // if (notificationMessage) {
+    //   await notificationService.sendSubscriptionNotification(
+    //     subscription.user_id,
+    //     'subscription_update',
+    //     notificationMessage,
+    //     {
+    //       subscription_id: subscription.id,
+    //       action,
+    //       status: newStatus
+    //     }
+    //   )
+    // }
 
     return {
       success: true,
@@ -231,21 +233,51 @@ async function processPaymentWebhook(payload: any) {
     const paymentId = payload.data.id
     const action = payload.action
 
-    console.log(`Processing payment webhook: ${action} for ${paymentId}`)
+    console.log(`Processing payment webhook: ${action} for payment ${paymentId}`)
 
-    // This would typically involve:
-    // 1. Fetching payment details from MercadoPago
-    // 2. Finding the associated subscription
-    // 3. Updating payment records
-    // 4. Sending notifications
-
-    // For now, we'll log and acknowledge
-    console.log('Payment webhook processed:', { paymentId, action })
-
-    return {
-      success: true,
-      message: `Payment ${action} processed successfully`
+    // Solo procesar pagos aprobados
+    if (action !== 'payment.created' && action !== 'created') {
+      console.log(`Ignoring payment action: ${action}`)
+      return { success: true, message: `Action ${action} not processed` }
     }
+
+    // Verificar si el pago ya fue procesado (evitar duplicados)
+    const isProcessed = await paymentService.isPaymentProcessed(paymentId)
+    if (isProcessed) {
+      console.log(`Payment ${paymentId} already processed, skipping`)
+      return { success: true, message: 'Payment already processed' }
+    }
+
+    // Obtener el ID de la suscripción del payload
+    const subscriptionId = payload.data.preapproval_id || payload.data.subscription_id
+    
+    if (!subscriptionId) {
+      console.log('No subscription ID found in payment webhook')
+      return { success: true, message: 'No subscription associated with payment' }
+    }
+
+    // Procesar el pago usando el servicio
+    const result = await paymentService.processPayment({
+      mercadopago_payment_id: paymentId,
+      subscription_id: subscriptionId,
+      amount: payload.data.transaction_amount || 0,
+      currency: payload.data.currency_id || 'MXN',
+      status: payload.data.status || 'approved',
+      payment_date: payload.data.date_created ? new Date(payload.data.date_created) : new Date(),
+      transaction_details: payload.data
+    })
+
+    if (result.success) {
+      console.log(`✅ Payment processed successfully:`, {
+        payment_id: paymentId,
+        subscription_id: result.subscription_id,
+        next_billing_date: result.next_billing_date
+      })
+    } else {
+      console.error(`❌ Failed to process payment:`, result.error)
+    }
+
+    return result
 
   } catch (error) {
     console.error('Error processing payment webhook:', error)

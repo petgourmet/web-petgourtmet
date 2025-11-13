@@ -22,6 +22,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // MODO DESARROLLO: Bypass de reCAPTCHA en localhost
+    const isDevelopment = process.env.NODE_ENV === 'development' || 
+                         request.headers.get('host')?.includes('localhost')
+    
+    if (isDevelopment) {
+      console.log('🔧 [DEV] Bypass de reCAPTCHA en desarrollo')
+      return NextResponse.json({
+        success: true,
+        score: 0.9,
+        action: action || 'development',
+        timestamp: new Date().toISOString(),
+        development: true
+      })
+    }
+
     const secretKey = process.env.RECAPTCHA_SECRET_KEY
     if (!secretKey) {
       console.error('RECAPTCHA_SECRET_KEY no configurada')

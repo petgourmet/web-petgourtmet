@@ -12,6 +12,8 @@ export interface PurchaseItem {
   quantity: number
   category?: string
   subcategory?: string
+  brand?: string
+  variant?: string
   image?: string
 }
 
@@ -23,6 +25,7 @@ export interface PurchaseData {
   shipping: number
   tax?: number
   coupon?: string
+  affiliation?: string
   items: PurchaseItem[]
   customerEmail?: string
   customerName?: string
@@ -38,6 +41,7 @@ declare global {
 /**
  * Push evento de compra al Data Layer de Google Tag Manager
  * Formato compatible con GA4 Enhanced Ecommerce
+ * Incluye todos los campos opcionales según especificación de Google
  */
 export const pushPurchaseToDataLayer = (orderData: PurchaseData): void => {
   if (typeof window === 'undefined') return
@@ -49,29 +53,59 @@ export const pushPurchaseToDataLayer = (orderData: PurchaseData): void => {
     // Limpiar evento anterior de ecommerce
     window.dataLayer.push({ ecommerce: null })
 
+    // Construir objeto de ecommerce con todos los campos disponibles
+    const ecommerceData: any = {
+      transaction_id: orderData.orderId,
+      value: orderData.total.toFixed(2),
+      currency: 'MXN',
+      items: orderData.items.map((item) => ({
+        item_name: item.name,
+        item_id: (item.product_id || item.id || '').toString(),
+        price: item.price.toFixed(2),
+        item_brand: item.brand || 'PET GOURMET',
+        item_category: item.category || 'Productos',
+        quantity: item.quantity,
+        // Campos opcionales - solo se incluyen si existen
+        ...(item.subcategory && { item_category2: item.subcategory }),
+        ...(item.variant && { item_variant: item.variant }),
+      })),
+    }
+
+    // Agregar campos opcionales solo si tienen valor
+    if (orderData.tax && orderData.tax > 0) {
+      ecommerceData.tax = orderData.tax.toFixed(2)
+    }
+    
+    if (orderData.shipping && orderData.shipping > 0) {
+      ecommerceData.shipping = orderData.shipping.toFixed(2)
+    }
+    
+    if (orderData.coupon) {
+      ecommerceData.coupon = orderData.coupon
+    }
+    
+    if (orderData.affiliation) {
+      ecommerceData.affiliation = orderData.affiliation
+    }
+
     // Push del evento de compra
     window.dataLayer.push({
       event: 'purchase',
-      ecommerce: {
-        transaction_id: orderData.orderId,
-        value: orderData.total,
-        currency: 'MXN',
-        tax: orderData.tax || 0,
-        shipping: orderData.shipping,
-        coupon: orderData.coupon || '',
-        items: orderData.items.map((item) => ({
-          item_id: (item.product_id || item.id || '').toString(),
-          item_name: item.name,
-          item_brand: 'PET GOURMET',
-          item_category: item.category || 'Productos',
-          item_category2: item.subcategory || '',
-          price: item.price,
-          quantity: item.quantity,
-        })),
-      },
+      ecommerce: ecommerceData,
     })
 
-    console.log('✅ Data Layer - Purchase event pushed:', orderData.orderId)
+    console.log('✅ [GTM] Purchase event pushed to Data Layer')
+    console.log('📊 [GTM] Transaction ID:', orderData.orderId)
+    console.log('💰 [GTM] Total:', orderData.total)
+    console.log('🛒 [GTM] Items count:', orderData.items.length)
+    console.log('📦 [GTM] Full ecommerce data:', ecommerceData)
+    
+    // Verificar que GTM esté presente
+    if (!(window as any).google_tag_manager) {
+      console.warn('⚠️ [GTM] Google Tag Manager no detectado en la página')
+    } else {
+      console.log('✅ [GTM] Google Tag Manager detectado y activo')
+    }
   } catch (error) {
     console.error('❌ Error pushing to Data Layer:', error)
   }
@@ -147,4 +181,82 @@ export const trackPurchase = (orderData: PurchaseData): void => {
 
   // Facebook Pixel
   trackFacebookPixelPurchase(orderData)
+}
+
+/**
+ * Inicializa el Data Layer en la página de Thank You
+ * Debe llamarse antes que cualquier otro push al dataLayer
+ */
+export const initializeDataLayer = (orderID: string): void => {
+  if (typeof window === 'undefined') return
+
+  try {
+    // Inicializar dataLayer con el orderID y variables básicas
+    window.dataLayer = window.dataLayer || []
+    
+    // Push de variables iniciales para GTM
+    window.dataLayer.push({
+      // Información de la página
+      event: 'page_view',
+      orderID: orderID,
+      pageCategory: 'nutricion',
+      
+      // URLs
+      url: window.location.href,
+      pageHostname: window.location.hostname,
+      pagePath: window.location.pathname,
+      pageURL: window.location.href,
+      
+      // Referrer
+      referrer: document.referrer || 'https://tsgassistant.google.com/',
+      
+      // Número aleatorio para tracking único
+      random: Math.floor(Math.random() * 1000000000)
+    })
+
+    console.log('✅ Data Layer initialized with orderID and page variables:', orderID)
+  } catch (error) {
+    console.error('❌ Error initializing Data Layer:', error)
+  }
+}
+
+/**
+ * Push de variables de producto al Data Layer
+ * Útil para páginas de producto individual
+ */
+export const pushProductDataLayer = (productData: {
+  productCategory?: string
+  productCategoryC?: string
+  productName?: string
+  productNameC?: string
+  productPrice?: number
+  productPriceC?: number
+  productQuantityC?: number
+  productSKUC?: string
+  productos?: number
+}): void => {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.dataLayer = window.dataLayer || []
+    
+    const dataLayerVars: any = {}
+    
+    // Solo agregar campos que tengan valor
+    if (productData.productCategory) dataLayerVars.productCategory = productData.productCategory
+    if (productData.productCategoryC) dataLayerVars.productCategoryC = productData.productCategoryC
+    if (productData.productName) dataLayerVars.productName = productData.productName
+    if (productData.productNameC) dataLayerVars.productNameC = productData.productNameC
+    if (productData.productPrice) dataLayerVars.productPrice = productData.productPrice
+    if (productData.productPriceC) dataLayerVars.productPriceC = productData.productPriceC
+    if (productData.productQuantityC) dataLayerVars.productQuantityC = productData.productQuantityC
+    if (productData.productSKUC) dataLayerVars.productSKUC = productData.productSKUC
+    if (productData.productos) dataLayerVars.productos = productData.productos
+    
+    window.dataLayer.push(dataLayerVars)
+    
+    console.log('✅ Product variables pushed to Data Layer')
+  } catch (error) {
+    console.error('❌ Error pushing product data to Data Layer:', error)
+  }
 }

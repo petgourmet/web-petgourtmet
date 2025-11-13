@@ -8,6 +8,7 @@ import { GoogleAnalytics } from "@/components/google-analytics"
 import { FacebookPixel } from "@/components/facebook-pixel"
 import { StructuredData } from "@/components/structured-data"
 import { GoogleTagManager, GoogleTagManagerNoScript } from "@/components/google-tag-manager"
+import { DataLayerInit } from "@/components/data-layer-init"
 // import { RecaptchaProvider } from "@/contexts/RecaptchaProvider"
 
 // Fuente principal para el contenido general
@@ -129,6 +130,7 @@ export default function RootLayout({
         <GoogleTagManager />
         <GoogleAnalytics />
         <FacebookPixel />
+        <DataLayerInit />
         <StructuredData type="organization" />
         <StructuredData type="website" />
         <StructuredData type="breadcrumb" />

@@ -6,7 +6,7 @@ import { CheckCircle, Package, Mail, User, MapPin, CreditCard, Home, ShoppingBag
 import Link from 'next/link'
 import { useClientAuth } from '@/hooks/use-client-auth'
 import Image from 'next/image'
-import { trackPurchase } from '@/utils/analytics'
+import { trackPurchase, initializeDataLayer, pushProductDataLayer } from '@/utils/analytics'
 
 interface OrderDetails {
   orderId: string
@@ -43,22 +43,76 @@ export default function GraciasPorTuCompra() {
         const data = await response.json()
         setOrderDetails(data)
 
+        // ===== INICIALIZAR DATA LAYER =====
+        console.log('🔵 [GTM] Iniciando proceso de tracking de compra')
+        console.log('🔵 [GTM] Datos de orden recibidos:', {
+          orderId: data.orderId,
+          total: data.total,
+          items: data.items?.length
+        })
+        
+        // Primero inicializar con el orderID (requerido en Thank You page)
+        initializeDataLayer(data.orderId)
+
+        // ===== PUSH DATOS DE PRODUCTOS =====
+        // Agregar información de productos al Data Layer
+        if (data.items && data.items.length > 0) {
+          const firstItem = data.items[0]
+          console.log('🔵 [GTM] Primer item para Data Layer:', {
+            category: firstItem.category,
+            name: firstItem.name,
+            price: firstItem.price,
+            quantity: firstItem.quantity
+          })
+          
+          pushProductDataLayer({
+            productCategory: firstItem.category,
+            productCategoryC: firstItem.category,
+            productName: firstItem.name,
+            productNameC: firstItem.name,
+            productPrice: firstItem.price,
+            productPriceC: firstItem.price,
+            productQuantityC: firstItem.quantity,
+            productSKUC: firstItem.product_id || firstItem.id,
+            productos: data.items.length
+          })
+        }
+
         // ===== ANALYTICS TRACKING =====
+        console.log('🔵 [GTM] Disparando evento purchase con todos los items:', data.items.length)
+        
         // Usar la función centralizada que maneja todos los servicios de analytics
         trackPurchase({
           orderId: data.orderId,
           orderNumber: data.orderNumber,
           total: data.total,
           subtotal: data.subtotal,
-          shipping: data.shipping,
-          tax: 0, // Agregar si tienes impuestos
-          coupon: '', // Agregar si tienes cupón aplicado
-          items: data.items,
+          shipping: data.shipping || 0,
+          tax: data.tax || 0,
+          coupon: data.coupon || undefined,
+          affiliation: 'PetGourmet Online Store',
+          items: data.items.map((item: any) => ({
+            id: item.product_id || item.id,
+            product_id: item.product_id || item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            category: item.category,
+            subcategory: item.subcategory,
+            brand: item.brand || 'PET GOURMET',
+            variant: item.variant || item.size
+          })),
           customerEmail: data.customerEmail,
           customerName: data.customerName,
         })
+        
+        // Log final para verificación
+        console.log('🟢 [GTM] Data Layer completo:', window.dataLayer)
+        console.log('🟢 [GTM] Último evento purchase:', 
+          window.dataLayer.filter((item: any) => item.event === 'purchase').slice(-1)
+        )
 
-        // Mantener los eventos legacy por compatibilidad (opcional)
+        // Mantener los eventos legacy por compatibilidad (opcional - se puede eliminar)
         // Google Analytics
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'purchase', {

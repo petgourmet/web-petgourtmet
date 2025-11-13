@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       expand: ['line_items', 'line_items.data.price.product']
     })
 
-    // Buscar la orden en la base de datos
+    // Buscar la orden en la base de datos con información completa de productos
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -36,7 +36,17 @@ export async function GET(request: NextRequest) {
           product_image,
           quantity,
           price,
-          size
+          size,
+          products (
+            id,
+            name,
+            brand,
+            category_id,
+            subcategory,
+            categories (
+              name
+            )
+          )
         )
       `)
       .eq('stripe_session_id', sessionId)
@@ -97,7 +107,7 @@ export async function GET(request: NextRequest) {
       console.error('Error parsing shipping address:', e)
     }
 
-    // Formatear respuesta
+    // Formatear respuesta con información completa de productos
     const orderDetails = {
       orderId: order.id,
       orderNumber: `PG-${order.id}`,
@@ -110,7 +120,12 @@ export async function GET(request: NextRequest) {
         image: item.product_image,
         quantity: item.quantity,
         price: item.price,
-        size: item.size
+        size: item.size,
+        // Agregar información de productos desde la relación
+        category: item.products?.categories?.name || null,
+        subcategory: item.products?.subcategory || null,
+        brand: item.products?.brand || 'PET GOURMET',
+        variant: item.size || null // Usar el tamaño como variante
       })) || [],
       customerEmail: order.customer_email,
       customerName: order.customer_name,

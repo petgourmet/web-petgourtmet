@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -8,6 +8,12 @@ export default function HomeNewsletter() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [formLoadTime, setFormLoadTime] = useState<number>(0)
+
+  useEffect(() => {
+    // Guardar timestamp de cuando se cargó el formulario
+    setFormLoadTime(Date.now())
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +31,11 @@ export default function HomeNewsletter() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+          email,
+          honeypot: '', // Campo honeypot vacío (para detectar bots)
+          submissionTime: formLoadTime // Tiempo de carga para validar velocidad
+        }),
       })
 
       const result = await response.json()

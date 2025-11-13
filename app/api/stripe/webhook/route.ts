@@ -156,9 +156,19 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
     // Enviar email de confirmación al cliente
     try {
+      console.log('[WEBHOOK] 📧 Intentando enviar email de confirmación...')
+      console.log('[WEBHOOK] SMTP Config Check:', {
+        hasHost: !!process.env.SMTP_HOST,
+        hasUser: !!process.env.SMTP_USER,
+        hasPass: !!process.env.SMTP_PASS,
+        hasFrom: !!process.env.EMAIL_FROM
+      })
+      
       const { sendOrderStatusEmail } = await import('@/lib/email-service')
       
       if (customerEmail) {
+        console.log('[WEBHOOK] Email destinatario:', customerEmail)
+        
         // Preparar datos para el email
         const orderDataForEmail = {
           id: order.id,
@@ -171,11 +181,36 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           shipping_address: fullShippingAddress?.shipping || null
         }
 
-        await sendOrderStatusEmail('pending', customerEmail, orderDataForEmail)
-        console.log('✅ Email de confirmación enviado a:', customerEmail)
+        console.log('[WEBHOOK] Datos de orden para email:', {
+          orderId: orderDataForEmail.id,
+          total: orderDataForEmail.total,
+          productsCount: orderDataForEmail.products.length
+        })
+
+        const emailResult = await sendOrderStatusEmail('pending', customerEmail, orderDataForEmail)
+        
+        if (emailResult && emailResult.success) {
+          console.log('[WEBHOOK] ✅ Email de confirmación enviado exitosamente:', {
+            to: customerEmail,
+            messageId: emailResult.messageId,
+            attempts: emailResult.attempts
+          })
+        } else {
+          console.error('[WEBHOOK] ❌ Email no se pudo enviar:', {
+            to: customerEmail,
+            error: emailResult?.error || 'Unknown error'
+          })
+        }
+      } else {
+        console.warn('[WEBHOOK] ⚠️ No hay email del cliente para enviar confirmación')
       }
     } catch (emailError) {
-      console.error('❌ Error enviando email de confirmación:', emailError)
+      console.error('[WEBHOOK] ❌ Error crítico enviando email de confirmación:', {
+        error: emailError instanceof Error ? emailError.message : String(emailError),
+        stack: emailError instanceof Error ? emailError.stack : undefined,
+        orderId: order.id,
+        customerEmail: customerEmail
+      })
       // No lanzar error, solo registrar
     }
 

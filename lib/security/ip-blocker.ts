@@ -14,7 +14,7 @@ export interface IPBlockEntry {
 
 export interface IPViolation {
   ip: string
-  type: 'spam' | 'rate_limit' | 'honeypot' | 'low_recaptcha' | 'suspicious_content'
+  type: 'spam' | 'rate_limit' | 'honeypot' | 'low_recaptcha' | 'suspicious_content' | 'fast_submission' | 'suspicious_pattern'
   severity: 'low' | 'medium' | 'high'
   timestamp: number
   details?: Record<string, any>

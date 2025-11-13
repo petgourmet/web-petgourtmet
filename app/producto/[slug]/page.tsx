@@ -28,6 +28,7 @@ import type { Product } from "@/components/product-category-loader"
 import { Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import { ProductStructuredData } from "@/components/product-structured-data"
+import { pushProductDataLayer } from "@/utils/analytics"
 
 export default function ProductDetailPage() {
   const { slug } = useParams()
@@ -162,6 +163,22 @@ export default function ProductDetailPage() {
         }
 
         setProduct(processedProduct)
+
+        // ===== PUSH DATOS DE PRODUCTO AL DATA LAYER =====
+        // Enviar información del producto visualizado a Google Tag Manager
+        pushProductDataLayer({
+          productCategory: processedProduct.category || 'Productos',
+          productCategoryC: processedProduct.category || 'Productos',
+          productName: processedProduct.name,
+          productNameC: processedProduct.name,
+          productPrice: processedProduct.price,
+          productPriceC: processedProduct.price,
+          productQuantityC: 1, // Cantidad inicial
+          productSKUC: processedProduct.id.toString(),
+          productos: 1 // Un producto visualizado
+        })
+
+        console.log('📊 Product data pushed to Data Layer:', processedProduct.name)
 
         // Establecer el tamaño predeterminado
         if (processedProduct.sizes && processedProduct.sizes.length > 0) {
