@@ -189,16 +189,23 @@ export default function CheckoutPage() {
       return
     }
 
-    // Verificar si hay múltiples suscripciones
+    // Verificar si hay múltiples suscripciones en el carrito
     const subscriptionItems = cart.filter(item => item.isSubscription)
+    const regularItems = cart.filter(item => !item.isSubscription)
+    
     if (subscriptionItems.length > 1) {
-      setError("Solo puedes comprar una suscripción a la vez. Por favor, elimina las suscripciones adicionales del carrito.")
+      setError("Solo puedes suscribirte a UN producto por compra. Por favor, elimina las suscripciones adicionales del carrito.")
       toast({
-        title: "Múltiples suscripciones detectadas",
-        description: "Stripe solo permite procesar una suscripción por compra. Por favor, compra las suscripciones por separado.",
+        title: "Múltiples suscripciones no permitidas",
+        description: "Solo puedes suscribirte a un producto a la vez. Puedes comprar productos normales junto con tu suscripción, o hacer compras de suscripciones por separado.",
         variant: "destructive"
       })
       return
+    }
+    
+    // Opcional: Informar al usuario que puede mezclar productos normales con una suscripción
+    if (subscriptionItems.length === 1 && regularItems.length > 0) {
+      console.log('✅ Carrito válido: 1 suscripción + productos normales')
     }
 
     setIsLoading(true)

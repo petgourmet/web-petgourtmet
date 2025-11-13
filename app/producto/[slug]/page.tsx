@@ -43,7 +43,7 @@ export default function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<{ weight: string; price: number } | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [isSubscription, setIsSubscription] = useState(false)
-  const [subscriptionType, setSubscriptionType] = useState<"biweekly" | "monthly" | "quarterly" | "annual">("monthly")
+  const [subscriptionType, setSubscriptionType] = useState<"weekly" | "biweekly" | "monthly" | "quarterly" | "annual">("monthly")
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
@@ -73,7 +73,7 @@ export default function ProductDetailPage() {
           .from("products")
           .select("*, categories(name)")
           .eq("slug", productSlug)
-          .single()
+          .single<any>()
 
         if (productError) {
           throw productError
@@ -100,12 +100,6 @@ export default function ProductDetailPage() {
           .select("name, color")
           .eq("product_id", productData.id)
 
-        // Cargar tamaños/precios del producto
-        const { data: sizesData } = await supabase
-          .from("product_sizes")
-          .select("weight, price")
-          .eq("product_id", productData.id)
-
         // Cargar galería de imágenes
         const { data: galleryData } = await supabase
           .from("product_images")
@@ -130,7 +124,7 @@ export default function ProductDetailPage() {
 
         // Procesar galería de imágenes
         const gallery = galleryData
-          ? galleryData.map((img) => ({
+          ? galleryData.map((img: any) => ({
               src: img.url.startsWith("http")
                 ? img.url
                 : supabase.storage.from("products").getPublicUrl(img.url).data.publicUrl,
@@ -144,7 +138,6 @@ export default function ProductDetailPage() {
           image: imageUrl,
           category: productData.categories?.name || "Sin categoría",
           features: featuresData || [],
-          sizes: sizesData || [],
           gallery: gallery,
           subscription: {
             available: productData.subscription_available || false,
@@ -225,11 +218,6 @@ export default function ProductDetailPage() {
       monthly_discount: product.monthly_discount,
       quarterly_discount: product.quarterly_discount,
       annual_discount: product.annual_discount,
-      // Incluir URLs de MercadoPago específicas del producto
-      
-      monthly_mercadopago_url: product.monthly_mercadopago_url,
-      quarterly_mercadopago_url: product.quarterly_mercadopago_url,
-      annual_mercadopago_url: product.annual_mercadopago_url,
     })
   }
 
@@ -336,7 +324,7 @@ export default function ProductDetailPage() {
   }
 
   // Combinar imagen principal con imágenes adicionales
-  const allImages = [{ src: product.image, alt: product.name }, ...product.gallery].filter(
+  const allImages = [{ src: product.image, alt: product.name }, ...(product.gallery || [])].filter(
     (img) => img.src && img.src.trim() !== "",
   )
 
@@ -531,29 +519,6 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
-              {/* Selección de tamaño */}
-              {product.sizes && product.sizes.length > 0 && (
-                <div>
-                  <h3 className="font-bold mb-3 text-lg">Tamaño</h3>
-                  <div className="flex flex-wrap gap-3">
-                    {product.sizes.map((size, idx) => (
-                      <Button
-                        key={idx}
-                        variant={selectedSize === size ? "default" : "outline"}
-                        className={`rounded-full px-6 py-3 ${
-                          selectedSize === size
-                            ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                            : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                        }`}
-                        onClick={() => setSelectedSize(size)}
-                      >
-                        {size.weight} - ${size.price.toFixed(2)} MXN
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Tipo de compra */}
               <div>
                 <h3 className="font-bold mb-3 text-lg">Tipo de compra</h3>
@@ -569,8 +534,7 @@ export default function ProductDetailPage() {
                   >
                     Compra única
                   </Button>
-                  {/* Botón temporalmente oculto */}
-                  {false && (
+                  {product.subscription_available && (
                     <Button
                       variant={isSubscription ? "default" : "outline"}
                       className={`rounded-full px-6 py-3 ${
@@ -579,7 +543,6 @@ export default function ProductDetailPage() {
                           : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                       }`}
                       onClick={() => setIsSubscription(true)}
-                      disabled={!product.subscription_available}
                     >
                       Repetir compra
                     </Button>

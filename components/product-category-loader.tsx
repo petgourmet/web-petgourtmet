@@ -42,7 +42,8 @@ export type Product = {
   sellByWeight?: boolean
   weightReference?: string
   subscription_available?: boolean
-  subscription_types?: ("biweekly" | "monthly" | "quarterly" | "annual")[]
+  subscription_types?: ("weekly" | "biweekly" | "monthly" | "quarterly" | "annual")[]
+  weekly_discount?: number
   biweekly_discount?: number
   monthly_discount?: number
   quarterly_discount?: number
@@ -50,7 +51,7 @@ export type Product = {
   subscription?: {
     available: boolean
     options?: Array<{
-      type: "biweekly" | "monthly" | "quarterly" | "annual"
+      type: "weekly" | "biweekly" | "monthly" | "quarterly" | "annual"
       discount: number
     }>
   }

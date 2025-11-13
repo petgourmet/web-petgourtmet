@@ -182,7 +182,7 @@ export async function logEmailSent(
 
 // Función para enviar correos de suscripción
 export async function sendSubscriptionEmail(
-  emailType: 'created' | 'payment' | 'cancelled',
+  emailType: 'created' | 'payment' | 'cancelled' | 'paused' | 'resumed' | 'payment_failed',
   subscriptionData: SubscriptionEmailData,
   maxRetries: number = 3
 ) {
@@ -893,6 +893,27 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
       message: 'Tu suscripción ha sido cancelada. Esperamos verte de nuevo pronto.',
       color: '#ef4444',
       icon: '❌'
+    },
+    paused: {
+      subject: '⏸️ Suscripción pausada - Pet Gourmet',
+      title: '⏸️ Suscripción Pausada',
+      message: 'Tu suscripción ha sido pausada temporalmente. No se realizarán cobros hasta que la reactives.',
+      color: '#f59e0b',
+      icon: '⏸️'
+    },
+    resumed: {
+      subject: '▶️ Suscripción reactivada - Pet Gourmet',
+      title: '▶️ ¡Suscripción Reactivada!',
+      message: 'Tu suscripción ha sido reactivada exitosamente. Los envíos se reanudarán según el calendario.',
+      color: '#10b981',
+      icon: '▶️'
+    },
+    payment_failed: {
+      subject: '⚠️ Error en el pago de tu suscripción - Pet Gourmet',
+      title: '⚠️ Error en el Pago',
+      message: 'No pudimos procesar el pago de tu suscripción. Por favor, actualiza tu método de pago para continuar.',
+      color: '#dc2626',
+      icon: '⚠️'
     }
   };
 

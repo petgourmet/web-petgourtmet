@@ -218,6 +218,18 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // Suscripción - Crear/actualizar suscripción
     const subscriptionId = session.subscription as string
     
+    // Verificar si la suscripción ya existe
+    const { data: existingSubscription } = await supabaseAdmin
+      .from('unified_subscriptions')
+      .select('id, status')
+      .eq('stripe_subscription_id', subscriptionId)
+      .single()
+    
+    if (existingSubscription) {
+      console.log('⚠️ Suscripción ya existe:', subscriptionId, '- Saltando creación')
+      return // Ya fue procesada, no crear duplicado
+    }
+    
     // Expandir la suscripción para obtener todos los datos
     const subscriptionData = await stripe.subscriptions.retrieve(subscriptionId, {
       expand: ['latest_invoice', 'default_payment_method']
@@ -455,17 +467,128 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   const subscriptionId = invoiceData.subscription as string
 
-  // Actualizar el estado de la suscripción
+  // Obtener la suscripción de Stripe para actualizar fechas
+  const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId) as any
+  
+  const nextBillingDate = stripeSubscription.current_period_end 
+    ? new Date(stripeSubscription.current_period_end * 1000).toISOString()
+    : null
+
+  // Obtener la suscripción de la BD
+  const { data: subscription } = await supabaseAdmin
+    .from('unified_subscriptions')
+    .select('*')
+    .eq('stripe_subscription_id', subscriptionId)
+    .single()
+
+  if (!subscription) {
+    console.warn('⚠️ Suscripción no encontrada en BD:', subscriptionId)
+    return
+  }
+
+  // Actualizar el estado de la suscripción con fechas actualizadas
   const { error } = await supabaseAdmin
     .from('unified_subscriptions')
     .update({
       status: 'active',
       last_payment_date: new Date(invoice.created * 1000).toISOString(),
+      last_billing_date: new Date(invoice.created * 1000).toISOString(),
+      next_billing_date: nextBillingDate,
+      current_period_start: stripeSubscription.current_period_start
+        ? new Date(stripeSubscription.current_period_start * 1000).toISOString()
+        : null,
+      current_period_end: nextBillingDate,
+      updated_at: new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscriptionId)
 
   if (error) {
-    console.error('Error al actualizar suscripción:', error)
+    console.error('❌ Error al actualizar suscripción:', error)
+  } else {
+    console.log('✅ Suscripción actualizada con nuevas fechas:', {
+      subscriptionId,
+      lastPayment: new Date(invoice.created * 1000).toISOString(),
+      nextBilling: nextBillingDate
+    })
+  }
+
+  // Registrar el pago en subscription_payments
+  try {
+    const { error: paymentError } = await supabaseAdmin
+      .from('subscription_payments')
+      .insert({
+        subscription_id: subscription.id,
+        user_id: subscription.user_id,
+        amount: (invoice.amount_paid || 0) / 100,
+        currency: invoice.currency?.toUpperCase() || 'MXN',
+        status: 'succeeded',
+        payment_date: new Date(invoice.created * 1000).toISOString(),
+        stripe_invoice_id: invoice.id,
+        stripe_payment_intent_id: (invoiceData.payment_intent as string) || null,
+        stripe_charge_id: (invoiceData.charge as string) || null,
+        period_start: stripeSubscription.current_period_start
+          ? new Date(stripeSubscription.current_period_start * 1000).toISOString()
+          : null,
+        period_end: nextBillingDate,
+        metadata: {
+          invoice_number: invoice.number,
+          customer_email: invoice.customer_email,
+        }
+      })
+
+    if (paymentError) {
+      console.error('❌ Error registrando pago:', paymentError)
+    } else {
+      console.log('✅ Pago registrado en subscription_payments')
+    }
+  } catch (paymentError) {
+    console.error('❌ Error al registrar pago:', paymentError)
+  }
+
+  // Enviar notificaciones por email
+  try {
+    const { sendSubscriptionEmail } = await import('@/lib/email-service')
+    
+    // Email al cliente
+    await sendSubscriptionEmail('payment', {
+      user_email: subscription.customer_email,
+      user_name: subscription.customer_name,
+      subscription_type: subscription.subscription_type,
+      amount: (invoice.amount_paid || 0) / 100,
+      next_payment_date: nextBillingDate 
+        ? new Date(nextBillingDate).toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        : 'Próximamente',
+      plan_description: subscription.product_name,
+      external_reference: subscriptionId
+    })
+
+    console.log('✅ Email de pago enviado al cliente:', subscription.customer_email)
+
+    // Email al admin
+    await sendSubscriptionEmail('payment', {
+      user_email: 'contacto@petgourmet.mx',
+      user_name: 'Admin Pet Gourmet',
+      subscription_type: subscription.subscription_type,
+      amount: (invoice.amount_paid || 0) / 100,
+      next_payment_date: nextBillingDate 
+        ? new Date(nextBillingDate).toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        : 'Próximamente',
+      plan_description: `${subscription.customer_name} - ${subscription.product_name} - $${((invoice.amount_paid || 0) / 100).toFixed(2)} MXN`,
+      external_reference: subscriptionId
+    })
+
+    console.log('✅ Email de pago enviado al admin: contacto@petgourmet.mx')
+  } catch (emailError) {
+    console.error('❌ Error enviando emails de pago:', emailError)
+    // No fallar el webhook por error de email
   }
 }
 
@@ -484,16 +607,94 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   const subscriptionId = invoiceData.subscription as string
 
+  // Obtener la suscripción de la BD
+  const { data: subscription } = await supabaseAdmin
+    .from('unified_subscriptions')
+    .select('*')
+    .eq('stripe_subscription_id', subscriptionId)
+    .single()
+
+  if (!subscription) {
+    console.warn('⚠️ Suscripción no encontrada en BD:', subscriptionId)
+    return
+  }
+
   // Marcar la suscripción como con problema de pago
   const { error } = await supabaseAdmin
     .from('unified_subscriptions')
     .update({
       status: 'past_due',
+      updated_at: new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscriptionId)
 
   if (error) {
-    console.error('Error al actualizar suscripción:', error)
+    console.error('❌ Error al actualizar suscripción:', error)
+  } else {
+    console.log('✅ Suscripción marcada como past_due:', subscriptionId)
+  }
+
+  // Registrar el intento de pago fallido
+  try {
+    const { error: paymentError } = await supabaseAdmin
+      .from('subscription_payments')
+      .insert({
+        subscription_id: subscription.id,
+        user_id: subscription.user_id,
+        amount: (invoice.amount_due || 0) / 100,
+        currency: invoice.currency?.toUpperCase() || 'MXN',
+        status: 'failed',
+        payment_date: new Date(invoice.created * 1000).toISOString(),
+        stripe_invoice_id: invoice.id,
+        stripe_payment_intent_id: (invoiceData.payment_intent as string) || null,
+        failure_message: 'Payment failed',
+        failure_code: invoiceData.last_payment_error?.code || 'unknown',
+        metadata: {
+          invoice_number: invoice.number,
+          customer_email: invoice.customer_email,
+          attempt_count: invoiceData.attempt_count || 1
+        }
+      })
+
+    if (paymentError) {
+      console.error('❌ Error registrando pago fallido:', paymentError)
+    } else {
+      console.log('✅ Pago fallido registrado en subscription_payments')
+    }
+  } catch (paymentError) {
+    console.error('❌ Error al registrar pago fallido:', paymentError)
+  }
+
+  // Enviar notificaciones de error de pago
+  try {
+    const { sendSubscriptionEmail } = await import('@/lib/email-service')
+    
+    // Email al cliente
+    await sendSubscriptionEmail('payment_failed', {
+      user_email: subscription.customer_email,
+      user_name: subscription.customer_name,
+      subscription_type: subscription.subscription_type,
+      amount: (invoice.amount_due || 0) / 100,
+      plan_description: subscription.product_name,
+      external_reference: subscriptionId
+    })
+
+    console.log('✅ Email de pago fallido enviado al cliente:', subscription.customer_email)
+
+    // Email al admin
+    await sendSubscriptionEmail('payment_failed', {
+      user_email: 'contacto@petgourmet.mx',
+      user_name: 'Admin Pet Gourmet',
+      subscription_type: subscription.subscription_type,
+      amount: (invoice.amount_due || 0) / 100,
+      plan_description: `${subscription.customer_name} - ${subscription.product_name} - PAGO FALLIDO`,
+      external_reference: subscriptionId
+    })
+
+    console.log('✅ Email de pago fallido enviado al admin: contacto@petgourmet.mx')
+  } catch (emailError) {
+    console.error('❌ Error enviando emails de pago fallido:', emailError)
+    // No fallar el webhook por error de email
   }
 }
 
@@ -577,39 +778,63 @@ export async function POST(request: NextRequest) {
     }
 
     // Manejar diferentes tipos de eventos
-    console.log('Webhook recibido:', event.type)
+    console.log('Webhook recibido:', event.type, 'ID:', event.id)
 
-    switch (event.type) {
-      case 'checkout.session.completed':
-        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
-        break
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed':
+          await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
+          break
 
-      case 'invoice.payment_succeeded':
-        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice)
-        break
+        case 'invoice.payment_succeeded':
+          await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice)
+          break
 
-      case 'invoice.payment_failed':
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice)
-        break
+        case 'invoice.payment_failed':
+          await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice)
+          break
 
-      case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription)
-        break
+        case 'customer.subscription.updated':
+          await handleSubscriptionUpdated(event.data.object as Stripe.Subscription)
+          break
 
-      case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
-        break
+        case 'customer.subscription.deleted':
+          await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
+          break
 
-      default:
-        console.log(`Evento no manejado: ${event.type}`)
+        // Eventos que podemos ignorar silenciosamente
+        case 'invoice.created':
+        case 'invoice.finalized':
+        case 'invoice.paid':
+        case 'payment_intent.succeeded':
+        case 'payment_intent.created':
+        case 'charge.succeeded':
+          console.log(`✅ Evento ${event.type} recibido (no requiere acción)`)
+          break
+
+        default:
+          console.log(`ℹ️ Evento no manejado: ${event.type}`)
+      }
+    } catch (handlerError) {
+      console.error(`❌ Error manejando evento ${event.type}:`, handlerError)
+      // Log del error pero no lanzar - queremos responder 200 a Stripe
+      // para evitar reintentos innecesarios
     }
 
     return NextResponse.json({ received: true })
 
   } catch (error) {
-    console.error('Error al procesar webhook:', error)
+    console.error('❌ Error crítico al procesar webhook:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      eventType: 'unknown'
+    })
+    
     return NextResponse.json(
-      { error: 'Error al procesar webhook' },
+      { 
+        error: 'Error al procesar webhook',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

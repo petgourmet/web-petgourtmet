@@ -433,8 +433,31 @@ function PerfilPageContent() {
         return
       }
 
-      console.log('✅ Suscripciones cargadas:', subscriptionsData?.length || 0)
-      setSubscriptions(subscriptionsData || [])
+      // Eliminar duplicados: agrupar por stripe_subscription_id y mantener solo la más reciente
+      const uniqueSubscriptions = (subscriptionsData || []).reduce((acc: any[], current: any) => {
+        const existingIndex = acc.findIndex(
+          (sub: any) => sub.stripe_subscription_id === current.stripe_subscription_id
+        )
+        
+        if (existingIndex === -1) {
+          // No existe, agregar
+          acc.push(current)
+        } else {
+          // Ya existe, mantener la más reciente
+          const existing = acc[existingIndex]
+          const currentDate = new Date(current.created_at).getTime()
+          const existingDate = new Date(existing.created_at).getTime()
+          
+          if (currentDate > existingDate) {
+            acc[existingIndex] = current
+          }
+        }
+        
+        return acc
+      }, [])
+
+      console.log('✅ Suscripciones únicas cargadas:', uniqueSubscriptions.length)
+      setSubscriptions(uniqueSubscriptions)
     } catch (error) {
       console.error('Error loading subscriptions:', error)
       toast.error('No se pudieron cargar las suscripciones')
@@ -481,6 +504,77 @@ function PerfilPageContent() {
       toast.error('Error al guardar el perfil')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handlePauseSubscription = async (subscriptionId: string | number) => {
+    try {
+      const response = await fetch('/api/subscriptions/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al pausar la suscripción')
+      }
+
+      toast.success('Suscripción pausada exitosamente')
+      await fetchSubscriptions() // Recargar suscripciones
+    } catch (error) {
+      console.error('Error pausando suscripción:', error)
+      toast.error(error instanceof Error ? error.message : 'Error al pausar la suscripción')
+    }
+  }
+
+  const handleResumeSubscription = async (subscriptionId: string | number) => {
+    try {
+      const response = await fetch('/api/subscriptions/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al reanudar la suscripción')
+      }
+
+      toast.success('Suscripción reactivada exitosamente')
+      await fetchSubscriptions() // Recargar suscripciones
+    } catch (error) {
+      console.error('Error reactivando suscripción:', error)
+      toast.error(error instanceof Error ? error.message : 'Error al reactivar la suscripción')
+    }
+  }
+
+  const handleCancelSubscription = async (subscriptionId: string | number) => {
+    // Confirmar antes de cancelar
+    if (!window.confirm('¿Estás seguro de que deseas cancelar esta suscripción? Esta acción no se puede deshacer.')) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al cancelar la suscripción')
+      }
+
+      toast.success('Suscripción cancelada exitosamente')
+      await fetchSubscriptions() // Recargar suscripciones
+    } catch (error) {
+      console.error('Error cancelando suscripción:', error)
+      toast.error(error instanceof Error ? error.message : 'Error al cancelar la suscripción')
     }
   }
 
@@ -1114,6 +1208,80 @@ function PerfilPageContent() {
                             </div>
                           )
                         })()}
+                      </CardContent>
+
+                      {/* Acciones de Suscripción */}
+                      <CardContent className="p-6 border-t bg-gray-50">
+                        <h4 className="font-semibold text-gray-900 mb-4">Gestionar Suscripción</h4>
+                        <div className="flex flex-wrap gap-3">
+                          {subscription.status === 'active' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                onClick={() => handlePauseSubscription(subscription.id)}
+                                className="flex items-center gap-2"
+                              >
+                                <Clock className="h-4 w-4" />
+                                Pausar Suscripción
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleCancelSubscription(subscription.id)}
+                                className="flex items-center gap-2"
+                              >
+                                ❌ Cancelar Suscripción
+                              </Button>
+                            </>
+                          )}
+                          {subscription.status === 'paused' && (
+                            <>
+                              <Button
+                                variant="default"
+                                onClick={() => handleResumeSubscription(subscription.id)}
+                                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                              >
+                                ▶️ Reanudar Suscripción
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleCancelSubscription(subscription.id)}
+                                className="flex items-center gap-2"
+                              >
+                                ❌ Cancelar Suscripción
+                              </Button>
+                            </>
+                          )}
+                          {subscription.status === 'canceled' && (
+                            <p className="text-gray-500 italic">
+                              Esta suscripción ha sido cancelada.
+                            </p>
+                          )}
+                          {subscription.status === 'past_due' && (
+                            <div className="w-full">
+                              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-3">
+                                <p className="text-red-800 text-sm">
+                                  ⚠️ Hay un problema con tu método de pago. Por favor, actualiza tu información de pago para continuar con la suscripción.
+                                </p>
+                              </div>
+                              <div className="flex gap-3">
+                                <Button
+                                  variant="default"
+                                  onClick={() => window.location.href = '/perfil?tab=payment'}
+                                  className="flex items-center gap-2"
+                                >
+                                  💳 Actualizar Método de Pago
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => handleCancelSubscription(subscription.id)}
+                                  className="flex items-center gap-2"
+                                >
+                                  ❌ Cancelar Suscripción
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   )

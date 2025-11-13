@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Calendar, Package, CreditCard, ArrowLeft, Gift, Mail, Heart, Clock } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
+import { trackPurchase, initializeDataLayer, pushProductDataLayer } from '@/utils/analytics'
 
 interface ActivatedSubscription {
   id: number
@@ -94,6 +95,74 @@ function ExitoSuscripcionContent() {
       if (recentActiveSubscriptions.length > 0) {
         setActivatedSubscriptions(recentActiveSubscriptions as any)
         
+        // ===== TRACKING DE GTM PARA SUSCRIPCIONES =====
+        console.log('🔵 [GTM] Iniciando tracking de suscripción')
+        
+        // Inicializar Data Layer con session_id como order ID
+        if (sessionId) {
+          initializeDataLayer(sessionId)
+        }
+        
+        // Preparar items para el tracking
+        const subscriptionItems = recentActiveSubscriptions.map((sub: any) => {
+          const basePrice = sub.original_price || sub.base_price || sub.discounted_price || 0
+          const discountPercentage = sub.discount_percentage || 0
+          const discountAmount = basePrice * (discountPercentage / 100)
+          const priceAfterDiscount = basePrice - discountAmount
+          const shippingCost = basePrice >= 1000 ? 0 : 100
+          const totalPerPeriod = priceAfterDiscount + shippingCost
+          
+          return {
+            id: sub.id,
+            product_id: sub.id,
+            name: sub.product_name,
+            price: totalPerPeriod,
+            quantity: 1,
+            category: 'Suscripción',
+            subcategory: getSubscriptionTypeText(sub.subscription_type),
+            brand: 'PET GOURMET',
+            variant: sub.size || 'Standard'
+          }
+        })
+        
+        // Calcular totales
+        const subtotal = subscriptionItems.reduce((sum: number, item: any) => sum + item.price, 0)
+        const shipping = 0 // Ya incluido en el precio
+        const total = subtotal
+        
+        // Push de datos del primer producto al Data Layer
+        if (subscriptionItems.length > 0) {
+          const firstItem = subscriptionItems[0]
+          pushProductDataLayer({
+            productCategory: firstItem.category,
+            productCategoryC: firstItem.category,
+            productName: firstItem.name,
+            productNameC: firstItem.name,
+            productPrice: firstItem.price,
+            productPriceC: firstItem.price,
+            productQuantityC: firstItem.quantity,
+            productSKUC: String(firstItem.product_id),
+            productos: subscriptionItems.length
+          })
+        }
+        
+        // Trackear como purchase (suscripción = compra recurrente)
+        trackPurchase({
+          orderId: sessionId || `sub_${Date.now()}`,
+          orderNumber: sessionId ? `SUB-${sessionId.substring(0, 8)}` : `SUB-${Date.now()}`,
+          total: total,
+          subtotal: subtotal,
+          shipping: shipping,
+          tax: 0,
+          affiliation: 'PetGourmet Suscripciones',
+          items: subscriptionItems,
+          customerEmail: user.email || '',
+          customerName: user.user_metadata?.full_name || user.email || 'Cliente',
+        })
+        
+        console.log('🟢 [GTM] Tracking de suscripción completado')
+        console.log('📊 [GTM] Data Layer:', window.dataLayer)
+        
         toast({
           title: recentActiveSubscriptions.some(s => s.status === 'pending') 
             ? "¡Pago recibido!" 
@@ -124,6 +193,60 @@ function ExitoSuscripcionContent() {
 
       if (updatedSubscriptions && updatedSubscriptions.length > 0) {
         setActivatedSubscriptions(updatedSubscriptions as any)
+        
+        // ===== TRACKING DE GTM PARA SUSCRIPCIONES (caso alternativo) =====
+        console.log('🔵 [GTM] Iniciando tracking de suscripción (alternativo)')
+        
+        if (sessionId) {
+          initializeDataLayer(sessionId)
+        }
+        
+        const subscription = updatedSubscriptions[0] as any
+        const basePrice = subscription.original_price || subscription.base_price || subscription.discounted_price || 0
+        const discountPercentage = subscription.discount_percentage || 0
+        const discountAmount = basePrice * (discountPercentage / 100)
+        const priceAfterDiscount = basePrice - discountAmount
+        const shippingCost = basePrice >= 1000 ? 0 : 100
+        const totalPerPeriod = priceAfterDiscount + shippingCost
+        
+        const item = {
+          id: subscription.id,
+          product_id: subscription.id,
+          name: subscription.product_name,
+          price: totalPerPeriod,
+          quantity: 1,
+          category: 'Suscripción',
+          subcategory: getSubscriptionTypeText(subscription.subscription_type),
+          brand: 'PET GOURMET',
+          variant: subscription.size || 'Standard'
+        }
+        
+        pushProductDataLayer({
+          productCategory: item.category,
+          productCategoryC: item.category,
+          productName: item.name,
+          productNameC: item.name,
+          productPrice: item.price,
+          productPriceC: item.price,
+          productQuantityC: item.quantity,
+          productSKUC: String(item.product_id),
+          productos: 1
+        })
+        
+        trackPurchase({
+          orderId: sessionId || `sub_${Date.now()}`,
+          orderNumber: sessionId ? `SUB-${sessionId.substring(0, 8)}` : `SUB-${Date.now()}`,
+          total: totalPerPeriod,
+          subtotal: totalPerPeriod,
+          shipping: 0,
+          tax: 0,
+          affiliation: 'PetGourmet Suscripciones',
+          items: [item],
+          customerEmail: user.email || '',
+          customerName: user.user_metadata?.full_name || user.email || 'Cliente',
+        })
+        
+        console.log('🟢 [GTM] Tracking de suscripción completado (alternativo)')
         
         toast({
           title: "¡Bienvenido a Pet Gourmet!",
