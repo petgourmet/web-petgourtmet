@@ -139,6 +139,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         item.quantity
       )
     }
+    
+    // 🛒 Abrir el modal del carrito automáticamente
+    setShowCart(true)
   }
 
   const removeFromCart = (index: number) => {
