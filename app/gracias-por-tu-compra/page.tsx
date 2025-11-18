@@ -6,7 +6,7 @@ import { CheckCircle, Package, Mail, User, MapPin, CreditCard, Home, ShoppingBag
 import Link from 'next/link'
 import { useClientAuth } from '@/hooks/use-client-auth'
 import Image from 'next/image'
-import { trackPurchase, initializeDataLayer, pushProductDataLayer } from '@/utils/analytics'
+import { trackPurchase, pushProductDataLayer } from '@/utils/analytics'
 
 interface OrderDetails {
   orderId: string
@@ -29,34 +29,41 @@ export default function GraciasPorTuCompra() {
   const sessionId = searchParams.get('session_id')
 
   useEffect(() => {
+    console.log('🔍 [DEBUG] Session ID desde URL:', sessionId)
+    console.log('🔍 [DEBUG] URL completa:', window.location.href)
+    
     if (sessionId) {
+      console.log('✅ [DEBUG] Session ID encontrado, obteniendo detalles de orden...')
       fetchOrderDetails(sessionId)
     } else {
+      console.warn('⚠️ [DEBUG] No hay session_id en la URL - no se pueden cargar detalles')
       setLoading(false)
     }
   }, [sessionId])
 
   const fetchOrderDetails = async (session_id: string) => {
     try {
+      console.log('🔵 [API] Llamando a /api/stripe/order-details con session_id:', session_id)
       const response = await fetch(`/api/stripe/order-details?session_id=${session_id}`)
+      console.log('🔵 [API] Response status:', response.status, response.ok)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('🔵 [API] Datos recibidos del servidor:', data)
         setOrderDetails(data)
 
-        // ===== INICIALIZAR DATA LAYER =====
-        console.log('🔵 [GTM] Iniciando proceso de tracking de compra')
+        // ===== PUSH DATOS DE PRODUCTOS AL DATA LAYER =====
         console.log('🔵 [GTM] Datos de orden recibidos:', {
           orderId: data.orderId,
           total: data.total,
           items: data.items?.length
         })
         
-        // Primero inicializar con el orderID (requerido en Thank You page)
-        initializeDataLayer(data.orderId)
-
-        // ===== PUSH DATOS DE PRODUCTOS =====
         // Agregar información de productos al Data Layer
         if (data.items && data.items.length > 0) {
+          console.log('🔵 [GTM] Total items recibidos:', data.items.length)
+          console.log('🔵 [GTM] Todos los items:', data.items)
+          
           const firstItem = data.items[0]
           console.log('🔵 [GTM] Primer item para Data Layer:', {
             category: firstItem.category,
@@ -65,6 +72,7 @@ export default function GraciasPorTuCompra() {
             quantity: firstItem.quantity
           })
           
+          console.log('🔵 [GTM] Llamando a pushProductDataLayer...')
           pushProductDataLayer({
             productCategory: firstItem.category,
             productCategoryC: firstItem.category,
@@ -78,10 +86,16 @@ export default function GraciasPorTuCompra() {
           })
         }
 
-        // ===== ANALYTICS TRACKING =====
+        // ===== ANALYTICS TRACKING - EVENTO PURCHASE =====
         console.log('🔵 [GTM] Disparando evento purchase con todos los items:', data.items.length)
+        console.log('🔵 [GTM] Datos completos de la compra:', {
+          orderId: data.orderId,
+          total: data.total,
+          items: data.items
+        })
         
         // Usar la función centralizada que maneja todos los servicios de analytics
+        console.log('🔵 [GTM] Llamando a trackPurchase...')
         trackPurchase({
           orderId: data.orderId,
           orderNumber: data.orderNumber,
@@ -107,10 +121,24 @@ export default function GraciasPorTuCompra() {
         })
         
         // Log final para verificación
+        console.log('🟢 [GTM] ========== VERIFICACIÓN FINAL ==========')
         console.log('🟢 [GTM] Data Layer completo:', window.dataLayer)
+        console.log('🟢 [GTM] Total eventos en dataLayer:', window.dataLayer.length)
+        console.log('🟢 [GTM] Eventos purchase encontrados:', 
+          window.dataLayer.filter((item: any) => item.event === 'purchase')
+        )
         console.log('🟢 [GTM] Último evento purchase:', 
           window.dataLayer.filter((item: any) => item.event === 'purchase').slice(-1)
         )
+        console.log('🟢 [GTM] ==========================================')
+        
+        // Tabla para ver mejor todos los eventos
+        console.table(window.dataLayer.map((item: any, index: number) => ({
+          index,
+          event: item.event,
+          hasEcommerce: !!item.ecommerce,
+          pageCategory: item.pageCategory
+        })))
 
         // Mantener los eventos legacy por compatibilidad (opcional - se puede eliminar)
         // Google Analytics
@@ -135,9 +163,13 @@ export default function GraciasPorTuCompra() {
             currency: 'MXN'
           })
         }
+      } else {
+        console.error('❌ [API] Error en la respuesta:', response.status, response.statusText)
+        const errorText = await response.text()
+        console.error('❌ [API] Detalle del error:', errorText)
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('❌ [ERROR] Error al obtener detalles de orden:', error)
     } finally {
       setLoading(false)
     }

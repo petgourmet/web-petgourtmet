@@ -194,27 +194,41 @@ export const initializeDataLayer = (orderID: string): void => {
     // Inicializar dataLayer con el orderID y variables básicas
     window.dataLayer = window.dataLayer || []
     
-    // Push de variables iniciales para GTM
+    // Push de variables iniciales para GTM en Thank You page
     window.dataLayer.push({
-      // Información de la página
-      event: 'page_view',
-      orderID: orderID,
-      pageCategory: 'nutricion',
+      // Evento estándar de GTM
+      event: 'gtm.load',
       
-      // URLs
-      url: window.location.href,
-      pageHostname: window.location.hostname,
-      pagePath: window.location.pathname,
+      // Información GTM
+      gtm: {
+        uniqueEventId: Math.floor(Math.random() * 1000),
+        start: Date.now()
+      },
+      
+      // Categoría de página - Thank You
+      pageCategory: 'thankyou',
+      
+      // Información de URLs
+      pagePath: '/gracias-por-tu-compra',
       pageURL: window.location.href,
+      pageHostname: window.location.hostname,
+      url: window.location.href,
       
-      // Referrer
-      referrer: document.referrer || 'https://tsgassistant.google.com/',
+      // Referrer (de dónde viene el usuario)
+      referrer: document.referrer || '',
       
       // Número aleatorio para tracking único
-      random: Math.floor(Math.random() * 1000000000)
+      random: Math.floor(Math.random() * 1000000000),
+      
+      // Order ID para seguimiento
+      orderID: orderID
     })
 
-    console.log('✅ Data Layer initialized with orderID and page variables:', orderID)
+    console.log('✅ [GTM] Data Layer initialized with Thank You page variables:', {
+      pageCategory: 'thankyou',
+      orderID: orderID,
+      pageURL: window.location.href
+    })
   } catch (error) {
     console.error('❌ Error initializing Data Layer:', error)
   }

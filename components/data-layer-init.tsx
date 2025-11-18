@@ -27,9 +27,12 @@ export function DataLayerInit() {
     else if (pathname.includes('/premiar')) pageCategory = 'premiar'
     else if (pathname.includes('/complementar')) pageCategory = 'complementar'
 
-    // Push de variables básicas disponibles en todas las páginas
-    window.dataLayer.push({
-      event: 'page_data_ready',
+    // Para la página de Thank You, usar el evento gtm.load
+    const eventName = pageCategory === 'thankyou' ? 'gtm.load' : 'page_data_ready'
+    
+    // Construir el objeto base
+    const dataLayerEvent: any = {
+      event: eventName,
       pageCategory: pageCategory,
       pagePath: pathname,
       pageURL: window.location.href,
@@ -37,9 +40,21 @@ export function DataLayerInit() {
       url: window.location.href,
       referrer: document.referrer || '',
       random: Math.floor(Math.random() * 1000000000)
-    })
+    }
+    
+    // Si es Thank You, agregar el objeto gtm
+    if (pageCategory === 'thankyou') {
+      dataLayerEvent.gtm = {
+        uniqueEventId: Math.floor(Math.random() * 1000),
+        start: Date.now()
+      }
+    }
 
-    console.log('📊 Data Layer initialized for:', pathname, '| Category:', pageCategory)
+    // Push de variables básicas disponibles en todas las páginas
+    window.dataLayer.push(dataLayerEvent)
+
+    console.log('📊 Data Layer initialized for:', pathname, '| Category:', pageCategory, '| Event:', eventName)
+    console.log('📊 Full dataLayer:', window.dataLayer)
   }, [pathname])
 
   return null // Este componente no renderiza nada

@@ -62,11 +62,11 @@ export async function POST(request: NextRequest) {
     // Detectar si hay suscripciones en el carrito
     const hasSubscription = body.items.some(item => item.isSubscription)
     
-    // Usar URL correcta según el tipo de compra
+    // Usar URL correcta según el tipo de compra (con session_id incluido)
     const successUrl = body.successUrl || (
       hasSubscription 
-        ? `${baseUrl}/suscripcion/exito`
-        : `${baseUrl}/gracias-por-tu-compra`
+        ? `${baseUrl}/suscripcion/exito?session_id={CHECKOUT_SESSION_ID}`
+        : `${baseUrl}/gracias-por-tu-compra?session_id={CHECKOUT_SESSION_ID}`
     )
     const cancelUrl = body.cancelUrl || `${baseUrl}/checkout`
 

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-import { use } from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -32,10 +31,9 @@ const FEATURE_COLORS = [
   { name: "Gris", value: "gray" },
 ]
 
-export default function ProductForm({ params }: { params: Promise<{ id: string }> }) {
+export default function ProductForm() {
   const router = useRouter()
-  const resolvedParams = use(params)
-  const isNew = resolvedParams.id === "new"
+  const isNew = true // Esta página siempre es para crear un nuevo producto
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -163,110 +161,13 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
         setCategories(categoriesData || [])
 
-        // Si no es un nuevo producto, cargar datos del producto
-        if (!isNew) {
-          const productId = Number.parseInt(resolvedParams.id)
-
-          // Cargar producto
-          const { data: productData, error: productError } = await supabase
-            .from("products")
-            .select("*")
-            .eq("id", productId)
-            .single()
-
-          if (productError) throw productError
-          setProduct(productData || {})
-
-          // Si hay soporte para múltiples categorías, cargarlas
-          if (multiCategorySupport) {
-            try {
-              const { data: productCategoriesData } = await supabase
-                .from("product_categories")
-                .select("category_id")
-                .eq("product_id", productId)
-
-              if (productCategoriesData && productCategoriesData.length > 0) {
-                setSelectedCategories(productCategoriesData.map((pc) => pc.category_id))
-              } else {
-                // Si no hay categorías asignadas pero existe category_id, usarlo como categoría única
-                if (productData?.category_id) {
-                  setSelectedCategories([productData.category_id])
-                }
-              }
-            } catch (error) {
-              console.error("Error al cargar categorías múltiples:", error)
-              // Usar la categoría única como fallback
-              if (productData?.category_id) {
-                setSelectedCategories([productData.category_id])
-              }
-            }
-          } else {
-            // Si no hay soporte para múltiples categorías, usar la categoría única
-            if (productData?.category_id) {
-              setSelectedCategories([productData.category_id])
-            }
-          }
-
-          // Cargar tamaños del producto
-          const { data: sizesData } = await supabase.from("product_sizes").select("*").eq("product_id", productId)
-
-          setProductSizes(sizesData?.length ? sizesData : [{ weight: "", price: 0, stock: 0 }])
-
-          // Cargar imágenes del producto
-          const { data: imagesData } = await supabase.from("product_images").select("*").eq("product_id", productId)
-
-          if (imagesData && imagesData.length > 0) {
-            setProductImages(imagesData)
-
-            // También actualizar additionalImages
-            setAdditionalImages(
-              imagesData.map((img) => ({
-                src: img.url || "",
-                alt: img.alt || "",
-              })),
-            )
-          } else {
-            setProductImages([{ url: "", alt: "" }])
-            setAdditionalImages([{ src: "", alt: "" }])
-          }
-
-          // Intentar cargar características del producto
-          try {
-            const { data: featuresData } = await supabase
-              .from("product_features")
-              .select("*")
-              .eq("product_id", productId)
-
-            if (featuresData && featuresData.length > 0) {
-              setProductFeatures(featuresData)
-            }
-          } catch (error) {
-            console.log("Tabla product_features no disponible aún:", error)
-          }
-
-          // Intentar cargar reseñas del producto
-          try {
-            const { data: reviewsData } = await supabase
-              .from("product_reviews")
-              .select("*")
-              .eq("product_id", productId)
-              .order("created_at", { ascending: false })
-
-            if (reviewsData && reviewsData.length > 0) {
-              setProductReviews(reviewsData)
-            }
-          } catch (error) {
-            console.log("Tabla product_reviews no disponible aún:", error)
-          }
-        } else {
-          // Si es un nuevo producto, inicializar additionalImages con un array vacío
-          setAdditionalImages([])
-        }
+        // Para productos nuevos, inicializar additionalImages con un array vacío
+        setAdditionalImages([])
       } catch (error) {
         console.error("Error al cargar datos:", error)
         toast({
           title: "Error",
-          description: "No se pudieron cargar los datos del producto. Por favor, inténtalo de nuevo.",
+          description: "No se pudieron cargar los datos. Por favor, inténtalo de nuevo.",
           variant: "destructive",
         })
       } finally {
@@ -275,7 +176,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
     }
 
     fetchData()
-  }, [isNew, resolvedParams.id, multiCategorySupport])
+  }, [multiCategorySupport])
 
   const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
@@ -461,8 +362,8 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           throw error
         }
 
-        // Si no existe o es el mismo producto que estamos editando
-        if (!data || (data && !isNew && data.id === Number.parseInt(resolvedParams.id))) {
+        // Si no existe (para productos nuevos siempre será false ya que isNew es true)
+        if (!data) {
           slugExists = false
         } else {
           // El slug existe, añadir contador
@@ -487,21 +388,11 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         slug: finalSlug,
       }
 
-      let productId: number
+      // Crear nuevo producto
+      const { data, error } = await supabase.from("products").insert([productData]).select()
 
-      if (isNew) {
-        // Crear nuevo producto
-        const { data, error } = await supabase.from("products").insert([productData]).select()
-
-        if (error) throw error
-        productId = data[0].id
-      } else {
-        // Actualizar producto existente
-        productId = Number.parseInt(resolvedParams.id)
-        const { error } = await supabase.from("products").update(productData).eq("id", productId)
-
-        if (error) throw error
-      }
+      if (error) throw error
+      const productId = data[0].id
 
       // Gestionar categorías del producto si hay soporte para múltiples categorías
       if (multiCategorySupport && selectedCategories.length > 0) {
