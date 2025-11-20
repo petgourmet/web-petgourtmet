@@ -25,56 +25,34 @@ export async function GET(request: NextRequest) {
     })
 
     // Buscar la orden en la base de datos con información completa de productos
-    // Reintentar hasta 5 veces con delay si no se encuentra (dar tiempo al webhook)
-    let order = null
-    let orderError = null
-    
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const result = await supabaseAdmin
-        .from('orders')
-        .select(`
-          *,
-          order_items (
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        order_items (
+          id,
+          product_id,
+          product_name,
+          product_image,
+          quantity,
+          price,
+          size,
+          products (
             id,
-            product_id,
-            product_name,
-            product_image,
-            quantity,
-            price,
-            size,
-            products (
-              id,
-              name,
-              brand,
-              category_id,
-              subcategory,
-              categories (
-                name
-              )
+            name,
+            category_id,
+            subcategory,
+            categories (
+              name
             )
           )
-        `)
-        .eq('stripe_session_id', sessionId)
-        .single()
-      
-      if (result.data) {
-        order = result.data
-        console.log(`✅ Orden encontrada en intento ${attempt + 1}:`, order.id)
-        break
-      }
-      
-      orderError = result.error
-      
-      // Si no es el último intento, esperar más tiempo
-      if (attempt < 4) {
-        const waitTime = (attempt + 1) * 1500 // 1.5s, 3s, 4.5s, 6s
-        console.log(`⏳ Orden no encontrada, esperando ${waitTime}ms... (intento ${attempt + 1}/5)`)
-        await new Promise(resolve => setTimeout(resolve, waitTime))
-      }
-    }
+        )
+      `)
+      .eq('stripe_session_id', sessionId)
+      .single()
 
-    if (orderError && !order) {
-      console.error('Error fetching order after 5 attempts:', orderError)
+    if (orderError) {
+      console.error('Error fetching order:', orderError)
     }
 
     if (!order) {
@@ -145,7 +123,7 @@ export async function GET(request: NextRequest) {
         // Agregar información de productos desde la relación
         category: item.products?.categories?.name || null,
         subcategory: item.products?.subcategory || null,
-        brand: item.products?.brand || 'PET GOURMET',
+        brand: 'PET GOURMET', // Marca por defecto
         variant: item.size || null // Usar el tamaño como variante
       })) || [],
       customerEmail: order.customer_email,

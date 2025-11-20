@@ -58,36 +58,37 @@ export default function GraciasPorTuCompra() {
           setOrderDetails(data)
           setTimeout(() => {
             fetchOrderDetails(session_id, retryCount + 1)
-          }, 3000) // Aumentado a 3 segundos
+          }, 3000)
           return
         }
         
-        // Si después de 6 intentos sigue pendiente, generar número temporal
+        // Si después de 6 intentos sigue pendiente, procesar con datos temporales
         if (data.pending && retryCount >= 6) {
-          console.warn('⚠️ [API] Orden sigue pendiente después de 6 intentos, usando datos de sesión')
-          // Generar un número temporal basado en la sesión
-          data.orderNumber = `PG-TEMP-${session_id.substring(0, 8).toUpperCase()}`
-          data.orderId = session_id // Usar session_id como orderId temporal
+          console.warn('⚠️ [API] Orden sigue pendiente después de 6 intentos')
+          console.log('📋 [API] Webhook probablemente no está procesando. Usando datos de Stripe directamente.')
+          // Generar número basado en la sesión
+          data.orderNumber = `TEMP-${session_id.substring(8, 16).toUpperCase()}`
+          data.orderId = session_id // Usar session_id completo como orderId
+          data.pending = false // Marcar como no pendiente para procesar tracking
         }
         
         // ===== ASEGURAR QUE SIEMPRE HAYA UN ID VÁLIDO =====
-        // Si no hay orderId pero sí orderNumber, usar orderNumber como orderId
-        if (!data.orderId && data.orderNumber && data.orderNumber !== 'Procesando...') {
-          console.log('📋 Usando orderNumber como orderId:', data.orderNumber)
-          data.orderId = data.orderNumber
-        }
+        // Prioridad: 1) orderId real, 2) orderNumber, 3) session_id
+        const finalOrderId = data.orderId || data.orderNumber || session_id
+        const finalOrderNumber = data.orderNumber === 'Procesando...' 
+          ? `TEMP-${session_id.substring(8, 16).toUpperCase()}`
+          : data.orderNumber || `TEMP-${session_id.substring(8, 16).toUpperCase()}`
         
-        // Si no hay ninguno, usar session_id
-        if (!data.orderId || data.orderId === null) {
-          console.log('📋 Generando orderId desde session_id')
-          data.orderId = `SESSION-${session_id.substring(0, 12).toUpperCase()}`
-        }
+        // Actualizar datos con IDs garantizados
+        data.orderId = finalOrderId
+        data.orderNumber = finalOrderNumber
         
         // Log para verificar IDs finales
-        console.log('🔵 [API] IDs finales:', {
+        console.log('🔵 [API] IDs finales asignados:', {
           orderId: data.orderId,
           orderNumber: data.orderNumber,
-          session_id: session_id
+          session_id: session_id,
+          isPending: data.pending
         })
         
         // Actualizar estado con los datos finales
