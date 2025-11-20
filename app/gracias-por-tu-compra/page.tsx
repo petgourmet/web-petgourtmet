@@ -140,29 +140,8 @@ export default function GraciasPorTuCompra() {
           pageCategory: item.pageCategory
         })))
 
-        // Mantener los eventos legacy por compatibilidad (opcional - se puede eliminar)
-        // Google Analytics
-        if (typeof window !== 'undefined' && (window as any).gtag) {
-          (window as any).gtag('event', 'purchase', {
-            transaction_id: data.orderId,
-            value: data.total,
-            currency: 'MXN',
-            items: data.items.map((item: any) => ({
-              id: item.product_id,
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price
-            }))
-          })
-        }
-
-        // Facebook Pixel
-        if (typeof window !== 'undefined' && (window as any).fbq) {
-          (window as any).fbq('track', 'Purchase', {
-            value: data.total,
-            currency: 'MXN'
-          })
-        }
+        // NOTA: trackPurchase() ya incluye gtag y fbq internamente
+        // NO duplicar eventos de purchase aquí
       } else {
         console.error('❌ [API] Error en la respuesta:', response.status, response.statusText)
         const errorText = await response.text()
@@ -207,7 +186,7 @@ export default function GraciasPorTuCompra() {
             <div className="inline-block bg-[#78b7bf]/10 px-6 py-3 rounded-full border-2 border-[#78b7bf]/30">
               <p className="text-sm font-medium text-[#78b7bf]">Número de Pedido</p>
               <p className="text-2xl font-bold text-[#6aa5ad]">
-                #PG-{orderDetails.orderId}
+                #{orderDetails.orderNumber || orderDetails.orderId}
               </p>
             </div>
           )}
