@@ -29,7 +29,7 @@ export default function GraciasPorTuCompra() {
   const sessionId = searchParams.get('session_id')
 
   useEffect(() => {
-    console.log('🔍 [DEBUG] Session ID desde URL:', sessionId)
+    console.log('🔍 [DEBUG] Sessionaaada ID desde URL:', sessionId)
     console.log('🔍 [DEBUG] URL completa:', window.location.href)
     
     if (sessionId) {
@@ -41,15 +41,31 @@ export default function GraciasPorTuCompra() {
     }
   }, [sessionId])
 
-  const fetchOrderDetails = async (session_id: string) => {
+  const fetchOrderDetails = async (session_id: string, retryCount = 0) => {
     try {
-      console.log('🔵 [API] Llamando a /api/stripe/order-details con session_id:', session_id)
+      console.log('🔵 [API] Llamando a /api/stripe/order-details con session_id:', session_id, 'intento:', retryCount + 1)
       const response = await fetch(`/api/stripe/order-details?session_id=${session_id}`)
       console.log('🔵 [API] Response status:', response.status, response.ok)
       
       if (response.ok) {
         const data = await response.json()
         console.log('🔵 [API] Datos recibidos del servidor:', data)
+
+        // Si la orden está pendiente (aún no procesada por webhook), reintentar
+        if (data.pending && retryCount < 10) {
+          console.log('⏳ [API] Orden aún pendiente, reintentando en 2 segundos... (intento', retryCount + 1, 'de 10)')
+          setTimeout(() => {
+            fetchOrderDetails(session_id, retryCount + 1)
+          }, 2000)
+          return
+        }
+        
+        // Si después de 10 intentos sigue pendiente, generar número temporal
+        if (data.pending && retryCount >= 10) {
+          console.warn('⚠️ [API] Orden sigue pendiente después de 10 intentos, usando datos de sesión')
+          // Generar un número temporal basado en la sesión
+          data.orderNumber = `PG-TEMP-${session_id.substring(0, 8).toUpperCase()}`
+        }
         setOrderDetails(data)
 
         // ===== PUSH DATOS DE PRODUCTOS AL DATA LAYER =====

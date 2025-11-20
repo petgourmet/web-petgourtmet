@@ -101,6 +101,19 @@ export async function POST(request: NextRequest) {
             )
             
             console.log(`Cancellation email sent for order ${order.id}`)
+
+            // Enviar notificación al admin
+            try {
+              await sendOrderStatusEmail(
+                'cancelled',
+                'contacto@petgourmet.mx',
+                finalOrderNumber,
+                `Admin - Orden auto-cancelada: ${customerName}`
+              )
+              console.log(`Admin notification sent for auto-cancelled order ${order.id}`)
+            } catch (adminError) {
+              console.error(`Error sending admin notification for order ${order.id}:`, adminError)
+            }
           }
         } catch (emailError) {
           console.error(`Error sending email for order ${order.id}:`, emailError)

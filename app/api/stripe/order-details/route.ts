@@ -25,34 +25,53 @@ export async function GET(request: NextRequest) {
     })
 
     // Buscar la orden en la base de datos con información completa de productos
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        *,
-        order_items (
-          id,
-          product_id,
-          product_name,
-          product_image,
-          quantity,
-          price,
-          size,
-          products (
+    // Reintentar hasta 3 veces con delay si no se encuentra (dar tiempo al webhook)
+    let order = null
+    let orderError = null
+    
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await supabaseAdmin
+        .from('orders')
+        .select(`
+          *,
+          order_items (
             id,
-            name,
-            brand,
-            category_id,
-            subcategory,
-            categories (
-              name
+            product_id,
+            product_name,
+            product_image,
+            quantity,
+            price,
+            size,
+            products (
+              id,
+              name,
+              brand,
+              category_id,
+              subcategory,
+              categories (
+                name
+              )
             )
           )
-        )
-      `)
-      .eq('stripe_session_id', sessionId)
-      .single()
+        `)
+        .eq('stripe_session_id', sessionId)
+        .single()
+      
+      if (result.data) {
+        order = result.data
+        break
+      }
+      
+      orderError = result.error
+      
+      // Si no es el último intento, esperar 1 segundo
+      if (attempt < 2) {
+        console.log(`Orden no encontrada, reintentando en 1s... (intento ${attempt + 1}/3)`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
 
-    if (orderError) {
+    if (orderError && !order) {
       console.error('Error fetching order:', orderError)
     }
 

@@ -187,18 +187,54 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           productsCount: orderDataForEmail.products.length
         })
 
+        // Enviar email al cliente
         const emailResult = await sendOrderStatusEmail('pending', customerEmail, orderDataForEmail)
         
         if (emailResult && emailResult.success) {
-          console.log('[WEBHOOK] ✅ Email de confirmación enviado exitosamente:', {
+          console.log('[WEBHOOK] ✅ Email de confirmación enviado exitosamente al cliente:', {
             to: customerEmail,
             messageId: emailResult.messageId,
             attempts: emailResult.attempts
           })
         } else {
-          console.error('[WEBHOOK] ❌ Email no se pudo enviar:', {
+          console.error('[WEBHOOK] ❌ Email no se pudo enviar al cliente:', {
             to: customerEmail,
             error: emailResult?.error || 'Unknown error'
+          })
+        }
+
+        // Enviar email de notificación al admin
+        try {
+          const adminOrderData = {
+            id: order.id,
+            total: order.total,
+            customer_name: customerName || 'Cliente',
+            customer_email: customerEmail,
+            products: orderItems.map(item => ({
+              name: item.product_name,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            shipping_address: fullShippingAddress?.shipping || null
+          }
+
+          const adminEmailResult = await sendOrderStatusEmail('pending', 'contacto@petgourmet.mx', adminOrderData)
+          
+          if (adminEmailResult && adminEmailResult.success) {
+            console.log('[WEBHOOK] ✅ Email de notificación enviado exitosamente al admin:', {
+              to: 'contacto@petgourmet.mx',
+              messageId: adminEmailResult.messageId,
+              attempts: adminEmailResult.attempts
+            })
+          } else {
+            console.error('[WEBHOOK] ❌ Email no se pudo enviar al admin:', {
+              to: 'contacto@petgourmet.mx',
+              error: adminEmailResult?.error || 'Unknown error'
+            })
+          }
+        } catch (adminEmailError) {
+          console.error('[WEBHOOK] ❌ Error enviando email al admin:', {
+            error: adminEmailError instanceof Error ? adminEmailError.message : String(adminEmailError)
           })
         }
       } else {
@@ -443,8 +479,31 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         external_reference: subscriptionId
       }
 
+      // Enviar email al cliente
       await sendSubscriptionEmail('created', subscriptionEmailData)
       console.log('✅ Email de confirmación de suscripción enviado a:', subscriptionEmailData.user_email)
+
+      // Enviar email al admin
+      try {
+        const adminSubscriptionData = {
+          user_email: 'contacto@petgourmet.mx',
+          user_name: 'Admin Pet Gourmet',
+          subscription_type: subscriptionType,
+          amount: totalAmount,
+          next_payment_date: new Date(currentPeriodEnd * 1000).toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          plan_description: `${customerName} - ${subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet'} - $${totalAmount.toFixed(2)} MXN`,
+          external_reference: subscriptionId
+        }
+
+        await sendSubscriptionEmail('created', adminSubscriptionData)
+        console.log('✅ Email de confirmación de suscripción enviado al admin: contacto@petgourmet.mx')
+      } catch (adminEmailError) {
+        console.error('❌ Error enviando email al admin:', adminEmailError)
+      }
     } catch (emailError) {
       console.error('❌ Error enviando email de confirmación de suscripción:', emailError)
       // No lanzar error, solo registrar

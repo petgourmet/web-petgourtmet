@@ -138,6 +138,28 @@ export async function POST(request: NextRequest) {
           )
           
           console.log('Email result:', emailResult)
+
+          // Enviar notificación al admin
+          try {
+            const adminOrderData = {
+              ...orderDataForEmail,
+              customer_info: {
+                name: customerName || 'Cliente',
+                email: customerEmail,
+                phone: customerPhone || 'No proporcionado'
+              }
+            }
+
+            const adminEmailResult = await sendOrderStatusEmail(
+              newStatus as 'pending' | 'processing' | 'completed' | 'cancelled',
+              'contacto@petgourmet.mx',
+              adminOrderData
+            )
+            
+            console.log('Admin email result:', adminEmailResult)
+          } catch (adminEmailError) {
+            console.error('Error sending admin notification:', adminEmailError)
+          }
         } else {
           console.log('No customer email found, skipping email send')
         }
