@@ -25,11 +25,11 @@ export async function GET(request: NextRequest) {
     })
 
     // Buscar la orden en la base de datos con información completa de productos
-    // Reintentar hasta 3 veces con delay si no se encuentra (dar tiempo al webhook)
+    // Reintentar hasta 5 veces con delay si no se encuentra (dar tiempo al webhook)
     let order = null
     let orderError = null
     
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       const result = await supabaseAdmin
         .from('orders')
         .select(`
@@ -59,20 +59,22 @@ export async function GET(request: NextRequest) {
       
       if (result.data) {
         order = result.data
+        console.log(`✅ Orden encontrada en intento ${attempt + 1}:`, order.id)
         break
       }
       
       orderError = result.error
       
-      // Si no es el último intento, esperar 1 segundo
-      if (attempt < 2) {
-        console.log(`Orden no encontrada, reintentando en 1s... (intento ${attempt + 1}/3)`)
-        await new Promise(resolve => setTimeout(resolve, 1000))
+      // Si no es el último intento, esperar más tiempo
+      if (attempt < 4) {
+        const waitTime = (attempt + 1) * 1500 // 1.5s, 3s, 4.5s, 6s
+        console.log(`⏳ Orden no encontrada, esperando ${waitTime}ms... (intento ${attempt + 1}/5)`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
       }
     }
 
     if (orderError && !order) {
-      console.error('Error fetching order:', orderError)
+      console.error('Error fetching order after 5 attempts:', orderError)
     }
 
     if (!order) {

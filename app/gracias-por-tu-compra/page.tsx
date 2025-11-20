@@ -52,20 +52,45 @@ export default function GraciasPorTuCompra() {
         console.log('🔵 [API] Datos recibidos del servidor:', data)
 
         // Si la orden está pendiente (aún no procesada por webhook), reintentar
-        if (data.pending && retryCount < 10) {
-          console.log('⏳ [API] Orden aún pendiente, reintentando en 2 segundos... (intento', retryCount + 1, 'de 10)')
+        if (data.pending && retryCount < 6) {
+          console.log('⏳ [API] Orden aún pendiente, reintentando en 3 segundos... (intento', retryCount + 1, 'de 6)')
+          // Actualizar UI con datos temporales pero NO hacer tracking todavía
+          setOrderDetails(data)
           setTimeout(() => {
             fetchOrderDetails(session_id, retryCount + 1)
-          }, 2000)
+          }, 3000) // Aumentado a 3 segundos
           return
         }
         
-        // Si después de 10 intentos sigue pendiente, generar número temporal
-        if (data.pending && retryCount >= 10) {
-          console.warn('⚠️ [API] Orden sigue pendiente después de 10 intentos, usando datos de sesión')
+        // Si después de 6 intentos sigue pendiente, generar número temporal
+        if (data.pending && retryCount >= 6) {
+          console.warn('⚠️ [API] Orden sigue pendiente después de 6 intentos, usando datos de sesión')
           // Generar un número temporal basado en la sesión
           data.orderNumber = `PG-TEMP-${session_id.substring(0, 8).toUpperCase()}`
+          data.orderId = session_id // Usar session_id como orderId temporal
         }
+        
+        // ===== ASEGURAR QUE SIEMPRE HAYA UN ID VÁLIDO =====
+        // Si no hay orderId pero sí orderNumber, usar orderNumber como orderId
+        if (!data.orderId && data.orderNumber && data.orderNumber !== 'Procesando...') {
+          console.log('📋 Usando orderNumber como orderId:', data.orderNumber)
+          data.orderId = data.orderNumber
+        }
+        
+        // Si no hay ninguno, usar session_id
+        if (!data.orderId || data.orderId === null) {
+          console.log('📋 Generando orderId desde session_id')
+          data.orderId = `SESSION-${session_id.substring(0, 12).toUpperCase()}`
+        }
+        
+        // Log para verificar IDs finales
+        console.log('🔵 [API] IDs finales:', {
+          orderId: data.orderId,
+          orderNumber: data.orderNumber,
+          session_id: session_id
+        })
+        
+        // Actualizar estado con los datos finales
         setOrderDetails(data)
 
         // ===== PUSH DATOS DE PRODUCTOS AL DATA LAYER =====
@@ -103,18 +128,27 @@ export default function GraciasPorTuCompra() {
         }
 
         // ===== ANALYTICS TRACKING - EVENTO PURCHASE =====
-        console.log('🔵 [GTM] Disparando evento purchase con todos los items:', data.items.length)
+        console.log('🔵 [GTM] Preparando evento purchase...')
+        console.log('🔵 [GTM] Verificación de IDs antes de trackPurchase:', {
+          orderId: data.orderId,
+          orderNumber: data.orderNumber,
+          'orderId es null?': data.orderId === null,
+          'orderId es undefined?': data.orderId === undefined,
+          'tipo de orderId': typeof data.orderId
+        })
+        
+        console.log('🔵 [GTM] Total items:', data.items?.length)
         console.log('🔵 [GTM] Datos completos de la compra:', {
           orderId: data.orderId,
+          orderNumber: data.orderNumber,
           total: data.total,
           items: data.items
         })
         
-        // Usar la función centralizada que maneja todos los servicios de analytics
-        console.log('🔵 [GTM] Llamando a trackPurchase...')
-        trackPurchase({
-          orderId: data.orderId,
-          orderNumber: data.orderNumber,
+        // Preparar objeto de compra con IDs verificados
+        const purchaseData = {
+          orderId: data.orderId || data.orderNumber || session_id,
+          orderNumber: data.orderNumber || data.orderId || 'PENDING',
           total: data.total,
           subtotal: data.subtotal,
           shipping: data.shipping || 0,
@@ -134,7 +168,13 @@ export default function GraciasPorTuCompra() {
           })),
           customerEmail: data.customerEmail,
           customerName: data.customerName,
-        })
+        }
+        
+        console.log('🔵 [GTM] Objeto purchaseData preparado:', purchaseData)
+        console.log('🔵 [GTM] Llamando a trackPurchase...')
+        
+        // Usar la función centralizada que maneja todos los servicios de analytics
+        trackPurchase(purchaseData)
         
         // Log final para verificación
         console.log('🟢 [GTM] ========== VERIFICACIÓN FINAL ==========')

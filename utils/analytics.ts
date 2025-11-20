@@ -54,8 +54,11 @@ export const pushPurchaseToDataLayer = (orderData: PurchaseData): void => {
     window.dataLayer.push({ ecommerce: null })
 
     // Construir objeto de ecommerce con todos los campos disponibles
+    // Usar orderNumber como fallback si orderId es null
+    const transactionId = orderData.orderId || orderData.orderNumber || 'PENDING'
+    
     const ecommerceData: any = {
-      transaction_id: orderData.orderId,
+      transaction_id: transactionId,
       value: orderData.total.toFixed(2),
       currency: 'MXN',
       items: orderData.items.map((item) => ({
@@ -95,7 +98,7 @@ export const pushPurchaseToDataLayer = (orderData: PurchaseData): void => {
     })
 
     console.log('✅ [GTM] Purchase event pushed to Data Layer')
-    console.log('📊 [GTM] Transaction ID:', orderData.orderId)
+    console.log('📊 [GTM] Transaction ID:', transactionId)
     console.log('💰 [GTM] Total:', orderData.total)
     console.log('🛒 [GTM] Items count:', orderData.items.length)
     console.log('📦 [GTM] Full ecommerce data:', ecommerceData)
@@ -119,8 +122,10 @@ export const trackGoogleAnalyticsPurchase = (orderData: PurchaseData): void => {
   if (typeof window === 'undefined' || !window.gtag) return
 
   try {
+    const transactionId = orderData.orderId || orderData.orderNumber || 'PENDING'
+    
     window.gtag('event', 'purchase', {
-      transaction_id: orderData.orderId,
+      transaction_id: transactionId,
       value: orderData.total,
       currency: 'MXN',
       tax: orderData.tax || 0,
@@ -133,7 +138,7 @@ export const trackGoogleAnalyticsPurchase = (orderData: PurchaseData): void => {
       })),
     })
 
-    console.log('✅ Google Analytics - Purchase event tracked:', orderData.orderId)
+    console.log('✅ Google Analytics - Purchase event tracked:', transactionId)
   } catch (error) {
     console.error('❌ Error tracking Google Analytics purchase:', error)
   }
@@ -162,7 +167,8 @@ export const trackFacebookPixelPurchase = (orderData: PurchaseData): void => {
       num_items: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
     })
 
-    console.log('✅ Facebook Pixel - Purchase event tracked:', orderData.orderId)
+    const transactionId = orderData.orderId || orderData.orderNumber || 'PENDING'
+    console.log('✅ Facebook Pixel - Purchase event tracked:', transactionId)
   } catch (error) {
     console.error('❌ Error tracking Facebook Pixel purchase:', error)
   }
