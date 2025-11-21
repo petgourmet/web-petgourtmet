@@ -29,6 +29,7 @@ import { Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import { ProductStructuredData } from "@/components/product-structured-data"
 import { pushProductDataLayer } from "@/utils/analytics"
+import type { ProductVariant } from "@/lib/supabase/types"
 
 export default function ProductDetailPage() {
   const { slug } = useParams()
@@ -47,6 +48,11 @@ export default function ProductDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
+  
+  // Estados para variantes
+  const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
+  const [isVariableProduct, setIsVariableProduct] = useState(false)
 
   const { addToCart } = useCart()
   const imageContainerRef = useRef<HTMLDivElement>(null)
@@ -105,6 +111,24 @@ export default function ProductDetailPage() {
           .from("product_images")
           .select("url, alt")
           .eq("product_id", productData.id)
+
+        // Cargar variantes si es un producto variable
+        let variantsData: ProductVariant[] = []
+        if (productData.product_type === 'variable') {
+          const { data: fetchedVariants } = await supabase
+            .from("product_variants")
+            .select("*")
+            .eq("product_id", productData.id)
+            .order("id")
+          
+          if (fetchedVariants && fetchedVariants.length > 0) {
+            variantsData = fetchedVariants
+            setVariants(fetchedVariants)
+            setIsVariableProduct(true)
+            // Seleccionar la primera variante por defecto
+            setSelectedVariant(fetchedVariants[0])
+          }
+        }
 
         // Construir la URL completa de la imagen
         let imageUrl = productData.image
@@ -196,17 +220,46 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return
 
-    const basePrice = selectedSize ? selectedSize.price : product.price
+    // Si es producto variable y no hay variante seleccionada, no permitir agregar
+    if (isVariableProduct && !selectedVariant) {
+      alert("Por favor selecciona una variante")
+      return
+    }
+
+    // Si es producto variable, validar stock de la variante
+    if (isVariableProduct && selectedVariant) {
+      if ((selectedVariant.stock || 0) < quantity) {
+        alert(`Solo hay ${selectedVariant.stock} unidades disponibles de esta variante`)
+        return
+      }
+    }
+
+    // Determinar precio, nombre e imagen según si es variante o producto simple
+    const basePrice = isVariableProduct && selectedVariant
+      ? selectedVariant.price
+      : selectedSize
+      ? selectedSize.price
+      : product.price
+    
+    const productName = isVariableProduct && selectedVariant
+      ? `${product.name} - ${selectedVariant.name}`
+      : product.name
+    
+    const productImage = isVariableProduct && selectedVariant && selectedVariant.image
+      ? selectedVariant.image
+      : product.image
+    
     const sizeWeight = selectedSize ? selectedSize.weight : "Único"
+    
     // Calcular precio con descuento si es suscripción
     const discount = getSubscriptionDiscount()
     const finalPrice = basePrice * (isSubscription ? 1 - discount : 1)
 
     addToCart({
       id: product.id,
-      name: product.name,
+      name: productName,
       price: finalPrice,
-      image: product.image,
+      image: productImage,
       size: sizeWeight,
       quantity,
       isSubscription,
@@ -218,6 +271,9 @@ export default function ProductDetailPage() {
       monthly_discount: product.monthly_discount,
       quarterly_discount: product.quarterly_discount,
       annual_discount: product.annual_discount,
+      // Agregar información de variante si aplica
+      variantId: isVariableProduct && selectedVariant ? selectedVariant.id : undefined,
+      variantName: isVariableProduct && selectedVariant ? selectedVariant.name : undefined,
     })
   }
 
@@ -519,6 +575,79 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
+              {/* Selector de Variantes */}
+              {isVariableProduct && variants.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-bold mb-3 text-lg">Selecciona una variante</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {variants.map((variant) => {
+                      const isSelected = selectedVariant?.id === variant.id
+                      const isAvailable = (variant.stock || 0) > 0
+                      
+                      return (
+                        <button
+                          key={variant.id}
+                          onClick={() => isAvailable && setSelectedVariant(variant)}
+                          disabled={!isAvailable}
+                          className={`relative border-2 rounded-lg p-4 text-left transition-all ${
+                            isSelected
+                              ? "border-[#7BBDC5] bg-[#7BBDC5]/5 shadow-md"
+                              : isAvailable
+                              ? "border-gray-200 hover:border-[#7BBDC5]/50 hover:bg-gray-50"
+                              : "border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed"
+                          }`}
+                        >
+                          <div className="flex gap-3">
+                            {variant.image && (
+                              <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
+                                <Image
+                                  src={variant.image}
+                                  alt={variant.name || "Variante"}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-sm truncate">{variant.name}</h4>
+                              <p className="text-lg font-bold text-[#7BBDC5] mt-1">
+                                ${(variant.price || 0).toFixed(2)} MXN
+                              </p>
+                              <p className={`text-xs mt-1 ${
+                                (variant.stock || 0) > 10
+                                  ? "text-green-600"
+                                  : (variant.stock || 0) > 0
+                                  ? "text-yellow-600"
+                                  : "text-red-600"
+                              }`}>
+                                {(variant.stock || 0) > 10
+                                  ? "En stock"
+                                  : (variant.stock || 0) > 0
+                                  ? `Solo ${variant.stock} disponibles`
+                                  : "Agotado"}
+                              </p>
+                              {variant.sku && (
+                                <p className="text-xs text-gray-500 mt-1">SKU: {variant.sku}</p>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-2 right-2">
+                                <Check className="h-5 w-5 text-[#7BBDC5]" />
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {selectedVariant && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      Seleccionado: <span className="font-medium">{selectedVariant.name}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Tipo de compra */}
               <div>
                 <h3 className="font-bold mb-3 text-lg">Tipo de compra</h3>
@@ -699,7 +828,11 @@ export default function ProductDetailPage() {
                     <p className="text-3xl font-bold text-[#7BBDC5]">
                       $
                       {(
-                        (selectedSize ? selectedSize.price : product.price || 0) *
+                        (isVariableProduct && selectedVariant
+                          ? selectedVariant.price
+                          : selectedSize
+                          ? selectedSize.price
+                          : product.price || 0) *
                         quantity *
                         (isSubscription ? 1 - getSubscriptionDiscount() : 1)
                       ).toFixed(2)}{" "}
@@ -715,9 +848,10 @@ export default function ProductDetailPage() {
                   <Button
                     className="rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white px-8 py-4 text-lg font-semibold"
                     onClick={handleAddToCart}
+                    disabled={isVariableProduct && !selectedVariant}
                   >
                     <ShoppingCart className="h-5 w-5 mr-2" />
-                    Añadir al carrito
+                    {isVariableProduct && !selectedVariant ? "Selecciona una variante" : "Añadir al carrito"}
                   </Button>
                 </div>
               </div>

@@ -1,3 +1,5 @@
+export type ProductType = 'simple' | 'variable'
+
 export type Product = {
   id: number
   name: string
@@ -25,11 +27,11 @@ export type Product = {
   monthly_discount?: number
   quarterly_discount?: number
   annual_discount?: number
-  // URLs de Mercado Pago por tipo de suscripción
-
-  monthly_mercadopago_url?: string
-  quarterly_mercadopago_url?: string
-  annual_mercadopago_url?: string
+  // Sistema de variantes
+  product_type?: ProductType
+  variants?: ProductVariant[]
+  attributes?: ProductAttribute[]
+  variant_count?: number
 }
 
 export type Category = {
@@ -119,6 +121,49 @@ export type SubscriptionConfig = {
   discount_percentage: number
   is_active: boolean
   mercadopago_url?: string
+  created_at: string
+  updated_at: string
+}
+
+// ============================================
+// SISTEMA DE VARIANTES
+// ============================================
+
+export type AttributeType = {
+  id: number
+  name: string                    // "size", "flavor", "color"
+  display_name: string            // "Tamaño", "Sabor", "Color"
+  input_type: 'select' | 'button' | 'color' | 'text' | 'number'
+  is_system: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type ProductAttribute = {
+  id: number
+  product_id: number
+  attribute_type_id: number
+  attribute_type?: AttributeType  // Join para obtener detalles del tipo
+  values: string[]                // ["500g", "1kg", "2kg"]
+  is_required: boolean
+  display_order: number
+  created_at: string
+}
+
+export type ProductVariant = {
+  id: number
+  product_id: number
+  sku?: string
+  name: string                    // "1kg - Pollo"
+  attributes: Record<string, string>  // { "size": "1kg", "flavor": "Pollo" }
+  price: number
+  compare_at_price?: number       // Precio antes de descuento
+  stock: number
+  track_inventory: boolean
+  image?: string                  // Imagen específica de la variante
+  display_order: number
+  is_active: boolean
   created_at: string
   updated_at: string
 }

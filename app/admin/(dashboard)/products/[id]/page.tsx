@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, ImageIcon, Trash, Percent } from "lucide-react"
+import { Loader2, ArrowLeft, Plus, X, ShieldAlert, Info, ImageIcon, Trash, Percent, Package, Layers } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -23,6 +23,8 @@ import { slugify } from "@/lib/utils"
 import { CloudinaryUploader } from "@/components/cloudinary-uploader"
 import Image from "next/image"
 import { ProductImageViewer } from "@/components/shared/product-image-viewer"
+import type { ProductVariant, AttributeType, ProductAttribute, ProductType } from "@/lib/supabase/types"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 const FEATURE_COLORS = [
   { name: "Verde pastel", value: "pastel-green" },
@@ -100,6 +102,19 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
   const [subscriptionTypes, setSubscriptionTypes] = useState<string[]>([])
   const [saleType, setSaleType] = useState<"unit" | "weight">("unit")
+
+  // Estados para sistema de variantes
+  const [productType, setProductType] = useState<ProductType>('simple')
+  const [variantCount, setVariantCount] = useState(1)
+  const [variants, setVariants] = useState<Partial<ProductVariant>[]>([{
+    name: "",
+    price: 0,
+    stock: 0,
+    image: "",
+    sku: "",
+    attributes: {}
+  }])
+  const [attributeTypes, setAttributeTypes] = useState<AttributeType[]>([])
 
   // Efecto para limpiar descuentos cuando se deseleccionan tipos de suscripción
   useEffect(() => {
@@ -327,9 +342,45 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           } catch (error) {
             console.log("Tabla product_reviews no disponible aún:", error)
           }
+
+          // Cargar tipo de producto y variantes si existen
+          if (productData?.product_type === 'variable') {
+            setProductType('variable')
+            
+            try {
+              const { data: variantsData } = await supabase
+                .from("product_variants")
+                .select("*")
+                .eq("product_id", productId)
+                .order("id")
+
+              if (variantsData && variantsData.length > 0) {
+                setVariants(variantsData)
+                setVariantCount(variantsData.length)
+              }
+            } catch (error) {
+              console.log("Error cargando variantes:", error)
+            }
+          } else {
+            setProductType('simple')
+          }
         } else {
           // Si es un nuevo producto, inicializar additionalImages con un array vacío
           setAdditionalImages([])
+        }
+
+        // Cargar tipos de atributos disponibles (tanto para nuevo como para editar)
+        try {
+          const { data: attributeTypesData } = await supabase
+            .from("attribute_types")
+            .select("*")
+            .order("name")
+
+          if (attributeTypesData) {
+            setAttributeTypes(attributeTypesData)
+          }
+        } catch (error) {
+          console.log("Error cargando tipos de atributos:", error)
         }
       } catch (error) {
         console.error("Error al cargar datos:", error)
@@ -469,6 +520,76 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
     setProductImages(newImages.length ? newImages : [{ url: "", alt: "" }])
   }
 
+  // Funciones para manejar variantes
+  const handleProductTypeChange = (value: ProductType) => {
+    setProductType(value)
+    if (value === 'simple') {
+      // Limpiar variantes cuando cambia a simple
+      setVariants([{
+        name: "",
+        price: 0,
+        stock: 0,
+        image: "",
+        sku: "",
+        attributes: {}
+      }])
+      setVariantCount(1)
+    }
+  }
+
+  const handleVariantCountChange = (count: number) => {
+    const newCount = Math.max(1, Math.min(20, count)) // Limitar entre 1 y 20
+    setVariantCount(newCount)
+    
+    const currentVariants = [...variants]
+    if (newCount > currentVariants.length) {
+      // Agregar nuevas variantes vacías
+      const toAdd = newCount - currentVariants.length
+      for (let i = 0; i < toAdd; i++) {
+        currentVariants.push({
+          name: "",
+          price: 0,
+          stock: 0,
+          image: "",
+          sku: "",
+          attributes: {}
+        })
+      }
+    } else if (newCount < currentVariants.length) {
+      // Remover variantes excedentes
+      currentVariants.splice(newCount)
+    }
+    setVariants(currentVariants)
+  }
+
+  const handleVariantChange = (index: number, field: keyof ProductVariant, value: any) => {
+    const newVariants = [...variants]
+    newVariants[index] = {
+      ...newVariants[index],
+      [field]: field === 'price' || field === 'stock' 
+        ? (value === "" ? 0 : Number.parseFloat(value) || 0) 
+        : value
+    }
+    setVariants(newVariants)
+  }
+
+  const handleVariantAttributeChange = (variantIndex: number, attributeName: string, value: string) => {
+    const newVariants = [...variants]
+    const currentAttributes = newVariants[variantIndex].attributes || {}
+    newVariants[variantIndex] = {
+      ...newVariants[variantIndex],
+      attributes: {
+        ...currentAttributes,
+        [attributeName]: value
+      }
+    }
+    setVariants(newVariants)
+  }
+
+  const handleVariantImageUploaded = (index: number, url: string) => {
+    handleVariantChange(index, 'image', url)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -589,16 +710,13 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         weight_reference: cleanedProduct.weight_reference || null,
         subscription_available: Boolean(cleanedProduct.subscription_available),
         subscription_types: JSON.stringify(Array.isArray(cleanedProduct.subscription_types) ? cleanedProduct.subscription_types : []),
+        product_type: productType, // Agregar tipo de producto
         // Solo incluir descuentos si están definidos y son válidos
         ...(selectedSubscriptionTypes.includes('weekly') && cleanedProduct.weekly_discount !== undefined && cleanedProduct.weekly_discount !== null ? { weekly_discount: Number(cleanedProduct.weekly_discount) } : {}),
         ...(selectedSubscriptionTypes.includes('biweekly') && cleanedProduct.biweekly_discount !== undefined && cleanedProduct.biweekly_discount !== null ? { biweekly_discount: Number(cleanedProduct.biweekly_discount) } : {}),
         ...(selectedSubscriptionTypes.includes('monthly') && cleanedProduct.monthly_discount !== undefined && cleanedProduct.monthly_discount !== null ? { monthly_discount: Number(cleanedProduct.monthly_discount) } : {}),
         ...(selectedSubscriptionTypes.includes('quarterly') && cleanedProduct.quarterly_discount !== undefined && cleanedProduct.quarterly_discount !== null ? { quarterly_discount: Number(cleanedProduct.quarterly_discount) } : {}),
         ...(selectedSubscriptionTypes.includes('annual') && cleanedProduct.annual_discount !== undefined && cleanedProduct.annual_discount !== null ? { annual_discount: Number(cleanedProduct.annual_discount) } : {}),
-        // Incluir URLs de Mercado Pago si están definidas
-        ...(cleanedProduct.monthly_mercadopago_url ? { monthly_mercadopago_url: cleanedProduct.monthly_mercadopago_url } : {}),
-        ...(cleanedProduct.quarterly_mercadopago_url ? { quarterly_mercadopago_url: cleanedProduct.quarterly_mercadopago_url } : {}),
-        ...(cleanedProduct.annual_mercadopago_url ? { annual_mercadopago_url: cleanedProduct.annual_mercadopago_url } : {}),
       }
 
       let productId: number
@@ -871,6 +989,64 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           description: "Ocurrió un error al procesar los tamaños del producto.",
           variant: "warning",
         })
+      }
+
+      // Gestionar variantes del producto (solo si es producto variable)
+      if (productType === 'variable') {
+        try {
+          console.log("Gestionando variantes del producto:", variants)
+          // Eliminar variantes existentes
+          if (!isNew) {
+            console.log("Eliminando variantes existentes...")
+            await supabase.from("product_variants").delete().eq("product_id", productId)
+          }
+
+          // Filtrar variantes válidas (al menos deben tener nombre)
+          const validVariants = variants.filter((variant) => variant.name && variant.name.trim() !== "")
+          console.log("Variantes válidas:", validVariants)
+
+          if (validVariants.length > 0) {
+            // Insertar nuevas variantes
+            const variantsWithProductId = validVariants.map((variant, index) => ({
+              product_id: productId,
+              name: variant.name,
+              sku: variant.sku || null,
+              price: Number(variant.price) || 0,
+              stock: Number(variant.stock) || 0,
+              image: variant.image || null,
+              attributes: variant.attributes || {},
+              track_inventory: true,
+              display_order: index,
+              is_active: true,
+            }))
+
+            console.log("Insertando variantes:", variantsWithProductId)
+            const { data: insertedVariants, error: variantsError } = await supabase
+              .from("product_variants")
+              .insert(variantsWithProductId)
+              .select()
+
+            if (variantsError) {
+              console.error("Error al guardar variantes:", variantsError)
+              toast({
+                title: "Advertencia",
+                description: `Error al guardar variantes: ${variantsError.message}`,
+                variant: "destructive",
+              })
+            } else {
+              console.log("Variantes guardadas exitosamente:", insertedVariants)
+            }
+          } else {
+            console.log("No hay variantes válidas para guardar")
+          }
+        } catch (error) {
+          console.error("Error al gestionar variantes:", error)
+          toast({
+            title: "Advertencia",
+            description: "Ocurrió un error al procesar las variantes del producto.",
+            variant: "warning",
+          })
+        }
       }
 
       // Gestionar imágenes del producto
@@ -1180,6 +1356,83 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                 )}
               </div>
 
+              {/* Selector de tipo de producto */}
+              <div className="space-y-4 border-t pt-4">
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Tipo de Producto</Label>
+                  <RadioGroup value={productType} onValueChange={(value) => handleProductTypeChange(value as ProductType)}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer">
+                        <RadioGroupItem value="simple" id="type-simple" />
+                        <div className="flex-1">
+                          <Label htmlFor="type-simple" className="cursor-pointer font-medium flex items-center gap-2">
+                            <Package className="h-4 w-4" />
+                            Producto Simple
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Un solo producto con precio, stock e imagen únicos.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-3 border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer">
+                        <RadioGroupItem value="variable" id="type-variable" />
+                        <div className="flex-1">
+                          <Label htmlFor="type-variable" className="cursor-pointer font-medium flex items-center gap-2">
+                            <Layers className="h-4 w-4" />
+                            Producto Variable
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Producto con múltiples variantes (ej: sabores, tamaños, colores).
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Contador de variantes (solo visible si es variable) */}
+                {productType === 'variable' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="variant-count">Número de Variantes</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleVariantCountChange(variantCount - 1)}
+                        disabled={variantCount <= 1}
+                      >
+                        -
+                      </Button>
+                      <Input
+                        id="variant-count"
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={variantCount}
+                        onChange={(e) => handleVariantCountChange(parseInt(e.target.value) || 1)}
+                        className="w-20 text-center"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleVariantCountChange(variantCount + 1)}
+                        disabled={variantCount >= 20}
+                      >
+                        +
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {variantCount} {variantCount === 1 ? 'variante' : 'variantes'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Define cuántas variantes tendrá este producto (máximo 20).
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="description">Descripción</Label>
                 <Textarea
@@ -1398,93 +1651,172 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                         </p>
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <Label>URLs de Mercado Pago por Tipo de Suscripción</Label>
-                      <div className="grid grid-cols-1 gap-4">
-
-
-                        <div className="space-y-2">
-                          <Label htmlFor="monthly_mercadopago_url">URL Mercado Pago - Mensual</Label>
-                          <Input
-                            id="monthly_mercadopago_url"
-                            name="monthly_mercadopago_url"
-                            type="url"
-                            placeholder="URL de suscripción (sistema actualizado sin planes)"
-                            value={product.monthly_mercadopago_url || ""}
-                            onChange={handleProductChange}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="quarterly_mercadopago_url">URL Mercado Pago - Trimestral</Label>
-                          <Input
-                            id="quarterly_mercadopago_url"
-                            name="quarterly_mercadopago_url"
-                            type="url"
-                            placeholder="URL de suscripción (sistema actualizado sin planes)"
-                            value={product.quarterly_mercadopago_url || ""}
-                            onChange={handleProductChange}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="annual_mercadopago_url">URL Mercado Pago - Anual</Label>
-                          <Input
-                            id="annual_mercadopago_url"
-                            name="annual_mercadopago_url"
-                            type="url"
-                            placeholder="URL de suscripción (sistema actualizado sin planes)"
-                            value={product.annual_mercadopago_url || ""}
-                            onChange={handleProductChange}
-                          />
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        URLs específicas de Mercado Pago para cada tipo de suscripción. Si se dejan vacías, se usarán las URLs configuradas globalmente.
-                      </p>
-                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Precio Base</Label>
-                  <Input
-                    id="price"
-                    name="price"
-                    type="number"
-                    step="0.01"
-                    value={product.price || 0}
-                    onChange={handleProductChange}
-                    required
-                  />
-                </div>
+              {/* Precio, Stock y Featured - Solo para productos simples */}
+              {productType === 'simple' && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Precio Base</Label>
+                    <Input
+                      id="price"
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      value={product.price || 0}
+                      onChange={handleProductChange}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="stock">Stock</Label>
-                  <Input
-                    id="stock"
-                    name="stock"
-                    type="number"
-                    value={product.stock || 0}
-                    onChange={handleProductChange}
-                    required
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="stock">Stock</Label>
+                    <Input
+                      id="stock"
+                      name="stock"
+                      type="number"
+                      value={product.stock || 0}
+                      onChange={handleProductChange}
+                      required
+                    />
+                  </div>
 
-                <div className="flex items-end space-x-2">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-end space-x-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="featured"
+                        checked={product.featured || false}
+                        onCheckedChange={handleCheckboxChange}
+                      />
+                      <Label htmlFor="featured">Destacado</Label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Formularios de Variantes - Solo para productos variables */}
+              {productType === 'variable' && (
+                <div className="space-y-6 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Variantes del Producto</h3>
+                    <p className="text-sm text-muted-foreground">{variantCount} {variantCount === 1 ? 'variante' : 'variantes'}</p>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {variants.slice(0, variantCount).map((variant, index) => (
+                      <Card key={index} className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
+                              {index + 1}
+                            </span>
+                            Variante {index + 1}
+                            {variant.name && <span className="text-muted-foreground font-normal">- {variant.name}</span>}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* Nombre y SKU */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`variant-name-${index}`}>Nombre de la Variante *</Label>
+                              <Input
+                                id={`variant-name-${index}`}
+                                value={variant.name || ''}
+                                onChange={(e) => handleVariantChange(index, 'name', e.target.value)}
+                                placeholder="ej: Sabor Pollo, Talla M"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`variant-sku-${index}`}>SKU (Opcional)</Label>
+                              <Input
+                                id={`variant-sku-${index}`}
+                                value={variant.sku || ''}
+                                onChange={(e) => handleVariantChange(index, 'sku', e.target.value)}
+                                placeholder="ej: PASTEL-POLLO-001"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Precio y Stock */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`variant-price-${index}`}>Precio *</Label>
+                              <Input
+                                id={`variant-price-${index}`}
+                                type="number"
+                                step="0.01"
+                                value={variant.price || 0}
+                                onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`variant-stock-${index}`}>Stock *</Label>
+                              <Input
+                                id={`variant-stock-${index}`}
+                                type="number"
+                                value={variant.stock || 0}
+                                onChange={(e) => handleVariantChange(index, 'stock', e.target.value)}
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          {/* Imagen de la variante */}
+                          <div className="space-y-2">
+                            <Label>Imagen de la Variante</Label>
+                            <CloudinaryUploader
+                              folder="products/variants"
+                              onImageUploaded={(url) => handleVariantImageUploaded(index, url)}
+                              currentImageUrl={variant.image || ""}
+                              maxSizeKB={1024}
+                              aspectRatio="square"
+                            />
+                          </div>
+
+                          {/* Atributos opcionales */}
+                          {attributeTypes.length > 0 && (
+                            <div className="space-y-2 border-t pt-4">
+                              <Label className="text-sm font-medium">Atributos (Opcional)</Label>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Agrega atributos adicionales como sabor, color, tamaño, etc.
+                              </p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {attributeTypes.map((attrType) => (
+                                  <div key={attrType.id} className="space-y-2">
+                                    <Label htmlFor={`variant-${index}-attr-${attrType.id}`} className="text-xs">
+                                      {attrType.name}
+                                    </Label>
+                                    <Input
+                                      id={`variant-${index}-attr-${attrType.id}`}
+                                      value={(variant.attributes as any)?.[attrType.name] || ''}
+                                      onChange={(e) => handleVariantAttributeChange(index, attrType.name, e.target.value)}
+                                      placeholder={`ej: ${attrType.name === 'Sabor' ? 'Pollo' : attrType.name === 'Tamaño' ? 'M' : attrType.name}`}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Featured checkbox para productos variables */}
+                  <div className="flex items-center space-x-2 border-t pt-4">
                     <Checkbox
                       id="featured"
                       checked={product.featured || false}
                       onCheckedChange={handleCheckboxChange}
                     />
-                    <Label htmlFor="featured">Destacado</Label>
+                    <Label htmlFor="featured">Destacar este producto</Label>
                   </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

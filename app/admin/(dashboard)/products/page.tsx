@@ -6,9 +6,10 @@ import type { Product } from "@/lib/supabase/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Edit, Trash2, Copy, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Copy, Loader2, ChevronLeft, ChevronRight, Package, Layers } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { Badge } from "@/components/ui/badge"
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -27,7 +28,10 @@ export default function ProductsPage() {
     try {
       let query = supabase
         .from("products")
-        .select("*", { count: "exact" })
+        .select(`
+          *,
+          variants:product_variants(count)
+        `, { count: "exact" })
         .order("created_at", { ascending: false })
         .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1)
 
@@ -39,7 +43,13 @@ export default function ProductsPage() {
 
       if (error) throw error
 
-      setProducts(data || [])
+      // Agregar conteo de variantes
+      const productsWithVariantCount = (data || []).map(product => ({
+        ...product,
+        variant_count: product.variants?.[0]?.count || 0
+      }))
+
+      setProducts(productsWithVariantCount || [])
       setTotalPages(Math.ceil((count || 0) / itemsPerPage))
     } catch (error) {
       console.error("Error al cargar productos:", error)
@@ -146,6 +156,7 @@ export default function ProductsPage() {
             <TableRow>
               <TableHead className="w-[80px]">Imagen</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Stock</TableHead>
@@ -179,6 +190,26 @@ export default function ProductsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>
+                    {product.product_type === 'variable' ? (
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="default" className="w-fit">
+                          <Layers className="h-3 w-3 mr-1" />
+                          Con Variantes
+                        </Badge>
+                        {product.variant_count > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {product.variant_count} variante{product.variant_count !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <Badge variant="secondary" className="w-fit">
+                        <Package className="h-3 w-3 mr-1" />
+                        Simple
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{product.category_id}</TableCell>
                   <TableCell>${product.price.toFixed(2)}</TableCell>
                   <TableCell>{product.stock}</TableCell>
