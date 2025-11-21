@@ -861,6 +861,17 @@ export async function POST(request: NextRequest) {
           await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
           break
 
+        // Eventos de OXXO
+        case 'payment_intent.processing':
+          // El cliente está en OXXO y aún no ha pagado
+          console.log(`⏳ Pago OXXO en proceso: ${event.data.object.id}`)
+          break
+
+        case 'payment_intent.payment_failed':
+          // El pago OXXO expiró o fue rechazado
+          console.log(`❌ Pago OXXO fallido: ${event.data.object.id}`)
+          break
+
         // Eventos que podemos ignorar silenciosamente
         case 'invoice.created':
         case 'invoice.finalized':

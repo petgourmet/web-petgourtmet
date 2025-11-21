@@ -155,15 +155,21 @@ export async function createOneTimeCheckoutSession(
     phone_number_collection: {
       enabled: true,
     },
-    billing_address_collection: 'required',
+    billing_address_collection: 'auto', // Cambiar de 'required' a 'auto' para OXXO
     metadata: {
       ...metadata,
       user_id: customer.userId || '',
       customer_name: `${customer.firstName} ${customer.lastName}`,
       shipping_address: JSON.stringify(shipping),
     },
-    payment_method_types: ['card'],
+    payment_method_types: ['card', 'oxxo'], // Habilitar tarjetas y OXXO
     locale: 'es',
+    // Configuración adicional para OXXO
+    payment_method_options: {
+      oxxo: {
+        expires_after_days: 3, // Voucher válido por 3 días
+      },
+    },
   })
 
   return session
@@ -296,7 +302,7 @@ export async function createSubscriptionCheckoutSession(
       subscription_type: subscriptionItem.subscriptionType || 'monthly',
       product_id: subscriptionItem.id.toString(),
     },
-    payment_method_types: ['card'],
+    payment_method_types: ['card'], // OXXO no está disponible para suscripciones recurrentes
     locale: 'es',
     subscription_data: {
       metadata: {
