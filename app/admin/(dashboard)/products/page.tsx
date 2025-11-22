@@ -70,7 +70,36 @@ export default function ProductsPage() {
 
     try {
       const { error } = await supabase.from("products").delete().eq("id", id)
-      if (error) throw error
+      
+      if (error) {
+        // Verificar si es un error de integridad referencial
+        if (error.code === '23503') {
+          clearTimeout(deletingAlert)
+          
+          // Mensaje más descriptivo según la tabla que lo referencia
+          let detailedMessage = "No se puede eliminar este producto porque está siendo utilizado en:\n\n"
+          
+          if (error.details?.includes('order_items')) {
+            detailedMessage += "• Órdenes de compra (tiene ventas registradas)\n"
+          }
+          if (error.details?.includes('cart_items')) {
+            detailedMessage += "• Carritos de compra activos\n"
+          }
+          if (error.details?.includes('subscription')) {
+            detailedMessage += "• Suscripciones activas\n"
+          }
+          
+          detailedMessage += "\n💡 Soluciones:\n"
+          detailedMessage += "1. En lugar de eliminar, puedes DESACTIVAR el producto (cambiar stock a 0)\n"
+          detailedMessage += "2. O marcarlo como no destacado para ocultarlo del catálogo principal\n"
+          detailedMessage += "3. Si realmente necesitas eliminarlo, primero elimina las referencias asociadas"
+          
+          alert(detailedMessage)
+          return
+        }
+        
+        throw error
+      }
 
       // Limpiar el mensaje de eliminando
       clearTimeout(deletingAlert)
@@ -79,11 +108,11 @@ export default function ProductsPage() {
       setProducts(products.filter((product) => product.id !== id))
       
       alert("¡Producto eliminado exitosamente!")
-    } catch (error) {
+    } catch (error: any) {
       // Limpiar el mensaje de eliminando en caso de error
       clearTimeout(deletingAlert)
       console.error("Error al eliminar el producto:", error)
-      alert("Error al eliminar el producto. Por favor, inténtalo de nuevo.")
+      alert(`Error al eliminar el producto: ${error.message || 'Intenta de nuevo'}`)
     }
   }
 

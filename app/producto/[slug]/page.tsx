@@ -115,11 +115,18 @@ export default function ProductDetailPage() {
         // Cargar variantes si es un producto variable
         let variantsData: ProductVariant[] = []
         if (productData.product_type === 'variable') {
-          const { data: fetchedVariants } = await supabase
+          // Agregar timestamp para evitar caché
+          const timestamp = Date.now()
+          const { data: fetchedVariants, error: variantsError } = await supabase
             .from("product_variants")
-            .select("*")
+            .select("id, product_id, sku, name, attributes, price, compare_at_price, stock, track_inventory, image, display_order, is_active, created_at, updated_at")
             .eq("product_id", productData.id)
-            .order("id")
+            .eq("is_active", true)
+            .order("display_order", { ascending: true })
+          
+          console.log("🔍 [TIMESTAMP:", timestamp, "] Variantes cargadas para producto:", productData.id)
+          console.log("📦 Datos recibidos:", JSON.stringify(fetchedVariants, null, 2))
+          console.log("🔍 Error al cargar variantes:", variantsError)
           
           if (fetchedVariants && fetchedVariants.length > 0) {
             variantsData = fetchedVariants
@@ -127,6 +134,9 @@ export default function ProductDetailPage() {
             setIsVariableProduct(true)
             // Seleccionar la primera variante por defecto
             setSelectedVariant(fetchedVariants[0])
+            console.log("✅ Primera variante seleccionada:", fetchedVariants[0].name)
+          } else {
+            console.warn("⚠️ No se encontraron variantes activas para este producto")
           }
         }
 

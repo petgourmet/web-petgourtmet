@@ -156,9 +156,13 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         const { error } = await supabase.from("product_categories").select("id").limit(1)
         if (!error) {
           setMultiCategorySupport(true)
+        } else {
+          // Silenciosamente desactivar soporte si la tabla no existe
+          setMultiCategorySupport(false)
         }
       } catch (error) {
-        console.log("Soporte para múltiples categorías no disponible aún")
+        // Silenciosamente desactivar soporte si hay cualquier error
+        setMultiCategorySupport(false)
       }
     }
 
@@ -316,31 +320,31 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
           // Intentar cargar características del producto
           try {
-            const { data: featuresData } = await supabase
+            const { data: featuresData, error: featuresError } = await supabase
               .from("product_features")
               .select("*")
               .eq("product_id", productId)
 
-            if (featuresData && featuresData.length > 0) {
+            if (!featuresError && featuresData && featuresData.length > 0) {
               setProductFeatures(featuresData)
             }
           } catch (error) {
-            console.log("Tabla product_features no disponible aún:", error)
+            // Silenciosamente ignorar si la tabla no existe
           }
 
           // Intentar cargar reseñas del producto
           try {
-            const { data: reviewsData } = await supabase
+            const { data: reviewsData, error: reviewsError } = await supabase
               .from("product_reviews")
               .select("*")
               .eq("product_id", productId)
               .order("created_at", { ascending: false })
 
-            if (reviewsData && reviewsData.length > 0) {
+            if (!reviewsError && reviewsData && reviewsData.length > 0) {
               setProductReviews(reviewsData)
             }
           } catch (error) {
-            console.log("Tabla product_reviews no disponible aún:", error)
+            // Silenciosamente ignorar si la tabla no existe
           }
 
           // Cargar tipo de producto y variantes si existen
@@ -371,16 +375,16 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
         // Cargar tipos de atributos disponibles (tanto para nuevo como para editar)
         try {
-          const { data: attributeTypesData } = await supabase
+          const { data: attributeTypesData, error: attrError } = await supabase
             .from("attribute_types")
             .select("*")
             .order("name")
 
-          if (attributeTypesData) {
+          if (!attrError && attributeTypesData) {
             setAttributeTypes(attributeTypesData)
           }
         } catch (error) {
-          console.log("Error cargando tipos de atributos:", error)
+          // Silenciosamente ignorar si la tabla no existe
         }
       } catch (error) {
         console.error("Error al cargar datos:", error)
@@ -908,7 +912,12 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         // Eliminar características existentes
         if (!isNew) {
           console.log("Eliminando características existentes...")
-          await supabase.from("product_features").delete().eq("product_id", productId)
+          const { error: deleteError } = await supabase.from("product_features").delete().eq("product_id", productId)
+          
+          // Si la tabla no existe, simplemente continuar
+          if (deleteError && deleteError.code !== 'PGRST116' && deleteError.code !== '42P01') {
+            throw deleteError
+          }
         }
 
         // Filtrar características vacías
@@ -927,23 +936,26 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           const { error: featuresError } = await supabase.from("product_features").insert(featuresWithProductId)
 
           if (featuresError) {
-            console.error("Error al guardar características:", featuresError)
-            toast({
-              title: "Advertencia",
-              description: "Algunas características del producto no se pudieron guardar.",
-              variant: "warning",
-            })
+            // Si la tabla no existe, solo mostrar en consola, no al usuario
+            if (featuresError.code === 'PGRST116' || featuresError.code === '42P01') {
+              console.log("Tabla product_features no disponible, omitiendo características")
+            } else {
+              console.error("Error al guardar características:", featuresError)
+              toast({
+                title: "Advertencia",
+                description: "Algunas características del producto no se pudieron guardar.",
+                variant: "destructive",
+              })
+            }
           } else {
             console.log("Características guardadas exitosamente")
           }
         }
-      } catch (error) {
-        console.error("Error al gestionar características:", error)
-        toast({
-          title: "Advertencia",
-          description: "Ocurrió un error al procesar las características del producto.",
-          variant: "warning",
-        })
+      } catch (error: any) {
+        // Solo mostrar error si no es por tabla inexistente
+        if (error.code !== 'PGRST116' && error.code !== '42P01') {
+          console.error("Error al gestionar características:", error)
+        }
       }
 
       // Gestionar tamaños del producto

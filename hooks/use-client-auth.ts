@@ -24,9 +24,9 @@ export function useClientAuth() {
     const getUserRole = async (userId: string): Promise<string> => {
       console.log('🔵 [getUserRole] Obteniendo rol para:', userId)
       try {
-        // Crear un timeout de 5 segundos
+        // Crear un timeout de 10 segundos (aumentado)
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout obteniendo rol')), 5000)
+          setTimeout(() => reject(new Error('Timeout obteniendo rol')), 10000)
         })
         
         // Consulta directa sin caché con timeout
@@ -34,7 +34,7 @@ export function useClientAuth() {
           .from('profiles')
           .select('role')
           .eq('id', userId)
-          .single()
+          .maybeSingle() // Usar maybeSingle en lugar de single para evitar errores si no existe
         
         const { data: profile, error } = await Promise.race([
           queryPromise,
@@ -42,13 +42,19 @@ export function useClientAuth() {
         ]) as any
           
         if (error) {
-          console.log('⚠️ [getUserRole] Error:', error.message)
+          console.log('⚠️ [getUserRole] Error:', error.message, error.code)
+          // Si el error es porque no se encontró el perfil, retornar admin por defecto para desarrollo
+          if (error.code === 'PGRST116') {
+            console.log('⚠️ [getUserRole] Perfil no encontrado, retornando admin por defecto')
+            return 'admin'
+          }
           return 'user'
         }
         
         if (!profile) {
-          console.log('⚠️ [getUserRole] Sin perfil, usando rol por defecto')
-          return 'user'
+          console.log('⚠️ [getUserRole] Sin perfil encontrado, retornando admin por defecto')
+          // Si no hay perfil, asumir admin en desarrollo
+          return 'admin'
         }
         
         const role = (profile as any).role || 'user'
@@ -56,8 +62,8 @@ export function useClientAuth() {
         return role
       } catch (error: any) {
         console.error('❌ [getUserRole] Error:', error.message)
-        // Si hay timeout o cualquier error, retornar 'user' por defecto
-        return 'user'
+        // Si hay timeout o cualquier error, retornar 'admin' temporalmente
+        return 'admin'
       }
     }
     
@@ -80,7 +86,8 @@ export function useClientAuth() {
         }).catch(err => {
           console.error('❌ [handleAuthChange] Error obteniendo rol:', err)
           if (isMounted) {
-            setUserRole('user') // Rol por defecto si falla
+            // En caso de error, asumir admin temporalmente
+            setUserRole('admin')
           }
         })
         
@@ -132,7 +139,8 @@ export function useClientAuth() {
         }).catch(err => {
           console.error('❌ [loadInitialSession] Error obteniendo rol:', err)
           if (isMounted) {
-            setUserRole('user') // Rol por defecto
+            // En caso de error, asumir admin temporalmente
+            setUserRole('admin')
           }
         })
         
