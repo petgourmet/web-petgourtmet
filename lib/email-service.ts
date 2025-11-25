@@ -16,6 +16,11 @@ export interface SubscriptionEmailData {
   next_payment_date?: string;
   plan_description?: string;
   external_reference: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  status?: string;
+  admin_details?: any;
+  days_until_payment?: number; // Para recordatorios de pago
 }
 
 export interface ThankYouEmailData {
@@ -182,7 +187,7 @@ export async function logEmailSent(
 
 // Función para enviar correos de suscripción
 export async function sendSubscriptionEmail(
-  emailType: 'created' | 'payment' | 'cancelled' | 'paused' | 'resumed' | 'payment_failed',
+  emailType: 'created' | 'payment' | 'cancelled' | 'paused' | 'resumed' | 'payment_failed' | 'subscription_updated' | 'payment_reminder',
   subscriptionData: SubscriptionEmailData,
   maxRetries: number = 3
 ) {
@@ -887,6 +892,13 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
       color: '#3b82f6',
       icon: '💳'
     },
+    subscription_updated: {
+      subject: '🔄 Tu suscripción ha sido actualizada - Pet Gourmet',
+      title: '🔄 Suscripción Actualizada',
+      message: 'Tu suscripción ha sido actualizada. A continuación encontrarás los detalles del nuevo período.',
+      color: '#3b82f6',
+      icon: '🔄'
+    },
     cancelled: {
       subject: '❌ Suscripción cancelada - Pet Gourmet',
       title: '❌ Suscripción Cancelada',
@@ -914,6 +926,13 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
       message: 'No pudimos procesar el pago de tu suscripción. Por favor, actualiza tu método de pago para continuar.',
       color: '#dc2626',
       icon: '⚠️'
+    },
+    payment_reminder: {
+      subject: '🔔 Recordatorio: Próximo pago de suscripción - Pet Gourmet',
+      title: '🔔 Próximo Pago',
+      message: `Tu próximo pago está programado para dentro de ${data.days_until_payment || 3} días. Asegúrate de tener fondos suficientes en tu método de pago.`,
+      color: '#8b5cf6',
+      icon: '🔔'
     }
   };
 
@@ -978,19 +997,66 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.plan_description}</td>
                       </tr>
                     ` : ''}
+                    ${data.status ? `
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Estado:</td>
+                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.status === 'active' ? '✅ Activa' : data.status === 'paused' ? '⏸️ Pausada' : data.status}</td>
+                      </tr>
+                    ` : ''}
                     <tr>
                       <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Monto por período:</td>
                       <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;">$${data.amount.toFixed(2)} MXN</td>
                     </tr>
+                    ${data.current_period_start ? `
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Período actual inicia:</td>
+                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${new Date(data.current_period_start).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                      </tr>
+                    ` : ''}
+                    ${data.current_period_end ? `
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Período actual termina:</td>
+                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${new Date(data.current_period_end).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                      </tr>
+                    ` : ''}
                     ${data.next_payment_date ? `
                       <tr>
                         <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Próximo cobro:</td>
-                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${data.next_payment_date}</td>
+                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${typeof data.next_payment_date === 'string' && data.next_payment_date.includes('-') ? new Date(data.next_payment_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : data.next_payment_date}</td>
                       </tr>
                     ` : ''}
                   </table>
                 </div>
               </div>
+              
+              ${type === 'subscription_updated' && data.admin_details ? `
+                <!-- Detalles para Admin -->
+                <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+                  <h4 style="margin-top: 0; color: #92400e; font-size: 14px;">📊 Detalles de Actualización (Admin)</h4>
+                  <table style="width: 100%; font-size: 12px; color: #78350f;">
+                    <tr>
+                      <td style="padding: 4px 0;">ID Usuario:</td>
+                      <td style="text-align: right; font-weight: bold;">${data.admin_details.user_id || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0;">ID Suscripción:</td>
+                      <td style="text-align: right; font-family: monospace; font-size: 11px;">${data.admin_details.subscription_id}</td>
+                    </tr>
+                    ${data.admin_details.changes?.dates ? `
+                      <tr>
+                        <td style="padding: 4px 0;">Período anterior:</td>
+                        <td style="text-align: right;">${data.admin_details.previous_period_start ? new Date(data.admin_details.previous_period_start).toLocaleDateString('es-MX') : 'N/A'} - ${data.admin_details.previous_period_end ? new Date(data.admin_details.previous_period_end).toLocaleDateString('es-MX') : 'N/A'}</td>
+                      </tr>
+                    ` : ''}
+                    ${data.admin_details.changes?.status ? `
+                      <tr>
+                        <td style="padding: 4px 0;">Estado anterior:</td>
+                        <td style="text-align: right;">${data.admin_details.previous_status}</td>
+                      </tr>
+                    ` : ''}
+                  </table>
+                </div>
+              ` : ''}
               
               <!-- Beneficios -->
               ${type === 'created' ? `

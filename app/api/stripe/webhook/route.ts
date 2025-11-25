@@ -762,22 +762,109 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
  * Se dispara cuando se actualiza una suscripción
  */
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  console.log('Subscription updated:', subscription.id)
+  console.log('🔄 Subscription updated:', subscription.id)
 
   const subscriptionData = subscription as any
+  const currentPeriodStart = new Date(subscriptionData.current_period_start * 1000).toISOString()
+  const currentPeriodEnd = new Date(subscriptionData.current_period_end * 1000).toISOString()
 
-  const { error } = await supabaseAdmin
+  // Obtener datos actuales de la suscripción
+  const { data: existingSubscription, error: fetchError } = await supabaseAdmin
+    .from('unified_subscriptions')
+    .select('*')
+    .eq('stripe_subscription_id', subscription.id)
+    .single()
+
+  if (fetchError) {
+    console.error('❌ Error al obtener suscripción existente:', fetchError)
+    return
+  }
+
+  // Detectar cambios significativos
+  const hasDateChanges = 
+    existingSubscription?.current_period_start !== currentPeriodStart ||
+    existingSubscription?.current_period_end !== currentPeriodEnd
+
+  const hasStatusChange = existingSubscription?.status !== subscriptionData.status
+
+  // Actualizar suscripción en base de datos
+  const { data: updatedSubscription, error } = await supabaseAdmin
     .from('unified_subscriptions')
     .update({
       status: subscriptionData.status,
-      current_period_start: new Date(subscriptionData.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscriptionData.current_period_end * 1000).toISOString(),
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
       cancel_at_period_end: subscriptionData.cancel_at_period_end,
+      updated_at: new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscription.id)
+    .select()
+    .single()
 
   if (error) {
-    console.error('Error al actualizar suscripción:', error)
+    console.error('❌ Error al actualizar suscripción:', error)
+    return
+  }
+
+  console.log('✅ Suscripción actualizada en BD:', {
+    id: subscription.id,
+    status: subscriptionData.status,
+    period: `${currentPeriodStart} - ${currentPeriodEnd}`,
+    hasDateChanges,
+    hasStatusChange
+  })
+
+  // Enviar notificaciones solo si hay cambios significativos
+  if (hasDateChanges || hasStatusChange) {
+    try {
+      const { sendSubscriptionEmail } = await import('@/lib/email-service')
+      
+      // Preparar datos para el email
+      const emailData = {
+        user_email: updatedSubscription.customer_email,
+        user_name: updatedSubscription.customer_name || 'Cliente',
+        subscription_type: updatedSubscription.subscription_type,
+        current_period_start: currentPeriodStart,
+        current_period_end: currentPeriodEnd,
+        status: subscriptionData.status,
+        plan_description: updatedSubscription.product_name || 'Suscripción Pet Gourmet',
+        external_reference: updatedSubscription.external_reference,
+        amount: updatedSubscription.amount || 0,
+        next_payment_date: currentPeriodEnd
+      }
+
+      // Email al cliente
+      if (updatedSubscription.customer_email) {
+        await sendSubscriptionEmail('subscription_updated', emailData)
+        console.log('✅ Email de actualización enviado al cliente:', updatedSubscription.customer_email)
+      }
+
+      // Email al admin con detalles adicionales
+      await sendSubscriptionEmail('subscription_updated', {
+        ...emailData,
+        user_email: 'contacto@petgourmet.mx',
+        user_name: 'Admin Pet Gourmet',
+        plan_description: `[ACTUALIZACIÓN] ${updatedSubscription.customer_name} - ${updatedSubscription.product_name}`,
+        admin_details: {
+          user_id: updatedSubscription.user_id,
+          subscription_id: subscription.id,
+          previous_period_start: existingSubscription?.current_period_start,
+          previous_period_end: existingSubscription?.current_period_end,
+          previous_status: existingSubscription?.status,
+          changes: {
+            dates: hasDateChanges,
+            status: hasStatusChange
+          }
+        }
+      })
+      console.log('✅ Email de actualización enviado al admin: contacto@petgourmet.mx')
+
+    } catch (emailError) {
+      console.error('❌ Error enviando emails de actualización:', emailError)
+      // No fallar el webhook por error de email
+    }
+  } else {
+    console.log('ℹ️ Sin cambios significativos, no se envían notificaciones')
   }
 }
 
@@ -786,18 +873,67 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
  * Se dispara cuando se cancela una suscripción
  */
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  console.log('Subscription deleted:', subscription.id)
+  console.log('🚫 Subscription deleted:', subscription.id)
+
+  // Obtener la suscripción actual para enviar notificaciones
+  const { data: existingSubscription } = await supabaseAdmin
+    .from('unified_subscriptions')
+    .select('*')
+    .eq('stripe_subscription_id', subscription.id)
+    .single()
 
   const { error } = await supabaseAdmin
     .from('unified_subscriptions')
     .update({
-      status: 'canceled',
-      canceled_at: new Date().toISOString(),
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscription.id)
 
   if (error) {
-    console.error('Error al actualizar suscripción:', error)
+    console.error('❌ Error al cancelar suscripción:', error)
+  } else {
+    console.log('✅ Suscripción cancelada en BD:', subscription.id)
+  }
+
+  // Enviar notificaciones de cancelación
+  if (existingSubscription) {
+    try {
+      const { sendSubscriptionEmail } = await import('@/lib/email-service')
+      
+      // Email al cliente
+      await sendSubscriptionEmail('cancelled', {
+        user_email: existingSubscription.customer_email,
+        user_name: existingSubscription.customer_name,
+        subscription_type: existingSubscription.subscription_type,
+        amount: existingSubscription.amount || 0,
+        plan_description: existingSubscription.product_name,
+        external_reference: subscription.id
+      })
+
+      console.log('✅ Email de cancelación enviado al cliente:', existingSubscription.customer_email)
+
+      // Email al admin
+      await sendSubscriptionEmail('cancelled', {
+        user_email: 'contacto@petgourmet.mx',
+        user_name: 'Admin Pet Gourmet',
+        subscription_type: existingSubscription.subscription_type,
+        amount: existingSubscription.amount || 0,
+        plan_description: `${existingSubscription.customer_name} - ${existingSubscription.product_name} - CANCELADA`,
+        external_reference: subscription.id,
+        admin_details: {
+          user_id: existingSubscription.user_id,
+          subscription_id: existingSubscription.id,
+          cancelled_at: new Date().toISOString(),
+          last_payment_date: existingSubscription.last_payment_date
+        }
+      })
+
+      console.log('✅ Email de cancelación enviado al admin: contacto@petgourmet.mx')
+    } catch (emailError) {
+      console.error('❌ Error enviando emails de cancelación:', emailError)
+    }
   }
 }
 

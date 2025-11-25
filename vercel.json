@@ -3,10 +3,17 @@
     {
       "path": "/api/cron/subscription-notifications",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/upcoming-payments",
+      "schedule": "0 10 * * *"
     }
   ],
   "functions": {
     "app/api/cron/subscription-notifications/route.ts": {
+      "maxDuration": 180
+    },
+    "app/api/cron/upcoming-payments/route.ts": {
       "maxDuration": 180
     },
     "app/api/admin/subscription-notifications/route.ts": {
