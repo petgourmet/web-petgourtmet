@@ -35,13 +35,41 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
 
         // Si se requiere rol de admin, verificar
         if (requireAdmin) {
-          const { data: profile, error: profileError } = await supabase
+          // Primero intentar buscar por ID (método principal)
+          let { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("role")
+            .select("id, role, email")
             .eq("id", session.user.id)
             .single()
 
-          if (profileError || !profile || profile.role !== "admin") {
+          // Si no encuentra por ID, buscar por email como fallback
+          if (profileError || !profile) {
+            console.log("Perfil no encontrado por ID, buscando por email...")
+            const { data: profileByEmail, error: emailError } = await supabase
+              .from("profiles")
+              .select("id, role, email")
+              .eq("email", session.user.email)
+              .order("created_at", { ascending: true }) // Usar el más antiguo (original)
+              .limit(1)
+              .single()
+
+            if (!emailError && profileByEmail) {
+              profile = profileByEmail
+              console.log("Perfil encontrado por email:", profile.email)
+              
+              // Sincronizar el ID del perfil con el ID de auth si es diferente
+              if (profile.id !== session.user.id) {
+                console.log("Sincronizando ID de perfil con auth.users...")
+                // Actualizar el perfil existente con el ID correcto de auth
+                await supabase
+                  .from("profiles")
+                  .update({ id: session.user.id, updated_at: new Date().toISOString() })
+                  .eq("id", profile.id)
+              }
+            }
+          }
+
+          if (!profile || profile.role !== "admin") {
             console.log("Usuario no es admin, redirigiendo a unauthorized")
             setIsAdmin(false)
             router.push("/admin/unauthorized")
