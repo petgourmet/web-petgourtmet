@@ -128,7 +128,21 @@ export function AuthForm() {
 
       const result = await response.json()
 
+      // Verificar si hubo error
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Error en la autenticación')
+      }
+
       setHoneypotValue('')
+
+      // Sincronizar la sesión con el cliente de Supabase
+      // Esto es importante para que el cliente tenga la sesión actualizada
+      if (result.session) {
+        await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token
+        })
+      }
 
       if (mode === "register") {
         // Verificar si el registro hizo auto-login
@@ -180,13 +194,24 @@ export function AuthForm() {
         const redirect = searchParams.get('redirect')
         const subscription = searchParams.get('subscription')
         
-        // Redirigir según corresponda
+        toast({
+          title: "¡Bienvenido!",
+          description: "Sesión iniciada correctamente.",
+        })
+        
+        // Pequeño delay para asegurar que la sesión se sincronizó
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Redirigir según corresponda usando router.refresh para actualizar la sesión
+        router.refresh()
+        
+        // Luego redirigir
         if (subscription === 'true' && redirect) {
-          window.location.href = decodeURIComponent(redirect)
+          router.push(decodeURIComponent(redirect))
         } else if (redirect) {
-          window.location.href = decodeURIComponent(redirect)
+          router.push(decodeURIComponent(redirect))
         } else {
-          window.location.href = "/perfil"
+          router.push("/perfil")
         }
       }
     } catch (error: any) {
