@@ -45,6 +45,9 @@ export type ProductCardProps = {
   annual_discount?: number
   purchase_types?: string[]
   onShowDetail?: (product: any) => void
+  product_type?: 'simple' | 'variable'
+  variantMinPrice?: number
+  variantMaxPrice?: number
 }
 
 export function ProductCard({
@@ -62,12 +65,31 @@ export function ProductCard({
   spotlightColor = "rgba(249, 215, 232, 0.08)",
   gallery,
   onShowDetail,
+  product_type,
+  variantMinPrice,
+  variantMaxPrice,
 }: ProductCardProps) {
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
 
-  // Determinar el precio a mostrar (precio directo o el más bajo de los tamaños)
-  const displayPrice = price || (sizes && Math.min(...sizes.map((size) => size.price))) || 0
+  // Determinar el texto de precio a mostrar
+  const hasVariantRange =
+    product_type === 'variable' &&
+    typeof variantMinPrice === 'number' &&
+    typeof variantMaxPrice === 'number' &&
+    (variantMinPrice || 0) > 0
+
+  let priceText: string | null = null
+  if (hasVariantRange) {
+    if (variantMinPrice !== variantMaxPrice) {
+      priceText = `$${(variantMinPrice as number).toFixed(2)} - $${(variantMaxPrice as number).toFixed(2)} MXN`
+    } else {
+      priceText = `$${(variantMinPrice as number).toFixed(2)} MXN`
+    }
+  } else {
+    const displayPrice = price || (sizes && Math.min(...sizes.map((size) => size.price))) || 0
+    priceText = displayPrice > 0 ? `$${displayPrice.toFixed(2)} MXN` : null
+  }
 
   // Función para obtener el color de clase de Tailwind basado en el color de la característica
   const getFeatureColorClass = (color: string) => {
@@ -216,7 +238,7 @@ export function ProductCard({
         {/* Precio */}
         <div className="mt-auto pt-2 flex justify-between items-center">
           <div>
-            {displayPrice > 0 && <span className="font-bold text-lg md:text-xl text-primary">${displayPrice.toFixed(2)} MXN</span>}
+            {priceText && <span className="font-bold text-lg md:text-xl text-primary">{priceText}</span>}
           </div>
         </div>
       </div>

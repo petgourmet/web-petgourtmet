@@ -56,6 +56,9 @@ export type Product = {
     }>
   }
   spotlightColor?: string
+  product_type?: 'simple' | 'variable'
+  variant_min_price?: number
+  variant_max_price?: number
 }
 
 // Datos de fallback por categoría
@@ -148,7 +151,7 @@ export function ProductCategoryLoader({
           id, name, slug, description, price, image, stock, category_id,
           rating, subscription_available, subscription_types,
           biweekly_discount, monthly_discount, quarterly_discount,
-          annual_discount, weekly_discount
+          annual_discount, weekly_discount, product_type
         `)
 
         // Filtrar por categoría si no es "all"
@@ -211,8 +214,42 @@ export function ProductCategoryLoader({
             quarterly_discount: product.quarterly_discount,
             annual_discount: product.annual_discount,
             weekly_discount: product.weekly_discount,
+            product_type: product.product_type,
           } as Product
         })
+
+        // Si hay productos variables, obtener rango de precios de variantes
+        const variableProductIds = processedProducts.filter(p => p.product_type === 'variable').map(p => p.id)
+        if (variableProductIds.length > 0) {
+          const { data: variantRows, error: variantsError } = await supabase
+            .from('product_variants')
+            .select('product_id, price, is_active')
+            .in('product_id', variableProductIds)
+            .eq('is_active', true)
+
+          if (!variantsError && Array.isArray(variantRows)) {
+            const rangeMap = new Map<number, { min: number; max: number }>()
+            for (const row of variantRows as any[]) {
+              const pid = row.product_id as number
+              const vPrice = Number(row.price) || 0
+              if (vPrice <= 0) continue
+              const existing = rangeMap.get(pid)
+              if (!existing) {
+                rangeMap.set(pid, { min: vPrice, max: vPrice })
+              } else {
+                if (vPrice < existing.min) existing.min = vPrice
+                if (vPrice > existing.max) existing.max = vPrice
+              }
+            }
+            for (const p of processedProducts) {
+              const range = rangeMap.get(p.id)
+              if (range) {
+                p.variant_min_price = range.min
+                p.variant_max_price = range.max
+              }
+            }
+          }
+        }
 
         if (!isMounted) return
         
@@ -340,6 +377,9 @@ export function ProductCategoryLoader({
                 features={product.features}
                 category={product.category}
                 spotlightColor={product.spotlightColor}
+                product_type={product.product_type}
+                variantMinPrice={product.variant_min_price}
+                variantMaxPrice={product.variant_max_price}
               />
             ))
           )}
