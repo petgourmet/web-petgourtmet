@@ -10,6 +10,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { handleAuthError } from "@/lib/auth-error-handler"
+import { PasswordStrengthIndicator } from "@/components/auth/password-strength-indicator"
 // import { useAntiSpam } from "@/hooks/useAntiSpam"
 import { HoneypotField } from "@/components/security/HoneypotField"
 // import { SecurityStatus } from "@/components/security/SecurityStatus"
@@ -311,6 +312,13 @@ export function AuthForm() {
                   />
                 </div>
               </div>
+              
+              {/* Indicador de fortaleza de contraseña */}
+              <PasswordStrengthIndicator 
+                password={password}
+                confirmPassword={confirmPassword}
+                showRequirements={true}
+              />
               
               <div className="flex items-start space-x-2">
                 <input
