@@ -29,21 +29,6 @@ const TiendasContext = createContext<TiendasContextType | undefined>(undefined)
 
 const tiendasData: Tienda[] = [
   {
-    id: "pet-society-polanco",
-    nombre: "Pet Society",
-    ubicacion: "Polanco",
-    direccion: "Goldsmith 56, Polanco, Polanco III Secc, Miguel Hidalgo, 11560 Ciudad de México, CDMX",
-    coordenadas: {
-      lat: 19.431458,
-      lng: -99.200815
-    },
-    googleMapsUrl: "https://www.google.com.mx/maps/place/Pet+Society+Polanco/@19.431458,-99.2033899,17z/data=!3m1!4b1!4m6!3m5!1s0x85d20202b57f0dcd:0x67888f6749ce493f!8m2!3d19.431458!4d-99.200815!16s%2Fg%2F11b7ytt_pl?hl=es&entry=ttu&g_ep=EgoyMDI1MDcwOS4wIKXMDSoASAFQAw%3D%3D",
-    logo: "/tiendas/pet-society-logo.png",
-    descripcion: "Boutique especializada en productos premium para mascotas en el corazón de Polanco.",
-    horarios: "Lun - Sab: 10:00 - 20:00, Dom: 11:00 - 18:00",
-    telefono: "+52 55 1234 5678"
-  },
-  {
     id: "pets-excellence-escandon",
     nombre: "Pets Excellence",
     ubicacion: "Escandón",
@@ -72,21 +57,6 @@ const tiendasData: Tienda[] = [
     descripcion: "Estética Canina & Spa especializado en el cuidado y bienestar de perritos y gatitos.",
     horarios: "Lun - Dom: 10:00 - 19:00",
     telefono: "+52 55 3456 7890"
-  },
-  {
-    id: "llaos-pet-roma-norte",
-    nombre: "Llaos Pet",
-    ubicacion: "Roma Norte",
-    direccion: "Durango 127, Roma Nte., Cuauhtémoc, 06700 Ciudad de México, CDMX",
-    coordenadas: {
-      lat: 19.4208159,
-      lng: -99.1624054
-    },
-    googleMapsUrl: "https://www.google.com.mx/maps/place/Llaos+Pet/@19.4208159,-99.1649803,17z/data=!3m1!4b1!4m6!3m5!1s0x85d1ff3752e2f531:0x43e4f49e86b04c96!8m2!3d19.4208159!4d-99.1624054!16s%2Fg%2F11bx5r36hf?hl=es&entry=ttu&g_ep=EgoyMDI1MDcwOS4wIKXMDSoASAFQAw%3D%3D",
-    logo: "/tiendas/llaos-pet-logo.png",
-    descripcion: "Sucursal Roma Norte de Llaos Pet, especializada en productos y servicios para mascotas.",
-    horarios: "Lun - Dom: 10:00 - 19:00",
-    telefono: "+52 55 4567 8901"
   }
 ]
 

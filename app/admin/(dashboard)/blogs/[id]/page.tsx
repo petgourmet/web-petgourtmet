@@ -187,6 +187,8 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
     setSaving(true)
     setError(null)
 
+    let timeoutId: NodeJS.Timeout | null = null;
+
     try {
       // Verificar autenticación antes de continuar
       if (!isAuthenticated) {
@@ -241,18 +243,26 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
         read_time: blog.read_time,
       }
 
-      if (isNew) {
-        // Crear nuevo blog
-        const { data, error } = await supabase.from("blogs").insert([blogData]).select()
+      // Definir promesa de la operación de Supabase
+      const supabaseOperation = isNew
+        ? supabase.from("blogs").insert([blogData]).select()
+        : supabase.from("blogs").update(blogData).eq("id", Number.parseInt(resolvedParams.id));
 
-        if (error) throw error
-      } else {
-        // Actualizar blog existente
-        const blogId = Number.parseInt(resolvedParams.id)
-        const { error } = await supabase.from("blogs").update(blogData).eq("id", blogId)
+      // Definir promesa de timeout (15 segundos)
+      const timeoutPromise = new Promise<{ error: any, data: any }>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error("La operación ha tardado demasiado tiempo. Verifica tu conexión o intenta nuevamente."))
+        }, 15000);
+      });
 
-        if (error) throw error
-      }
+      // Ejecutar con carrera contra el timeout
+      // @ts-ignore - Promise race types can be tricky
+      const { data, error } = await Promise.race([
+        supabaseOperation,
+        timeoutPromise
+      ]);
+
+      if (error) throw error;
 
       toast({
         title: "Éxito",
@@ -269,6 +279,8 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
         variant: "destructive",
       })
     } finally {
+      // Clear timeout if it exists
+      if (timeoutId) clearTimeout(timeoutId)
       setSaving(false)
     }
   }
