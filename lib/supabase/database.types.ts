@@ -491,6 +491,108 @@ export interface Database {
           error_message?: string | null
         }
       }
+      blogs: {
+        Row: {
+          id: number
+          title: string
+          slug: string
+          excerpt: string | null
+          content: string | null
+          cover_image: string | null
+          author_id: string | null
+          category_id: number | null
+          published: boolean
+          published_at: string | null
+          meta_description: string | null
+          read_time: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          title: string
+          slug: string
+          excerpt?: string | null
+          content?: string | null
+          cover_image?: string | null
+          author_id?: string | null
+          category_id?: number | null
+          published?: boolean
+          published_at?: string | null
+          meta_description?: string | null
+          read_time?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          title?: string
+          slug?: string
+          excerpt?: string | null
+          content?: string | null
+          cover_image?: string | null
+          author_id?: string | null
+          category_id?: number | null
+          published?: boolean
+          published_at?: string | null
+          meta_description?: string | null
+          read_time?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      blog_categories: {
+        Row: {
+          id: number
+          name: string
+          slug: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          slug: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          slug?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      profiles: {
+        Row: {
+          id: string
+          updated_at: string | null
+          username: string | null
+          full_name: string | null
+          avatar_url: string | null
+          website: string | null
+          role: string
+        }
+        Insert: {
+          id: string
+          updated_at?: string | null
+          username?: string | null
+          full_name?: string | null
+          avatar_url?: string | null
+          website?: string | null
+          role?: string
+        }
+        Update: {
+          id?: string
+          updated_at?: string | null
+          username?: string | null
+          full_name?: string | null
+          avatar_url?: string | null
+          website?: string | null
+          role?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

@@ -100,9 +100,11 @@ export type Blog = {
   cover_image: string
   published_at: string
   updated_at: string
-  author: string | null
+  author_id: string | null
   category_id: number | null
-  is_published: boolean
+  published: boolean
+  meta_description: string | null
+  read_time: number
   category?: {
     name: string
   }

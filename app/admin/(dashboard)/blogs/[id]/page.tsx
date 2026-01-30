@@ -187,100 +187,69 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
     setSaving(true)
     setError(null)
 
-    let timeoutId: NodeJS.Timeout | null = null;
-
     try {
-      // Verificar autenticación antes de continuar
-      if (!isAuthenticated) {
-        toast({
-          title: "Error de autenticación",
-          description: "Debes iniciar sesión para guardar blogs.",
-          variant: "destructive",
-        })
-        setSaving(false)
-        return
-      }
+      // Usar AbortController para timeout de la petición fetch
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos timeout
 
-      if (!isAdmin) {
-        toast({
-          title: "Error de permisos",
-          description: "No tienes permisos para guardar blogs. Se requiere rol de administrador.",
-          variant: "destructive",
-        })
-        setSaving(false)
-        return
-      }
-
-      // Obtener el usuario actual para el author_id
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session?.user?.id) {
-        toast({
-          title: "Error de autenticación",
-          description: "No se pudo obtener la información del usuario.",
-          variant: "destructive",
-        })
-        setSaving(false)
-        return
-      }
-
-      // Usar la imagen subida o la existente
-      const imageUrl = uploadedImageUrl || blog.cover_image
-
-      // Crear objeto de datos básico solo con columnas que sabemos que existen
-      const blogData = {
+      const blogPayload = {
+        ...(isNew ? {} : { id: Number.parseInt(resolvedParams.id) }),
         title: blog.title,
         slug: blog.slug,
         excerpt: blog.excerpt,
         content: blog.content,
-        cover_image: imageUrl,
-        updated_at: new Date().toISOString(),
+        cover_image: uploadedImageUrl || blog.cover_image,
         published: blog.published,
         category_id: blog.category_id,
-        author_id: session.user.id, // Usar el ID del usuario autenticado
         meta_description: blog.meta_description,
         read_time: blog.read_time,
       }
 
-      // Definir promesa de la operación de Supabase
-      const supabaseOperation = isNew
-        ? supabase.from("blogs").insert([blogData]).select()
-        : supabase.from("blogs").update(blogData).eq("id", Number.parseInt(resolvedParams.id));
+      console.log("Enviando petición a /api/admin/blogs...")
 
-      // Definir promesa de timeout (15 segundos)
-      const timeoutPromise = new Promise<{ error: any, data: any }>((_, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(new Error("La operación ha tardado demasiado tiempo. Verifica tu conexión o intenta nuevamente."))
-        }, 15000);
-      });
+      const response = await fetch("/api/admin/blogs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(blogPayload),
+        signal: controller.signal,
+      })
 
-      // Ejecutar con carrera contra el timeout
-      // @ts-ignore - Promise race types can be tricky
-      const { data, error } = await Promise.race([
-        supabaseOperation,
-        timeoutPromise
-      ]);
+      clearTimeout(timeoutId)
 
-      if (error) throw error;
+      let data
+      try {
+        data = await response.json()
+      } catch (e) {
+        throw new Error("Respuesta inválida del servidor")
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error desconocido al guardar el blog")
+      }
 
       toast({
         title: "Éxito",
-        description: isNew ? "Blog creado correctamente" : "Blog actualizado correctamente",
+        description: data.message || "Operación realizada correctamente",
       })
 
       router.push("/admin/blogs")
     } catch (error: any) {
       console.error("Error al guardar blog:", error)
-      setError(`Error al guardar blog: ${error.message}`)
+
+      let errorMessage = error.message
+      if (error.name === 'AbortError') {
+        errorMessage = "La solicitud ha excedido el tiempo de espera. Verifica tu conexión a internet."
+      }
+
+      setError(`Error: ${errorMessage}`)
       toast({
         title: "Error",
-        description: `No se pudo guardar el blog: ${error.message || "Error desconocido"}`,
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
-      // Clear timeout if it exists
-      if (timeoutId) clearTimeout(timeoutId)
       setSaving(false)
     }
   }
@@ -374,8 +343,10 @@ export default function BlogForm({ params }: { params: Promise<{ id: string }> }
               <div className="space-y-2">
                 <Label htmlFor="category_id">Categoría</Label>
                 <Select
-                  value={blog.category_id?.toString() || ""}
-                  onValueChange={(value) => setBlog({ ...blog, category_id: value ? Number.parseInt(value) : null })}
+                  value={blog.category_id ? blog.category_id.toString() : "0"}
+                  onValueChange={(value) =>
+                    setBlog({ ...blog, category_id: value === "0" ? null : Number.parseInt(value) })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar categoría" />
