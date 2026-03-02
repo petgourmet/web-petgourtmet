@@ -5,18 +5,7 @@ import Script from 'next/script'
 export function GoogleTagManager() {
   return (
     <>
-      {/* Script inline para inicializar dataLayer antes de GTM */}
-      <Script
-        id="datalayer-init"
-        strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.dataLayer = window.dataLayer || [];
-          `,
-        }}
-      />
-      
-      {/* Script de Google Tag Manager */}
+      {/* GTM — afterInteractive: no bloquea render. GTM ya inicializa dataLayer internamente. */}
       <Script
         id="gtm-script"
         strategy="afterInteractive"

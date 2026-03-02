@@ -2,9 +2,14 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Check } from "lucide-react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { VideoHero } from "@/components/video-hero"
-import HomeNewsletter from "@/components/home-newsletter"
 import "../app/reset.css"
+
+// Se carga diferido — reduce el bundle crítico del primer render
+const HomeNewsletter = dynamic(() => import("@/components/home-newsletter"), {
+  loading: () => <div className="h-12" />,
+})
 
 export default function Home() {
   return (
@@ -182,10 +187,13 @@ export default function Home() {
               <div className="relative">
                 {/* Main image with decorative elements */}
                 <div className="relative z-20 rounded-3xl overflow-hidden shadow-2xl transition-transform duration-500">
-                  <img
+                  <Image
                     src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/HERO-vDqIBaCFtETXEYMwu8oZS3EIpZSIcU.webp"
                     alt="Galletas naturales para perros con ingredientes premium"
+                    width={900}
+                    height={675}
                     className="w-full h-auto"
+                    sizes="(max-width: 768px) 100vw, 50vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
                   <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-900">
@@ -208,10 +216,13 @@ export default function Home() {
           <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:scale-105">
             <div className="flex flex-col md:flex-row">
               <div className="md:w-2/5 relative overflow-hidden">
-                <img
+                <Image
                   src="/unete-familia.webp"
                   alt="Galletas premium para perros en tazón turquesa con bulldog francés esperando"
+                  width={600}
+                  height={800}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  sizes="(max-width: 768px) 100vw, 40vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent mix-blend-multiply group-hover:from-primary/60 transition-all duration-500"></div>
               </div>

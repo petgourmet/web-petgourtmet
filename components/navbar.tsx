@@ -3,15 +3,18 @@
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import dynamic from "next/dynamic"
 import { Menu, X, ChevronDown, User, ShoppingBag, Home, Info, Apple, BookOpen, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartButton } from "@/components/cart-button"
 import { useCart } from "@/components/cart-context"
-import { CartModal } from "@/components/cart-modal"
-import { CheckoutModal } from "@/components/checkout-modal"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { useMobile } from "@/hooks/use-mobile"
+
+// Modales solo se cargan cuando el usuario los abre — fuera del bundle inicial
+const CartModal     = dynamic(() => import("@/components/cart-modal").then(m => ({ default: m.CartModal })), { ssr: false })
+const CheckoutModal = dynamic(() => import("@/components/checkout-modal").then(m => ({ default: m.CheckoutModal })), { ssr: false })
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
