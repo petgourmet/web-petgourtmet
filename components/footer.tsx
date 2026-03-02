@@ -14,7 +14,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
           {/* Columna logo + redes */}
-          <div className="flex flex-col bg-black/20 rounded-2xl p-5">
+          <div className="flex flex-col bg-black/50 rounded-2xl p-5">
             <Link href="/" className="inline-block mb-4 group">
               <div className="relative">
                 <div className="absolute -inset-2 bg-gradient-radial from-white/20 to-transparent rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -27,7 +27,7 @@ export function Footer() {
                 />
               </div>
             </Link>
-            <p className="text-white/80 mb-5 text-sm">Nutrición premium para tus compañeros</p>
+            <p className="text-white mb-5 text-sm">Nutrición premium para tus compañeros</p>
             <div className="flex space-x-4">
               <TooltipProvider>
                 <Tooltip>
@@ -37,7 +37,7 @@ export function Footer() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="Seguirnos en Facebook"
-                      className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
+                      className="text-white hover:text-white transition-colors duration-300 hover:scale-110 transform"
                     >
                       <Facebook size={20} aria-hidden="true" />
                     </Link>
@@ -53,7 +53,7 @@ export function Footer() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="Seguirnos en Instagram"
-                      className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
+                      className="text-white hover:text-white transition-colors duration-300 hover:scale-110 transform"
                     >
                       <Instagram size={20} aria-hidden="true" />
                     </Link>
@@ -69,7 +69,7 @@ export function Footer() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="Ver nuestro canal de YouTube"
-                      className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
+                      className="text-white hover:text-white transition-colors duration-300 hover:scale-110 transform"
                     >
                       <Youtube size={20} aria-hidden="true" />
                     </Link>
@@ -81,28 +81,28 @@ export function Footer() {
           </div>
 
           {/* Tienda — recuadro oscuro */}
-          <div className="bg-black/20 rounded-2xl p-5">
+          <div className="bg-black/50 rounded-2xl p-5">
             <h3 className="font-bold text-white uppercase tracking-wide text-xs border-b border-white/30 pb-2 mb-1">
               Tienda
             </h3>
             <ul className="space-y-0">
               <li>
-                <Link href="/productos" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/productos" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Todos los Productos
                 </Link>
               </li>
               <li>
-                <Link href="/celebrar" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/celebrar" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Para Celebrar
                 </Link>
               </li>
               <li>
-                <Link href="/complementar" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/complementar" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Para Complementar
                 </Link>
               </li>
               <li>
-                <Link href="/premiar" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/premiar" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Para Premiar
                 </Link>
               </li>
@@ -110,13 +110,13 @@ export function Footer() {
           </div>
 
           {/* Empresa — recuadro oscuro */}
-          <div className="bg-black/20 rounded-2xl p-5">
+          <div className="bg-black/50 rounded-2xl p-5">
             <h3 className="font-bold text-white uppercase tracking-wide text-xs border-b border-white/30 pb-2 mb-1">
               Empresa
             </h3>
             <ul className="space-y-0">
               <li>
-                <Link href="/contacto" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/contacto" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Contáctanos
                 </Link>
               </li>
@@ -124,28 +124,28 @@ export function Footer() {
           </div>
 
           {/* Ayuda — recuadro oscuro */}
-          <div className="bg-black/20 rounded-2xl p-5">
+          <div className="bg-black/50 rounded-2xl p-5">
             <h3 className="font-bold text-white uppercase tracking-wide text-xs border-b border-white/30 pb-2 mb-1">
               Ayuda
             </h3>
             <ul className="space-y-0">
               <li>
-                <Link href="/faq" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/faq" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Política de Reembolso
                 </Link>
               </li>
               <li>
-                <Link href="/proteccion-datos" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/proteccion-datos" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Protección de Datos
                 </Link>
               </li>
               <li>
-                <Link href="/terminos" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/terminos" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Términos y Condiciones
                 </Link>
               </li>
               <li>
-                <Link href="/privacidad" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
+                <Link href="/privacidad" className="text-white hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
                   Política de Privacidad
                 </Link>
               </li>
@@ -154,7 +154,7 @@ export function Footer() {
 
         </div>
 
-        <div className="border-t border-white/20 mt-10 pt-6 text-center text-white/70 text-sm">
+        <div className="border-t border-white/20 mt-10 pt-6 text-center text-white text-sm">
           <div className="flex items-center justify-center gap-2">
             <p>&copy; {new Date().getFullYear()} Pet Gourmet. Todos los derechos reservados.</p>
             <Link
