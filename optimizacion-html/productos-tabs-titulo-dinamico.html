@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cambio: Título dinámico y color unificado en /productos — Pet Gourmet</title>
+  <style>
+    :root {
+      --brand: #7AB8BF;
+      --brand-dark: #5c9ca4;
+      --brand-light: #e8f4f5;
+      --bg: #0f1117;
+      --bg2: #161b27;
+      --bg3: #1e2433;
+      --surface: #252d3d;
+      --surface2: #2d3748;
+      --border: rgba(122, 184, 191, 0.15);
+      --text: #e2e8f0;
+      --text2: #94a3b8;
+      --green: #22c55e;
+      --green-bg: rgba(34, 197, 94, 0.1);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.1);
+      --yellow: #f59e0b;
+      --yellow-bg: rgba(245, 158, 11, 0.1);
+      --blue: #60a5fa;
+      --blue-bg: rgba(96, 165, 250, 0.1);
+      --purple: #a78bfa;
+      --purple-bg: rgba(167, 139, 250, 0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, var(--bg2) 0%, #1a2236 50%, var(--bg2) 100%);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(122, 184, 191, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 32px;
+      position: relative;
+    }
+
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(122, 184, 191, 0.1);
+      border: 1px solid rgba(122, 184, 191, 0.3);
+      color: var(--brand);
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: clamp(24px, 4vw, 44px);
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 30%, var(--brand) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .header-sub {
+      color: var(--text2);
+      font-size: 16px;
+      max-width: 600px;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .meta-item { display: flex; flex-direction: column; gap: 2px; }
+
+    .meta-label {
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .meta-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--brand);
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 32px;
+    }
+
+    section { margin-bottom: 48px; }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      max-width: 200px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(122, 184, 191, 0.4);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card p { color: var(--text2); font-size: 14px; line-height: 1.7; }
+
+    /* ── Diff block ── */
+    .diff {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .diff-header {
+      background: var(--surface2);
+      padding: 10px 20px;
+      font-size: 12px;
+      color: var(--text2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diff-header span { color: var(--brand); font-weight: 600; }
+
+    .diff-body { padding: 16px 20px; }
+
+    .line { display: flex; gap: 12px; padding: 2px 0; }
+    .line-num { color: var(--text2); min-width: 24px; user-select: none; opacity: 0.5; }
+
+    .line.removed { background: var(--red-bg); border-radius: 4px; padding: 2px 8px; }
+    .line.removed .code { color: var(--red); }
+    .line.removed .line-num::before { content: '−'; color: var(--red); }
+
+    .line.added { background: var(--green-bg); border-radius: 4px; padding: 2px 8px; }
+    .line.added .code { color: var(--green); }
+    .line.added .line-num::before { content: '+'; color: var(--green); }
+
+    .line.context .code { color: var(--text2); }
+
+    /* ── Behavior table ── */
+    .behavior-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .behavior-table th {
+      background: var(--surface2);
+      color: var(--brand);
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .behavior-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text2);
+      vertical-align: middle;
+    }
+
+    .behavior-table tr:last-child td { border-bottom: none; }
+
+    .behavior-table tr:hover td { background: rgba(122, 184, 191, 0.03); }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .pill-primary { background: rgba(122,184,191,0.15); color: var(--brand); }
+    .pill-old-yellow { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .pill-old-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .pill-old-green { background: rgba(34,197,94,0.15); color: #22c55e; }
+
+    /* ── Tag badge ── */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tag.green { border-color: rgba(34,197,94,0.3); color: var(--green); }
+    .tag.brand { border-color: rgba(122,184,191,0.3); color: var(--brand); }
+
+    /* ── Alert ── */
+    .alert {
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 14px;
+    }
+
+    .alert.info {
+      background: rgba(122,184,191,0.08);
+      border: 1px solid rgba(122,184,191,0.25);
+      color: var(--brand-light);
+    }
+
+    .alert-icon { font-size: 20px; flex-shrink: 0; }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-content">
+      <div class="header-badge">📋 Reporte de Cambio · UX / UI</div>
+      <h1>Título dinámico y color unificado<br>en /productos</h1>
+      <p class="header-sub">
+        El encabezado de la página ahora refleja la categoría activa y todos los botones de filtro
+        usan el color primario de la marca.
+      </p>
+      <div class="meta-row">
+        <div class="meta-item">
+          <span class="meta-label">Fecha</span>
+          <span class="meta-value">2 Mar 2026</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Archivo</span>
+          <span class="meta-value">app/productos/page.tsx</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Tipo</span>
+          <span class="meta-value">UX · Visual</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Estado</span>
+          <span class="meta-value">✅ Aplicado</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ── Resumen ── -->
+    <section>
+      <h2 class="section-title">🎯 Resumen del cambio</h2>
+
+      <div class="card">
+        <div class="card-title">🔤 Título dinámico según tab activo</div>
+        <p>
+          El <code>&lt;h1&gt;</code> de la página ya no muestra siempre "Nuestras Recetas". Ahora
+          reacciona al tab seleccionado: cuando el usuario filtra por una categoría, el título
+          cambia para reflejarla. El tab <strong>Todos</strong> sigue mostrando "Nuestras Recetas".
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎨 Color unificado en tabs de filtro</div>
+        <p>
+          Los tabs "Para Celebrar" (amarillo), "Para Premiar" (azul) y "Para Complementar" (verde)
+          pasaron a usar el color primario de la web (<code>bg-primary</code> — <strong>#7AB8BF</strong>),
+          igual que el tab "Todos". Esto da coherencia visual y respeta el sistema de diseño existente.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Comportamiento por tab ── -->
+    <section>
+      <h2 class="section-title">📊 Comportamiento por tab</h2>
+      <div class="diff">
+        <div class="diff-header">Vista de comportamiento · <span>Título + color al activar cada tab</span></div>
+        <table class="behavior-table" style="margin:0; border:none;">
+          <thead>
+            <tr>
+              <th>Tab</th>
+              <th>Título mostrado</th>
+              <th>Color activo anterior</th>
+              <th>Color activo nuevo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:#fff;font-weight:600;">Todos</td>
+              <td>Nuestras Recetas</td>
+              <td><span class="pill pill-primary">bg-primary</span></td>
+              <td><span class="pill pill-primary">bg-primary</span></td>
+            </tr>
+            <tr>
+              <td style="color:#fff;font-weight:600;">Para Celebrar</td>
+              <td>Para Celebrar</td>
+              <td><span class="pill pill-old-yellow">bg-yellow-400 / gray-900</span></td>
+              <td><span class="pill pill-primary">bg-primary / white</span></td>
+            </tr>
+            <tr>
+              <td style="color:#fff;font-weight:600;">Para Premiar</td>
+              <td>Para Premiar</td>
+              <td><span class="pill pill-old-blue">bg-blue-500 / white</span></td>
+              <td><span class="pill pill-primary">bg-primary / white</span></td>
+            </tr>
+            <tr>
+              <td style="color:#fff;font-weight:600;">Para Complementar</td>
+              <td>Para Complementar</td>
+              <td><span class="pill pill-old-green">bg-green-500 / white</span></td>
+              <td><span class="pill pill-primary">bg-primary / white</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Diff técnico ── -->
+    <section>
+      <h2 class="section-title">🔧 Cambios técnicos</h2>
+
+      <!-- Diff 1: imports + estado -->
+      <div class="diff" style="margin-bottom:20px;">
+        <div class="diff-header">📄 <span>app/productos/page.tsx</span> — Estado reactivo + mapa de títulos</div>
+        <div class="diff-body">
+          <div class="line context"><span class="line-num"></span><span class="code">"use client"</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">import { useState } from "react"</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">import { Toaster } from "@/components/toaster"</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">import { useSearchParams } from "next/navigation"</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">...</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">const TITLES: Record&lt;string, string&gt; = {</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  all: "Nuestras Recetas",</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  celebrar: "Para Celebrar",</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  premiar: "Para Premiar",</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  complementar: "Para Complementar",</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">}</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">export default function ProductosPage() {</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">  ...</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  const [activeTab, setActiveTab] = useState(categorySlug)</span></div>
+        </div>
+      </div>
+
+      <!-- Diff 2: h1 dinámico -->
+      <div class="diff" style="margin-bottom:20px;">
+        <div class="diff-header">📄 <span>app/productos/page.tsx</span> — &lt;h1&gt; dinámico</div>
+        <div class="diff-body">
+          <div class="line removed"><span class="line-num"></span><span class="code">&lt;h1 ...&gt;Nuestras Recetas&lt;/h1&gt;</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">&lt;h1 ...&gt;</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  {TITLES[activeTab] ?? "Nuestras Recetas"}</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">&lt;/h1&gt;</span></div>
+        </div>
+      </div>
+
+      <!-- Diff 3: Tabs controlado -->
+      <div class="diff" style="margin-bottom:20px;">
+        <div class="diff-header">📄 <span>app/productos/page.tsx</span> — Tabs controlado</div>
+        <div class="diff-body">
+          <div class="line removed"><span class="line-num"></span><span class="code">&lt;Tabs defaultValue={categorySlug} ...&gt;</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">&lt;Tabs value={activeTab} onValueChange={setActiveTab} ...&gt;</span></div>
+        </div>
+      </div>
+
+      <!-- Diff 4: colores -->
+      <div class="diff">
+        <div class="diff-header">📄 <span>app/productos/page.tsx</span> — Colores de TabsTrigger unificados</div>
+        <div class="diff-body">
+          <div class="line context"><span class="line-num"></span><span class="code">&lt;TabsTrigger value="celebrar"</span></div>
+          <div class="line removed"><span class="line-num"></span><span class="code">  className="... data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900 ..."</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  className="... data-[state=active]:bg-primary data-[state=active]:text-white ..."</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">&gt;</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">&lt;TabsTrigger value="premiar"</span></div>
+          <div class="line removed"><span class="line-num"></span><span class="code">  className="... data-[state=active]:bg-blue-500 data-[state=active]:text-white ..."</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  className="... data-[state=active]:bg-primary data-[state=active]:text-white ..."</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">&gt;</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">&lt;TabsTrigger value="complementar"</span></div>
+          <div class="line removed"><span class="line-num"></span><span class="code">  className="... data-[state=active]:bg-green-500 data-[state=active]:text-white ..."</span></div>
+          <div class="line added"><span class="line-num"></span><span class="code">  className="... data-[state=active]:bg-primary data-[state=active]:text-white ..."</span></div>
+          <div class="line context"><span class="line-num"></span><span class="code">&gt;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Nota final ── -->
+    <section>
+      <h2 class="section-title">💡 Notas</h2>
+      <div class="alert info">
+        <span class="alert-icon">ℹ️</span>
+        <div>
+          El color primario <strong>#7AB8BF</strong> viene definido en la variable CSS
+          <code>--primary: 187 36% 61%</code> del <code>:root</code>. Al usar
+          <code>bg-primary</code> en todos los tabs, cualquier ajuste futuro al color de marca
+          se propagará automáticamente a los cuatro botones sin tocar este archivo.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>

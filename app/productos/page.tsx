@@ -1,9 +1,17 @@
 "use client"
 
+import { useState } from "react"
 import { Toaster } from "@/components/toaster"
 import { useSearchParams } from "next/navigation"
 import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const TITLES: Record<string, string> = {
+  all: "Nuestras Recetas",
+  celebrar: "Para Celebrar",
+  premiar: "Para Premiar",
+  complementar: "Para Complementar",
+}
 
 export default function ProductosPage() {
   const searchParams = useSearchParams()
@@ -11,18 +19,21 @@ export default function ProductosPage() {
 
   // Determinar la categoría a mostrar basada en el parámetro de URL
   const categorySlug = categoriaParam || "all"
+  const [activeTab, setActiveTab] = useState(categorySlug)
 
   return (
     <div className="flex flex-col min-h-screen pt-20">
       <div className="responsive-container py-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection text-center">Nuestras Recetas</h1>
+        <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection text-center">
+          {TITLES[activeTab] ?? "Nuestras Recetas"}
+        </h1>
         <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto text-center mb-12">
           Descubre nuestra selección de productos premium para mascotas, elaborados con ingredientes de la más alta
           calidad y diseñados para el bienestar de tu amigo peludo.
         </p>
 
         {/* Tabs para categorías */}
-        <Tabs defaultValue={categorySlug} className="w-full mb-12">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-12">
           <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-transparent">
             <TabsTrigger
               value="all"
@@ -32,19 +43,19 @@ export default function ProductosPage() {
             </TabsTrigger>
             <TabsTrigger
               value="celebrar"
-              className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900 rounded-full"
+              className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
             >
               Para Celebrar
             </TabsTrigger>
             <TabsTrigger
               value="premiar"
-              className="data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-full"
+              className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
             >
               Para Premiar
             </TabsTrigger>
             <TabsTrigger
               value="complementar"
-              className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-full"
+              className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
             >
               Para Complementar
             </TabsTrigger>
