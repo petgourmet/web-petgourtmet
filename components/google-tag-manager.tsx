@@ -5,10 +5,10 @@ import Script from 'next/script'
 export function GoogleTagManager() {
   return (
     <>
-      {/* GTM — afterInteractive: no bloquea render. GTM ya inicializa dataLayer internamente. */}
+      {/* GTM — lazyOnload: espera al evento load + idle del browser. Máximo diferimiento sin perder datos. */}
       <Script
         id="gtm-script"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         dangerouslySetInnerHTML={{
           __html: `
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
