@@ -172,7 +172,7 @@ export default function Home() {
 
                   <Button
                     asChild
-                    className="rounded-xl bg-primary hover:bg-primary/90 text-white px-8 py-4 h-auto text-lg font-semibold transition-all duration-300 hover:shadow-lg"
+                    className="rounded-xl bg-[#2a7880] hover:bg-[#1d636b] text-white px-8 py-4 h-auto text-lg font-semibold transition-all duration-300 hover:shadow-lg"
                   >
                     <Link href="/productos" className="flex items-center">
                       Ver Todos los Productos

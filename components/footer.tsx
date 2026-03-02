@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 export function Footer() {
   return (
-    <footer className="bg-primary text-white relative overflow-hidden">
+    <footer className="bg-[#1d4a52] text-white relative overflow-hidden">
       {/* Iluminaciones decorativas */}
       <div className="absolute top-0 left-1/4 w-64 h-64 bg-gradient-radial from-white/10 to-transparent rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gradient-radial from-secondary/20 to-transparent rounded-full blur-3xl"></div>
@@ -82,11 +82,11 @@ export function Footer() {
             <h3 className="font-bold text-lg mb-4 text-white uppercase tracking-wide text-sm border-b border-white/20 pb-2">
               Tienda
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-0">
               <li>
                 <Link
                   href="/productos"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Todos los Productos
                 </Link>
@@ -94,7 +94,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/celebrar"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Para Celebrar
                 </Link>
@@ -102,7 +102,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/complementar"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Para Complementar
                 </Link>
@@ -110,7 +110,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/premiar"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Para Premiar
                 </Link>
@@ -122,11 +122,11 @@ export function Footer() {
             <h3 className="font-bold text-lg mb-4 text-white uppercase tracking-wide text-sm border-b border-white/20 pb-2">
               Empresa
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-0">
               <li>
                 <Link
                   href="/contacto"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Contáctanos
                 </Link>
@@ -138,11 +138,11 @@ export function Footer() {
             <h3 className="font-bold text-lg mb-4 text-white uppercase tracking-wide text-sm border-b border-white/20 pb-2">
               Ayuda
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-0">
               <li>
                 <Link
                   href="/faq"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Política de Reembolso
                 </Link>
@@ -150,7 +150,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/proteccion-datos"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Protección de Datos
                 </Link>
@@ -158,7 +158,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/terminos"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Términos y Condiciones
                 </Link>
@@ -166,7 +166,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/privacidad"
-                  className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
+                  className="text-white/90 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-3 min-h-[48px] flex items-center"
                 >
                   Política de Privacidad
                 </Link>

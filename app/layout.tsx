@@ -135,6 +135,13 @@ export default function RootLayout({
         {/* DNS prefetch para dominios secundarios */}
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
+        {/* Preload LCP image — poster del video hero (ahorra ~610ms en LCP) */}
+        <link
+          rel="preload"
+          as="image"
+          href="https://res.cloudinary.com/dn7unepxa/video/upload/so_0.0,q_80,f_auto/v1772482021/video_ev8mjp.jpg"
+          fetchPriority="high"
+        />
       </head>
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>
         <GoogleTagManagerNoScript />
