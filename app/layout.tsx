@@ -128,13 +128,12 @@ export default function RootLayout({
         {/* ── Preconnect: máx 4 para evitar warning de Lighthouse ── */}
         {/* GTM carga los scripts más críticos */}
         <link rel="preconnect" href="https://www.googletagmanager.com" />
-        {/* YouTube — thumbnail + iframe */}
-        <link rel="preconnect" href="https://i.ytimg.com" />
+        {/* Cloudinary — video hero + imágenes de productos */}
+        <link rel="preconnect" href="https://res.cloudinary.com" />
         {/* Facebook Pixel */}
         <link rel="preconnect" href="https://connect.facebook.net" />
         {/* DNS prefetch para dominios secundarios */}
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
-        <link rel="dns-prefetch" href="https://www.youtube.com" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
       </head>
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>

@@ -8,8 +8,8 @@ import { useRouter } from "next/navigation"
 import { useWindowSize } from "@/hooks/use-window-size"
 
 // ─── Tiempos ──────────────────────────────────────────────────────────────────
-const RAY_DURATION  = 1400  // duración del rayo barriendo el logo (ms)
-const SPLASH_TOTAL  = 2500  // cuánto dura el splash antes de revelar (ms)
+const RAY_DURATION  = 1200  // duración del rayo barriendo el logo (ms)
+const SPLASH_TOTAL  = 1500  // cuánto dura el splash antes de revelar (ms)
 const IFRAME_DELAY  = 8000  // inyectar iframe solo tras LCP medido (ms)
 const HIDE_CONTENT  = 3000  // ocultar texto flotante tras inactividad (ms)
 
@@ -87,14 +87,16 @@ export function VideoHero() {
     >
 
       {/* ══════════════════════════════════════════════════════════════════
-          CAPA VIDEO  z-0 — thumbnail rápido → iframe deferred
-          Thumbnail aparece a t=2.8s (LCP ya medido). Iframe a t=8s.
+          CAPA VIDEO  z-0 — poster Cloudinary → <video> nativo deferred
+          Poster aparece a t=2.8s (LCP ya medido). Video a t=8s.
+          Sin iframe de YouTube → sin latencia de terceros.
       ══════════════════════════════════════════════════════════════════ */}
       <div className="absolute inset-0 z-0 bg-black">
+        {/* Poster — primer frame del video via Cloudinary, carga en ~100ms */}
         {showBackground && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src="https://i.ytimg.com/vi/dOZPu4XrA1k/maxresdefault.jpg"
+            src="https://res.cloudinary.com/dn7unepxa/video/upload/so_0.0,q_80,f_auto/v1772482021/video_ev8mjp.jpg"
             alt=""
             aria-hidden="true"
             fetchPriority="low"
@@ -102,21 +104,27 @@ export function VideoHero() {
             style={{ opacity: iframeReady ? 0 : 1, transition: "opacity 1s ease" }}
           />
         )}
+        {/* Video nativo — sin iframe, sin JS de YouTube, sin latencia */}
         {iframeActive && (
-          <iframe
-            src="https://www.youtube.com/embed/dOZPu4XrA1k?autoplay=1&mute=1&loop=1&playlist=dOZPu4XrA1k&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0"
-            className="absolute"
-            style={{
-              top: "50%", left: "50%",
-              width: isMobile ? "300vw" : "170vw",
-              height: "120vh",
-              transform: "translate(-50%, -50%)",
-            }}
-            allow="autoplay; fullscreen; picture-in-picture"
-            title="Pet Gourmet Background Video"
-            onLoad={handleVideoLoad}
-            frameBorder="0"
-          />
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: "cover" }}
+            onCanPlay={handleVideoLoad}
+          >
+            {/* WebM primero (más ligero), MP4 como fallback */}
+            <source
+              src="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto,vc_vp9/v1772482021/video_ev8mjp.webm"
+              type="video/webm"
+            />
+            <source
+              src="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto/v1772482021/video_ev8mjp.mp4"
+              type="video/mp4"
+            />
+          </video>
         )}
       </div>
 
