@@ -21,24 +21,7 @@ export default function robots(): MetadataRoute.Robots {
           '/unauthorized/',
         ],
       },
-      {
-        userAgent: 'Googlebot',
-        allow: '/',
-        disallow: [
-          '/admin/',
-          '/api/',
-          '/auth/',
-          '/checkout/',
-          '/perfil/',
-          '/processing-payment/',
-          '/pago-pendiente/',
-          '/error-pago/',
-          '/gracias-por-tu-compra/',
-          '/unauthorized/',
-        ],
-      },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
-    host: baseUrl,
   }
 }

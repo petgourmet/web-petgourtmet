@@ -125,20 +125,17 @@ export default function RootLayout({
         <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-        {/* ── Preconnect: reduce latencia de dominios externos críticos ── */}
-        {/* GTM + GA — scripts cargan desde aquí */}
+        {/* ── Preconnect: máx 4 para evitar warning de Lighthouse ── */}
+        {/* GTM carga los scripts más críticos */}
         <link rel="preconnect" href="https://www.googletagmanager.com" />
-        <link rel="preconnect" href="https://www.google-analytics.com" />
-        {/* YouTube — iframe del hero */}
-        <link rel="preconnect" href="https://www.youtube.com" />
+        {/* YouTube — thumbnail + iframe */}
         <link rel="preconnect" href="https://i.ytimg.com" />
         {/* Facebook Pixel */}
         <link rel="preconnect" href="https://connect.facebook.net" />
-        {/* Imágenes Vercel Blob */}
-        <link rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
-        {/* DNS prefetch adicional (dominios de terceros menos críticos) */}
+        {/* DNS prefetch para dominios secundarios */}
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://www.youtube.com" />
-        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+        <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
       </head>
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>
         <GoogleTagManagerNoScript />

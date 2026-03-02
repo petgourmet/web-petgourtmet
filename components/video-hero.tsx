@@ -9,51 +9,60 @@ import { useWindowSize } from "@/hooks/use-window-size"
 
 // ─── Tiempos ──────────────────────────────────────────────────────────────────
 const RAY_DURATION  = 1400  // duración del rayo barriendo el logo (ms)
-const SPLASH_TOTAL  = 2500  // cuánto dura el splash antes de revelar el video (ms)
+const SPLASH_TOTAL  = 2500  // cuánto dura el splash antes de revelar (ms)
+const IFRAME_DELAY  = 8000  // inyectar iframe solo tras LCP medido (ms)
 const HIDE_CONTENT  = 3000  // ocultar texto flotante tras inactividad (ms)
 
 export function VideoHero() {
-  // ── Estado del splash ──────────────────────────────────────────────────────
-  const [rayStarted,     setRayStarted]     = useState(false) // arranca la animación CSS
-  const [logoRevealed,   setLogoRevealed]   = useState(false) // logo ya visible (halo on)
-  const [splashVisible,  setSplashVisible]  = useState(true)  // controla fade-out del splash
-
-  // ── Estado del contenido flotante sobre el video ───────────────────────────
-  const contentRef            = useRef<HTMLDivElement>(null)
-  const [showHeroContent,     setShowHeroContent]     = useState(true)
+  // ── Logo draw animation ────────────────────────────────────────────────────
+  const [rayStarted,   setRayStarted]   = useState(false)
+  const [logoRevealed, setLogoRevealed] = useState(false)
+  // ── Logo salida ↓ + hero entrada ↑ ───────────────────────────────────────
+  const [logoExiting,    setLogoExiting]    = useState(false)  // t=2.5s: logo se va abajo
+  const [contentVisible, setContentVisible] = useState(false)  // t=2.65s: texto baja desde arriba
+  // ── Fondo / video ─────────────────────────────────────────────────────────
+  // CAPA MARCA (z-5): #7AB8BF persiste hasta que thumbnail esté listo
+  // CAPA VIDEO (z-0): thumbnail a t=2.8s, iframe a t=8s
+  const [showBackground, setShowBackground] = useState(false)
+  const [iframeActive,   setIframeActive]   = useState(false)
+  const [iframeReady,    setIframeReady]    = useState(false)
+  // ── Auto-ocultar texto flotante ───────────────────────────────────────────
+  const [heroHidden,          setHeroHidden]          = useState(false)
   const heroContentTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const router    = useRouter()
   const { width } = useWindowSize()
   const isMobile  = width ? width < 768 : false
 
-  // ── 1. Animación del logo al montar ───────────────────────────────────────
+  // ── 1. Draw animation del logo al montar ──────────────────────────────────
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setRayStarted(true))
+    const raf     = requestAnimationFrame(() => setRayStarted(true))
     const tReveal = setTimeout(() => setLogoRevealed(true), RAY_DURATION + 150)
     return () => { cancelAnimationFrame(raf); clearTimeout(tReveal) }
   }, [])
 
-  // ── 2. Después de SPLASH_TOTAL ms → ocultar splash (con o sin video listo) ─
+  // ── 2. Secuencia: logo ↓ → texto ↑ → fondo de marca → thumbnail/video ────
   useEffect(() => {
-    const t = setTimeout(() => setSplashVisible(false), SPLASH_TOTAL)
-    return () => clearTimeout(t)
+    const tLogoExit = setTimeout(() => setLogoExiting(true),    SPLASH_TOTAL)
+    const tContent  = setTimeout(() => setContentVisible(true), SPLASH_TOTAL + 150)
+    const tBg       = setTimeout(() => setShowBackground(true), SPLASH_TOTAL + 300)
+    const tIframe   = setTimeout(() => setIframeActive(true),   IFRAME_DELAY)
+    return () => {
+      clearTimeout(tLogoExit)
+      clearTimeout(tContent)
+      clearTimeout(tBg)
+      clearTimeout(tIframe)
+    }
   }, [])
 
-  // ── 3. Cuando el video carga, no se necesita estado extra ───────────────────
-  const handleVideoLoad = () => { /* iframe cargado — splash ya se ocultó por timer */ }
+  // ── 3. iframe listo → thumbnail se desvanece ──────────────────────────────
+  const handleVideoLoad = () => setIframeReady(true)
 
   // ── 4. Auto-ocultar texto flotante tras inactividad ───────────────────────
   const handleInteraction = () => {
-    if (!showHeroContent) {
-      contentRef.current?.classList.remove("opacity-0", "pointer-events-none")
-      setShowHeroContent(true)
-    }
+    if (heroHidden) setHeroHidden(false)
     if (heroContentTimeoutRef.current) clearTimeout(heroContentTimeoutRef.current)
-    heroContentTimeoutRef.current = setTimeout(() => {
-      contentRef.current?.classList.add("opacity-0", "pointer-events-none")
-      setShowHeroContent(false)
-    }, HIDE_CONTENT)
+    heroContentTimeoutRef.current = setTimeout(() => setHeroHidden(true), HIDE_CONTENT)
   }
 
   const scrollToRecipes = () => {
@@ -77,25 +86,84 @@ export function VideoHero() {
       }}
     >
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          CAPA A — SPLASH  (z-30 → siempre encima mientras está visible)
-          Fondo color primary de la web + logo con efecto rayo de luz.
-          Se desvanece a los 2.5s para revelar el video.
-      ═══════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════
+          CAPA VIDEO  z-0 — thumbnail rápido → iframe deferred
+          Thumbnail aparece a t=2.8s (LCP ya medido). Iframe a t=8s.
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="absolute inset-0 z-0 bg-black">
+        {showBackground && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="https://i.ytimg.com/vi/dOZPu4XrA1k/maxresdefault.jpg"
+            alt=""
+            aria-hidden="true"
+            fetchPriority="low"
+            className="absolute w-full h-full object-cover"
+            style={{ opacity: iframeReady ? 0 : 1, transition: "opacity 1s ease" }}
+          />
+        )}
+        {iframeActive && (
+          <iframe
+            src="https://www.youtube.com/embed/dOZPu4XrA1k?autoplay=1&mute=1&loop=1&playlist=dOZPu4XrA1k&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0"
+            className="absolute"
+            style={{
+              top: "50%", left: "50%",
+              width: isMobile ? "300vw" : "170vw",
+              height: "120vh",
+              transform: "translate(-50%, -50%)",
+            }}
+            allow="autoplay; fullscreen; picture-in-picture"
+            title="Pet Gourmet Background Video"
+            onLoad={handleVideoLoad}
+            frameBorder="0"
+          />
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          CAPA MARCA  z-5 — color #7AB8BF que persiste mientras no hay
+          video. Se desvanece suavemente cuando showBackground=true.
+      ══════════════════════════════════════════════════════════════════ */}
       <div
-        className="absolute inset-0 z-30 flex items-center justify-center transition-opacity duration-700 ease-in-out"
+        className="absolute inset-0 z-[5] pointer-events-none"
         style={{
           background: "#7AB8BF",
-          opacity: splashVisible ? 1 : 0,
-          pointerEvents: splashVisible ? "auto" : "none",
+          opacity: showBackground ? 0 : 1,
+          transition: "opacity 0.9s ease",
+        }}
+      />
+
+      {/* ══════════════════════════════════════════════════════════════════
+          OVERLAY DEGRADADO  z-10 — aparece junto con el fondo de video
+      ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute inset-0 z-10 pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.4) 50%, rgba(255,255,255,0.65) 100%)",
+          opacity: showBackground ? 1 : 0,
+          transition: "opacity 0.9s ease",
+        }}
+      />
+
+      {/* ══════════════════════════════════════════════════════════════════
+          CAPA LOGO  z-30
+          Se dibuja de izquierda a derecha con el rayo de luz.
+          Al terminar el splash (t=2.5s) sale deslizándose hacia ABAJO.
+      ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
+        style={{
+          transform: logoExiting ? "translateY(90px)" : "translateY(0px)",
+          opacity:   logoExiting ? 0 : 1,
+          transition: logoExiting
+            ? "transform 0.65s cubic-bezier(0.4, 0, 0.8, 0.2), opacity 0.5s ease"
+            : "none",
         }}
       >
-        {/* Logo + Rayo */}
         <div
           className="relative"
           style={{ width: isMobile ? 200 : 300, height: isMobile ? 100 : 150 }}
         >
-          {/* Logo — LCP candidate con priority */}
           <Image
             src="/petgourmet-logo.png"
             alt="Pet Gourmet Logo"
@@ -104,9 +172,7 @@ export function VideoHero() {
             className="object-contain"
             sizes="(max-width:768px) 200px, 300px"
             style={{
-              // Oculto antes de que arranque; la animación revela con borde suave
               opacity: rayStarted ? 1 : 0,
-              // mask-image con gradiente difuminado al frente → sin barra blanca visible
               WebkitMaskImage: logoRevealed
                 ? undefined
                 : "linear-gradient(to right, black 70%, transparent 100%)",
@@ -124,81 +190,57 @@ export function VideoHero() {
               transition: "filter 0.6s ease",
             }}
           />
-
-
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          CAPA B — VIDEO YOUTUBE  (z-0, carga silenciosamente detrás)
-      ═══════════════════════════════════════════════════════════════════ */}
-      <div className="absolute inset-0 z-0 bg-black">
-        <iframe
-          src="https://www.youtube.com/embed/dOZPu4XrA1k?autoplay=1&mute=1&loop=1&playlist=dOZPu4XrA1k&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0"
-          className="absolute"
-          style={{
-            top: "50%", left: "50%",
-            width: isMobile ? "300vw" : "170vw",
-            height: "120vh",
-            transform: "translate(-50%, -50%)",
-          }}
-          allow="autoplay; fullscreen; picture-in-picture"
-          title="Pet Gourmet Background Video"
-          onLoad={handleVideoLoad}
-          frameBorder="0"
-        />
-      </div>
+      {/* ══════════════════════════════════════════════════════════════════
+          CAPA HERO CONTENT  z-20
+          Siempre en el DOM. Cuando contentVisible=true (t=2.65s) baja
+          desde arriba (translateY -50px → 0) mientras el fondo aún es
+          el color de marca #7AB8BF. El fondo fade-out ocurre 150ms después.
+      ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="relative z-20 container mx-auto px-4 flex flex-col justify-center items-center h-full min-h-[70vh] md:min-h-screen text-center"
+        style={{
+          paddingTop: isMobile ? "60px" : "0",
+          transform: contentVisible ? "translateY(0)" : "translateY(-50px)",
+          opacity:   !contentVisible ? 0 : heroHidden ? 0 : 1,
+          pointerEvents: !contentVisible || heroHidden ? "none" : "auto",
+          transition: "transform 0.75s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.65s ease",
+        }}
+      >
+        <div className="max-w-4xl">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight font-display drop-shadow-lg">
+            ¡Comida real para amigos reales!
+          </h1>
+          <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-2xl mx-auto drop-shadow-md">
+            Nutrición premium horneada con ingredientes frescos y naturales para un compañero más sano, motivado y
+            feliz.
+          </p>
+          <div className="flex justify-center">
+            <Button
+              onClick={scrollToRecipes}
+              size="lg"
+              className="rounded-full bg-primary hover:bg-primary/90 text-white px-8 py-7 text-lg font-semibold shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all"
+            >
+              Descubre Nuestras Recetas
+            </Button>
+          </div>
+        </div>
 
-      {/* Overlay degradado sobre el video (igual que antes) */}
-      {!splashVisible && (
-        <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-white/70 md:to-white pointer-events-none" />
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          CAPA C — CONTENIDO FLOTANTE sobre el video (z-20)
-          Aparece cuando el splash ya desapareció.
-      ═══════════════════════════════════════════════════════════════════ */}
-      {!splashVisible && (
-        <div
-          ref={contentRef}
-          className="relative z-20 container mx-auto px-4 flex flex-col justify-center items-center h-full min-h-[70vh] md:min-h-screen text-center transition-opacity duration-700 ease-in-out"
-          style={{ paddingTop: isMobile ? "60px" : "0" }}
-        >
-          <div className="max-w-4xl">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight font-display drop-shadow-lg">
-              ¡Comida real para amigos reales!
-            </h1>
-            <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-2xl mx-auto drop-shadow-md">
-              Nutrición premium horneada con ingredientes frescos y naturales para un compañero más sano, motivado y
-              feliz.
-            </p>
-            <div className="flex justify-center">
-              <Button
-                onClick={scrollToRecipes}
-                size="lg"
-                className="rounded-full bg-primary hover:bg-primary/90 text-white px-8 py-7 text-lg font-semibold shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all"
-              >
-                Descubre Nuestras Recetas
-              </Button>
+        {!heroHidden && (
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce">
+            <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center">
+              <ArrowRight className="text-white w-5 h-5 rotate-90" aria-hidden="true" />
             </div>
           </div>
+        )}
+      </div>
 
-          {showHeroContent && (
-            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce">
-              <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center">
-                <ArrowRight className="text-white w-5 h-5 rotate-90" aria-hidden="true" />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════════
+      {/* ══════════════════════════════════════════════════════════════════
           KEYFRAMES
-      ═══════════════════════════════════════════════════════════════════ */}
+      ══════════════════════════════════════════════════════════════════ */}
       <style>{`
-        /* El logo se dibuja de izquierda a derecha: mask-size crece desde 0 */
-        /* El gradiente en mask-image da un borde difuminado → sin barra visible */
         @keyframes logoReveal {
           from {
             -webkit-mask-size: 0% 100%;
