@@ -23,14 +23,15 @@ export function GoogleAnalytics() {
 
   return (
     <>
+      {/* GA corre en el Web Worker junto a GTM */}
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-        strategy="lazyOnload"
+        strategy="worker"
         onError={(e) => {
           console.warn('Google Analytics failed to load:', e)
         }}
       />
-      <Script id="google-analytics" strategy="lazyOnload">
+      <Script id="google-analytics" strategy="worker">
         {`
           try {
             window.dataLayer = window.dataLayer || [];

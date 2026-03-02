@@ -5,10 +5,39 @@ import Script from 'next/script'
 export function GoogleTagManager() {
   return (
     <>
-      {/* GTM — lazyOnload: espera al evento load + idle del browser. Máximo diferimiento sin perder datos. */}
+      {/*
+       * Partytown config: DEBE ejecutarse ANTES de que Partytown arranque.
+       * · forward: funciones del hilo principal que Partytown intercepta y
+       *   reenvia al Web Worker donde vive GTM.
+       * · Sin esto, los pushes a dataLayer desde React no llegarían a GTM.
+       */}
+      <Script
+        id="partytown-config"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `window.partytown = {
+  forward: ['dataLayer.push', 'gtag', 'fbq'],
+  resolveUrl: function(url) {
+    var proxyHosts = [
+      'www.googletagmanager.com',
+      'connect.facebook.net',
+      'www.google-analytics.com',
+    ];
+    if (proxyHosts.some(function(h){ return url.hostname === h; })) {
+      var proxy = new URL('https://petgourmet.mx/~partytown-proxy');
+      proxy.searchParams.append('url', url.href);
+      return proxy;
+    }
+    return url;
+  },
+};`,
+        }}
+      />
+
+      {/* GTM corre DENTRO de un Web Worker — hilo principal 100% libre */}
       <Script
         id="gtm-script"
-        strategy="lazyOnload"
+        strategy="worker"
         dangerouslySetInnerHTML={{
           __html: `
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':

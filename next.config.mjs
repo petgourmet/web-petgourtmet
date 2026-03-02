@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons']
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    // Partytown: mueve GTM/GA a un Web Worker, libera el hilo principal por completo
+    nextScriptWorkers: true,
   },
+
   images: {
     remotePatterns: [
       {
