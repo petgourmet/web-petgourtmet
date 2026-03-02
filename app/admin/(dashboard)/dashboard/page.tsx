@@ -1,107 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
+/**
+ * Dashboard Admin — Refactorizado con TanStack Query
+ *
+ * ANTES: 5 queries secuenciales en useEffect sin cache (60+ líneas de boilerplate)
+ * AHORA: useAdminStats() devuelve todo con cache de 2 minutos
+ */
+
+import { useAdminStats } from "@/lib/query/hooks/use-admin-stats"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Users, Package, ShoppingBag, FileText, RefreshCw } from "lucide-react"
-import { supabase } from "@/lib/supabase/client"
 import SystemStatus from "@/components/admin/SystemStatus"
 
-interface StatsType {
-  totalUsers: number | null
-  totalBlogs: number | null
-  totalProducts: number | null
-  totalOrders: number | null
-  activeSubscriptions: number | null
-}
-
 const DashboardPage = () => {
-  const [stats, setStats] = useState<StatsType>({
-    totalUsers: null,
-    totalBlogs: null,
-    totalProducts: null,
-    totalOrders: null,
-    activeSubscriptions: null,
-  })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetchStats()
-  }, [])
-
-  const fetchStats = async () => {
-    setLoading(true)
-    try {
-      // Obtener el número total de usuarios
-      const { count: totalUsers, error: usersError } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true })
-
-      if (usersError) {
-        console.error("Error al cargar usuarios:", usersError)
-        setStats((prev) => ({ ...prev, totalUsers: null }))
-      } else {
-        setStats((prev) => ({ ...prev, totalUsers: totalUsers || 0 }))
-      }
-
-      // Obtener el número total de blogs
-      const { count: totalBlogs, error: blogsError } = await supabase
-        .from("blogs")
-        .select("*", { count: "exact", head: true })
-
-      if (blogsError) {
-        console.error("Error al cargar blogs:", blogsError)
-        setStats((prev) => ({ ...prev, totalBlogs: null }))
-      } else {
-        setStats((prev) => ({ ...prev, totalBlogs: totalBlogs || 0 }))
-      }
-
-      // Obtener el número total de productos
-      const { count: totalProducts, error: productsError } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true })
-
-      if (productsError) {
-        console.error("Error al cargar productos:", productsError)
-        setStats((prev) => ({ ...prev, totalProducts: null }))
-      } else {
-        setStats((prev) => ({ ...prev, totalProducts: totalProducts || 0 }))
-      }
-
-      // Obtener el número total de pedidos
-      // ✅ CORRECCIÓN: Usar tabla orders directamente
-      const { count: totalOrders, error: ordersError } = await supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-
-      if (ordersError) {
-        console.error("Error al cargar pedidos:", ordersError)
-        setStats((prev) => ({ ...prev, totalOrders: null }))
-      } else {
-        setStats((prev) => ({ ...prev, totalOrders: totalOrders || 0 }))
-      }
-
-      // Obtener el número total de suscripciones activas
-      const { count: activeSubscriptions, error: subscriptionsError } = await supabase
-        .from("unified_subscriptions")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "active")
-
-      if (subscriptionsError) {
-        console.error("Error al cargar suscripciones:", subscriptionsError)
-        setStats((prev) => ({ ...prev, activeSubscriptions: null }))
-      } else {
-        setStats((prev) => ({ ...prev, activeSubscriptions: activeSubscriptions || 0 }))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: stats, isLoading, refetch } = useAdminStats()
 
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-8">Panel de Administración</h1>
-      
+
       {/* Estado del Sistema */}
       <div className="mb-8">
         <SystemStatus />
@@ -117,10 +35,10 @@ const DashboardPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <Skeleton className="h-12 w-24" />
             ) : (
-              <div className="text-3xl font-bold text-[#7BBDC5]">{stats.totalUsers || 0}</div>
+              <div className="text-3xl font-bold text-[#7BBDC5]">{stats?.totalUsers ?? 0}</div>
             )}
             <p className="text-sm text-gray-500 mt-1">Usuarios registrados</p>
           </CardContent>
@@ -135,10 +53,10 @@ const DashboardPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <Skeleton className="h-12 w-24" />
             ) : (
-              <div className="text-3xl font-bold text-[#7BBDC5]">{stats.totalBlogs || 0}</div>
+              <div className="text-3xl font-bold text-[#7BBDC5]">{stats?.totalBlogs ?? 0}</div>
             )}
             <p className="text-sm text-gray-500 mt-1">Artículos publicados</p>
           </CardContent>
@@ -153,10 +71,10 @@ const DashboardPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <Skeleton className="h-12 w-24" />
             ) : (
-              <div className="text-3xl font-bold text-[#7BBDC5]">{stats.totalOrders || 0}</div>
+              <div className="text-3xl font-bold text-[#7BBDC5]">{stats?.totalOrders ?? 0}</div>
             )}
             <p className="text-sm text-gray-500 mt-1">Pedidos realizados</p>
           </CardContent>
@@ -171,10 +89,10 @@ const DashboardPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <Skeleton className="h-12 w-24" />
             ) : (
-              <div className="text-3xl font-bold text-[#7BBDC5]">{stats.totalProducts || 0}</div>
+              <div className="text-3xl font-bold text-[#7BBDC5]">{stats?.totalProducts ?? 0}</div>
             )}
             <p className="text-sm text-gray-500 mt-1">Productos disponibles</p>
           </CardContent>
@@ -189,10 +107,10 @@ const DashboardPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <Skeleton className="h-12 w-24" />
             ) : (
-              <div className="text-3xl font-bold text-[#7BBDC5]">{stats.activeSubscriptions || 0}</div>
+              <div className="text-3xl font-bold text-[#7BBDC5]">{stats?.activeSubscriptions ?? 0}</div>
             )}
             <p className="text-sm text-gray-500 mt-1">Suscripciones activas</p>
           </CardContent>

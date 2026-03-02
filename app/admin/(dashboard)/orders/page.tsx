@@ -1,124 +1,75 @@
 "use client"
 
-import type React from "react"
+/**
+ * admin/orders/page.tsx — Refactorizado con TanStack Query
+ *
+ * QUÉ CAMBIÓ: useEffect+fetchOrders manual → useOrders() hook con cache
+ * QUÉ NO CAMBIÓ:
+ *   - UI completa (tabla, badges, paginación, filtros, búsqueda)
+ *   - AuthGuard y protección de ruta
+ *   - Componentes OrderStatusBadge y PaymentStatusBadge
+ *   - Todos los helpers (formatCurrency, formatDate)
+ *   - Links a /admin/orders/[id]
+ *
+ * MEJORA KEY: Realtime ya no hace fetchOrders() directo en cada evento.
+ * Ahora invalida el cache con 500ms debounce → evita cascada de re-fetches.
+ */
 
-import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase/client"
+import type React from "react"
+import { useState } from "react"
 import { Loader2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 import { AuthGuard } from "@/components/admin/auth-guard"
 import Link from "next/link"
-import { fetchOptimizedOrdersAdmin, invalidateOrdersCache } from '@/lib/query-optimizations'
-import { extractCustomerEmail, extractCustomerName } from '@/lib/email-utils'
+import { useOrders } from "@/lib/query/hooks/use-orders"
+
+const ordersPerPage = 10
 
 export default function OrdersAdminPage() {
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Estado local UI (filtros, búsqueda, paginación — no son data fetching)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalOrders, setTotalOrders] = useState(0)
-  const ordersPerPage = 10
 
-  useEffect(() => {
-    fetchOrders()
-    
-    // ✅ IMPLEMENTAR TIEMPO REAL: Suscribirse a cambios en orders
-    const ordersChannel = supabase
-      .channel('admin_orders_realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'orders'
-      }, (payload) => {
-        console.log('[ADMIN] Cambio en orders detectado:', payload)
-        
-        // Refrescar órdenes automáticamente
-        fetchOrders()
-        
-        // Mostrar notificación para nuevas órdenes
-        if (payload.eventType === 'INSERT') {
-          console.log('Nueva orden recibida')
-        }
-      })
-      .subscribe()
+  // ── TanStack Query ────────────────────────────────────────────────
+  // useOrders incluye:
+  //   - Cache de 30 segundos
+  //   - Supabase Realtime con debounce 500ms (no re-fetch en cada evento)
+  //   - placeholderData para no perder el scroll al re-fetch en background
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useOrders({
+    page: currentPage,
+    status: statusFilter,
+    search: searchTerm,
+    enableRealtime: true,
+  })
 
-    // También escuchar cambios en order_items para actualizaciones de productos
-    const orderItemsChannel = supabase
-      .channel('admin_order_items_realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'order_items'
-      }, (payload) => {
-        console.log('[ADMIN] Cambio en order_items detectado:', payload)
-        fetchOrders()
-      })
-      .subscribe()
+  const allOrders = data?.orders ?? []
+  const totalOrders = data?.total ?? 0
 
-    // Cleanup: Desuscribirse cuando el componente se desmonte
-    return () => {
-      ordersChannel.unsubscribe()
-      orderItemsChannel.unsubscribe()
-    }
-  }, [currentPage, statusFilter])
+  // Paginación (los datos ya vienen filtrados desde el hook)
+  const from = (currentPage - 1) * ordersPerPage
+  const orders = allOrders.slice(from, from + ordersPerPage)
+  const totalPages = Math.ceil(totalOrders / ordersPerPage)
 
-  async function fetchOrders() {
-    console.log('🚀 Iniciando fetchOrders...')
-    
-    try {
-      setLoading(true)
-      setError(null)
+  // ── Handlers (preservados del original) ──────────────────────────
 
-      // Usar función optimizada para admin (todas las órdenes)
-      const optimizedOrders = await fetchOptimizedOrdersAdmin(supabase)
-      
-      // Aplicar filtro de estado si no es "all"
-      let filteredOrders = optimizedOrders
-      if (statusFilter !== "all") {
-        filteredOrders = optimizedOrders.filter(order => order.status === statusFilter)
-      }
-
-      // Aplicar búsqueda si hay término de búsqueda
-      if (searchTerm.trim()) {
-        filteredOrders = filteredOrders.filter(order => 
-          order.id.toString().includes(searchTerm) ||
-          (order.customer_email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (order.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      }
-
-      // Aplicar paginación
-      const from = (currentPage - 1) * ordersPerPage
-      const to = from + ordersPerPage
-      const paginatedOrders = filteredOrders.slice(from, to)
-
-      setOrders(paginatedOrders)
-      setTotalOrders(filteredOrders.length)
-      
-    } catch (error: any) {
-      console.error("❌ Error al cargar pedidos:", {
-        error,
-        message: error?.message,
-        code: error?.code,
-        details: error?.details,
-        hint: error?.hint
-      })
-      setError(error?.message || 'Error desconocido al cargar pedidos')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Función para buscar pedidos
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    // Implementar búsqueda (podría ser por ID, email, etc.)
-    // Por ahora, filtramos los pedidos ya cargados
-    fetchOrders()
+    setCurrentPage(1) // Reset a primera página al buscar
   }
 
-  // Formatear número como moneda
+  function handleStatusChange(value: string) {
+    setStatusFilter(value)
+    setCurrentPage(1) // Reset a primera página al cambiar filtro
+  }
+
+  // ── Helpers (preservados 100% del original) ───────────────────────
+
   function formatCurrency(amount: number) {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -127,7 +78,6 @@ export default function OrdersAdminPage() {
     }).format(amount)
   }
 
-  // Formatear fecha
   function formatDate(dateString: string) {
     const date = new Date(dateString)
     return new Intl.DateTimeFormat("es-CO", {
@@ -139,8 +89,7 @@ export default function OrdersAdminPage() {
     }).format(date)
   }
 
-  // Calcular número total de páginas
-  const totalPages = Math.ceil(totalOrders / ordersPerPage)
+  // ── UI (preservada 100% del original) ────────────────────────────
 
   return (
     <AuthGuard requireAdmin={true}>
@@ -153,7 +102,7 @@ export default function OrdersAdminPage() {
             <Filter className="h-4 w-4" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => handleStatusChange(e.target.value)}
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
             >
               <option value="all">Todos los estados</option>
@@ -186,11 +135,11 @@ export default function OrdersAdminPage() {
           <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : error ? (
+        ) : isError ? (
           <div className="rounded-md bg-red-50 p-4 text-red-800">
-            <p>Error al cargar pedidos: {error}</p>
+            <p>Error al cargar pedidos: {(error as Error)?.message ?? 'Error desconocido'}</p>
             <button
-              onClick={fetchOrders}
+              onClick={() => refetch()}
               className="mt-2 rounded-md bg-red-100 px-3 py-1 text-sm font-medium text-red-800"
             >
               Intentar nuevamente
@@ -296,7 +245,8 @@ export default function OrdersAdminPage() {
   )
 }
 
-// Componente para mostrar el estado del pedido (logística)
+// ── Componentes de badge (preservados 100% del original) ─────────────
+
 function OrderStatusBadge({ status }: { status: string }) {
   let bgColor = "bg-gray-100 text-gray-800 border border-gray-300"
   let icon = ""
@@ -320,11 +270,11 @@ function OrderStatusBadge({ status }: { status: string }) {
       break
   }
 
-  const statusText = 
+  const statusText =
     status === "completed" ? "Completado" :
-    status === "processing" ? "Procesando" :
-    status === "cancelled" ? "Cancelado" :
-    status === "pending" ? "Pendiente" : status
+      status === "processing" ? "Procesando" :
+        status === "cancelled" ? "Cancelado" :
+          status === "pending" ? "Pendiente" : status
 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${bgColor}`}>
@@ -334,7 +284,6 @@ function OrderStatusBadge({ status }: { status: string }) {
   )
 }
 
-// Componente para mostrar el estado del pago
 function PaymentStatusBadge({ status }: { status: string }) {
   let bgColor = "bg-gray-100 text-gray-700 border border-gray-300"
   let icon = "💳"
@@ -362,12 +311,12 @@ function PaymentStatusBadge({ status }: { status: string }) {
       break
   }
 
-  const statusText = 
+  const statusText =
     status === "paid" || status === "approved" ? "Pagado" :
-    status === "pending" || status === "in_process" ? "Pendiente" :
-    status === "failed" || status === "rejected" ? "Fallido" :
-    status === "cancelled" ? "Cancelado" :
-    status === "refunded" ? "Reembolsado" : status
+      status === "pending" || status === "in_process" ? "Pendiente" :
+        status === "failed" || status === "rejected" ? "Fallido" :
+          status === "cancelled" ? "Cancelado" :
+            status === "refunded" ? "Reembolsado" : status
 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${bgColor}`}>

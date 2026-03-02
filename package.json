@@ -50,6 +50,8 @@
     "@stripe/stripe-js": "^8.2.0",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-query-devtools": "^5.91.3",
     "@types/nodemailer": "^6.4.17",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
