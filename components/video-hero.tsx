@@ -10,7 +10,6 @@ import { useWindowSize } from "@/hooks/use-window-size"
 // ─── Tiempos ──────────────────────────────────────────────────────────────────
 const RAY_DURATION  = 1200  // duración del rayo barriendo el logo (ms)
 const SPLASH_TOTAL  = 1500  // cuánto dura el splash antes de revelar (ms)
-const IFRAME_DELAY  = 8000  // inyectar iframe solo tras LCP medido (ms)
 const HIDE_CONTENT  = 3000  // ocultar texto flotante tras inactividad (ms)
 
 export function VideoHero() {
@@ -24,7 +23,7 @@ export function VideoHero() {
   // CAPA MARCA (z-5): #7AB8BF persiste hasta que thumbnail esté listo
   // CAPA VIDEO (z-0): thumbnail a t=2.8s, iframe a t=8s
   const [showBackground, setShowBackground] = useState(false)
-  const [iframeActive,   setIframeActive]   = useState(false)
+  const [iframeActive] = useState(true)   // arranca de inmediato en background
   const [iframeReady,    setIframeReady]    = useState(false)
   // ── Auto-ocultar texto flotante ───────────────────────────────────────────
   const [heroHidden,          setHeroHidden]          = useState(false)
@@ -46,12 +45,10 @@ export function VideoHero() {
     const tLogoExit = setTimeout(() => setLogoExiting(true),    SPLASH_TOTAL)
     const tContent  = setTimeout(() => setContentVisible(true), SPLASH_TOTAL + 150)
     const tBg       = setTimeout(() => setShowBackground(true), SPLASH_TOTAL + 300)
-    const tIframe   = setTimeout(() => setIframeActive(true),   IFRAME_DELAY)
     return () => {
       clearTimeout(tLogoExit)
       clearTimeout(tContent)
       clearTimeout(tBg)
-      clearTimeout(tIframe)
     }
   }, [])
 
