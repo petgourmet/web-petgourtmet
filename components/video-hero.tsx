@@ -229,7 +229,7 @@ export function VideoHero() {
             <Button
               onClick={scrollToRecipes}
               size="lg"
-              className="rounded-full bg-primary hover:bg-primary/90 text-white px-8 py-7 text-lg font-semibold shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all"
+              className="rounded-full bg-[#2a7880] hover:bg-[#1d636b] text-white px-8 py-7 text-lg font-semibold shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all"
             >
               Descubre Nuestras Recetas
             </Button>

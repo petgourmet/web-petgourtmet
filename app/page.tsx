@@ -128,11 +128,11 @@ export default function Home() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] transition-all duration-500 group-hover:bg-primary/10 group-hover:w-40 group-hover:h-40 group-hover:rounded-bl-[120px]"></div>
 
                 <div className="relative z-10">
-                  <div className="inline-block bg-primary/10 rounded-full px-4 py-1 text-primary text-sm font-medium mb-6">
+                  <div className="inline-block bg-primary/10 rounded-full px-4 py-1 text-[#1d636b] text-sm font-medium mb-6">
                     Calidad Premium
                   </div>
                   <h2 className="text-4xl md:text-5xl font-bold mb-8 text-gray-900 font-display leading-tight">
-                    Ingredientes <span className="text-primary">Premium</span> para tu Mejor Amigo
+                    Ingredientes <span className="text-[#1d636b]">Premium</span> para tu Mejor Amigo
                   </h2>
                   <p className="text-lg text-gray-600 mb-8 leading-relaxed">
                     Nos comprometemos a utilizar sólo los ingredientes más frescos y de mayor calidad en cada receta,
@@ -159,7 +159,7 @@ export default function Home() {
                       },
                     ].map((feature, i) => (
                       <div key={i} className="flex items-start">
-                        <div className="mr-4 bg-primary/10 rounded-full p-2 text-primary mt-1">
+                        <div className="mr-4 bg-primary/10 rounded-full p-2 text-[#1d636b] mt-1">
                           <Check className="w-5 h-5" />
                         </div>
                         <div>

@@ -21,8 +21,8 @@ export function CartModal() {
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-primary dark:text-white font-display">Tu Carrito</h2>
-            <Button variant="ghost" size="icon" onClick={() => setShowCart(false)}>
-              <X className="h-5 w-5" />
+            <Button variant="ghost" size="icon" aria-label="Cerrar carrito" onClick={() => setShowCart(false)}>
+              <X className="h-5 w-5" aria-hidden="true" />
             </Button>
           </div>
 
@@ -66,18 +66,20 @@ export function CartModal() {
                         variant="outline"
                         size="icon"
                         className="h-7 w-7 rounded-full"
+                        aria-label="Disminuir cantidad"
                         onClick={() => updateCartItemQuantity(index, item.quantity - 1)}
                       >
-                        <Minus className="h-3 w-3" />
+                        <Minus className="h-3 w-3" aria-hidden="true" />
                       </Button>
                       <span className="w-6 text-center">{item.quantity}</span>
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-7 w-7 rounded-full"
+                        aria-label="Aumentar cantidad"
                         onClick={() => updateCartItemQuantity(index, item.quantity + 1)}
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="h-3 w-3" aria-hidden="true" />
                       </Button>
                     </div>
                     <div className="text-right min-w-[80px]">
@@ -105,9 +107,10 @@ export function CartModal() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-gray-400 hover:text-red-500"
+                        aria-label="Eliminar producto del carrito"
                         onClick={() => removeFromCart(index)}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>

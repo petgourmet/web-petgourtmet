@@ -1,6 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Facebook, Instagram, Youtube, Heart } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function Footer() {
   return (
@@ -26,30 +27,54 @@ export function Footer() {
             </Link>
             <p className="text-white/80 mb-6">Nutrición premium para tus compañeros</p>
             <div className="flex space-x-4">
-              <Link
-                href="https://web.facebook.com/petgourmetmx?locale=es_LA"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
-              >
-                <Facebook size={20} />
-              </Link>
-              <Link
-                href="https://www.instagram.com/petgourmet_mx/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
-              >
-                <Instagram size={20} />
-              </Link>
-              <Link
-                href="https://www.youtube.com/@PetGourmetMexico"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
-              >
-                <Youtube size={20} />
-              </Link>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="https://web.facebook.com/petgourmetmx?locale=es_LA"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Seguirnos en Facebook"
+                      className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
+                    >
+                      <Facebook size={20} aria-hidden="true" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="top"><p>Facebook</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="https://www.instagram.com/petgourmet_mx/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Seguirnos en Instagram"
+                      className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
+                    >
+                      <Instagram size={20} aria-hidden="true" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="top"><p>Instagram</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="https://www.youtube.com/@PetGourmetMexico"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Ver nuestro canal de YouTube"
+                      className="text-white/80 hover:text-white transition-colors duration-300 hover:scale-110 transform"
+                    >
+                      <Youtube size={20} aria-hidden="true" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="top"><p>YouTube</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
@@ -157,9 +182,10 @@ export function Footer() {
               href="https://www.v1tr0.com/" 
               target="_blank" 
               rel="noopener noreferrer"
+              aria-label="Hecho con amor por V1TR0"
               className="text-red-400 hover:text-red-300 transition-colors duration-200"
             >
-              <Heart className="h-4 w-4 fill-current" />
+              <Heart className="h-4 w-4 fill-current" aria-hidden="true" />
             </Link>
           </div>
         </div>

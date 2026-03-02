@@ -11,6 +11,7 @@ import { useCart } from "@/components/cart-context"
 import { ThemeToggleButton } from "@/components/theme-toggle-button"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { useMobile } from "@/hooks/use-mobile"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Modales solo se cargan cuando el usuario los abre — fuera del bundle inicial
 const CartModal     = dynamic(() => import("@/components/cart-modal").then(m => ({ default: m.CartModal })), { ssr: false })
@@ -176,14 +177,22 @@ export function Navbar() {
                 </div>
               </div>
             ) : (
-              <Button
-                asChild
-                className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow p-2"
-              >
-                <Link href="/auth/login">
-                  <User size={20} />
-                </Link>
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      asChild
+                      aria-label="Iniciar sesión"
+                      className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow p-2"
+                    >
+                      <Link href="/auth/login">
+                        <User size={20} aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom"><p>Iniciar sesión</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
 
             <Button
