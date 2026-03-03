@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Configuración esencial para Netlify
+  output: process.env.NETLIFY ? 'standalone' : undefined,
+  
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
     // Partytown: mueve GTM/GA a un Web Worker, libera el hilo principal por completo

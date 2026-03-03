@@ -1,0 +1,21 @@
+# Netlify headers configuration
+# Este archivo fuerza MIME types correctos para assets de Next.js
+
+/_next/static/chunks/*.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/_next/static/chunks/app/*.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/_next/static/css/*.css
+  Content-Type: text/css; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/_next/data/*
+  Content-Type: application/json
+  Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate
