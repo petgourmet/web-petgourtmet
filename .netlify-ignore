@@ -1,0 +1,23 @@
+# Archivos que Netlify NO debe incluir en el despliegue
+
+# Cache de desarrollo (46MB innecesarios)
+.next/cache/
+
+# Archivos de trace/debug (736KB)
+.next/trace
+
+# Hot module replacement (solo desarrollo)
+.next/**/*.hot-update.json
+.next/**/*.hot-update.js
+
+# Tests
+*.test.*
+*.spec.*
+test-*
+temp_*
+
+# Documentación sensible
+.trae/
+
+# Node modules
+node_modules/
