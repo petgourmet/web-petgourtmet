@@ -1,17 +1,12 @@
 [build]
-  command = "pnpm install --frozen-lockfile && pnpm build"
-  # El plugin @netlify/plugin-nextjs maneja automáticamente el directorio publish
+  # IMPORTANTE: NO especificar 'publish' - el plugin lo maneja automáticamente
+  command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
-  PNPM_VERSION = "10"
   NODE_OPTIONS = "--max-old-space-size=4096"
 
-# Plugin de Next.js - debe ser el primero
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-
-# Headers para assets estáticos (el plugin ya maneja MIME types básicos)
+# Headers para assets estáticos
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
