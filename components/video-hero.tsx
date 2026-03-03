@@ -8,43 +8,43 @@ import { useRouter } from "next/navigation"
 import { useWindowSize } from "@/hooks/use-window-size"
 
 // ─── Tiempos ──────────────────────────────────────────────────────────────────
-const RAY_DURATION  = 1200  // duración del rayo barriendo el logo (ms)
-const SPLASH_TOTAL  = 1500  // cuánto dura el splash antes de revelar (ms)
-const HIDE_CONTENT  = 3000  // ocultar texto flotante tras inactividad (ms)
+const RAY_DURATION = 1200  // duración del rayo barriendo el logo (ms)
+const SPLASH_TOTAL = 1500  // cuánto dura el splash antes de revelar (ms)
+const HIDE_CONTENT = 3000  // ocultar texto flotante tras inactividad (ms)
 
 export function VideoHero() {
   // ── Logo draw animation ────────────────────────────────────────────────────
-  const [rayStarted,   setRayStarted]   = useState(false)
+  const [rayStarted, setRayStarted] = useState(false)
   const [logoRevealed, setLogoRevealed] = useState(false)
   // ── Logo salida ↓ + hero entrada ↑ ───────────────────────────────────────
-  const [logoExiting,    setLogoExiting]    = useState(false)  // t=2.5s: logo se va abajo
+  const [logoExiting, setLogoExiting] = useState(false)  // t=2.5s: logo se va abajo
   const [contentVisible, setContentVisible] = useState(false)  // t=2.65s: texto baja desde arriba
   // ── Fondo / video ─────────────────────────────────────────────────────────
   // CAPA MARCA (z-5): #7AB8BF persiste hasta que thumbnail esté listo
   // CAPA VIDEO (z-0): thumbnail a t=2.8s, iframe a t=8s
   const [showBackground, setShowBackground] = useState(false)
   const [iframeActive] = useState(true)   // arranca de inmediato en background
-  const [iframeReady,    setIframeReady]    = useState(false)
+  const [iframeReady, setIframeReady] = useState(false)
   // ── Auto-ocultar texto flotante ───────────────────────────────────────────
-  const [heroHidden,          setHeroHidden]          = useState(false)
+  const [heroHidden, setHeroHidden] = useState(false)
   const heroContentTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const router    = useRouter()
+  const router = useRouter()
   const { width } = useWindowSize()
-  const isMobile  = width ? width < 768 : false
+  const isMobile = width ? width < 768 : false
 
   // ── 1. Draw animation del logo al montar ──────────────────────────────────
   useEffect(() => {
-    const raf     = requestAnimationFrame(() => setRayStarted(true))
+    const raf = requestAnimationFrame(() => setRayStarted(true))
     const tReveal = setTimeout(() => setLogoRevealed(true), RAY_DURATION + 150)
     return () => { cancelAnimationFrame(raf); clearTimeout(tReveal) }
   }, [])
 
   // ── 2. Secuencia: logo ↓ → texto ↑ → fondo de marca → thumbnail/video ────
   useEffect(() => {
-    const tLogoExit = setTimeout(() => setLogoExiting(true),    SPLASH_TOTAL)
-    const tContent  = setTimeout(() => setContentVisible(true), SPLASH_TOTAL + 150)
-    const tBg       = setTimeout(() => setShowBackground(true), SPLASH_TOTAL + 300)
+    const tLogoExit = setTimeout(() => setLogoExiting(true), SPLASH_TOTAL)
+    const tContent = setTimeout(() => setContentVisible(true), SPLASH_TOTAL + 150)
+    const tBg = setTimeout(() => setShowBackground(true), SPLASH_TOTAL + 300)
     return () => {
       clearTimeout(tLogoExit)
       clearTimeout(tContent)
@@ -159,7 +159,7 @@ export function VideoHero() {
         className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
         style={{
           transform: logoExiting ? "translateY(90px)" : "translateY(0px)",
-          opacity:   logoExiting ? 0 : 1,
+          opacity: logoExiting ? 0 : 1,
           transition: logoExiting
             ? "transform 0.65s cubic-bezier(0.4, 0, 0.8, 0.2), opacity 0.5s ease"
             : "none",
@@ -209,7 +209,7 @@ export function VideoHero() {
         style={{
           paddingTop: isMobile ? "60px" : "0",
           transform: contentVisible ? "translateY(0)" : "translateY(-50px)",
-          opacity:   !contentVisible ? 0 : heroHidden ? 0 : 1,
+          opacity: !contentVisible ? 0 : heroHidden ? 0 : 1,
           pointerEvents: !contentVisible || heroHidden ? "none" : "auto",
           transition: "transform 0.75s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.65s ease",
         }}
@@ -233,13 +233,6 @@ export function VideoHero() {
           </div>
         </div>
 
-        {!heroHidden && (
-          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce">
-            <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center">
-              <ArrowRight className="text-white w-5 h-5 rotate-90" aria-hidden="true" />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════

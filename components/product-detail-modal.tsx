@@ -45,7 +45,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
   // Obtener tipos de suscripción disponibles
   const availableSubscriptionTypes = product.subscription_types || []
   const hasSubscriptionOptions = product.subscription_available && availableSubscriptionTypes.length > 0
-  
+
   // Mapeo de tipos de suscripción a etiquetas legibles
   const subscriptionTypeLabels: Record<SubscriptionType, string> = {
     weekly: 'Semanal',
@@ -127,19 +127,19 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
-      style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
         bottom: 0,
         zIndex: 9999
       }}
     >
-      <div 
-        className="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto relative mx-auto my-auto" 
-        style={{ 
-          position: 'relative', 
+      <div
+        className="bg-white dark:bg-gray-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto relative mx-auto my-auto"
+        style={{
+          position: 'relative',
           transform: 'translate(0, 0)',
           maxHeight: '90vh',
           maxWidth: '90vw'
@@ -206,26 +206,24 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
               <div className="flex gap-3 mb-4">
                 <Button
                   variant={purchaseType === 'single' ? "default" : "outline"}
-                  className={`rounded-full px-6 py-3 ${
-                    purchaseType === 'single'
+                  className={`rounded-full px-6 py-3 ${purchaseType === 'single'
                       ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
                       : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                  }`}
+                    }`}
                   onClick={() => {
                     setPurchaseType('single')
                     setSelectedSubscriptionType(null)
                   }}
                 >
-                  Compra única
+                  Comprar ahora
                 </Button>
                 {hasSubscriptionOptions && (
                   <Button
                     variant={purchaseType === 'subscription' ? "default" : "outline"}
-                    className={`rounded-full px-6 py-3 ${
-                      purchaseType === 'subscription'
+                    className={`rounded-full px-6 py-3 ${purchaseType === 'subscription'
                         ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
                         : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                    }`}
+                      }`}
                     onClick={() => {
                       setPurchaseType('subscription')
                       if (availableSubscriptionTypes.length > 0) {
@@ -233,7 +231,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                       }
                     }}
                   >
-                    Repetir compra
+                    Suscríbete
                   </Button>
                 )}
               </div>
@@ -241,7 +239,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
               {/* Opciones de suscripción */}
               {purchaseType === 'subscription' && hasSubscriptionOptions && (
                 <div className="space-y-3">
-                  <h4 className="font-semibold text-md text-gray-700 dark:text-gray-300">Frecuencia de entrega:</h4>
+                  <h4 className="font-semibold text-md text-gray-700 dark:text-gray-300">Recíbelo con descuento:</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {availableSubscriptionTypes.map((type) => {
                       const discount = getSubscriptionDiscount(type)
@@ -249,11 +247,10 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                         <Button
                           key={type}
                           variant={selectedSubscriptionType === type ? "default" : "outline"}
-                          className={`rounded-lg px-4 py-3 text-left flex flex-col items-start h-auto ${
-                            selectedSubscriptionType === type
+                          className={`rounded-lg px-4 py-3 text-left flex flex-col items-start h-auto ${selectedSubscriptionType === type
                               ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
                               : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                          }`}
+                            }`}
                           onClick={() => setSelectedSubscriptionType(type)}
                         >
                           <span className="font-semibold">{subscriptionTypeLabels[type]}</span>

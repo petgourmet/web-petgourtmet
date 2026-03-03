@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reporte: Mejoras UI/UX en Productos, Categorías y Hero — Pet Gourmet</title>
+    <style>
+        :root {
+            --brand: #7AB8BF;
+            --brand-dark: #5c9ca4;
+            --brand-light: #e8f4f5;
+            --bg: #0f1117;
+            --bg2: #161b27;
+            --bg3: #1e2433;
+            --surface: #252d3d;
+            --surface2: #2d3748;
+            --border: rgba(122, 184, 191, 0.15);
+            --text: #e2e8f0;
+            --text2: #94a3b8;
+            --green: #22c55e;
+            --green-bg: rgba(34, 197, 94, 0.1);
+            --red: #ef4444;
+            --red-bg: rgba(239, 68, 68, 0.1);
+            --yellow: #f59e0b;
+            --yellow-bg: rgba(245, 158, 11, 0.1);
+            --blue: #60a5fa;
+            --blue-bg: rgba(96, 165, 250, 0.1);
+            --purple: #a78bfa;
+            --purple-bg: rgba(167, 139, 250, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, var(--bg2) 0%, #1a2236 50%, var(--bg2) 100%);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(122, 184, 191, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 48px 32px;
+            position: relative;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(122, 184, 191, 0.1);
+            border: 1px solid rgba(122, 184, 191, 0.3);
+            color: var(--brand);
+            padding: 4px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: clamp(24px, 4vw, 44px);
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 30%, var(--brand) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+            margin-bottom: 12px;
+        }
+
+        .header-sub {
+            color: var(--text2);
+            font-size: 16px;
+            max-width: 600px;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .meta-label {
+            font-size: 11px;
+            color: var(--text2);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .meta-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--brand);
+        }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 32px;
+        }
+
+        section {
+            margin-bottom: 48px;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+            max-width: 200px;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(122, 184, 191, 0.4);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card p {
+            color: var(--text2);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        /* ── Diff block ── */
+        .diff {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .diff-header {
+            background: var(--surface2);
+            padding: 10px 20px;
+            font-size: 12px;
+            color: var(--text2);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .diff-header span {
+            color: var(--brand);
+            font-weight: 600;
+        }
+
+        .diff-body {
+            padding: 16px 20px;
+        }
+
+        .line {
+            display: flex;
+            gap: 12px;
+            padding: 2px 0;
+        }
+
+        .line-num {
+            color: var(--text2);
+            min-width: 24px;
+            user-select: none;
+            opacity: 0.5;
+        }
+
+        .line.removed {
+            background: var(--red-bg);
+            border-radius: 4px;
+            padding: 2px 8px;
+        }
+
+        .line.removed .code {
+            color: var(--red);
+        }
+
+        .line.removed .line-num::before {
+            content: '−';
+            color: var(--red);
+        }
+
+        .line.added {
+            background: var(--green-bg);
+            border-radius: 4px;
+            padding: 2px 8px;
+        }
+
+        .line.added .code {
+            color: var(--green);
+        }
+
+        .line.added .line-num::before {
+            content: '+';
+            color: var(--green);
+        }
+
+        .line.context .code {
+            color: var(--text2);
+        }
+
+        .alert {
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            font-size: 14px;
+        }
+
+        .alert.info {
+            background: rgba(122, 184, 191, 0.08);
+            border: 1px solid rgba(122, 184, 191, 0.25);
+            color: var(--brand-light);
+        }
+
+        .alert.success {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #bbf7d0;
+        }
+
+        .alert-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Header ── -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-badge">📋 Reporte de Cambios · UI / UX</div>
+            <h1>Mejoras Globales de UX en Productos,<br>Categorías y Hero</h1>
+            <p class="header-sub">
+                Unificación de estilos de filtros en categorías, refinamientos visuales en el inicio, ocultación del
+                inventario por limpieza comercial, dinamismo en ingredientes y mejoras de copy para la compra.
+            </p>
+            <div class="meta-row">
+                <div class="meta-item">
+                    <span class="meta-label">Fecha</span>
+                    <span class="meta-value">3 Mar 2026</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Archivos modificados</span>
+                    <span class="meta-value">5 Archivos principales</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Tipo</span>
+                    <span class="meta-value">UX · Visual · Frontend Logic</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Estado</span>
+                    <span class="meta-value">✅ Completado</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- ── Resumen ── -->
+        <section>
+            <h2 class="section-title">🎯 Tareas Realizadas</h2>
+
+            <div class="card">
+                <div class="card-title">1. Títulos y colores dinámicos en vistas de categoría</div>
+                <p>
+                    Las páginas <code>/complementar</code>, <code>/celebrar</code> y <code>/premiar</code> fueron
+                    actualizadas para tener el mismo comportamiento que <code>/productos</code>. El
+                    <code>&lt;h1&gt;</code> ahora reacciona a los clicks de las pestañas ("tabs") y el color que indica
+                    la selección se unificó globalmente a <code>bg-primary</code>, reemplazando los colores específicos
+                    que desordenaban la interfaz.
+                </p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">2. Modificación de imagen y refinamiento del Hero</div>
+                <p>
+                    Se actualizó la imagen de cabecera en <code>/complementar</code> para utilizar la misma de la
+                    tarjeta de presentación (<code>/complementar-dog-treat.webp</code>) mejorando la coherencia. Desde
+                    la Home, el componente <code>video-hero</code> fue actualizado para eliminar el botón animado en
+                    forma de flecha apuntando hacia abajo que restaba estética limpia a la portada principal.
+                </p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">3. Eliminación visual de Badges de Stock</div>
+                <p>
+                    En la página detallada de producto (<code>/producto/[slug]</code>) se procedió a esconder las
+                    etiquetas visuales de la cantidad de unidades en existencias. La validación real de inventario en el
+                    botón del carrito sigue funcionando.
+                </p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">4. Ingredientes de Variantes Dinámicos (Mapeo Frontend)</div>
+                <p>
+                    A falta de una estructura para ingredientes a nivel de variante en base de datos, implementamos un
+                    diccionario mapeado dentro de la vista. Dependiendo de la variante elegida ("Carne", "Pollo
+                    Verduras"...), la caja de Ingredientes actualizará su texto para encajar perfectamente con esa
+                    receta.
+                </p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">5. Actualización de Copy en Compra & Suscripción</div>
+                <p>
+                    Tanto en el modal de detalles (`product-detail-modal`) como en la vista general se aplicaron los
+                    siguientes ajustes de texto orientados a ventas (Copys persuasivos): <br>
+                    • "Compra única" ➔ <strong>"Comprar ahora"</strong> <br>
+                    • "Repetir compra" ➔ <strong>"Suscríbete"</strong> <br>
+                    • "Frecuencia de entrega:" ➔ <strong>"Recíbelo con descuento:"</strong>
+                </p>
+            </div>
+        </section>
+
+        <!-- ── Implementaciones Técnicas Destacadas ── -->
+        <section>
+            <h2 class="section-title">🔧 Detalles Técnicos de Implementación</h2>
+
+            <!-- Diff 1 -->
+            <div class="diff">
+                <div class="diff-header">
+                    <span>1. Ocultación Visual de Stock (Ej. Variante de Producto)</span>
+                    <span style="color:var(--text2);font-weight:400">app/producto/[slug]/page.tsx</span>
+                </div>
+                <div class="diff-body">
+                    <div class="line removed"><span class="line-num"></span><span class="code">&lt;p className={`text-xs
+                            mt-1 ${</span></div>
+                    <div class="line removed"><span class="line-num"></span><span class="code"> (variant.stock || 0) >
+                            10 ? "text-green-600" ... }`}&gt;</span></div>
+                    <div class="line removed"><span class="line-num"></span><span class="code"> {(variant.stock || 0) >
+                            10 ? "En stock" : ... "Agotado"}</span></div>
+                    <div class="line removed"><span class="line-num"></span><span class="code">&lt;/p&gt;</span></div>
+                    <div class="line context"><span class="line-num"></span><span class="code">{/* El label entero fue
+                            elminado de móvil, el modal y el view principal */}</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">/* Se limpió el diseño, las
+                            limitantes de añadir al carrito siguen vigentes y operativas. */</span></div>
+                </div>
+            </div>
+
+            <!-- Diff 2 -->
+            <div class="diff">
+                <div class="diff-header">
+                    <span>2. Mapeo Front-end de Ingredientes (Variantes)</span>
+                    <span style="color:var(--text2);font-weight:400">app/producto/[slug]/page.tsx</span>
+                </div>
+                <div class="diff-body">
+                    <div class="line added"><span class="line-num"></span><span class="code">const VARIANT_INGREDIENTS:
+                            Record&lt;string, string&gt; = {</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> "pollo verduras": "Carne
+                            de pollo fresca, mezcla de verduras...",</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> "ternera espinaca":
+                            "Ternera magra, espinaca rica en hierro...",</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> "carne verduras": "Carne
+                            de res premium, selección de...",</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> "pollo": "Carne de pollo
+                            magra, arroz, zanahoria...",</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> "carne": "Carne de res
+                            fresca, patata dulce...",</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> "cordero": "Cordero criado
+                            en pasto..."</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">}</span></div>
+                    <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">let displayIngredients =
+                            product.ingredients</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">if (isVariableProduct &&
+                            selectedVariant) {</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> const matchedKey =
+                            Object.keys(VARIANT_INGREDIENTS)</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> .sort((a, b) => b.length -
+                            a.length)</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> .find(key =>
+                            selectedVariant.name.toLowerCase().includes(key))</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code"> if (matchedKey)
+                            displayIngredients = VARIANT_INGREDIENTS[matchedKey]</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">}</span></div>
+                    <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+                    <div class="line removed"><span class="line-num"></span><span
+                            class="code">&lt;div&gt;{product.ingredients || "Información no
+                            disponible"}&lt;/div&gt;</span></div>
+                    <div class="line added"><span class="line-num"></span><span
+                            class="code">&lt;div&gt;{displayIngredients || "Información no
+                            disponible"}&lt;/div&gt;</span></div>
+                </div>
+            </div>
+
+            <!-- Diff 3 -->
+            <div class="diff">
+                <div class="diff-header">
+                    <span>3. Modificación de Copywritting orientado a conversiones.</span>
+                    <span style="color:var(--text2);font-weight:400">Archivos variados (`page.tsx` y
+                        `product-detail-modal.tsx`)</span>
+                </div>
+                <div class="diff-body">
+                    <div class="line removed"><span class="line-num"></span><span class="code">&lt;Button ... &gt;Compra
+                            única&lt;/Button&gt;</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">&lt;Button ... &gt;Comprar
+                            ahora&lt;/Button&gt;</span></div>
+                    <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+                    <div class="line removed"><span class="line-num"></span><span class="code">&lt;Button ...
+                            &gt;Repetir compra&lt;/Button&gt;</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">&lt;Button ...
+                            &gt;Suscríbete&lt;/Button&gt;</span></div>
+                    <div class="line context"><span class="line-num"></span><span class="code"></span></div>
+                    <div class="line removed"><span class="line-num"></span><span class="code">&lt;h4&gt;Frecuencia de
+                            entrega:&lt;/h4&gt;</span></div>
+                    <div class="line added"><span class="line-num"></span><span class="code">&lt;h4&gt;Recíbelo con
+                            descuento:&lt;/h4&gt;</span></div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ── Conclusión ── -->
+        <section>
+            <div class="alert success">
+                <span class="alert-icon">👏</span>
+                <div>
+                    <strong>Integración sin interrupciones</strong><br>
+                    La estructura del proyecto permanece sólida. Las validaciones críticas (como la prevención de la
+                    adición de artículos agotados al carrito) se mantuvieron operando tras capa, evitando
+                    refactorizaciones en la base de datos de manera innecesaria. La web está ahora más refinada
+                    estéticamente, clara verbalmente y adaptada al enfoque dinámico.
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+
+</html>

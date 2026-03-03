@@ -6,6 +6,13 @@ import { Toaster } from "@/components/toaster"
 import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+const TITLES: Record<string, string> = {
+  all: "Nuestras Recetas",
+  celebrar: "Para Celebrar",
+  premiar: "Para Premiar",
+  complementar: "Para Complementar",
+}
+
 export default function ComplementarPage() {
   const [activeCategory, setActiveCategory] = useState("complementar")
 
@@ -14,7 +21,7 @@ export default function ComplementarPage() {
       {/* Banner de categoría a ancho completo */}
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
-          src="/happy-dog-nutrition.png"
+          src="/complementar-dog-treat.webp"
           alt="Productos para complementar"
           fill
           className="object-cover saturate-90 brightness-60"
@@ -28,9 +35,11 @@ export default function ComplementarPage() {
           {/* Contenedor glass en la parte inferior */}
           <div className="absolute bottom-0 left-0 right-0 bg-black/20 backdrop-blur-md border-t border-white/20 p-6 md:p-8">
             <div className="max-w-4xl mx-auto text-center">
-              <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">Para Complementar</h2>
+              <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">
+                {TITLES[activeCategory] ?? "Para Complementar"}
+              </h1>
               <p className="text-white/90 text-lg">
-                Complementos nutricionales que enriquecen la dieta de tu mascota. 
+                Complementos nutricionales que enriquecen la dieta de tu mascota.
                 Ingredientes premium que aportan los nutrientes esenciales para una vida saludable.
               </p>
             </div>
@@ -41,7 +50,7 @@ export default function ComplementarPage() {
       <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
         <div className="responsive-container">
           {/* Tabs para categorías */}
-          <Tabs defaultValue="complementar" className="w-full mb-12" onValueChange={(value) => setActiveCategory(value)}>
+          <Tabs value={activeCategory} onValueChange={(value) => setActiveCategory(value)} className="w-full mb-12">
             <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-transparent">
               <TabsTrigger
                 value="all"
@@ -51,19 +60,19 @@ export default function ComplementarPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="celebrar"
-                className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900 rounded-full"
+                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
               >
                 Para Celebrar
               </TabsTrigger>
               <TabsTrigger
                 value="premiar"
-                className="data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-full"
+                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
               >
                 Para Premiar
               </TabsTrigger>
               <TabsTrigger
                 value="complementar"
-                className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-full"
+                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
               >
                 Para Complementar
               </TabsTrigger>

@@ -48,7 +48,7 @@ export default function ProductDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
-  
+
   // Estados para variantes
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
@@ -123,11 +123,11 @@ export default function ProductDetailPage() {
             .eq("product_id", productData.id)
             .eq("is_active", true)
             .order("display_order", { ascending: true })
-          
+
           console.log("🔍 [TIMESTAMP:", timestamp, "] Variantes cargadas para producto:", productData.id)
           console.log("📦 Datos recibidos:", JSON.stringify(fetchedVariants, null, 2))
           console.log("🔍 Error al cargar variantes:", variantsError)
-          
+
           if (fetchedVariants && fetchedVariants.length > 0) {
             variantsData = fetchedVariants
             setVariants(fetchedVariants)
@@ -159,11 +159,11 @@ export default function ProductDetailPage() {
         // Procesar galería de imágenes
         const gallery = galleryData
           ? galleryData.map((img: any) => ({
-              src: img.url.startsWith("http")
-                ? img.url
-                : supabase.storage.from("products").getPublicUrl(img.url).data.publicUrl,
-              alt: img.alt || productData.name,
-            }))
+            src: img.url.startsWith("http")
+              ? img.url
+              : supabase.storage.from("products").getPublicUrl(img.url).data.publicUrl,
+            alt: img.alt || productData.name,
+          }))
           : []
 
         // Construir el objeto de producto completo
@@ -248,19 +248,19 @@ export default function ProductDetailPage() {
     const basePrice = isVariableProduct && selectedVariant
       ? selectedVariant.price
       : selectedSize
-      ? selectedSize.price
-      : product.price
-    
+        ? selectedSize.price
+        : product.price
+
     const productName = isVariableProduct && selectedVariant
       ? `${product.name} - ${selectedVariant.name}`
       : product.name
-    
+
     const productImage = isVariableProduct && selectedVariant && selectedVariant.image
       ? selectedVariant.image
       : product.image
-    
+
     const sizeWeight = selectedSize ? selectedSize.weight : "Único"
-    
+
     // Calcular precio con descuento si es suscripción
     const discount = getSubscriptionDiscount()
     const finalPrice = basePrice * (isSubscription ? 1 - discount : 1)
@@ -315,7 +315,7 @@ export default function ProductDetailPage() {
   // Calcular el descuento según el tipo de suscripción
   const getSubscriptionDiscount = () => {
     if (!isSubscription || !product) return 0
-    
+
     switch (subscriptionType) {
       case "weekly":
         return (product.weekly_discount || 0) / 100
@@ -394,6 +394,28 @@ export default function ProductDetailPage() {
     (img) => img.src && img.src.trim() !== "",
   )
 
+  // Diccionario de ingredientes por variante (Mapeo Frontend)
+  const VARIANT_INGREDIENTS: Record<string, string> = {
+    "pollo verduras": "Carne de pollo fresca, mezcla de verduras (zanahoria, espinaca), avena, vitaminas y minerales esenciales.",
+    "ternera espinaca": "Ternera magra, espinaca rica en hierro, arroz integral, suplementos nutricionales.",
+    "carne verduras": "Carne de res premium, selección de verduras frescas, guisantes, nutrientes balanceados.",
+    "pollo": "Carne de pollo magra, arroz, zanahoria, vitaminas y minerales.",
+    "carne": "Carne de res fresca, patata dulce, zanahoria, nutrientes esenciales.",
+    "cordero": "Cordero criado en pasto, calabaza, guisantes, nutrientes y minerales."
+  }
+
+  let displayIngredients = product.ingredients
+  if (isVariableProduct && selectedVariant) {
+    const variantNameLower = selectedVariant.name.toLowerCase()
+    const matchedKey = Object.keys(VARIANT_INGREDIENTS)
+      .sort((a, b) => b.length - a.length) // Primero evalúa los nombres más largos (ej. 'pollo verduras' en lugar de 'pollo')
+      .find(key => variantNameLower.includes(key))
+
+    if (matchedKey) {
+      displayIngredients = VARIANT_INGREDIENTS[matchedKey]
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen pt-20">
       {product && <ProductStructuredData product={product} />}
@@ -430,8 +452,8 @@ export default function ProductDetailPage() {
                     style={
                       isZoomed
                         ? {
-                            transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                          }
+                          transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                        }
                         : {}
                     }
                   />
@@ -467,11 +489,10 @@ export default function ProductDetailPage() {
                   {allImages.map((img, idx) => (
                     <div
                       key={idx}
-                      className={`relative w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                        idx === activeImageIndex
-                          ? "border-[#7BBDC5] ring-2 ring-[#7BBDC5]/30"
-                          : "border-gray-200 hover:border-[#7BBDC5]/50"
-                      }`}
+                      className={`relative w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${idx === activeImageIndex
+                        ? "border-[#7BBDC5] ring-2 ring-[#7BBDC5]/30"
+                        : "border-gray-200 hover:border-[#7BBDC5]/50"
+                        }`}
                       onClick={() => setActiveImageIndex(idx)}
                     >
                       <Image
@@ -487,24 +508,6 @@ export default function ProductDetailPage() {
 
               {/* Información adicional en móvil */}
               <div className="lg:hidden mt-8">
-                {/* Stock */}
-                <div className="mb-4">
-                  <span
-                    className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      product.stock > 10
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                        : product.stock > 0
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                    }`}
-                  >
-                    {product.stock > 10
-                      ? "En stock"
-                      : product.stock > 0
-                        ? `Quedan ${product.stock} unidades`
-                        : "Agotado"}
-                  </span>
-                </div>
 
                 {/* Categoría */}
                 {product.category && (
@@ -525,7 +528,7 @@ export default function ProductDetailPage() {
               <div>
                 <h1 className="text-3xl font-bold text-[#7BBDC5] font-display mb-2">{product.name}</h1>
 
-                {/* Categoría y stock en desktop */}
+                {/* Categoría en desktop */}
                 <div className="hidden lg:flex items-center justify-between mb-4">
                   {product.category && (
                     <div>
@@ -537,23 +540,6 @@ export default function ProductDetailPage() {
                       </Link>
                     </div>
                   )}
-
-                  {/* Stock */}
-                  <span
-                    className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      product.stock > 10
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                        : product.stock > 0
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                    }`}
-                  >
-                    {product.stock > 10
-                      ? "En stock"
-                      : product.stock > 0
-                        ? `Quedan ${product.stock} unidades`
-                        : "Agotado"}
-                  </span>
                 </div>
 
                 <div className="text-gray-600 dark:text-gray-300 mb-6 text-lg leading-relaxed prose prose-lg dark:prose-invert max-w-none">
@@ -593,19 +579,18 @@ export default function ProductDetailPage() {
                     {variants.map((variant) => {
                       const isSelected = selectedVariant?.id === variant.id
                       const isAvailable = (variant.stock || 0) > 0
-                      
+
                       return (
                         <button
                           key={variant.id}
                           onClick={() => isAvailable && setSelectedVariant(variant)}
                           disabled={!isAvailable}
-                          className={`relative border-2 rounded-lg p-4 text-left transition-all ${
-                            isSelected
-                              ? "border-[#7BBDC5] bg-[#7BBDC5]/5 shadow-md"
-                              : isAvailable
+                          className={`relative border-2 rounded-lg p-4 text-left transition-all ${isSelected
+                            ? "border-[#7BBDC5] bg-[#7BBDC5]/5 shadow-md"
+                            : isAvailable
                               ? "border-gray-200 hover:border-[#7BBDC5]/50 hover:bg-gray-50"
                               : "border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed"
-                          }`}
+                            }`}
                         >
                           <div className="flex gap-3">
                             {variant.image && (
@@ -622,19 +607,6 @@ export default function ProductDetailPage() {
                               <h4 className="font-semibold text-sm truncate">{variant.name}</h4>
                               <p className="text-lg font-bold text-[#7BBDC5] mt-1">
                                 ${(variant.price || 0).toFixed(2)} MXN
-                              </p>
-                              <p className={`text-xs mt-1 ${
-                                (variant.stock || 0) > 10
-                                  ? "text-green-600"
-                                  : (variant.stock || 0) > 0
-                                  ? "text-yellow-600"
-                                  : "text-red-600"
-                              }`}>
-                                {(variant.stock || 0) > 10
-                                  ? "En stock"
-                                  : (variant.stock || 0) > 0
-                                  ? `Solo ${variant.stock} disponibles`
-                                  : "Agotado"}
                               </p>
                               {variant.sku && (
                                 <p className="text-xs text-gray-500 mt-1">SKU: {variant.sku}</p>
@@ -664,43 +636,40 @@ export default function ProductDetailPage() {
                 <div className="flex gap-3">
                   <Button
                     variant={!isSubscription ? "default" : "outline"}
-                    className={`rounded-full px-6 py-3 ${
-                      !isSubscription
-                        ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                        : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                    }`}
+                    className={`rounded-full px-6 py-3 ${!isSubscription
+                      ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                      : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                      }`}
                     onClick={() => setIsSubscription(false)}
                   >
-                    Compra única
+                    Comprar ahora
                   </Button>
                   {product.subscription_available && (
                     <Button
                       variant={isSubscription ? "default" : "outline"}
-                      className={`rounded-full px-6 py-3 ${
-                        isSubscription
-                          ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                          : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                      }`}
+                      className={`rounded-full px-6 py-3 ${isSubscription
+                        ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                        : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                        }`}
                       onClick={() => setIsSubscription(true)}
                     >
-                      Repetir compra
+                      Suscríbete
                     </Button>
                   )}
                 </div>
                 {/* Opciones de suscripción */}
                 {isSubscription && product.subscription_available && (
                   <div className="mt-3">
-                    <h4 className="text-sm font-medium mb-2">Frecuencia de entrega:</h4>
+                    <h4 className="text-sm font-medium mb-2">Recíbelo con descuento:</h4>
                     <div className="flex flex-wrap gap-2 mb-4">
                       {product.subscription_types && product.subscription_types.includes("weekly") && (
                         <Button
                           size="sm"
                           variant={subscriptionType === "weekly" ? "default" : "outline"}
-                          className={`rounded-full ${
-                            subscriptionType === "weekly"
-                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                          }`}
+                          className={`rounded-full ${subscriptionType === "weekly"
+                            ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                            : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                            }`}
                           onClick={() => setSubscriptionType("weekly")}
                         >
                           Cada semana (-{product.weekly_discount || 15}%)
@@ -710,11 +679,10 @@ export default function ProductDetailPage() {
                         <Button
                           size="sm"
                           variant={subscriptionType === "biweekly" ? "default" : "outline"}
-                          className={`rounded-full ${
-                            subscriptionType === "biweekly"
-                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                          }`}
+                          className={`rounded-full ${subscriptionType === "biweekly"
+                            ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                            : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                            }`}
                           onClick={() => setSubscriptionType("biweekly")}
                         >
                           Cada 15 días (-{product.biweekly_discount || 20}%)
@@ -724,11 +692,10 @@ export default function ProductDetailPage() {
                         <Button
                           size="sm"
                           variant={subscriptionType === "monthly" ? "default" : "outline"}
-                          className={`rounded-full ${
-                            subscriptionType === "monthly"
-                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                          }`}
+                          className={`rounded-full ${subscriptionType === "monthly"
+                            ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                            : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                            }`}
                           onClick={() => setSubscriptionType("monthly")}
                         >
                           Cada mes (-{product.monthly_discount || 15}%)
@@ -738,11 +705,10 @@ export default function ProductDetailPage() {
                         <Button
                           size="sm"
                           variant={subscriptionType === "quarterly" ? "default" : "outline"}
-                          className={`rounded-full ${
-                            subscriptionType === "quarterly"
-                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                          }`}
+                          className={`rounded-full ${subscriptionType === "quarterly"
+                            ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                            : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                            }`}
                           onClick={() => setSubscriptionType("quarterly")}
                         >
                           Cada 3 meses (-{product.quarterly_discount || 10}%)
@@ -752,11 +718,10 @@ export default function ProductDetailPage() {
                         <Button
                           size="sm"
                           variant={subscriptionType === "annual" ? "default" : "outline"}
-                          className={`rounded-full ${
-                            subscriptionType === "annual"
-                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                          }`}
+                          className={`rounded-full ${subscriptionType === "annual"
+                            ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                            : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                            }`}
                           onClick={() => setSubscriptionType("annual")}
                         >
                           Cada año (-{product.annual_discount || 5}%)
@@ -841,8 +806,8 @@ export default function ProductDetailPage() {
                         (isVariableProduct && selectedVariant
                           ? selectedVariant.price
                           : selectedSize
-                          ? selectedSize.price
-                          : product.price || 0) *
+                            ? selectedSize.price
+                            : product.price || 0) *
                         quantity *
                         (isSubscription ? 1 - getSubscriptionDiscount() : 1)
                       ).toFixed(2)}{" "}
@@ -878,7 +843,7 @@ export default function ProductDetailPage() {
                     className="p-4 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg"
                   >
                     <div className="whitespace-pre-wrap">
-                      {product.ingredients || "Información no disponible"}
+                      {displayIngredients || "Información no disponible"}
                     </div>
                   </TabsContent>
                   <TabsContent
