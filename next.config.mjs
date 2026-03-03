@@ -3,7 +3,8 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
     // Partytown: mueve GTM/GA a un Web Worker, libera el hilo principal por completo
-    nextScriptWorkers: true,
+    // DISABLED: nextScriptWorkers causes build corruption in Next.js 15.2.6
+    // nextScriptWorkers: true,
   },
 
   images: {
