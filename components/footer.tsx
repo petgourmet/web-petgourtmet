@@ -14,7 +14,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
           {/* Columna logo + redes */}
-          <div className="flex flex-col bg-black/50 rounded-2xl p-5">
+          <div className="flex flex-col bg-[#2a7880] rounded-2xl p-5">
             <Link href="/" className="inline-block mb-4 group">
               <div className="relative">
                 <div className="absolute -inset-2 bg-gradient-radial from-white/20 to-transparent rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -81,7 +81,7 @@ export function Footer() {
           </div>
 
           {/* Tienda — recuadro oscuro */}
-          <div className="bg-black/50 rounded-2xl p-5">
+          <div className="bg-[#2a7880] rounded-2xl p-5">
             <h3 className="font-bold text-white uppercase tracking-wide text-xs border-b border-white/30 pb-2 mb-1">
               Tienda
             </h3>
@@ -110,7 +110,7 @@ export function Footer() {
           </div>
 
           {/* Empresa — recuadro oscuro */}
-          <div className="bg-black/50 rounded-2xl p-5">
+          <div className="bg-[#2a7880] rounded-2xl p-5">
             <h3 className="font-bold text-white uppercase tracking-wide text-xs border-b border-white/30 pb-2 mb-1">
               Empresa
             </h3>
@@ -124,7 +124,7 @@ export function Footer() {
           </div>
 
           {/* Ayuda — recuadro oscuro */}
-          <div className="bg-black/50 rounded-2xl p-5">
+          <div className="bg-[#2a7880] rounded-2xl p-5">
             <h3 className="font-bold text-white uppercase tracking-wide text-xs border-b border-white/30 pb-2 mb-1">
               Ayuda
             </h3>
