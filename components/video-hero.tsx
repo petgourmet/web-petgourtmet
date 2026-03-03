@@ -138,17 +138,7 @@ export function VideoHero() {
         }}
       />
 
-      {/* ══════════════════════════════════════════════════════════════════
-          OVERLAY DEGRADADO  z-10 — aparece junto con el fondo de video
-      ══════════════════════════════════════════════════════════════════ */}
-      <div
-        className="absolute inset-0 z-10 pointer-events-none"
-        style={{
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.4) 50%, rgba(255,255,255,0.65) 100%)",
-          opacity: showBackground ? 1 : 0,
-          transition: "opacity 0.9s ease",
-        }}
-      />
+
 
       {/* ══════════════════════════════════════════════════════════════════
           CAPA LOGO  z-30
