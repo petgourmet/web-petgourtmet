@@ -243,3 +243,4 @@ export function VideoHero() {
     </section>
   )
 }
+// UI/UX Update - Marzo 2026

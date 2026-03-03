@@ -863,3 +863,4 @@ export default function ProductDetailPage() {
     </div>
   )
 }
+// UI/UX Update - Marzo 2026

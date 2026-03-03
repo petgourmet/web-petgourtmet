@@ -207,8 +207,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                 <Button
                   variant={purchaseType === 'single' ? "default" : "outline"}
                   className={`rounded-full px-6 py-3 ${purchaseType === 'single'
-                      ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                      : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                    ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                    : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                     }`}
                   onClick={() => {
                     setPurchaseType('single')
@@ -221,8 +221,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                   <Button
                     variant={purchaseType === 'subscription' ? "default" : "outline"}
                     className={`rounded-full px-6 py-3 ${purchaseType === 'subscription'
-                        ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                        : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                      ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                      : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                       }`}
                     onClick={() => {
                       setPurchaseType('subscription')
@@ -248,8 +248,8 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                           key={type}
                           variant={selectedSubscriptionType === type ? "default" : "outline"}
                           className={`rounded-lg px-4 py-3 text-left flex flex-col items-start h-auto ${selectedSubscriptionType === type
-                              ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                              : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                            ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
+                            : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                             }`}
                           onClick={() => setSelectedSubscriptionType(type)}
                         >
@@ -361,3 +361,4 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
 
   return createPortal(modalContent, document.body)
 }
+// UI/UX Update - Marzo 2026

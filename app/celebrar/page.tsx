@@ -136,3 +136,4 @@ export default function CelebrarPage() {
     </div>
   )
 }
+// UI/UX Update - Marzo 2026

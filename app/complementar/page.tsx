@@ -137,3 +137,4 @@ export default function ComplementarPage() {
     </div>
   )
 }
+// UI/UX Update - Marzo 2026
