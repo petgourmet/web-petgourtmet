@@ -1,10 +1,10 @@
 [build]
-  command = "pnpm build"
+  command = "pnpm install --frozen-lockfile && pnpm build"
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
-  PNPM_VERSION = "9"
+  PNPM_VERSION = "10"
   NODE_OPTIONS = "--max-old-space-size=4096"
 
 [[plugins]]
