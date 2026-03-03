@@ -93,27 +93,29 @@ export default function OrdersAdminPage() {
 
   return (
     <AuthGuard requireAdmin={true}>
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Gestión de Pedidos</h1>
+      <div className="p-3 sm:p-4 md:p-6">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6">Gestión de Pedidos</h1>
 
         {/* Filtros y búsqueda */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
+            <Filter className="h-4 w-4 shrink-0" />
             <select
               value={statusFilter}
               onChange={(e) => handleStatusChange(e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+              className="w-full sm:w-auto rounded-md border border-gray-300 px-3 py-1.5 text-sm"
             >
               <option value="all">Todos los estados</option>
               <option value="pending">Pendiente</option>
               <option value="processing">Procesando</option>
-              <option value="completed">Completado</option>
+              <option value="shipped">En camino</option>
+              <option value="completed">Entregado</option>
               <option value="cancelled">Cancelado</option>
+              <option value="refunded">Reembolsado</option>
             </select>
           </div>
 
-          <form onSubmit={handleSearch} className="flex w-full max-w-sm items-center gap-2">
+          <form onSubmit={handleSearch} className="flex w-full md:max-w-sm items-center gap-2">
             <input
               type="text"
               placeholder="Buscar por ID..."
@@ -123,7 +125,7 @@ export default function OrdersAdminPage() {
             />
             <button
               type="submit"
-              className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-sm text-white"
+              className="inline-flex shrink-0 items-center rounded-md bg-primary px-3 py-1.5 text-sm text-white"
             >
               <Search className="mr-2 h-4 w-4" />
               Buscar
@@ -147,65 +149,113 @@ export default function OrdersAdminPage() {
           </div>
         ) : (
           <>
-            {/* Tabla de pedidos */}
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="p-3 text-left font-semibold">ID</th>
-                    <th className="p-3 text-left font-semibold">Cliente</th>
-                    <th className="p-3 text-left font-semibold">Email</th>
-                    <th className="p-3 text-left font-semibold">Fecha</th>
-                    <th className="p-3 text-center font-semibold">Estado del Pago</th>
-                    <th className="p-3 text-center font-semibold">Estado del Pedido</th>
-                    <th className="p-3 text-right font-semibold">Total</th>
-                    <th className="p-3 text-center font-semibold">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                        No se encontraron pedidos
-                      </td>
+            {/* Contenedor de pedidos: Tabla en Desktop, Tarjetas en Móvil */}
+            <div className="rounded-md border bg-white">
+              {/* Vista Desktop (Tabla) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="p-3 text-left font-semibold">ID</th>
+                      <th className="p-3 text-left font-semibold">Cliente</th>
+                      <th className="p-3 text-left font-semibold">Email</th>
+                      <th className="p-3 text-left font-semibold">Fecha</th>
+                      <th className="p-3 text-center font-semibold">Estado del Pago</th>
+                      <th className="p-3 text-center font-semibold">Estado del Pedido</th>
+                      <th className="p-3 text-right font-semibold">Total</th>
+                      <th className="p-3 text-center font-semibold">Acciones</th>
                     </tr>
-                  ) : (
-                    orders.map((order) => {
-                      return (
-                        <tr key={order.id} className="border-b hover:bg-gray-50 transition-colors">
-                          <td className="p-3 font-medium">#{order.id}</td>
-                          <td className="p-3">
-                            <div className="font-medium text-gray-900">
-                              {order.customer_name || "Cliente anónimo"}
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            <div className="text-gray-600 text-xs">
-                              {order.customer_email || "No especificado"}
-                            </div>
-                          </td>
-                          <td className="p-3 text-xs text-gray-600">{formatDate(order.created_at)}</td>
-                          <td className="p-3 text-center">
-                            <PaymentStatusBadge status={order.payment_status || 'pending'} />
-                          </td>
-                          <td className="p-3 text-center">
-                            <OrderStatusBadge status={order.status} />
-                          </td>
-                          <td className="p-3 text-right font-semibold">{formatCurrency(order.total || 0)}</td>
-                          <td className="p-3 text-center">
-                            <Link
-                              href={`/admin/orders/${order.id}`}
-                              className="inline-flex items-center rounded-md bg-[#78b7bf] hover:bg-[#6aa5ad] px-3 py-1.5 text-xs font-medium text-white transition-colors"
-                            >
-                              Ver detalles
-                            </Link>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {orders.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                          No se encontraron pedidos
+                        </td>
+                      </tr>
+                    ) : (
+                      orders.map((order) => {
+                        return (
+                          <tr key={order.id} className="border-b hover:bg-gray-50 transition-colors">
+                            <td className="p-3 font-medium">#{order.id}</td>
+                            <td className="p-3">
+                              <div className="font-medium text-gray-900">
+                                {order.customer_name || "Cliente anónimo"}
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <div className="text-gray-600 text-xs">
+                                {order.customer_email || "No especificado"}
+                              </div>
+                            </td>
+                            <td className="p-3 text-xs text-gray-600">{formatDate(order.created_at)}</td>
+                            <td className="p-3 text-center">
+                              <PaymentStatusBadge status={order.payment_status || 'pending'} />
+                            </td>
+                            <td className="p-3 text-center">
+                              <OrderStatusBadge status={order.status} />
+                            </td>
+                            <td className="p-3 text-right font-semibold">{formatCurrency(order.total || 0)}</td>
+                            <td className="p-3 text-center">
+                              <Link
+                                href={`/admin/orders/${order.id}`}
+                                className="inline-flex items-center rounded-md bg-[#78b7bf] hover:bg-[#6aa5ad] px-3 py-1.5 text-xs font-medium text-white transition-colors"
+                              >
+                                Ver detalles
+                              </Link>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Vista Móvil Vertical (Tarjetas) */}
+              <div className="block md:hidden">
+                {orders.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    No se encontraron pedidos
+                  </div>
+                ) : (
+                  orders.map((order) => (
+                    <div key={order.id} className="p-3 border-b last:border-b-0 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-1">
+                        <div className="min-w-0">
+                          <span className="inline-block font-semibold text-gray-900 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] bg-gray-50 shadow-sm">#{order.id}</span>
+                          <div className="font-medium text-gray-900 mt-1 truncate text-sm">{order.customer_name || "Cliente anónimo"}</div>
+                          <div className="text-gray-500 text-[11px] truncate leading-tight" title={order.customer_email || "No especificado"}>{order.customer_email || "No especificado"}</div>
+                        </div>
+                        <div className="text-left sm:text-right shrink-0 mt-0.5 sm:mt-0">
+                          <div className="font-bold text-base text-primary leading-none">{formatCurrency(order.total || 0)}</div>
+                          <div className="text-gray-400 text-[10px] mt-1 sm:mt-0.5">{formatDate(order.created_at)}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Pago</span>
+                          <div className="scale-90 origin-right"><PaymentStatusBadge status={order.payment_status || 'pending'} /></div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Estado</span>
+                          <div className="scale-90 origin-right"><OrderStatusBadge status={order.status} /></div>
+                        </div>
+                      </div>
+
+                      <div className="pt-1.5">
+                        <Link
+                          href={`/admin/orders/${order.id}`}
+                          className="flex w-full justify-center items-center rounded bg-[#78b7bf] hover:bg-[#6aa5ad] px-3 py-1.5 text-xs font-semibold text-white transition-all shadow-sm active:scale-95"
+                        >
+                          Ver detalles del pedido
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Paginación */}
@@ -256,6 +306,10 @@ function OrderStatusBadge({ status }: { status: string }) {
       bgColor = "bg-[#78b7bf]/20 text-[#5c9ca4] border border-[#78b7bf]/40"
       icon = "✅"
       break
+    case "shipped":
+      bgColor = "bg-indigo-100 text-indigo-800 border border-indigo-300"
+      icon = "🚚"
+      break
     case "processing":
       bgColor = "bg-blue-100 text-blue-800 border border-blue-300"
       icon = "🔄"
@@ -264,6 +318,10 @@ function OrderStatusBadge({ status }: { status: string }) {
       bgColor = "bg-red-100 text-red-800 border border-red-300"
       icon = "❌"
       break
+    case "refunded":
+      bgColor = "bg-orange-100 text-orange-800 border border-orange-300"
+      icon = "💸"
+      break
     case "pending":
       bgColor = "bg-yellow-100 text-yellow-800 border border-yellow-300"
       icon = "⏳"
@@ -271,10 +329,12 @@ function OrderStatusBadge({ status }: { status: string }) {
   }
 
   const statusText =
-    status === "completed" ? "Completado" :
-      status === "processing" ? "Procesando" :
-        status === "cancelled" ? "Cancelado" :
-          status === "pending" ? "Pendiente" : status
+    status === "completed" ? "Entregado" :
+      status === "shipped" ? "En camino" :
+        status === "processing" ? "Procesando" :
+          status === "cancelled" ? "Cancelado" :
+            status === "refunded" ? "Reembolsado" :
+              status === "pending" ? "Pendiente" : status
 
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${bgColor}`}>

@@ -200,14 +200,14 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           .select('role')
           .eq('id', session.user.id)
           .single()
-        
+
         if (profileError) {
           console.error('Error verificando rol de usuario:', profileError)
           setIsAdmin(false)
         } else {
           setIsAdmin(profile?.role === 'admin')
         }
-        
+
         console.log("Estado de autenticación:", {
           isAuthenticated: true,
           isAdmin: profile?.role === 'admin',
@@ -350,7 +350,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           // Cargar tipo de producto y variantes si existen
           if (productData?.product_type === 'variable') {
             setProductType('variable')
-            
+
             try {
               const { data: variantsData } = await supabase
                 .from("product_variants")
@@ -544,7 +544,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
   const handleVariantCountChange = (count: number) => {
     const newCount = Math.max(1, Math.min(20, count)) // Limitar entre 1 y 20
     setVariantCount(newCount)
-    
+
     const currentVariants = [...variants]
     if (newCount > currentVariants.length) {
       // Agregar nuevas variantes vacías
@@ -570,8 +570,8 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
     const newVariants = [...variants]
     newVariants[index] = {
       ...newVariants[index],
-      [field]: field === 'price' || field === 'stock' 
-        ? (value === "" ? 0 : Number.parseFloat(value) || 0) 
+      [field]: field === 'price' || field === 'stock'
+        ? (value === "" ? 0 : Number.parseFloat(value) || 0)
         : value
     }
     setVariants(newVariants)
@@ -678,7 +678,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
       // Validar y limpiar descuentos según tipos de suscripción seleccionados
       const cleanedProduct = { ...product }
       const selectedSubscriptionTypes = product.subscription_types || []
-      
+
       // Solo mantener descuentos para tipos de suscripción seleccionados
       if (!selectedSubscriptionTypes.includes('weekly')) {
         delete cleanedProduct.weekly_discount
@@ -730,21 +730,21 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
       if (isNew) {
         // Crear nuevo producto
         console.log("Creando nuevo producto...")
-        
+
         // Validar que tenemos datos mínimos requeridos
         if (!productData.name || !productData.name.trim()) {
           throw new Error("El nombre del producto es requerido")
         }
-        
+
         if (!productData.slug || !productData.slug.trim()) {
           throw new Error("El slug del producto es requerido")
         }
-        
+
         // Validar que el precio sea válido
         if (productData.price < 0) {
           throw new Error("El precio del producto debe ser mayor o igual a 0")
         }
-        
+
         // Limpiar datos undefined y null, pero mantener strings vacíos para campos requeridos
         const cleanProductData = Object.fromEntries(
           Object.entries(productData).filter(([key, value]) => {
@@ -757,12 +757,12 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             return value !== undefined && value !== null && value !== ''
           })
         )
-        
+
         // Verificar que tenemos datos para insertar
         if (Object.keys(cleanProductData).length === 0) {
           throw new Error("No hay datos válidos para crear el producto")
         }
-        
+
         console.log("Datos del nuevo producto:", {
           originalData: productData,
           cleanedData: cleanProductData,
@@ -775,7 +775,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             slug: product.slug
           }
         })
-        
+
         const { data, error } = await supabase.from("products").insert([cleanProductData]).select()
 
         if (error) {
@@ -789,38 +789,38 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             dataKeys: Object.keys(cleanProductData),
             dataValues: Object.values(cleanProductData)
           })
-          throw { 
+          throw {
             message: `Error al insertar producto: ${error.message || 'Error desconocido'}`,
             originalError: error,
             type: 'INSERT_ERROR'
           }
         }
-        
+
         if (!data || data.length === 0) {
           throw new Error("No se recibieron datos del producto creado")
         }
-        
+
         productId = data[0].id
         console.log("Producto creado con ID:", productId)
       } else {
         // Actualizar producto existente
         productId = Number.parseInt(resolvedParams.id)
         console.log("Actualizando producto existente con ID:", productId)
-        
+
         // Validar que el productId sea válido
         if (!productId || isNaN(productId)) {
           throw new Error(`ID de producto inválido: ${resolvedParams.id}`)
         }
-        
+
         // Validar que tenemos datos mínimos requeridos
         if (!productData.name || !productData.name.trim()) {
           throw new Error("El nombre del producto es requerido")
         }
-        
+
         if (!productData.slug || !productData.slug.trim()) {
           throw new Error("El slug del producto es requerido")
         }
-        
+
         // Limpiar datos undefined y null, pero mantener strings vacíos para campos requeridos
         const cleanProductData = Object.fromEntries(
           Object.entries(productData).filter(([key, value]) => {
@@ -833,12 +833,12 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             return value !== undefined && value !== null && value !== ''
           })
         )
-        
+
         // Verificar que tenemos datos para actualizar
         if (Object.keys(cleanProductData).length === 0) {
           throw new Error("No hay datos válidos para actualizar el producto")
         }
-        
+
         console.log("Datos del producto a actualizar:", {
           productId,
           originalData: productData,
@@ -852,7 +852,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             slug: product.slug
           }
         })
-        
+
         const { error } = await supabase.from("products").update(cleanProductData).eq("id", productId)
 
         if (error) {
@@ -867,7 +867,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
             dataKeys: Object.keys(cleanProductData),
             dataValues: Object.values(cleanProductData)
           })
-          throw { 
+          throw {
             message: `Error al actualizar producto: ${error.message || 'Error desconocido'}`,
             originalError: error,
             type: 'UPDATE_ERROR'
@@ -913,7 +913,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         if (!isNew) {
           console.log("Eliminando características existentes...")
           const { error: deleteError } = await supabase.from("product_features").delete().eq("product_id", productId)
-          
+
           // Si la tabla no existe, simplemente continuar
           if (deleteError && deleteError.code !== 'PGRST116' && deleteError.code !== '42P01') {
             throw deleteError
@@ -1184,7 +1184,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
         customErrorType: error?.type,
         originalError: error?.originalError
       })
-      
+
       // Mensaje de error más específico
       let errorMessage = "Error desconocido"
       if (error?.message) {
@@ -1205,7 +1205,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
           errorMessage = errorInfo !== '{}' ? errorInfo : "Error sin información específica"
         }
       }
-      
+
       toast({
         title: "Error al guardar producto",
         description: `No se pudo guardar el producto: ${errorMessage}`,
@@ -1253,8 +1253,8 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
 
   return (
     <div>
-      <div className="mb-6 flex items-center">
-        <Link href="/admin/products" className="mr-4">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
+        <Link href="/admin/products" className="w-fit mr-0 sm:mr-4">
           <Button variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
           </Button>
@@ -1293,17 +1293,17 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
       <Alert className="mb-6">
         <Info className="h-4 w-4" />
         <AlertTitle>Vista previa del producto</AlertTitle>
-        <AlertDescription>
+        <AlertDescription className="text-secondary-foreground">
           Puedes ver cómo se verá el producto en la tienda en la pestaña "Vista previa".
         </AlertDescription>
       </Alert>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="basic">Información Básica</TabsTrigger>
-          <TabsTrigger value="images">Imágenes</TabsTrigger>
-          <TabsTrigger value="details">Detalles</TabsTrigger>
-          <TabsTrigger value="preview">Vista Previa</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto gap-2">
+          <TabsTrigger value="basic" className="py-2 text-xs md:text-sm">Información Básica</TabsTrigger>
+          <TabsTrigger value="images" className="py-2 text-xs md:text-sm">Imágenes</TabsTrigger>
+          <TabsTrigger value="details" className="py-2 text-xs md:text-sm">Detalles</TabsTrigger>
+          <TabsTrigger value="preview" className="py-2 text-xs md:text-sm">Vista Previa</TabsTrigger>
         </TabsList>
         <TabsContent value="basic">
           <Card>
@@ -1532,12 +1532,12 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                               {type === "weekly"
                                 ? "Semanal"
                                 : type === "biweekly"
-                                ? "Quincenal"
-                                : type === "monthly"
-                                  ? "Mensual"
-                                  : type === "quarterly"
-                                    ? "Trimestral"
-                                    : "Anual"}
+                                  ? "Quincenal"
+                                  : type === "monthly"
+                                    ? "Mensual"
+                                    : type === "quarterly"
+                                      ? "Trimestral"
+                                      : "Anual"}
                             </Label>
                           </div>
                         ))}
@@ -1715,7 +1715,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                     <h3 className="text-lg font-semibold">Variantes del Producto</h3>
                     <p className="text-sm text-muted-foreground">{variantCount} {variantCount === 1 ? 'variante' : 'variantes'}</p>
                   </div>
-                  
+
                   <div className="space-y-6">
                     {variants.slice(0, variantCount).map((variant, index) => (
                       <Card key={index} className="border-2">
@@ -2129,9 +2129,8 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                             .map((size, idx) => (
                               <button
                                 key={idx}
-                                className={`rounded-full px-4 py-2 border border-primary ${
-                                  idx === 0 ? "bg-primary text-white" : "text-primary"
-                                }`}
+                                className={`rounded-full px-4 py-2 border border-primary ${idx === 0 ? "bg-primary text-white" : "text-primary"
+                                  }`}
                               >
                                 {size.weight} - €{size.price?.toFixed(2)}
                               </button>
@@ -2224,7 +2223,7 @@ export default function ProductForm({ params }: { params: Promise<{ id: string }
                           </TabsContent>
                           <TabsContent value="nutritional" className="p-4 text-sm text-gray-600">
                             <div className="whitespace-pre-wrap">
-                              {product.nutritional_info || "Información no disponible"}  
+                              {product.nutritional_info || "Información no disponible"}
                             </div>
                           </TabsContent>
                         </Tabs>

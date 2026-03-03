@@ -85,13 +85,13 @@ export default function BlogsPage() {
   }
 
   return (
-    <div>
+    <div className="p-3 sm:p-4 md:p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Blogs</h1>
         <div className="flex space-x-2">
           <Link href="/admin/blogs/new">
             <Button>
-              <Plus className="mr-2 h-4 w-4" /> Nuevo Blog
+              <Plus className="h-4 w-4 md:mr-2" /> <span className="hidden md:inline">Nuevo Blog</span>
             </Button>
           </Link>
           <Link href="/admin/add-blog-columns">
@@ -129,81 +129,134 @@ export default function BlogsPage() {
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[80px]">Imagen</TableHead>
-              <TableHead>Título</TableHead>
-              <TableHead>Categoría</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+      <div className="rounded-md border bg-white">
+        <div className="hidden md:block overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
-                </TableCell>
+                <TableHead className="w-[80px]">Imagen</TableHead>
+                <TableHead>Título</TableHead>
+                <TableHead>Categoría</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
-            ) : blogs.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-gray-500">
-                  No se encontraron blogs
-                </TableCell>
-              </TableRow>
-            ) : (
-              blogs.map((blog) => (
-                <TableRow key={blog.id}>
-                  <TableCell>
-                    <div className="relative h-10 w-10 overflow-hidden rounded-md">
-                      <Image
-                        src={blog.cover_image || "/placeholder.svg"}
-                        alt={blog.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{blog.title}</TableCell>
-                  <TableCell>{blog.category?.name || "Sin categoría"}</TableCell>
-                  <TableCell>
-                    {blog.created_at ? format(new Date(blog.created_at), "dd/MM/yyyy") : "Sin fecha"}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800">
-                      Creado
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Link href={`/blog/${blog.slug}`} target="_blank">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Link href={`/admin/blogs/${blog.id}`}>
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-500 hover:bg-red-50 hover:text-red-600"
-                        onClick={() => handleDeleteBlog(blog.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : blogs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-gray-500">
+                    No se encontraron blogs
+                  </TableCell>
+                </TableRow>
+              ) : (
+                blogs.map((blog) => (
+                  <TableRow key={blog.id}>
+                    <TableCell>
+                      <div className="relative h-10 w-10 overflow-hidden rounded-md">
+                        <Image
+                          src={blog.cover_image || "/placeholder.svg"}
+                          alt={blog.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{blog.title}</TableCell>
+                    <TableCell>{blog.category?.name || "Sin categoría"}</TableCell>
+                    <TableCell>
+                      {blog.created_at ? format(new Date(blog.created_at), "dd/MM/yyyy") : "Sin fecha"}
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800">
+                        Creado
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Link href={`/blog/${blog.slug}`} target="_blank">
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Link href={`/admin/blogs/${blog.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                          onClick={() => handleDeleteBlog(blog.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="block md:hidden">
+          {loading ? (
+            <div className="p-6 text-center">
+              <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : blogs.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              No se encontraron blogs
+            </div>
+          ) : (
+            blogs.map((blog) => (
+              <div key={blog.id} className="p-3 border-b last:border-b-0 space-y-2.5">
+                <div className="flex items-start gap-3">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-gray-100">
+                    <Image src={blog.cover_image || "/placeholder.svg"} alt={blog.title} fill className="object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-1">
+                      <h3 className="font-semibold text-sm text-gray-900 leading-tight line-clamp-2">{blog.title}</h3>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-gray-500 font-medium truncate shrink">{blog.category?.name || "Sin cat."}</span>
+                      <span className="text-[10px] text-gray-400 shrink-0 ml-2">{blog.created_at ? format(new Date(blog.created_at), "dd/MM/yy") : ""}</span>
+                    </div>
+                    <div className="mt-1">
+                      <span className="inline-flex rounded-sm px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-blue-100 text-blue-800">
+                        Creado
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-gray-50">
+                  <Link href={`/blog/${blog.slug}`} target="_blank">
+                    <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-gray-600">
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
+                  <Link href={`/admin/blogs/${blog.id}`} className="flex-1 max-w-[120px]">
+                    <Button variant="outline" size="sm" className="h-7 w-full px-2 text-xs">
+                      <Edit className="h-3.5 w-3.5 mr-1" /> Editar
+                    </Button>
+                  </Link>
+                  <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600" onClick={() => handleDeleteBlog(blog.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {totalPages > 1 && (

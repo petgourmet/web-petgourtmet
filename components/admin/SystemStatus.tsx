@@ -6,16 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import { 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  RefreshCw, 
-  Clock, 
-  Database, 
-  CreditCard, 
-  Mail, 
-  Image, 
+import {
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  RefreshCw,
+  Clock,
+  Database,
+  CreditCard,
+  Mail,
+  Image,
   Webhook,
   Activity,
   Server
@@ -91,7 +91,7 @@ const formatUptime = (seconds: number): string => {
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  
+
   if (days > 0) {
     return `${days}d ${hours}h ${minutes}m`;
   } else if (hours > 0) {
@@ -118,10 +118,10 @@ export default function SystemStatus() {
       setLoading(true);
       const response = await fetch('/api/health');
       const data: HealthResponse = await response.json();
-      
+
       setHealthData(data);
       setLastUpdated(new Date());
-      
+
       if (data.status === 'unhealthy') {
         toast.error('Algunos servicios del sistema están experimentando problemas');
       } else if (data.status === 'degraded') {
@@ -188,24 +188,24 @@ export default function SystemStatus() {
       {/* Header con controles */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Estado del Sistema
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="w-full break-words min-w-0">
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                <Activity className="h-5 w-5 shrink-0" />
+                <span className="truncate">Estado del Sistema</span>
                 {healthData && (
-                  <Badge 
-                    variant={healthData.status === 'healthy' ? 'default' : 
-                            healthData.status === 'degraded' ? 'secondary' : 'destructive'}
-                    className="ml-2"
+                  <Badge
+                    variant={healthData.status === 'healthy' ? 'default' :
+                      healthData.status === 'degraded' ? 'secondary' : 'destructive'}
+                    className="ml-auto md:ml-0 shrink-0"
                   >
                     {healthData.status === 'healthy' ? 'Saludable' :
-                     healthData.status === 'degraded' ? 'Degradado' : 'Crítico'}
+                      healthData.status === 'degraded' ? 'Degradado' : 'Crítico'}
                   </Badge>
                 )}
               </CardTitle>
-              <CardDescription>
-                Monitoreo en tiempo real de todos los servicios del sistema
+              <CardDescription className="mt-1.5">
+                <span className="block break-words">Monitoreo en tiempo real de todos los servicios del sistema</span>
                 {lastUpdated && (
                   <span className="block text-xs mt-1">
                     Última actualización: {lastUpdated.toLocaleTimeString()}
@@ -213,66 +213,67 @@ export default function SystemStatus() {
                 )}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex md:flex-wrap md:items-center">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={toggleAutoRefresh}
-                className={autoRefresh ? 'bg-green-50 border-green-200' : ''}
+                className={`w-full md:w-auto px-2 ${autoRefresh ? 'bg-green-50 border-green-200' : ''}`}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-                Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+                <RefreshCw className={`h-4 w-4 mr-1.5 shrink-0 ${autoRefresh ? 'animate-spin' : ''}`} />
+                <span className="truncate text-xs sm:text-sm">Auto {autoRefresh ? 'ON' : 'OFF'}</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
                 disabled={loading}
+                className="w-full md:w-auto px-2"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Actualizar
+                <RefreshCw className={`h-4 w-4 mr-1.5 shrink-0 ${loading ? 'animate-spin' : ''}`} />
+                <span className="truncate text-xs sm:text-sm">Actualizar</span>
               </Button>
             </div>
           </div>
         </CardHeader>
-        
+
         {healthData && (
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="text-center p-2 bg-gray-50/50 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-green-600">
                   {healthData.summary.healthy}
                 </div>
-                <div className="text-sm text-muted-foreground">Saludables</div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1 text-balance">Saludables</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">
+              <div className="text-center p-2 bg-gray-50/50 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-yellow-600">
                   {healthData.summary.degraded}
                 </div>
-                <div className="text-sm text-muted-foreground">Degradados</div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1 text-balance">Degradados</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
+              <div className="text-center p-2 bg-gray-50/50 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-red-600">
                   {healthData.summary.unhealthy}
                 </div>
-                <div className="text-sm text-muted-foreground">Críticos</div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1 text-balance">Críticos</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">
+              <div className="text-center p-2 bg-gray-50/50 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold truncate">
                   {formatUptime(healthData.uptime)}
                 </div>
-                <div className="text-sm text-muted-foreground">Tiempo activo</div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-1 text-balance">Tiempo activo</div>
               </div>
             </div>
-            
+
             <Separator className="my-4" />
-            
+
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>Progreso general del sistema</span>
               <span>{Math.round((healthData.summary.healthy / healthData.summary.total) * 100)}%</span>
             </div>
-            <Progress 
-              value={(healthData.summary.healthy / healthData.summary.total) * 100} 
+            <Progress
+              value={(healthData.summary.healthy / healthData.summary.total) * 100}
               className="mt-2"
             />
           </CardContent>
@@ -285,7 +286,7 @@ export default function SystemStatus() {
           {healthData.checks.map((check, index) => (
             <Card key={index} className="relative">
               <div className={`absolute top-0 left-0 w-1 h-full rounded-l-lg ${getStatusColor(check.status)}`} />
-              
+
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -296,46 +297,46 @@ export default function SystemStatus() {
                   </div>
                   <div className="flex items-center gap-2">
                     {getStatusIcon(check.status)}
-                    <Badge 
-                      variant={check.status === 'healthy' ? 'default' : 
-                              check.status === 'degraded' ? 'secondary' : 'destructive'}
+                    <Badge
+                      variant={check.status === 'healthy' ? 'default' :
+                        check.status === 'degraded' ? 'secondary' : 'destructive'}
                       className="text-xs"
                     >
                       {check.status === 'healthy' ? 'OK' :
-                       check.status === 'degraded' ? 'WARN' : 'ERROR'}
+                        check.status === 'degraded' ? 'WARN' : 'ERROR'}
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="pt-0">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {check.responseTime && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tiempo de respuesta:</span>
-                      <span className={check.responseTime > 1000 ? 'text-yellow-600' : 'text-green-600'}>
+                    <div className="flex flex-wrap flex-col xs:flex-row sm:justify-between text-sm gap-1">
+                      <span className="text-muted-foreground truncate">Tiempo de respuesta:</span>
+                      <span className={`font-medium ${check.responseTime > 1000 ? 'text-yellow-600' : 'text-green-600'}`}>
                         {formatResponseTime(check.responseTime)}
                       </span>
                     </div>
                   )}
-                  
+
                   {check.error && (
                     <div className="text-sm">
-                      <span className="text-muted-foreground">Error:</span>
-                      <div className="text-red-600 text-xs mt-1 p-2 bg-red-50 rounded border">
+                      <span className="text-muted-foreground block mb-1">Error:</span>
+                      <div className="text-red-600 text-xs p-2 bg-red-50 rounded border overflow-x-auto break-words whitespace-pre-wrap">
                         {check.error}
                       </div>
                     </div>
                   )}
-                  
+
                   {check.details && (
                     <div className="text-sm">
-                      <span className="text-muted-foreground">Detalles:</span>
-                      <div className="text-xs mt-1 p-2 bg-gray-50 rounded border">
+                      <span className="text-muted-foreground block mb-1">Detalles:</span>
+                      <div className="text-xs p-2 bg-gray-50 rounded border flex flex-col gap-1 overflow-hidden">
                         {Object.entries(check.details).map(([key, value]) => (
-                          <div key={key} className="flex justify-between">
-                            <span className="capitalize">{key.replace('_', ' ')}:</span>
-                            <span className="font-mono">
+                          <div key={key} className="flex justify-between items-center gap-2">
+                            <span className="capitalize text-muted-foreground truncate shrink max-w-[60%]">{key.replace('_', ' ')}:</span>
+                            <span className="font-mono text-right truncate flex-1 font-medium" title={String(value)}>
                               {typeof value === 'boolean' ? (value ? '✓' : '✗') : String(value)}
                             </span>
                           </div>
@@ -349,26 +350,26 @@ export default function SystemStatus() {
           ))}
         </div>
       )}
-      
+
       {/* Información adicional */}
       {healthData && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Información del Sistema</CardTitle>
+            <CardTitle className="text-base truncate">Información del Sistema</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Versión:</span>
-                <div className="font-mono">{healthData.version}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-4 text-sm">
+              <div className="overflow-hidden">
+                <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Versión</span>
+                <div className="font-mono truncate font-medium">{healthData.version}</div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Última verificación:</span>
-                <div className="font-mono">{new Date(healthData.timestamp).toLocaleString()}</div>
+              <div className="overflow-hidden">
+                <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Última verificación</span>
+                <div className="font-mono truncate font-medium">{new Date(healthData.timestamp).toLocaleString()}</div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Servicios monitoreados:</span>
-                <div className="font-mono">{healthData.summary.total}</div>
+              <div className="overflow-hidden">
+                <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Servicios monitoreados</span>
+                <div className="font-mono truncate font-medium text-lg text-primary">{healthData.summary.total}</div>
               </div>
             </div>
           </CardContent>

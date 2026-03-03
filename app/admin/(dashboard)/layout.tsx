@@ -11,7 +11,7 @@ export default function AdminDashboardLayout({
     <AuthGuard requireAdmin={true}>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="flex-1 overflow-auto p-5">{children}</div>
+        <div className="flex-1 overflow-auto bg-gray-50/10 dark:bg-gray-900/10 shadow-inner">{children}</div>
       </div>
     </AuthGuard>
   )

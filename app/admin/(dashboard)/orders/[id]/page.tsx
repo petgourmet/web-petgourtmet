@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
-import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail, Clock, Calendar, CreditCard, Pause, Play, Square } from "lucide-react"
+import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail, Clock, Calendar, CreditCard, Pause, Play, Square, Users, AlertTriangle } from "lucide-react"
 import { AuthGuard } from "@/components/admin/auth-guard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
@@ -85,7 +85,7 @@ export default function OrderDetailPage() {
 
       // Actualizar el pedido en el estado
       setOrder({ ...order, status })
-      
+
       // Mostrar mensaje de éxito con confirmación de email
       toast.success(
         `Estado actualizado a ${getStatusLabel(status)}`,
@@ -110,9 +110,11 @@ export default function OrderDetailPage() {
   function getStatusLabel(status: string) {
     const labels: Record<string, string> = {
       pending: "Pendiente",
-      processing: "Procesando", 
-      completed: "Completado",
-      cancelled: "Cancelado"
+      processing: "Procesando",
+      shipped: "En camino",
+      completed: "Entregado",
+      cancelled: "Cancelado",
+      refunded: "Reembolsado"
     }
     return labels[status] || status
   }
@@ -123,13 +125,13 @@ export default function OrderDetailPage() {
     if (amount === null || amount === undefined || isNaN(amount)) {
       return '$0'
     }
-    
+
     // Asegurar que el monto sea un número válido
     const validAmount = typeof amount === 'number' ? amount : parseFloat(String(amount))
     if (isNaN(validAmount)) {
       return '$0'
     }
-    
+
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
       currency: "COP",
@@ -201,455 +203,475 @@ export default function OrderDetailPage() {
     return (
       <AuthGuard requireAdmin={true}>
         <div className="p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <button
                 onClick={() => router.back()}
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+                className="inline-flex w-fit items-center text-sm text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="mr-1 h-4 w-4" />
                 Volver
               </button>
               <h1 className="text-2xl font-bold">Pedido #{typeof order.id === 'string' ? order.id.substring(0, 8) : order.id}</h1>
             </div>
-          <div className="flex items-center gap-2">
-            <OrderStatusBadge status={order.status} />
-            <PaymentStatusBadge status={order.payment_status} />
-            <button
-              onClick={() => fetchOrderDetails(order.id)}
-              disabled={loading}
-              className="inline-flex items-center rounded-md bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-100 disabled:opacity-50 transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : (
-                <Clock className="mr-1 h-4 w-4" />
-              )}
-              Actualizar
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <OrderStatusBadge status={order.status} />
+              <PaymentStatusBadge status={order.payment_status} />
+              <button
+                onClick={() => fetchOrderDetails(order.id)}
+                disabled={loading}
+                className="inline-flex items-center rounded-md bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+              >
+                {loading ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Clock className="mr-1 h-4 w-4" />
+                )}
+                Actualizar
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Resumen de Estado del Pago */}
-        <div className="mb-6">
-          <Card className={`border-2 ${
-            order.payment_status === 'paid' || order.payment_status === 'approved' 
-              ? 'border-green-200 bg-green-50' 
+          {/* Resumen de Estado del Pago */}
+          <div className="mb-6">
+            <Card className={`border-2 ${order.payment_status === 'paid' || order.payment_status === 'approved'
+              ? 'border-green-200 bg-green-50'
               : order.payment_status === 'pending' || order.payment_status === 'in_process'
                 ? 'border-yellow-200 bg-yellow-50'
                 : order.payment_status === 'failed' || order.payment_status === 'rejected'
                   ? 'border-red-200 bg-red-50'
                   : 'border-gray-200 bg-gray-50'
-          }`}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-full ${
-                    order.payment_status === 'paid' || order.payment_status === 'approved' 
-                      ? 'bg-green-100' 
+              }`}>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className={`p-2 sm:p-3 shrink-0 rounded-full ${order.payment_status === 'paid' || order.payment_status === 'approved'
+                      ? 'bg-green-100'
                       : order.payment_status === 'pending' || order.payment_status === 'in_process'
                         ? 'bg-yellow-100'
                         : order.payment_status === 'failed' || order.payment_status === 'rejected'
                           ? 'bg-red-100'
                           : 'bg-gray-100'
-                  }`}>
-                    {order.payment_status === 'paid' || order.payment_status === 'approved' ? (
-                      <CheckCircle className="h-6 w-6 text-green-600" />
-                    ) : order.payment_status === 'pending' || order.payment_status === 'in_process' ? (
-                      <Clock className="h-6 w-6 text-yellow-600" />
-                    ) : order.payment_status === 'failed' || order.payment_status === 'rejected' ? (
-                      <XCircle className="h-6 w-6 text-red-600" />
-                    ) : (
-                      <Clock className="h-6 w-6 text-gray-600" />
-                    )}
+                      }`}>
+                      {order.payment_status === 'paid' || order.payment_status === 'approved' ? (
+                        <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                      ) : order.payment_status === 'pending' || order.payment_status === 'in_process' ? (
+                        <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
+                      ) : order.payment_status === 'failed' || order.payment_status === 'rejected' ? (
+                        <XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
+                      ) : (
+                        <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold">
+                        {order.payment_status === 'paid' || order.payment_status === 'approved'
+                          ? '✅ Pago Confirmado'
+                          : order.payment_status === 'pending' || order.payment_status === 'in_process'
+                            ? '⏳ Pago Pendiente'
+                            : order.payment_status === 'failed' || order.payment_status === 'rejected'
+                              ? '❌ Pago Fallido'
+                              : '❓ Estado Desconocido'
+                        }
+                      </h2>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                        {order.payment_status === 'paid' || order.payment_status === 'approved'
+                          ? 'El pago ha sido procesado exitosamente'
+                          : order.payment_status === 'pending' || order.payment_status === 'in_process'
+                            ? 'El pago está siendo procesado o pendiente de confirmación'
+                            : order.payment_status === 'failed' || order.payment_status === 'rejected'
+                              ? 'El pago no pudo ser procesado'
+                              : 'Verificar estado del pago manualmente'
+                        }
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {order.payment_status === 'paid' || order.payment_status === 'approved' 
-                        ? '✅ Pago Confirmado' 
-                        : order.payment_status === 'pending' || order.payment_status === 'in_process'
-                          ? '⏳ Pago Pendiente'
-                          : order.payment_status === 'failed' || order.payment_status === 'rejected'
-                            ? '❌ Pago Fallido'
-                            : '❓ Estado Desconocido'
-                      }
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {order.payment_status === 'paid' || order.payment_status === 'approved' 
-                        ? 'El pago ha sido procesado exitosamente' 
-                        : order.payment_status === 'pending' || order.payment_status === 'in_process'
-                          ? 'El pago está siendo procesado o pendiente de confirmación'
-                          : order.payment_status === 'failed' || order.payment_status === 'rejected'
-                            ? 'El pago no pudo ser procesado'
-                            : 'Verificar estado del pago manualmente'
-                      }
+                  <div className="text-left sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-200 w-full sm:w-auto flex flex-row sm:flex-col justify-between sm:justify-start items-center sm:items-end">
+                    <PaymentStatusBadge status={order.payment_status || 'pending'} />
+                    <div className="text-right">
+                      <p className="text-xl sm:text-2xl font-bold mt-0 sm:mt-2">${order.total}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Total del pedido</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4 text-sm md:text-base">
+            {/* Información del pedido */}
+            <Card className="lg:col-span-2 xl:col-span-3">
+              <CardHeader>
+                <CardTitle className="text-xl">Detalles del Pedido</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Fecha del pedido</p>
+                    <p className="font-semibold text-gray-900">{formatDate(order.created_at)}</p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Método de pago</p>
+                    <p className="font-semibold text-gray-900 capitalize">
+                      {order.stripe_session_id || order.stripe_payment_intent ? "Stripe" : (order.payment_method || "No especificado")}
                     </p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <PaymentStatusBadge status={order.payment_status || 'pending'} />
-                  <p className="text-2xl font-bold mt-2">${order.total}</p>
-                  <p className="text-sm text-muted-foreground">Total del pedido</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Información del pedido */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Detalles del Pedido</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-muted-foreground font-medium">Fecha del pedido</p>
-                  <p className="font-semibold">{formatDate(order.created_at)}</p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-muted-foreground font-medium">Método de pago</p>
-                  <p className="font-semibold">
-                    {order.stripe_session_id || order.stripe_payment_intent ? "Stripe" : (order.payment_method || "No especificado")}
-                  </p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-muted-foreground font-medium">Estado del Pago</p>
-                  <PaymentStatusBadge status={order.payment_status || 'pending'} />
-                </div>
-              </div>
-
-              {/* Información de pago de Stripe */}
-              {(order.stripe_session_id || order.stripe_payment_intent) && (
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="font-medium mb-3 text-blue-900 flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Información de Pago - Stripe
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    {order.stripe_session_id && (
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">Session ID:</p>
-                        <p className="font-mono text-xs font-semibold text-blue-800">
-                          {order.stripe_session_id}
-                        </p>
-                      </div>
-                    )}
-                    {order.stripe_payment_intent && (
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-blue-700 font-medium">Payment Intent:</p>
-                        <p className="font-mono text-xs font-semibold text-blue-800">
-                          {order.stripe_payment_intent}
-                        </p>
-                      </div>
-                    )}
+                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Estado del Pago</p>
+                    <div className="mt-1"><PaymentStatusBadge status={order.payment_status || 'pending'} /></div>
                   </div>
                 </div>
-              )}
 
-              <div className="mb-6">
-                <h3 className="mb-2 font-medium">Productos</h3>
-                <div className="overflow-x-auto rounded-md border">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="p-2 text-left">Producto</th>
-                        <th className="p-2 text-center">Cantidad</th>
-                        <th className="p-2 text-right">Precio</th>
-                        <th className="p-2 text-right">Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {order.order_items && order.order_items.length > 0 ? (
-                        order.order_items.map((item: any, index: number) => (
-                          <tr key={index} className="border-b">
-                            <td className="p-2">
-                              <div className="flex items-center gap-3">
-                                {item.product_image && (
-                                  <img
-                                    src={item.product_image}
-                                    alt={item.product_name}
-                                    className="h-12 w-12 rounded-md object-cover"
-                                  />
-                                )}
-                                <div>
-                                  <p className="font-medium">{item.product_name || "Producto"}</p>
-                                  {item.size && <p className="text-sm text-muted-foreground">Tamaño: {item.size}</p>}
+                {/* Información de pago de Stripe */}
+                {(order.stripe_session_id || order.stripe_payment_intent) && (
+                  <div className="mb-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 shadow-sm">
+                    <h4 className="font-semibold mb-4 text-blue-900 flex items-center gap-2 text-base">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      Bóveda Logística Stripe
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      {order.stripe_session_id && (
+                        <div className="p-3 bg-white rounded-lg border border-blue-50 shadow-sm overflow-hidden text-ellipsis">
+                          <p className="text-blue-700/80 font-semibold mb-1 text-xs uppercase tracking-wider">Session ID:</p>
+                          <p className="font-mono text-xs font-medium text-blue-900 truncate" title={order.stripe_session_id}>
+                            {order.stripe_session_id}
+                          </p>
+                        </div>
+                      )}
+                      {order.stripe_payment_intent && (
+                        <div className="p-3 bg-white rounded-lg border border-blue-50 shadow-sm overflow-hidden text-ellipsis">
+                          <p className="text-blue-700/80 font-semibold mb-1 text-xs uppercase tracking-wider">Payment Intent:</p>
+                          <p className="font-mono text-xs font-medium text-blue-900 truncate" title={order.stripe_payment_intent}>
+                            {order.stripe_payment_intent}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-8">
+                  <h3 className="mb-4 font-semibold text-lg flex items-center gap-2"><Package className="h-5 w-5 text-gray-500" />Productos Comprados</h3>
+                  <div className="overflow-x-auto rounded-xl border shadow-sm">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50/80">
+                          <th className="p-3 text-left font-semibold text-gray-600">Producto</th>
+                          <th className="p-3 text-center font-semibold text-gray-600">Cantidad</th>
+                          <th className="p-3 text-right font-semibold text-gray-600">Precio Unitario</th>
+                          <th className="p-3 text-right font-semibold text-gray-600">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {order.order_items && order.order_items.length > 0 ? (
+                          order.order_items.map((item: any, index: number) => (
+                            <tr key={index} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="p-3">
+                                <div className="flex items-center gap-4">
+                                  {item.product_image && (
+                                    <div className="relative h-14 w-14 lg:h-16 lg:w-16 shrink-0 overflow-hidden rounded-lg shadow-sm">
+                                      <img
+                                        src={item.product_image}
+                                        alt={item.product_name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-gray-900 truncate" title={item.product_name}>{item.product_name || "Producto"}</p>
+                                    {item.size && <p className="text-xs text-muted-foreground mt-0.5 inline-block bg-gray-100 rounded px-2 py-0.5">Talla: {item.size}</p>}
+                                  </div>
                                 </div>
-                              </div>
+                              </td>
+                              <td className="p-3 text-center">
+                                <span className="inline-flex items-center justify-center bg-gray-100 rounded-full w-8 h-8 font-semibold text-gray-700">{item.quantity || 1}</span>
+                              </td>
+                              <td className="p-3 text-right font-mono text-gray-600">{formatCurrency(item.price)}</td>
+                              <td className="p-3 text-right font-mono font-bold text-gray-900">{formatCurrency(item.price * item.quantity)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="p-8 text-center text-muted-foreground">
+                              No hay productos en este pedido
                             </td>
-                            <td className="p-2 text-center">{item.quantity || 1}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.price)}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.price * item.quantity)}</td>
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                            No hay productos en este pedido
+                        )}
+                      </tbody>
+                      <tfoot className="bg-gray-50/50">
+                        <tr className="border-t">
+                          <td colSpan={3} className="p-3 text-right text-gray-600">
+                            Subtotal de productos
+                          </td>
+                          <td className="p-3 text-right font-mono font-medium text-gray-800">
+                            {formatCurrency(
+                              order.order_items?.reduce((sum: number, item: any) =>
+                                sum + (item.price * item.quantity), 0
+                              ) || 0
+                            )}
                           </td>
                         </tr>
-                      )}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t">
-                        <td colSpan={3} className="p-2 text-right font-medium">
-                          Subtotal
-                        </td>
-                        <td className="p-2 text-right">
-                          {formatCurrency(
-                            order.order_items?.reduce((sum: number, item: any) => 
-                              sum + (item.price * item.quantity), 0
-                            ) || 0
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td colSpan={3} className="p-2 text-right font-medium">
-                          Envío
-                        </td>
-                        <td className="p-2 text-right">
-                          {formatCurrency(
-                            order.total - (order.order_items?.reduce((sum: number, item: any) => 
-                              sum + (item.price * item.quantity), 0
-                            ) || 0)
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="border-t">
-                        <td colSpan={3} className="p-2 text-right font-bold">
-                          Total con Envío
-                        </td>
-                        <td className="p-2 text-right font-bold">{formatCurrency(order.total)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                        <tr>
+                          <td colSpan={3} className="p-3 text-right text-gray-600">
+                            Costo de Envío
+                          </td>
+                          <td className="p-3 text-right font-mono font-medium text-gray-800">
+                            {formatCurrency(
+                              order.total - (order.order_items?.reduce((sum: number, item: any) =>
+                                sum + (item.price * item.quantity), 0
+                              ) || 0)
+                            )}
+                          </td>
+                        </tr>
+                        <tr className="border-t-2 border-gray-200">
+                          <td colSpan={3} className="p-4 text-right font-bold text-lg text-gray-900 uppercase">
+                            Total Pagado
+                          </td>
+                          <td className="p-4 text-right font-mono font-bold text-xl text-primary">{formatCurrency(order.total)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mb-6">
-                <h3 className="mb-2 font-medium">Actualizar Estado</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  <Mail className="inline h-4 w-4 mr-1" />
-                  Al cambiar el estado se enviará una notificación por email al cliente
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => updateOrderStatus("pending")}
-                    disabled={updating || order.status === "pending"}
-                    className="inline-flex items-center rounded-md bg-yellow-50 px-3 py-1.5 text-sm font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-100 disabled:opacity-50 transition-colors"
-                  >
-                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Package className="mr-1 h-4 w-4" />} 
-                    Pendiente
-                  </button>
-                  <button
-                    onClick={() => updateOrderStatus("processing")}
-                    disabled={updating || order.status === "processing"}
-                    className="inline-flex items-center rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                  >
-                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Truck className="mr-1 h-4 w-4" />} 
-                    Procesando
-                  </button>
-                  <button
-                    onClick={() => updateOrderStatus("completed")}
-                    disabled={updating || order.status === "completed"}
-                    className="inline-flex items-center rounded-md bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50 transition-colors"
-                  >
-                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-1 h-4 w-4" />} 
-                    Completado
-                  </button>
-                  <button
-                    onClick={() => updateOrderStatus("cancelled")}
-                    disabled={updating || order.status === "cancelled"}
-                    className="inline-flex items-center rounded-md bg-red-50 px-3 py-1.5 text-sm font-medium text-red-800 ring-1 ring-inset ring-red-600/20 hover:bg-red-100 disabled:opacity-50 transition-colors"
-                  >
-                    {updating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <XCircle className="mr-1 h-4 w-4" />} 
-                    Cancelado
-                  </button>
-                </div>
-              </div>
-
-              {/* Botón para confirmar pago en efectivo */}
-              {order.payment_status === "pending" && (order.payment_method === "efectivo" || order.payment_method === "cash") && (
-                <div className="mb-6">
-                  <h3 className="mb-2 font-medium text-green-600">Confirmar Pago en Efectivo</h3>
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-                    <p className="text-sm text-green-700 mb-3">
-                      Este pedido está pendiente de confirmación de pago en efectivo.
-                    </p>
+                <div className="mb-4 bg-gray-50/50 p-5 rounded-xl border">
+                  <h3 className="mb-1 font-semibold text-base flex items-center gap-2"><Truck className="h-4 w-4 text-gray-500" />Centro de Logística (Cambio de Estado)</h3>
+                  <p className="text-xs text-muted-foreground mb-4 bg-white inline-block px-2 py-1 border rounded text-blue-700 border-blue-100">
+                    <Mail className="inline h-3 w-3 mr-1" />
+                    Al cambiar el estado se enviará notificación oficial por email al cliente.
+                  </p>
+                  <div className="flex flex-wrap gap-3 mt-4">
                     <button
-                      onClick={async () => {
-                        if (confirm("¿Confirmas que has recibido el pago en efectivo por este pedido?")) {
-                          try {
-                            setUpdating(true)
-                            const response = await fetch("/api/admin/confirm-payment", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                orderId: order.id,
-                                paymentMethod: "efectivo",
-                                notes: "Pago en efectivo confirmado manualmente"
-                              })
-                            })
-                            
-                            if (response.ok) {
-                              await fetchOrderDetails(order.id)
-                              alert("Pago confirmado exitosamente")
-                            } else {
-                              alert("Error al confirmar el pago")
-                            }
-                          } catch (error) {
-                            console.error("Error:", error)
-                            alert("Error al confirmar el pago")
-                          } finally {
-                            setUpdating(false)
-                          }
-                        }
-                      }}
-                      disabled={updating}
-                      className="inline-flex items-center rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      onClick={() => updateOrderStatus("pending")}
+                      disabled={updating || order.status === "pending"}
+                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-yellow-50 px-4 py-2.5 text-sm font-semibold text-yellow-800 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-100 disabled:opacity-50 transition-colors shadow-sm"
                     >
-                      {updating ? (
-                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle className="mr-1 h-4 w-4" />
-                      )}
-                      Confirmar Pago Recibido
+                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
+                      Pendiente
+                    </button>
+                    <button
+                      onClick={() => updateOrderStatus("processing")}
+                      disabled={updating || order.status === "processing"}
+                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Loader2 className="mr-2 h-4 w-4" />}
+                      Procesando
+                    </button>
+                    <button
+                      onClick={() => updateOrderStatus("shipped")}
+                      disabled={updating || order.status === "shipped"}
+                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 ring-1 ring-inset ring-indigo-600/20 hover:bg-indigo-100 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
+                      En camino
+                    </button>
+                    <button
+                      onClick={() => updateOrderStatus("completed")}
+                      disabled={updating || order.status === "completed"}
+                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      Entregado
+                    </button>
+                    <button
+                      onClick={() => updateOrderStatus("cancelled")}
+                      disabled={updating || order.status === "cancelled"}
+                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 ring-1 ring-inset ring-red-600/20 hover:bg-red-100 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => updateOrderStatus("refunded")}
+                      disabled={updating || order.status === "refunded"}
+                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-800 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-100 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Clock className="mr-2 h-4 w-4" />}
+                      Reembolsado
                     </button>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Información del cliente */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Información del Cliente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Nombre</p>
-                  <p className="font-medium">{order.customer_name || "No especificado"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{order.customer_email || "No especificado"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Teléfono</p>
-                  <p className="font-medium">{order.customer_phone || "No especificado"}</p>
-                </div>
+                {/* Botón para confirmar pago en efectivo */}
+                {order.payment_status === "pending" && (order.payment_method === "efectivo" || order.payment_method === "cash") && (
+                  <div className="mt-6 border-t pt-6">
+                    <h3 className="mb-3 font-semibold text-green-700 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5" /> Confirmar Pago Físico (Efectivo)
+                    </h3>
+                    <div className="rounded-xl border border-green-200 bg-green-50/80 p-5 shadow-sm">
+                      <p className="text-sm text-green-800 mb-4 font-medium">
+                        Este pedido fue registrado con pago en efectivo y se encuentra actualmente pendiente de liquidación.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          if (confirm("¿Confirmas que la empresa ha recibido físicamente el importe total de este pago?")) {
+                            try {
+                              setUpdating(true)
+                              const response = await fetch("/api/admin/confirm-payment", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  orderId: order.id,
+                                  paymentMethod: "efectivo",
+                                  notes: "Pago en efectivo confirmado manualmente desde panel Admin"
+                                })
+                              })
 
-                {/* Dirección de Envío */}
-                <div className="mt-6">
-                  <h3 className="mb-2 font-medium">Dirección de Envío</h3>
-                  <div className="rounded-md bg-muted p-3">
+                              if (response.ok) {
+                                await fetchOrderDetails(order.id)
+                                toast.success("Pago liquidado exitosamente")
+                              } else {
+                                toast.error("Hubo un error al confirmar el depósito")
+                              }
+                            } catch (error) {
+                              console.error("Error:", error)
+                              toast.error("Ocurrió un error inesperado al liquidar el pago")
+                            } finally {
+                              setUpdating(false)
+                            }
+                          }
+                        }}
+                        disabled={updating}
+                        className="inline-flex w-full sm:w-auto justify-center items-center rounded-lg bg-green-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-green-700 focus:ring-2 focus:ring-green-600 focus:ring-offset-2 disabled:opacity-50 transition-all"
+                      >
+                        {updating ? (
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        ) : (
+                          <CreditCard className="mr-2 h-5 w-5" />
+                        )}
+                        Liquidar Efectivo Ahora
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Información del cliente */}
+            <div className="space-y-6">
+              <Card className="shadow-sm border-gray-200 h-max sticky top-6">
+                <CardHeader className="bg-gray-50 border-b pb-4 rounded-t-xl">
+                  <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
+                    <span className="bg-[#78b7bf]/20 p-2 rounded-lg"><Users className="h-5 w-5 text-[#5a898f]" /></span>
+                    Expediente de Cliente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-5">
+                    <div className="border-b border-gray-50 pb-4">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Nombre</p>
+                      <p className="font-semibold text-gray-900 text-base">{order.customer_name || "Comprador Invitado"}</p>
+                    </div>
+                    <div className="border-b border-gray-50 pb-4">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Correo Electrónico</p>
+                      <p className="font-medium text-blue-600 text-sm break-all">
+                        <a href={`mailto:${order.customer_email}`} className="hover:underline">{order.customer_email || "No provisto"}</a>
+                      </p>
+                    </div>
+                    <div className="border-b border-gray-50 pb-4">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Teléfono Fijo / Móvil</p>
+                      <p className="font-medium text-gray-900">{order.customer_phone || "No provisto"}</p>
+                    </div>
+
+                    {/* Dirección de Envío */}
+                    <div className="mt-6 bg-gray-50/80 p-4 rounded-xl border border-gray-100 shadow-inner">
+                      <h3 className="mb-3 font-bold text-gray-800 flex items-center gap-2">
+                        <Truck className="h-4 w-4" /> Destino de Envío
+                      </h3>
+                      <div className="text-sm text-gray-700 leading-relaxed font-medium">
+                        {(() => {
+                          try {
+                            let shippingData = null
+                            if (order.shipping_address) {
+                              if (typeof order.shipping_address === 'string') {
+                                const parsed = JSON.parse(order.shipping_address)
+                                shippingData = parsed.shipping || parsed
+                              } else {
+                                shippingData = order.shipping_address.shipping || order.shipping_address
+                              }
+                            }
+
+                            if (shippingData && (shippingData.address || shippingData.street)) {
+                              return (
+                                <div className="space-y-1">
+                                  <p className="flex gap-2"><span className="text-gray-400">📍</span> <span>{shippingData.address || `${shippingData.street} ${shippingData.number || ''}`}</span></p>
+                                  {shippingData.city && (
+                                    <p className="flex gap-2"><span className="text-gray-400">🏙️</span> <span>{shippingData.city}{shippingData.state ? `, ${shippingData.state}` : ''}</span></p>
+                                  )}
+                                  {shippingData.postalCode && <p className="flex gap-2 text-gray-500 font-mono text-xs mt-2"><span className="text-gray-400">🔢</span> CP: {shippingData.postalCode}</p>}
+                                  {shippingData.country && <p className="text-gray-500 mt-1 uppercase text-xs font-bold tracking-widest">{shippingData.country}</p>}
+                                </div>
+                              )
+                            }
+                            return <p className="text-muted-foreground italic flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-yellow-500" /> Dirección no proporcionada en la orden base</p>
+                          } catch (e) {
+                            console.error('Error parsing shipping address:', e)
+                            return <p className="text-red-500 bg-red-50 p-2 rounded text-xs">Error decodificando el plano de dirección</p>
+                          }
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Metadatos Avanzados */}
                     {(() => {
                       try {
-                        let shippingData = null
+                        let metadata = null
                         if (order.shipping_address) {
                           if (typeof order.shipping_address === 'string') {
-                            const parsed = JSON.parse(order.shipping_address)
-                            shippingData = parsed.shipping || parsed
+                            metadata = JSON.parse(order.shipping_address)
                           } else {
-                            shippingData = order.shipping_address.shipping || order.shipping_address
+                            metadata = order.shipping_address
                           }
                         }
 
-                        if (shippingData && (shippingData.address || shippingData.street)) {
+                        if (metadata && metadata.items) {
+                          const subtotal = metadata.items.reduce((sum: number, item: any) =>
+                            sum + ((item.price || item.unit_price || 0) * (item.quantity || 1)), 0
+                          )
+
                           return (
-                            <>
-                              <p>{shippingData.address || `${shippingData.street} ${shippingData.number || ''}`}</p>
-                              {shippingData.city && (
-                                <p>{shippingData.city}{shippingData.state ? `, ${shippingData.state}` : ''}</p>
-                              )}
-                              {shippingData.postalCode && <p>CP: {shippingData.postalCode}</p>}
-                              {shippingData.country && <p>{shippingData.country}</p>}
-                            </>
+                            <div className="mt-8 pt-6 border-t border-gray-100">
+                              <h3 className="mb-3 font-semibold text-xs text-gray-400 uppercase tracking-wider">Metadatos Internos (Payload)</h3>
+                              <div className="rounded-lg bg-gray-900 p-4 text-gray-300 font-mono text-[11px] overflow-hidden">
+                                <div className="grid grid-cols-1 gap-3">
+                                  <div className="border-b border-gray-800 pb-2">
+                                    <p className="text-gray-500 mb-1">ID Trazabilidad:</p>
+                                    <p className="text-green-400 break-all">{order.id}</p>
+                                  </div>
+                                  <div className="border-b border-gray-800 pb-2">
+                                    <p className="text-gray-500 mb-1">Subtotal Neto Calc:</p>
+                                    <p className="text-yellow-300">{formatCurrency(subtotal)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           )
                         }
-                        return <p className="text-muted-foreground">No hay dirección de envío</p>
+                        return null
                       } catch (e) {
-                        console.error('Error parsing shipping address:', e)
-                        return <p className="text-muted-foreground">Error al cargar dirección</p>
+                        return null
                       }
                     })()}
                   </div>
-                </div>
-
-                {/* Datos Completos del Pedido */}
-                {(() => {
-                  try {
-                    let metadata = null
-                    if (order.shipping_address) {
-                      if (typeof order.shipping_address === 'string') {
-                        metadata = JSON.parse(order.shipping_address)
-                      } else {
-                        metadata = order.shipping_address
-                      }
-                    }
-
-                    if (metadata && metadata.items) {
-                      const subtotal = metadata.items.reduce((sum: number, item: any) => 
-                        sum + ((item.price || item.unit_price || 0) * (item.quantity || 1)), 0
-                      )
-
-                      return (
-                        <div className="mt-6">
-                          <h3 className="mb-2 font-medium">Datos Completos del Pedido</h3>
-                          <div className="rounded-md bg-muted p-3">
-                            <div className="grid grid-cols-1 gap-2 text-sm">
-                              <div>
-                                <p className="font-medium text-muted-foreground">Número de Orden:</p>
-                                <p className="font-mono">#{order.id}</p>
-                              </div>
-                              <div>
-                                <p className="font-medium text-muted-foreground">Subtotal:</p>
-                                <p>{formatCurrency(subtotal)}</p>
-                              </div>
-                              <div>
-                                <p className="font-medium text-muted-foreground">Productos:</p>
-                                <ul className="list-disc list-inside">
-                                  {metadata.items.map((item: any, index: number) => (
-                                    <li key={index}>
-                                      Cantidad: {item.quantity} - Precio: {formatCurrency(item.price || item.unit_price || 0)}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  } catch (e) {
-                    console.error('Error parsing order metadata:', e)
-                    return null
-                  }
-                })()}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </AuthGuard>
+    )
+  } catch (renderError: any) {
+    console.error("Error rendering order page:", renderError)
+    return (
+      <div className="p-6">
+        <div className="rounded-md bg-red-50 p-4 text-red-800">
+          <h2 className="font-bold mb-2">Error al renderizar la página</h2>
+          <p>{renderError.message}</p>
+          <pre className="mt-2 text-xs overflow-auto">{renderError.stack}</pre>
         </div>
       </div>
-    </AuthGuard>
-  )
-} catch (renderError: any) {
-  console.error("Error rendering order page:", renderError)
-  return (
-    <div className="p-6">
-      <div className="rounded-md bg-red-50 p-4 text-red-800">
-        <h2 className="font-bold mb-2">Error al renderizar la página</h2>
-        <p>{renderError.message}</p>
-        <pre className="mt-2 text-xs overflow-auto">{renderError.stack}</pre>
-      </div>
-    </div>
-  )
-}
+    )
+  }
 }
 
 // Componente para mostrar el estado del pedido
@@ -662,6 +684,10 @@ function OrderStatusBadge({ status }: { status: string }) {
       bgColor = "bg-green-100 text-green-800 border border-green-200"
       icon = <CheckCircle className="h-3 w-3" />
       break
+    case "shipped":
+      bgColor = "bg-indigo-100 text-indigo-800 border border-indigo-200"
+      icon = <Truck className="h-3 w-3" />
+      break
     case "processing":
       bgColor = "bg-blue-100 text-blue-800 border border-blue-200"
       icon = <Clock className="h-3 w-3" />
@@ -669,6 +695,10 @@ function OrderStatusBadge({ status }: { status: string }) {
     case "cancelled":
       bgColor = "bg-red-100 text-red-800 border border-red-200"
       icon = <XCircle className="h-3 w-3" />
+      break
+    case "refunded":
+      bgColor = "bg-orange-100 text-orange-800 border border-orange-200"
+      icon = <Clock className="h-3 w-3" />
       break
     case "pending":
       bgColor = "bg-yellow-100 text-yellow-800 border border-yellow-200"
@@ -680,14 +710,18 @@ function OrderStatusBadge({ status }: { status: string }) {
     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${bgColor}`}>
       {icon}
       {status === "completed"
-        ? "Completado"
-        : status === "processing"
-          ? "Procesando"
-          : status === "cancelled"
-            ? "Cancelado"
-            : status === "pending"
-              ? "Pendiente"
-              : status}
+        ? "Entregado"
+        : status === "shipped"
+          ? "En camino"
+          : status === "processing"
+            ? "Procesando"
+            : status === "cancelled"
+              ? "Cancelado"
+              : status === "refunded"
+                ? "Reembolsado"
+                : status === "pending"
+                  ? "Pendiente"
+                  : status}
     </span>
   )
 }
@@ -772,7 +806,7 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
   const fetchSubscriptionData = async () => {
     try {
       setLoading(true)
-      
+
       // Buscar suscripción relacionada con esta orden
       const { data: subscription, error } = await supabase
         .from('unified_subscriptions')
@@ -803,18 +837,18 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
 
   const updateCountdown = () => {
     if (!subscriptionData?.next_payment_date) return
-    
+
     const now = new Date()
     const nextPayment = new Date(subscriptionData.next_payment_date)
     const diffTime = nextPayment.getTime() - now.getTime()
-    
+
     if (diffTime <= 0) {
       setCountdown("¡Pago vencido!")
       return
     }
-    
+
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
+
     if (diffDays === 1) {
       setCountdown("¡Mañana!")
     } else if (diffDays <= 3) {
@@ -828,10 +862,10 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
 
   const handleSubscriptionAction = async (action: 'cancel' | 'pause' | 'reactivate') => {
     if (!subscriptionData?.user_id) return
-    
+
     try {
       setUpdating(true)
-      
+
       const response = await fetch(`/api/subscriptions/user/${subscriptionData.user_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -869,7 +903,7 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
   const getFrequencyLabel = (freq: string) => {
     const labels: Record<string, string> = {
       'weekly': 'Semanal',
-      'monthly': 'Mensual', 
+      'monthly': 'Mensual',
       'quarterly': 'Trimestral',
       'annual': 'Anual'
     }
@@ -904,7 +938,7 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
         <CreditCard className="w-5 h-5" />
         Información de Suscripción
       </h3>
-      
+
       <div className="space-y-4">
         {/* Información básica */}
         <div className="rounded-md bg-blue-50 p-4">
@@ -914,24 +948,24 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
               {subscriptionData && (
                 <>
                   <p className="flex items-center gap-2">
-                    <strong>Estado:</strong> 
+                    <strong>Estado:</strong>
                     <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(subscriptionData.status)}`}>
                       {subscriptionData.status === 'authorized' ? 'Activa' :
-                       subscriptionData.status === 'pending' ? 'Pendiente' :
-                       subscriptionData.status === 'cancelled' ? 'Cancelada' :
-                       subscriptionData.status === 'paused' ? 'Pausada' : subscriptionData.status}
+                        subscriptionData.status === 'pending' ? 'Pendiente' :
+                          subscriptionData.status === 'cancelled' ? 'Cancelada' :
+                            subscriptionData.status === 'paused' ? 'Pausada' : subscriptionData.status}
                     </span>
                   </p>
 
                 </>
               )}
             </div>
-            
+
             {subscriptionData && (
               <div>
                 <p><strong>Monto:</strong> ${subscriptionData.amount?.toFixed(2) || '0.00'} MXN</p>
                 <p><strong>Último pago:</strong> {
-                  subscriptionData.last_payment_date 
+                  subscriptionData.last_payment_date
                     ? formatDate(subscriptionData.last_payment_date)
                     : 'Ninguno'
                 }</p>

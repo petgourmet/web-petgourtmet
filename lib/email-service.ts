@@ -63,23 +63,23 @@ function createTransporter() {
 
 // Función para enviar correos de estado de orden con reintentos automáticos
 export async function sendOrderStatusEmail(
-  orderStatus: 'pending' | 'processing' | 'completed' | 'cancelled',
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled' | 'refunded',
   customerEmail: string,
   orderData: any,
   maxRetries: number = 3
 ) {
   console.log(`[EMAIL-SERVICE] Iniciando envío de correo de estado ${orderStatus} a ${customerEmail}`);
-  
+
   // Verificar configuración SMTP
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.error('[EMAIL-SERVICE] ERROR: Configuración SMTP incompleta para correo de estado de orden');
     return { success: false, error: 'SMTP not configured' };
   }
-  
+
   try {
     const transporter = createTransporter();
     const template = getOrderStatusTemplate(orderStatus, orderData);
-    
+
     const mailOptions = {
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
       to: customerEmail,
@@ -91,7 +91,7 @@ export async function sendOrderStatusEmail(
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`[EMAIL-SERVICE] Intento ${attempt}/${maxRetries} - Enviando correo de estado ${orderStatus} a ${customerEmail}`);
-        
+
         const result = await transporter.sendMail(mailOptions);
         console.log(`[EMAIL-SERVICE] ✅ Correo de estado ${orderStatus} enviado exitosamente:`, {
           messageId: result.messageId,
@@ -99,9 +99,9 @@ export async function sendOrderStatusEmail(
           orderStatus: orderStatus,
           customerEmail: customerEmail
         });
-        
+
         return { success: true, messageId: result.messageId, attempts: attempt };
-        
+
       } catch (error) {
         console.error(`[EMAIL-SERVICE] ❌ Error en intento ${attempt}/${maxRetries} para correo de estado ${orderStatus}:`, {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -109,12 +109,12 @@ export async function sendOrderStatusEmail(
           orderStatus: orderStatus,
           attempt: attempt
         });
-        
+
         if (attempt === maxRetries) {
           console.error(`[EMAIL-SERVICE] 🚨 FALLO DEFINITIVO: No se pudo enviar correo de estado ${orderStatus} a ${customerEmail} después de ${maxRetries} intentos`);
           throw error;
         }
-        
+
         // Esperar antes del siguiente intento (backoff exponencial)
         const delayMs = 2000 * Math.pow(2, attempt - 1);
         console.log(`[EMAIL-SERVICE] ⏳ Esperando ${delayMs}ms antes del siguiente intento para correo de estado...`);
@@ -133,8 +133,8 @@ export async function sendOrderStatusEmail(
 
 // Función para logging de correos enviados con manejo de errores mejorado
 export async function logEmailSent(
-  orderId: number, 
-  emailType: string, 
+  orderId: number,
+  emailType: string,
   customerEmail: string,
   messageId?: string,
   attempts?: number
@@ -147,38 +147,38 @@ export async function logEmailSent(
     attempts_count: attempts || 1,
     sent_at: new Date().toISOString()
   };
-  
+
   console.log(`[EMAIL-SERVICE] 📧 Registrando envío de correo:`, logData);
-  
+
   try {
     const supabase = createClient();
-    
+
     // Intentar insertar el log en la base de datos
     const { data, error } = await supabase
       .from('email_logs')
       .insert(logData)
       .select();
-    
+
     if (error) {
       console.error('[EMAIL-SERVICE] ❌ Error insertando log de correo en base de datos:', {
         error: error.message,
         logData: logData
       });
-      
+
       // Fallback: guardar en logs locales si falla la BD
       console.log('[EMAIL-SERVICE] 💾 FALLBACK - Log guardado localmente:', logData);
       return { success: false, error: error.message, fallback: true };
     }
-    
+
     console.log('[EMAIL-SERVICE] ✅ Log de correo guardado exitosamente en BD:', data?.[0]?.id);
     return { success: true, logId: data?.[0]?.id };
-    
+
   } catch (error) {
     console.error('[EMAIL-SERVICE] ❌ Error crítico registrando correo enviado:', {
       error: error instanceof Error ? error.message : 'Unknown error',
       logData: logData
     });
-    
+
     // Fallback: siempre guardar en logs locales como último recurso
     console.log('[EMAIL-SERVICE] 💾 FALLBACK CRÍTICO - Log guardado localmente:', logData);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error', fallback: true };
@@ -192,11 +192,11 @@ export async function sendSubscriptionEmail(
   maxRetries: number = 3
 ) {
   console.log(`[EMAIL-SERVICE] Enviando correo de suscripción ${emailType} a ${subscriptionData.user_email}`);
-  
+
   try {
     const transporter = createTransporter();
     const template = getSubscriptionTemplate(emailType, subscriptionData);
-    
+
     const mailOptions = {
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
       to: subscriptionData.user_email,
@@ -208,23 +208,23 @@ export async function sendSubscriptionEmail(
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`[EMAIL-SERVICE] Intento ${attempt}/${maxRetries} - Enviando correo a ${subscriptionData.user_email}`);
-        
+
         const result = await transporter.sendMail(mailOptions);
         console.log(`[EMAIL-SERVICE] ✅ Correo de suscripción ${emailType} enviado exitosamente:`, {
           messageId: result.messageId,
           attempt: attempt
         });
-        
+
         return { success: true, messageId: result.messageId, attempts: attempt };
-        
+
       } catch (error) {
         console.error(`[EMAIL-SERVICE] ❌ Error en intento ${attempt}/${maxRetries}:`, error);
-        
+
         if (attempt === maxRetries) {
           console.error(`[EMAIL-SERVICE] 🚨 FALLO DEFINITIVO: No se pudo enviar correo después de ${maxRetries} intentos`);
           throw error;
         }
-        
+
         // Esperar antes del siguiente intento (backoff exponencial)
         const delayMs = 2000 * Math.pow(2, attempt - 1);
         console.log(`[EMAIL-SERVICE] ⏳ Esperando ${delayMs}ms antes del siguiente intento...`);
@@ -259,15 +259,15 @@ export class EmailService {
     try {
       const template = this.createAdminNotificationTemplate(data);
       const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['admin@petgourmet.mx'];
-      
-      const promises = adminEmails.map(email => 
+
+      const promises = adminEmails.map(email =>
         this.sendEmail({
           to: email.trim(),
           subject: template.subject,
           html: template.html
         })
       );
-      
+
       return await Promise.all(promises);
     } catch (error) {
       console.error('Error enviando correo a administradores:', error);
@@ -278,7 +278,7 @@ export class EmailService {
   // Método privado para enviar correos con reintentos automáticos
   private async sendEmail({ to, subject, html }: { to: string; subject: string; html: string }, maxRetries: number = 3) {
     console.log(`[EMAIL-SERVICE] Iniciando envío de correo a ${to} - Asunto: ${subject}`);
-    
+
     // Verificar configuración SMTP
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
       console.error('[EMAIL-SERVICE] ERROR: Configuración SMTP incompleta');
@@ -286,7 +286,7 @@ export class EmailService {
     }
 
     const transporter = createTransporter();
-    
+
     const mailOptions = {
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
       to,
@@ -298,44 +298,44 @@ export class EmailService {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`[EMAIL-SERVICE] Intento ${attempt}/${maxRetries} - Enviando correo a ${to}`);
-        
+
         const result = await transporter.sendMail(mailOptions);
         console.log(`[EMAIL-SERVICE] ✅ Correo enviado exitosamente a ${to}:`, {
           messageId: result.messageId,
           attempt: attempt
         });
-        
-        return { 
-          success: true, 
-          messageId: result.messageId, 
+
+        return {
+          success: true,
+          messageId: result.messageId,
           attempts: attempt
         };
-        
+
       } catch (error) {
         console.error(`[EMAIL-SERVICE] ❌ Error en intento ${attempt}/${maxRetries} para ${to}:`, error);
-        
+
         if (attempt === maxRetries) {
           console.error(`[EMAIL-SERVICE] 🚨 FALLO DEFINITIVO: No se pudo enviar correo a ${to} después de ${maxRetries} intentos`);
-          return { 
-            success: false, 
+          return {
+            success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
             attempts: attempt
           };
         }
-        
+
         // Esperar antes del siguiente intento (backoff exponencial)
         const delayMs = 2000 * Math.pow(2, attempt - 1);
         console.log(`[EMAIL-SERVICE] ⏳ Esperando ${delayMs}ms antes del siguiente intento...`);
         await this.delay(delayMs);
       }
     }
-    
+
     return { success: false, error: 'Max retries exceeded', attempts: maxRetries };
   }
 
   // Plantilla de correo de agradecimiento
   private createThankYouTemplate(data: ThankYouEmailData) {
-    const discountText = data.discount_percentage 
+    const discountText = data.discount_percentage
       ? `<tr>
           <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Descuento aplicado</td>
           <td style="padding: 8px 12px; border: 1px solid #ddd; color: #16a34a; font-weight: bold;">${data.discount_percentage}% de descuento</td>
@@ -448,15 +448,15 @@ export class EmailService {
     try {
       const template = this.createAdminSubscriptionStatusChangeTemplate(data);
       const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['contacto@petgourmet.mx'];
-      
-      const promises = adminEmails.map(email => 
+
+      const promises = adminEmails.map(email =>
         this.sendEmail({
           to: email.trim(),
           subject: template.subject,
           html: template.html
         })
       );
-      
+
       return await Promise.all(promises);
     } catch (error) {
       console.error('[EMAIL-SERVICE] Error enviando correo a administradores sobre cambio de estado:', error);
@@ -467,7 +467,7 @@ export class EmailService {
   // Plantilla de correo para cambio de estado de suscripción (usuario)
   private createSubscriptionStatusChangeTemplate(data: SubscriptionStatusChangeData) {
     const statusInfo = this.getStatusInfo(data.new_status);
-    
+
     const productSection = data.product_name ? `
       <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
         ${data.product_image ? `
@@ -563,7 +563,7 @@ export class EmailService {
   // Plantilla de correo para admin sobre cambio de estado
   private createAdminSubscriptionStatusChangeTemplate(data: SubscriptionStatusChangeData) {
     const statusBadge = this.getStatusBadge(data.new_status);
-    
+
     return {
       subject: `🔔 Cambio de estado de suscripción #${data.subscription_id} - ${data.new_status.toUpperCase()}`,
       html: `
@@ -721,7 +721,7 @@ export class EmailService {
       'expired': '<span style="background-color: #dc2626; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold;">⏰ EXPIRED</span>',
       'suspended': '<span style="background-color: #dc2626; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold;">🚫 SUSPENDED</span>'
     };
-    
+
     return badges[status] || `<span style="background-color: #6b7280; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold;">${status.toUpperCase()}</span>`;
   }
 
@@ -733,146 +733,266 @@ export class EmailService {
 
 // Funciones auxiliares para plantillas
 function getOrderStatusTemplate(status: string, orderData: any) {
-  const statusMessages = {
+  const statusMessages: Record<string, any> = {
     pending: {
-      subject: '📋 Tu pedido ha sido recibido - Pet Gourmet',
-      title: '📋 Pedido Recibido',
-      message: 'Hemos recibido tu pedido y lo estamos procesando. Te notificaremos cuando esté listo para envío.',
-      color: '#fbbf24',
-      icon: '📋'
+      subject: '🛍️ Completar tu compra - Pet Gourmet',
+      title: 'Completar tu compra',
+      intro: `Hola ${orderData.shipping_address?.full_name || orderData.customer_name || ''}, tu pedido ha sido registrado.`,
+      message: 'Estos artículos estarán siendo procesados una vez completado o verificado el pago. Te notificaremos pronto.',
+      showOrderButton: true,
+      buttonText: 'Completar tu compra',
     },
     processing: {
-      subject: '⚡ Tu pedido está siendo preparado - Pet Gourmet',
-      title: '⚡ Preparando tu Pedido',
-      message: 'Tu pedido está siendo preparado con mucho cuidado. Pronto estará listo para el envío.',
-      color: '#3b82f6',
-      icon: '⚡'
+      subject: '🎉 ¡Gracias por tu compra! - Pet Gourmet',
+      title: '¡Gracias por tu compra!',
+      intro: `Hola ${orderData.shipping_address?.full_name || orderData.customer_name || ''}, estamos preparando tu pedido para enviarlo.`,
+      message: 'Regularmente enviamos todas nuestras deliciosas recetas al día siguiente de tu compra, si quieres más detalles de tu envío, escríbenos a través de WhatsApp.',
+      showOrderButton: true,
+      buttonText: 'Ver tu pedido',
+    },
+    shipped: {
+      subject: '🚚 Tu pedido está en camino - Pet Gourmet',
+      title: 'Tu pedido está en camino y se entregará en unas horas',
+      intro: 'Tu pedido está en camino. Rastrea tu envío para ver el estado de la entrega.',
+      message: '',
+      showOrderButton: true,
+      buttonText: 'Ver tu pedido',
     },
     completed: {
-      subject: '✅ Tu pedido ha sido enviado - Pet Gourmet',
-      title: '✅ Pedido Enviado',
-      message: 'Tu pedido ha sido enviado exitosamente. Recibirás la información de seguimiento pronto.',
-      color: '#10b981',
-      icon: '✅'
+      subject: '✅ Tu pedido ha sido entregado - Pet Gourmet',
+      title: 'Tu pedido se ha entregado',
+      intro: '¿No has recibido tu pedido? <a href="mailto:contacto@petgourmet.mx" style="color:#7AB8BF;">Infórmanos</a>.',
+      message: '',
+      showOrderButton: true,
+      buttonText: 'Ver tu pedido',
     },
     cancelled: {
       subject: '❌ Tu pedido ha sido cancelado - Pet Gourmet',
-      title: '❌ Pedido Cancelado',
-      message: 'Tu pedido ha sido cancelado. Si tienes alguna pregunta, no dudes en contactarnos.',
-      color: '#ef4444',
-      icon: '❌'
+      title: 'Lo lamentamos pero tu pedido ha sido cancelado',
+      intro: `El pedido #${orderData.id} fue cancelado y tu pago ha sido anulado o no fue procesado.`,
+      message: '',
+      showOrderButton: false,
+      buttonText: '',
+    },
+    refunded: {
+      subject: '💸 Reembolso procesado - Pet Gourmet',
+      title: 'Te informamos que el monto de tu pedido ha sido reembolsado',
+      intro: `Monto total reembolsado: <strong>$${orderData.total || '0.00'} MXN</strong>`,
+      message: '',
+      showOrderButton: false,
+      buttonText: '',
     }
   };
 
-  const statusInfo = statusMessages[status as keyof typeof statusMessages] || statusMessages.pending;
-  
-  // Formatear productos si existen
+  const statusInfo = statusMessages[status] || statusMessages.pending;
+
+  // Productos loop
   let productsHtml = '';
+  let subtotal = 0;
   if (orderData?.products && Array.isArray(orderData.products)) {
-    productsHtml = `
-      <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #374151;">🛍️ Productos en tu pedido:</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="background-color: #e5e7eb;">
-              <th style="padding: 12px; text-align: left; border: 1px solid #d1d5db;">Producto</th>
-              <th style="padding: 12px; text-align: center; border: 1px solid #d1d5db;">Cantidad</th>
-              <th style="padding: 12px; text-align: right; border: 1px solid #d1d5db;">Precio</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${orderData.products.map((product: any) => `
-              <tr>
-                <td style="padding: 12px; border: 1px solid #d1d5db;">${product.name || 'Producto'}</td>
-                <td style="padding: 12px; text-align: center; border: 1px solid #d1d5db;">${product.quantity || 1}</td>
-                <td style="padding: 12px; text-align: right; border: 1px solid #d1d5db;">$${product.price || '0.00'} MXN</td>
-              </tr>
-            `).join('')}
-          </tbody>
+    productsHtml = orderData.products.map((product: any) => {
+      const pPrice = parseFloat(product.price || 0);
+      const pQty = parseInt(product.quantity || 1, 10);
+      subtotal += pPrice * pQty;
+      return `
+        <tr>
+          <td style="padding: 15px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; width: 60px;">
+            ${product.image ? `<img src="${product.image}" alt="${product.name}" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;" />` : `<div style="width: 50px; height: 50px; background-color: #d1d5db; border-radius: 8px;"></div>`}
+          </td>
+          <td style="padding: 15px 10px; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: left;">
+            <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151; text-transform: uppercase;">${product.name || 'Producto'} × ${pQty}</p>
+            ${product.size ? `<p style="margin: 4px 0 0; font-size: 11px; color: #6b7280;">Talla: ${product.size}</p>` : ''}
+          </td>
+          <td style="padding: 15px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: right; width: 100px;">
+            <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151;">$${(pPrice * pQty).toFixed(2)}</p>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  const shippingCost = parseFloat(orderData?.shipping_cost || 0);
+  const taxCost = 0; // Si hay impuestos, extraer de orderData
+  const displayTotal = parseFloat(orderData?.total || 0).toFixed(2);
+  const calculatedSubtotal = subtotal > 0 ? subtotal : displayTotal;
+
+  // Dirección de envío
+  let shippingAddressHtml = '';
+  if (orderData?.shipping_address && status !== 'cancelled' && status !== 'refunded') {
+    const addr = orderData.shipping_address;
+    shippingAddressHtml = `
+      <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #d1d5db;">
+        <h3 style="font-size: 16px; color: #374151; margin-top: 0; margin-bottom: 15px;">Información del cliente</h3>
+        <table style="width: 100%; font-size: 13px; color: #6b7280; line-height: 1.5;">
+          <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 15px;">
+              <p style="margin: 0 0 5px; font-weight: bold; color: #374151;">Dirección de envío</p>
+              <p style="margin: 0;">${addr.name || addr.full_name || 'Cliente'}</p>
+              <p style="margin: 0;">${addr.address_line_1 || addr.address || ''}</p>
+              ${addr.address_line_2 ? `<p style="margin: 0;">${addr.address_line_2}</p>` : ''}
+              <p style="margin: 0;">${addr.city || ''}${addr.state ? `, ${addr.state}` : ''}</p>
+              <p style="margin: 0;">${addr.postal_code || ''}</p>
+            </td>
+            <td style="width: 50%; vertical-align: top;">
+              ${addr.phone ? `
+                <p style="margin: 0 0 5px; font-weight: bold; color: #374151;">Teléfono</p>
+                <p style="margin: 0;">${addr.phone}</p>
+              ` : ''}
+            </td>
+          </tr>
         </table>
       </div>
     `;
   }
 
-  // Información de envío si existe
-  let shippingHtml = '';
-  if (orderData?.shipping_address) {
-    const addr = orderData.shipping_address;
-    shippingHtml = `
-      <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #1e40af;">📍 Dirección de envío:</h3>
-        <p style="margin: 5px 0;"><strong>${addr.full_name || addr.name || 'Cliente'}</strong></p>
-        <p style="margin: 5px 0;">${addr.address_line_1 || addr.address || ''}</p>
-        ${addr.address_line_2 ? `<p style="margin: 5px 0;">${addr.address_line_2}</p>` : ''}
-        <p style="margin: 5px 0;">${addr.city || ''}, ${addr.state || ''} ${addr.postal_code || ''}</p>
-        ${addr.phone ? `<p style="margin: 5px 0;">📞 ${addr.phone}</p>` : ''}
-      </div>
-    `;
-  }
+  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/pet-gourmet-logo-transparent.png` : 'https://petgourmet.mx/wp-content/uploads/2023/11/logo.png';
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <title>${statusInfo.title}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+        
+        <div style="max-width: 600px; margin: 0 auto;">
+          
+          <table style="width: 100%; margin-bottom: 30px;" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="width: 70%;" valign="bottom">
+                <div style="background-color: #7AB8BF; padding: 25px 20px; display: inline-block; min-width: 250px;">
+                  <!-- Logo Text Fallback in beautiful font -->
+                  <h1 style="color: white; margin: 0; font-family: 'Brush Script MT', 'Lucida Handwriting', cursive, serif; font-size: 38px; font-weight: normal; letter-spacing: 1px;">Pet Gourmet</h1>
+                </div>
+              </td>
+              <td style="width: 30%; text-align: right; vertical-align: bottom; padding-bottom: 10px;" valign="bottom">
+                <p style="margin: 0; color: #6B7280; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">Pedido</p>
+                <p style="margin: 0; color: #6B7280; font-size: 14px;">#${orderData.id}</p>
+              </td>
+            </tr>
+          </table>
+
+          <div style="background-color: transparent;">
+            
+            <h2 style="font-size: 20px; color: #374151; margin-top: 0; margin-bottom: 15px; font-weight: normal;">${statusInfo.title}</h2>
+            
+            ${statusInfo.intro ? `<p style="font-size: 14px; color: #4B5563; margin-top: 0; margin-bottom: ${statusInfo.message ? '10px' : '30px'};">${statusInfo.intro}</p>` : ''}
+            ${statusInfo.message ? `<p style="font-size: 14px; color: #4B5563; margin-top: 0; margin-bottom: 30px;">${statusInfo.message}</p>` : ''}
+
+            ${statusInfo.showOrderButton ? `
+              <table style="margin-bottom: 40px;">
+                <tr>
+                  <td>
+                    <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}" style="background-color: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; display: inline-block;">${statusInfo.buttonText}</a>
+                  </td>
+                  <td style="padding-left: 15px;">
+                    <span style="color: #6B7280; font-size: 13px;">o <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/tienda" style="color: #7AB8BF; text-decoration: none;">Visita nuestra tienda</a></span>
+                  </td>
+                </tr>
+              </table>
+            ` : ''}
+
+            ${['pending', 'processing', 'shipped', 'completed'].includes(status) ? `
+            <div style="margin-bottom: 40px; padding: 20px; background-color: white; border-radius: 8px; border: 1px solid #E5E7EB;">
+              <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; text-align: center;">Progreso del Pedido</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: ${['pending', 'processing', 'shipped', 'completed'].includes(status) ? '#7AB8BF' : '#E5E7EB'}; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">1</div>
+                    <div style="color: ${['pending', 'processing', 'shipped', 'completed'].includes(status) ? '#374151' : '#9CA3AF'}; font-size: 12px; margin-top: 8px; font-weight: 600;">Confirmado</div>
+                    <div style="position: absolute; top: 15px; left: 50%; width: 100%; height: 2px; background-color: ${['processing', 'shipped', 'completed'].includes(status) ? '#7AB8BF' : '#E5E7EB'}; z-index: 1;"></div>
+                  </td>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: ${['processing', 'shipped', 'completed'].includes(status) ? '#7AB8BF' : '#E5E7EB'}; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">2</div>
+                    <div style="color: ${['processing', 'shipped', 'completed'].includes(status) ? '#374151' : '#9CA3AF'}; font-size: 12px; margin-top: 8px; font-weight: 600;">Preparando</div>
+                    <div style="position: absolute; top: 15px; left: 50%; width: 100%; height: 2px; background-color: ${['shipped', 'completed'].includes(status) ? '#7AB8BF' : '#E5E7EB'}; z-index: 1;"></div>
+                  </td>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: ${['shipped', 'completed'].includes(status) ? '#7AB8BF' : '#E5E7EB'}; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">3</div>
+                    <div style="color: ${['shipped', 'completed'].includes(status) ? '#374151' : '#9CA3AF'}; font-size: 12px; margin-top: 8px; font-weight: 600;">En camino</div>
+                    <div style="position: absolute; top: 15px; left: 50%; width: 100%; height: 2px; background-color: ${status === 'completed' ? '#7AB8BF' : '#E5E7EB'}; z-index: 1;"></div>
+                  </td>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: ${status === 'completed' ? '#7AB8BF' : '#E5E7EB'}; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">4</div>
+                    <div style="color: ${status === 'completed' ? '#374151' : '#9CA3AF'}; font-size: 12px; margin-top: 8px; font-weight: 600;">Entregado</div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            ` : ''}
+
+            ${status === 'cancelled' || status === 'refunded' ? `
+            <div style="margin-bottom: 40px; padding: 20px; background-color: #FEF2F2; border-radius: 8px; border: 1px solid #FCA5A5;">
+              <table style="width: 100%;">
+                <tr>
+                  <td style="width: 40px; vertical-align: top;">
+                    <span style="font-size: 24px;">${status === 'cancelled' ? '❌' : '💸'}</span>
+                  </td>
+                  <td>
+                    <h3 style="font-size: 15px; color: ${status === 'cancelled' ? '#B91C1C' : '#C2410C'}; margin-top: 0; margin-bottom: 5px; font-weight: 600;">${status === 'cancelled' ? 'Pedido Cancelado' : 'Reembolso Procesado'}</h3>
+                    <p style="font-size: 13px; color: #7F1D1D; margin: 0;">${status === 'cancelled' ? 'El pedido no continuará su curso. Si realizaste un pago, el reembolso será procesado.' : 'Hemos emitido el reembolso correspondiente a tu método de pago.'}</p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            ` : ''}
+
+            <div style="margin-bottom: 30px;">
+              <h3 style="font-size: 15px; color: #374151; margin-top: 0; margin-bottom: 15px; font-weight: normal;">${status === 'refunded' ? 'Reembolsar artículos' : status === 'shipped' ? 'Artículos en este envío' : 'Resumen del pedido'}</h3>
+              
+              <table style="width: 100%; border-collapse: collapse;">
+                <tbody>
+                  ${productsHtml}
+                </tbody>
+              </table>
+
+              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <tr>
+                  <td style="width: 40%;"></td>
+                  <td style="width: 60%;">
+                    <table style="width: 100%; font-size: 13px; color: #6b7280;">
+                      <tr>
+                        <td style="padding: 5px 0;">Subtotal</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151;">$${parseFloat(String(calculatedSubtotal)).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0;">Envíos</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151;">$${shippingCost.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; border-bottom: 1px solid #d1d5db; padding-bottom: 15px;">Impuestos</td>
+                        <td style="padding: 5px 0; border-bottom: 1px solid #d1d5db; padding-bottom: 15px; text-align: right; color: #374151;">$${taxCost.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 20px 0 5px; font-size: 15px; color: #6b7280;">Total</td>
+                        <td style="padding: 20px 0 5px; text-align: right; font-size: 18px; font-weight: bold; color: #374151;">$${displayTotal} MXN</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            ${shippingAddressHtml}
+
+          </div>
+          
+          <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+            <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+              Si tienes alguna pregunta, responde este correo electrónico o contáctanos a través de 
+              <a href="mailto:contacto@petgourmet.mx" style="color: #7AB8BF; text-decoration: none;">contacto@petgourmet.mx</a>
+            </p>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `;
 
   return {
     subject: statusInfo.subject,
-    html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${statusInfo.title}</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">
-                ${statusInfo.icon} Pet Gourmet
-              </h1>
-            </div>
-            
-            <!-- Content -->
-            <div style="padding: 30px 20px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <div style="background-color: ${statusInfo.color}; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;">
-                  ${statusInfo.title}
-                </div>
-              </div>
-              
-              <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
-                ${statusInfo.message}
-              </p>
-              
-              ${orderData?.id ? `
-                <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
-                  <p style="margin: 0; font-size: 14px; color: #6b7280;">Número de pedido:</p>
-                  <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: #374151;">#${orderData.id}</p>
-                </div>
-              ` : ''}
-              
-              ${productsHtml}
-              ${shippingHtml}
-              
-              ${orderData?.total ? `
-                <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-                  <p style="margin: 0; font-size: 16px; color: #065f46;">Total del pedido:</p>
-                  <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #10b981;">$${orderData.total} MXN</p>
-                </div>
-              ` : ''}
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <p style="color: #6b7280; font-size: 14px;">¿Tienes alguna pregunta? Contáctanos:</p>
-                <p style="color: #7AB8BF; font-weight: bold;">📧 soporte@petgourmet.mx</p>
-              </div>
-            </div>
-            
-            <!-- Footer -->
-            <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                © 2024 Pet Gourmet. Todos los derechos reservados.
-              </p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
+    html: html
   };
 }
 
@@ -930,14 +1050,14 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
     payment_reminder: {
       subject: '🔔 Recordatorio: Próximo pago de suscripción - Pet Gourmet',
       title: '🔔 Próximo Pago',
-      message: `Tu próximo pago está programado para dentro de ${data.days_until_payment || 3} días. Asegúrate de tener fondos suficientes en tu método de pago.`,
+      message: `Tu próximo pago está programado para dentro de ${data.days_until_payment || 3} días.Asegúrate de tener fondos suficientes en tu método de pago.`,
       color: '#8b5cf6',
       icon: '🔔'
     }
   };
 
   const typeInfo = typeMessages[type as keyof typeof typeMessages] || typeMessages.created;
-  
+
   // Formatear tipo de suscripción
   const frequencyText = {
     weekly: 'Semanal',
@@ -950,84 +1070,89 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
   return {
     subject: typeInfo.subject,
     html: `
-      <!DOCTYPE html>
+    < !DOCTYPE html >
       <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${typeInfo.title}</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">
+      <head>
+      <meta charset="utf-8" >
+        <title>${typeInfo.title} </title>
+          </head>
+          < body style = "font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;" >
+            <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);" >
+              <!--Header -->
+                <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center;" >
+                  <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;" >
                 🐾 Pet Gourmet
-              </h1>
-            </div>
-            
-            <!-- Content -->
-            <div style="padding: 30px 20px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <div style="background-color: ${typeInfo.color}; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;">
-                  ${typeInfo.title}
-                </div>
-              </div>
-              
-              <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
-                Hola <strong>${data.user_name}</strong>,
-              </p>
-              
-              <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
-                ${typeInfo.message}
-              </p>
-              
-              <!-- Detalles de la suscripción -->
-              <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #374151; text-align: center;">📦 Detalles de tu Suscripción</h3>
-                
-                <div style="margin: 15px 0; padding: 15px; background-color: white; border-radius: 8px;">
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                      <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Tipo de suscripción:</td>
-                      <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151;">Suscripción ${frequencyText}</td>
-                    </tr>
+    </h1>
+    </div>
+
+    < !--Content -->
+      <div style="padding: 30px 20px;" >
+        <div style="text-align: center; margin-bottom: 30px;" >
+          <div style="background-color: ${typeInfo.color}; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;" >
+            ${typeInfo.title}
+  </div>
+    </div>
+
+    < p style = "font-size: 16px; margin-bottom: 20px; text-align: center;" >
+      Hola < strong > ${data.user_name} </strong>,
+        </p>
+
+        < p style = "font-size: 16px; margin-bottom: 20px; text-align: center;" >
+          ${typeInfo.message}
+  </p>
+
+    < !--Detalles de la suscripción-- >
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;" >
+        <h3 style="margin-top: 0; color: #374151; text-align: center;" >📦 Detalles de tu Suscripción </h3>
+
+          < div style = "margin: 15px 0; padding: 15px; background-color: white; border-radius: 8px;" >
+            <table style="width: 100%; border-collapse: collapse;" >
+              <tr>
+              <td style="padding: 10px 0; color: #6b7280; font-size: 14px;" > Tipo de suscripción: </td>
+                < td style = "padding: 10px 0; text-align: right; font-weight: bold; color: #374151;" > Suscripción ${frequencyText} </td>
+                  </tr>
                     ${data.plan_description ? `
                       <tr>
                         <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Plan:</td>
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.plan_description}</td>
                       </tr>
-                    ` : ''}
+                    ` : ''
+      }
                     ${data.status ? `
                       <tr>
                         <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Estado:</td>
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.status === 'active' ? '✅ Activa' : data.status === 'paused' ? '⏸️ Pausada' : data.status}</td>
                       </tr>
-                    ` : ''}
-                    <tr>
-                      <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Monto por período:</td>
-                      <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;">$${data.amount.toFixed(2)} MXN</td>
-                    </tr>
+                    ` : ''
+      }
+  <tr>
+    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;" > Monto por período: </td>
+      < td style = "padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;" > $${data.amount.toFixed(2)} MXN </td>
+        </tr>
                     ${data.current_period_start ? `
                       <tr>
                         <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Período actual inicia:</td>
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${new Date(data.current_period_start).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
                       </tr>
-                    ` : ''}
+                    ` : ''
+      }
                     ${data.current_period_end ? `
                       <tr>
                         <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Período actual termina:</td>
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${new Date(data.current_period_end).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
                       </tr>
-                    ` : ''}
+                    ` : ''
+      }
                     ${data.next_payment_date ? `
                       <tr>
                         <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Próximo cobro:</td>
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${typeof data.next_payment_date === 'string' && data.next_payment_date.includes('-') ? new Date(data.next_payment_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : data.next_payment_date}</td>
                       </tr>
-                    ` : ''}
-                  </table>
-                </div>
-              </div>
+                    ` : ''
+      }
+  </table>
+    </div>
+    </div>
               
               ${type === 'subscription_updated' && data.admin_details ? `
                 <!-- Detalles para Admin -->
@@ -1056,10 +1181,11 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                     ` : ''}
                   </table>
                 </div>
-              ` : ''}
-              
-              <!-- Beneficios -->
-              ${type === 'created' ? `
+              ` : ''
+      }
+
+  <!--Beneficios -->
+    ${type === 'created' ? `
                 <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="margin-top: 0; color: #065f46; text-align: center;">🎁 Beneficios de tu Suscripción</h3>
                   <ul style="list-style: none; padding: 0; margin: 0;">
@@ -1070,35 +1196,36 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                     <li style="padding: 8px 0; color: #047857;">✓ Cancela o pausa cuando quieras</li>
                   </ul>
                 </div>
-              ` : ''}
-              
-              <!-- Acciones -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/perfil" 
-                   style="background-color: #7AB8BF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
-                  Ver Mi Suscripción
-                </a>
+              ` : ''
+      }
+
+  <!--Acciones -->
+    <div style="text-align: center; margin: 30px 0;" >
+      <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/perfil"
+  style = "background-color: #7AB8BF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;" >
+    Ver Mi Suscripción
+      </a>
+      </div>
+
+      < div style = "text-align: center; margin: 30px 0; padding-top: 20px; border-top: 1px solid #e5e7eb;" >
+        <p style="color: #6b7280; font-size: 14px; margin-bottom: 10px;" >¿Tienes alguna pregunta ? Contáctanos : </p>
+          < p style = "color: #7AB8BF; font-weight: bold; margin: 5px 0;" >📧 soporte @petgourmet.mx</p>
+            < p style = "color: #7AB8BF; font-weight: bold; margin: 5px 0;" >📱 WhatsApp: +52 123 456 7890 </p>
               </div>
-              
-              <div style="text-align: center; margin: 30px 0; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                <p style="color: #6b7280; font-size: 14px; margin-bottom: 10px;">¿Tienes alguna pregunta? Contáctanos:</p>
-                <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📧 soporte@petgourmet.mx</p>
-                <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📱 WhatsApp: +52 123 456 7890</p>
               </div>
-            </div>
-            
-            <!-- Footer -->
-            <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                © 2025 Pet Gourmet. Todos los derechos reservados.
+
+              < !--Footer -->
+                <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;" >
+                  <p style="margin: 0; color: #6b7280; font-size: 12px;" >
+                © 2025 Pet Gourmet.Todos los derechos reservados.
               </p>
-              <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
-                Este correo fue enviado a ${data.user_email}
-              </p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
+    < p style = "margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;" >
+      Este correo fue enviado a ${data.user_email}
+  </p>
+    </div>
+    </div>
+    </body>
+    </html>
+      `
   };
 }
