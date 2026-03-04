@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Optimización y UI/UX - Pet Gourmet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #7ab8bf;
+            --secondary: #8c5624;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --success: #22c55e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--primary), #5da1a9);
+            color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(122, 184, 191, 0.3);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            border-top: 5px solid var(--primary);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .card ul {
+            list-style: none;
+        }
+
+        .card ul li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .card ul li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .highlight {
+            background-color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            border-left: 3px solid var(--secondary);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--success);
+            color: white;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 2rem;
+        }
+
+        footer {
+            margin-top: 4rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 1rem;
+            }
+
+            header h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Reporte de Optimizaciones</h1>
+            <p>Pet Gourmet - Fase de Pulido UI/UX & PageSpeed</p>
+            <div class="status-badge">COMPLETADO - EN MAIN</div>
+        </header>
+
+        <div class="grid">
+            <!-- PageSpeed -->
+            <div class="card">
+                <h2>⚡ Rendimiento PageSpeed</h2>
+                <ul>
+                    <li><strong>LCP Optimizado:</strong> Imagen del Hero carga con fetchPriority="high" inmediata.</li>
+                    <li><strong>CLS Eliminado:</strong> Dimensiones fijas en logos y botones para evitar saltos.</li>
+                    <li><strong>GPU Acceleration:</strong> Animaciones movidas de Box-Shadow a Transform (Scale/Rotate).
+                    </li>
+                    <li><strong>Robots.txt:</strong> Limpieza de cabeceras de Next.js para cumplimiento SEO.</li>
+                </ul>
+            </div>
+
+            <!-- Hero Section -->
+            <div class="card">
+                <h2>🎥 Hero & Experiencia Visual</h2>
+                <ul>
+                    <li><strong>Filtro Frosted Glass:</strong> Máscara sutil de desenfoque para contraste perfecto de
+                        texto.</li>
+                    <li><strong>Entrada Direccional:</strong> Títulos caen desde arriba y botones suben desde abajo.
+                    </li>
+                    <li><strong>Fluidez:</strong> Timing de 1.2s corregido con interpolación cúbica suave.</li>
+                    <li><strong>Instantaniedad:</strong> Eliminados los "Splash screens" lentos para carga directa.</li>
+                </ul>
+            </div>
+
+            <!-- Header & Nav -->
+            <div class="card">
+                <h2>🔗 Header & Navegación</h2>
+                <ul>
+                    <li><strong>Estabilidad Total:</strong> Header estático sin animaciones de entrada (sin "jank").
+                    </li>
+                    <li><strong>CTA Buy Now:</strong> Botón blanco premium con efecto shimmer persistente.</li>
+                    <li><strong>Conversión:</strong> Animación de latido sutil en el CTA para guiar la mirada.</li>
+                    <li><strong>Logo Fijo:</strong> Sin re-escalado dinámico al recargar la página.</li>
+                </ul>
+            </div>
+
+            <!-- User Experience -->
+            <div class="card">
+                <h2>👤 Perfil de Usuario</h2>
+                <ul>
+                    <li><strong>Simetría Perfecta:</strong> Botón circular de 40x40px, idéntico al carrito.</li>
+                    <li><strong>Botón Estático:</strong> Tamaño invariable para máxima limpieza visual.</li>
+                    <li><strong>Subcategoría Elegante:</strong> Nombre de usuario bajo "Mi Perfil" en el menú.</li>
+                    <li><strong>Contraste Inteligente:</strong> Colores primarios dinámicos en los tooltips.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="highlight">
+            <strong>Resumen Técnico:</strong> Se han modificado archivos core (navbar.tsx, globals.css, next.config.mjs)
+            para unificar la carga visual. El commit <code>32a6b41</code> marca la entrega final de esta fase de
+            estabilización.
+        </div>
+
+        <footer>
+            <p>&copy; 2026 Pet Gourmet | Optimizaciones de Frontend</p>
+        </footer>
+    </div>
+</body>
+
+</html>

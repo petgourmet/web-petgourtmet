@@ -845,7 +845,9 @@ function getOrderStatusTemplate(status: string, orderData: any) {
     `;
   }
 
-  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/pet-gourmet-logo-transparent.png` : 'https://petgourmet.mx/wp-content/uploads/2023/11/logo.png';
+  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL 
+    ? `${process.env.NEXT_PUBLIC_BASE_URL}/petgourmet-logo.png` 
+    : 'https://petgourmet.mx/petgourmet-logo.png';
 
   const html = `
     <!DOCTYPE html>
@@ -858,17 +860,23 @@ function getOrderStatusTemplate(status: string, orderData: any) {
         
         <div style="max-width: 600px; margin: 0 auto;">
           
-          <table style="width: 100%; margin-bottom: 30px;" border="0" cellpadding="0" cellspacing="0">
+          <!-- Header con Logo -->
+          <table style="width: 100%; margin-bottom: 30px; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); border-radius: 8px 8px 0 0;" border="0" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="width: 70%;" valign="bottom">
-                <div style="background-color: #7AB8BF; padding: 25px 20px; display: inline-block; min-width: 250px;">
-                  <!-- Logo Text Fallback in beautiful font -->
-                  <h1 style="color: white; margin: 0; font-family: 'Brush Script MT', 'Lucida Handwriting', cursive, serif; font-size: 38px; font-weight: normal; letter-spacing: 1px;">Pet Gourmet</h1>
-                </div>
-              </td>
-              <td style="width: 30%; text-align: right; vertical-align: bottom; padding-bottom: 10px;" valign="bottom">
-                <p style="margin: 0; color: #6B7280; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">Pedido</p>
-                <p style="margin: 0; color: #6B7280; font-size: 14px;">#${orderData.id}</p>
+              <td style="padding: 30px 20px;" valign="middle">
+                <table style="width: 100%;" border="0" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="width: 70%;" valign="middle">
+                      <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;" />
+                    </td>
+                    <td style="width: 30%; text-align: right; vertical-align: middle;" valign="middle">
+                      <div style="background-color: rgba(255, 255, 255, 0.2); padding: 8px 15px; border-radius: 6px; backdrop-filter: blur(10px);">
+                        <p style="margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600;">Pedido</p>
+                        <p style="margin: 0; color: white; font-size: 16px; font-weight: bold; margin-top: 2px;">#${orderData.id}</p>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
@@ -1067,49 +1075,51 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
     annual: 'Anual'
   }[data.subscription_type] || data.subscription_type;
 
+  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL 
+    ? `${process.env.NEXT_PUBLIC_BASE_URL}/petgourmet-logo.png` 
+    : 'https://petgourmet.mx/petgourmet-logo.png';
+
   return {
     subject: typeInfo.subject,
     html: `
-    < !DOCTYPE html >
+    <!DOCTYPE html>
       <html>
       <head>
-      <meta charset="utf-8" >
-        <title>${typeInfo.title} </title>
-          </head>
-          < body style = "font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;" >
-            <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);" >
-              <!--Header -->
-                <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center;" >
-                  <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;" >
-                🐾 Pet Gourmet
-    </h1>
-    </div>
+        <meta charset="utf-8">
+        <title>${typeInfo.title}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header con Logo -->
+          <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 200px; height: auto; display: block; margin: 0 auto;" />
+          </div>
 
-    < !--Content -->
-      <div style="padding: 30px 20px;" >
-        <div style="text-align: center; margin-bottom: 30px;" >
-          <div style="background-color: ${typeInfo.color}; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;" >
-            ${typeInfo.title}
-  </div>
-    </div>
+          <!-- Content -->
+          <div style="padding: 30px 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <div style="background-color: ${typeInfo.color}; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;">
+                ${typeInfo.title}
+              </div>
+            </div>
 
-    < p style = "font-size: 16px; margin-bottom: 20px; text-align: center;" >
-      Hola < strong > ${data.user_name} </strong>,
-        </p>
+            <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
+              Hola <strong>${data.user_name}</strong>,
+            </p>
 
-        < p style = "font-size: 16px; margin-bottom: 20px; text-align: center;" >
-          ${typeInfo.message}
-  </p>
+            <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
+              ${typeInfo.message}
+            </p>
 
-    < !--Detalles de la suscripción-- >
-      <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;" >
-        <h3 style="margin-top: 0; color: #374151; text-align: center;" >📦 Detalles de tu Suscripción </h3>
+            <!-- Detalles de la suscripción -->
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #374151; text-align: center;">📦 Detalles de tu Suscripción</h3>
 
-          < div style = "margin: 15px 0; padding: 15px; background-color: white; border-radius: 8px;" >
-            <table style="width: 100%; border-collapse: collapse;" >
-              <tr>
-              <td style="padding: 10px 0; color: #6b7280; font-size: 14px;" > Tipo de suscripción: </td>
-                < td style = "padding: 10px 0; text-align: right; font-weight: bold; color: #374151;" > Suscripción ${frequencyText} </td>
+              <div style="margin: 15px 0; padding: 15px; background-color: white; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Tipo de suscripción:</td>
+                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151;">Suscripción ${frequencyText}</td>
                   </tr>
                     ${data.plan_description ? `
                       <tr>
@@ -1124,11 +1134,11 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.status === 'active' ? '✅ Activa' : data.status === 'paused' ? '⏸️ Pausada' : data.status}</td>
                       </tr>
                     ` : ''
-      }
-  <tr>
-    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;" > Monto por período: </td>
-      < td style = "padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;" > $${data.amount.toFixed(2)} MXN </td>
-        </tr>
+                    }
+                  <tr>
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Monto por período:</td>
+                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;">$${data.amount.toFixed(2)} MXN</td>
+                  </tr>
                     ${data.current_period_start ? `
                       <tr>
                         <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Período actual inicia:</td>
@@ -1149,12 +1159,12 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                         <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${typeof data.next_payment_date === 'string' && data.next_payment_date.includes('-') ? new Date(data.next_payment_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : data.next_payment_date}</td>
                       </tr>
                     ` : ''
-      }
-  </table>
-    </div>
-    </div>
+                    }
+                </table>
+              </div>
+            </div>
               
-              ${type === 'subscription_updated' && data.admin_details ? `
+            ${type === 'subscription_updated' && data.admin_details ? `
                 <!-- Detalles para Admin -->
                 <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
                   <h4 style="margin-top: 0; color: #92400e; font-size: 14px;">📊 Detalles de Actualización (Admin)</h4>
@@ -1182,10 +1192,10 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                   </table>
                 </div>
               ` : ''
-      }
+            }
 
-  <!--Beneficios -->
-    ${type === 'created' ? `
+            <!-- Beneficios -->
+            ${type === 'created' ? `
                 <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="margin-top: 0; color: #065f46; text-align: center;">🎁 Beneficios de tu Suscripción</h3>
                   <ul style="list-style: none; padding: 0; margin: 0;">
@@ -1197,35 +1207,35 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                   </ul>
                 </div>
               ` : ''
-      }
+            }
 
-  <!--Acciones -->
-    <div style="text-align: center; margin: 30px 0;" >
-      <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/perfil"
-  style = "background-color: #7AB8BF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;" >
-    Ver Mi Suscripción
-      </a>
-      </div>
+            <!-- Acciones -->
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/perfil"
+                 style="background-color: #7AB8BF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Ver Mi Suscripción
+              </a>
+            </div>
 
-      < div style = "text-align: center; margin: 30px 0; padding-top: 20px; border-top: 1px solid #e5e7eb;" >
-        <p style="color: #6b7280; font-size: 14px; margin-bottom: 10px;" >¿Tienes alguna pregunta ? Contáctanos : </p>
-          < p style = "color: #7AB8BF; font-weight: bold; margin: 5px 0;" >📧 soporte @petgourmet.mx</p>
-            < p style = "color: #7AB8BF; font-weight: bold; margin: 5px 0;" >📱 WhatsApp: +52 123 456 7890 </p>
-              </div>
-              </div>
+            <div style="text-align: center; margin: 30px 0; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 14px; margin-bottom: 10px;">¿Tienes alguna pregunta? Contáctanos:</p>
+              <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📧 soporte@petgourmet.mx</p>
+              <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📱 WhatsApp: +52 123 456 7890</p>
+            </div>
+          </div>
 
-              < !--Footer -->
-                <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;" >
-                  <p style="margin: 0; color: #6b7280; font-size: 12px;" >
-                © 2025 Pet Gourmet.Todos los derechos reservados.
-              </p>
-    < p style = "margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;" >
-      Este correo fue enviado a ${data.user_email}
-  </p>
-    </div>
-    </div>
-    </body>
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <p style="margin: 0; color: #6b7280; font-size: 12px;">
+              © 2025 Pet Gourmet. Todos los derechos reservados.
+            </p>
+            <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
+              Este correo fue enviado a ${data.user_email}
+            </p>
+          </div>
+        </div>
+      </body>
     </html>
-      `
+    `
   };
 }
