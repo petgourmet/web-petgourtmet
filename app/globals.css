@@ -215,13 +215,7 @@ body {
   background: radial-gradient(circle, rgba(140, 86, 36, 0.2), transparent); /* Cambiado a rojo granate */
 }
 
-.bg-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%237AB8BF' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
 
-.dark .bg-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%238c242b' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
 
 /* Estilos de sección */
 .section-padding {
@@ -531,50 +525,4 @@ html.light {
   @apply outline-none ring-2 ring-offset-2 ring-primary;
 }
 
-/* Añadir la animación de levitación global para los elementos con la clase correspondiente */
-/* Añadir al final del archivo: */
 
-@keyframes floatingEffect {
-  0% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-  100% {
-    transform: translateY(0px);
-  }
-}
-
-.floating {
-  animation: floatingEffect 6s ease-in-out infinite;
-}
-
-/* Variaciones de la animación con diferentes tiempos */
-.floating-slow {
-  animation: floatingEffect 8s ease-in-out infinite;
-}
-
-.floating-fast {
-  animation: floatingEffect 4s ease-in-out infinite;
-}
-
-/* Añadir un ligero balanceo horizontal */
-@keyframes swayEffect {
-  0% {
-    transform: translateX(0px) rotate(0deg);
-  }
-  25% {
-    transform: translateX(-5px) rotate(-1deg);
-  }
-  75% {
-    transform: translateX(5px) rotate(1deg);
-  }
-  100% {
-    transform: translateX(0px) rotate(0deg);
-  }
-}
-
-.floating-sway {
-  animation: swayEffect 7s ease-in-out infinite;
-}

@@ -90,17 +90,16 @@ export function VideoHero() {
       ══════════════════════════════════════════════════════════════════ */}
       <div className="absolute inset-0 z-0 bg-black">
         {/* Poster — primer frame del video via Cloudinary, carga en ~100ms */}
-        {showBackground && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="https://res.cloudinary.com/dn7unepxa/video/upload/so_0.0,q_80,f_auto/v1772482021/video_ev8mjp.jpg"
-            alt=""
-            aria-hidden="true"
-            fetchPriority="low"
-            className="absolute w-full h-full object-cover"
-            style={{ opacity: iframeReady ? 0 : 1, transition: "opacity 1s ease" }}
-          />
-        )}
+        {/* Renderizado de inmediato pero oculto por z-index para mejorar LCP render delay */}
+        <img
+          src="https://res.cloudinary.com/dn7unepxa/video/upload/so_0.0,q_80,f_auto/v1772482021/video_ev8mjp.jpg"
+          alt=""
+          aria-hidden="true"
+          fetchPriority="high"
+          className="absolute w-full h-full object-cover"
+          style={{ opacity: iframeReady ? 0 : 1, transition: "opacity 1s ease" }}
+        />
+
         {/* Video nativo — sin iframe, sin JS de YouTube, sin latencia */}
         {iframeActive && (
           <video
