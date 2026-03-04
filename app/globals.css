@@ -13,17 +13,24 @@
   --popover-foreground: 222.2 84% 4.9%;
 
   /* Colores principales */
-  --primary: 187 36% 61%; /* Azul #7AB8BF */
+  --primary: 187 36% 61%;
+  /* Azul #7AB8BF */
   --primary-foreground: 0 0% 100%;
-  --secondary: 25 59% 35%; /* Café #8C4A23 */
+  --secondary: 25 59% 35%;
+  /* Café #8C4A23 */
   --secondary-foreground: 0 0% 100%;
 
   /* Colores pasteles */
-  --pastel-blue: 195 70% 90%; /* #D6EEF5 */
-  --pastel-green: 150 60% 90%; /* #D9F5E8 */
-  --pastel-yellow: 45 100% 90%; /* #FFF2CC */
-  --pastel-pink: 340 70% 90%; /* #F9D7E8 */
-  --pastel-purple: 270 60% 90%; /* #E6D9F2 */
+  --pastel-blue: 195 70% 90%;
+  /* #D6EEF5 */
+  --pastel-green: 150 60% 90%;
+  /* #D9F5E8 */
+  --pastel-yellow: 45 100% 90%;
+  /* #FFF2CC */
+  --pastel-pink: 340 70% 90%;
+  /* #F9D7E8 */
+  --pastel-purple: 270 60% 90%;
+  /* #E6D9F2 */
 
   /* Otros colores del sistema */
   --neutral: 0 0% 95%;
@@ -49,13 +56,16 @@
   --popover-foreground: 210 40% 98%;
 
   /* Colores principales en modo oscuro */
-  --primary: 25 59% 67%; /* Cambiado a color melocotón #e7ae84 */
+  --primary: 25 59% 67%;
+  /* Cambiado a color melocotón #e7ae84 */
   --primary-foreground: 0 0% 100%;
-  --secondary: 25 59% 30%; /* Café más oscuro */
+  --secondary: 25 59% 30%;
+  /* Café más oscuro */
   --secondary-foreground: 0 0% 100%;
 
   /* Colores pasteles en modo oscuro */
-  --pastel-blue: 25 59% 30%; /* Cambiado a tono melocotón oscuro */
+  --pastel-blue: 25 59% 30%;
+  /* Cambiado a tono melocotón oscuro */
   --pastel-green: 150 30% 30%;
   --pastel-yellow: 45 30% 30%;
   --pastel-pink: 340 30% 30%;
@@ -66,13 +76,15 @@
   --neutral-foreground: 210 40% 98%;
   --muted: 217.2 32.6% 17.5%;
   --muted-foreground: 215 20.2% 65.1%;
-  --accent: 25 59% 67%; /* Cambiado a color melocotón #e7ae84 */
+  --accent: 25 59% 67%;
+  /* Cambiado a color melocotón #e7ae84 */
   --accent-foreground: 210 40% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
-  --ring: 25 59% 67%; /* Cambiado a color melocotón #e7ae84 */
+  --ring: 25 59% 67%;
+  /* Cambiado a color melocotón #e7ae84 */
 }
 
 * {
@@ -137,8 +149,21 @@ body {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(-20px);
   }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInSmall {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -146,13 +171,64 @@ body {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.6s ease-out forwards;
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.animate-fade-in:nth-child(1) { animation-delay: 0.1s; }
-.animate-fade-in:nth-child(2) { animation-delay: 0.2s; }
-.animate-fade-in:nth-child(3) { animation-delay: 0.3s; }
-.animate-fade-in:nth-child(4) { animation-delay: 0.4s; }
+.animate-fade-in-small {
+  animation: fadeInSmall 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- Animación Premium CTA Botón de Compra (Shimmer/Brillo) --- */
+@keyframes buyShimmer {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+
+  30%,
+  100% {
+    transform: translateX(250%) skewX(-15deg);
+  }
+}
+
+.btn-buy-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(to right,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent);
+  animation: buyShimmer 3s infinite ease-in-out;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.btn-buy-shimmer:hover::after {
+  animation-duration: 1.5s;
+}
+
+/* User Button Estático - Consistent with Cart (40x40 Circle) */
+.user-btn-expand {
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0;
+  justify-content: center;
+  border-radius: 9999px;
+  /* Perfect circle to match cart button */
+  transition: all 0.3s ease;
+}
+
+.user-btn-expand:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
 
 /* Spotlight Card */
 .spotlight-card {
@@ -212,7 +288,8 @@ body {
 }
 
 .bg-illuminated-secondary::before {
-  background: radial-gradient(circle, rgba(140, 86, 36, 0.2), transparent); /* Cambiado a rojo granate */
+  background: radial-gradient(circle, rgba(140, 86, 36, 0.2), transparent);
+  /* Cambiado a rojo granate */
 }
 
 
@@ -349,12 +426,10 @@ body {
   left: -100%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.8) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background: linear-gradient(to right,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.8) 50%,
+      rgba(255, 255, 255, 0) 100%);
   transform: skewX(-25deg);
   animation: reflection 3s ease-in-out infinite;
 }
@@ -363,6 +438,7 @@ body {
   0% {
     left: -100%;
   }
+
   20%,
   100% {
     left: 200%;
@@ -373,15 +449,19 @@ body {
   0% {
     transform: rotate(0deg);
   }
+
   25% {
     transform: rotate(-3deg);
   }
+
   50% {
     transform: rotate(0deg);
   }
+
   75% {
     transform: rotate(3deg);
   }
+
   100% {
     transform: rotate(0deg);
   }
@@ -396,12 +476,15 @@ body {
     opacity: 0;
     transform: translateY(-30%);
   }
+
   20% {
     opacity: 1;
   }
+
   80% {
     opacity: 1;
   }
+
   100% {
     opacity: 0;
     transform: translateY(0);
@@ -413,15 +496,19 @@ body {
     opacity: 0;
     transform: translate(0, -10px) rotate(0deg);
   }
+
   10% {
     opacity: 1;
   }
+
   40% {
     opacity: 1;
   }
+
   60% {
     opacity: 0.7;
   }
+
   100% {
     opacity: 0;
     transform: translate(calc(var(--random-x, 0) * 50px - 25px), 300px) rotate(calc(var(--random-r, 0) * 360deg));
@@ -444,9 +531,11 @@ body {
     transform: scale(0.95);
     opacity: 0;
   }
+
   50% {
     transform: scale(1.02);
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -459,16 +548,20 @@ body {
 
 /* Animaciones para las partículas de ingredientes */
 @keyframes float-ingredient {
+
   0%,
   100% {
     transform: translateY(0) rotate(0deg);
   }
+
   25% {
     transform: translateY(-15px) rotate(5deg);
   }
+
   50% {
     transform: translateY(0) rotate(0deg);
   }
+
   75% {
     transform: translateY(15px) rotate(-5deg);
   }
@@ -524,5 +617,3 @@ html.light {
 .theme-toggle-button:focus {
   @apply outline-none ring-2 ring-offset-2 ring-primary;
 }
-
-

@@ -2,7 +2,7 @@
 const nextConfig = {
   // Configuración esencial para Netlify
   output: process.env.NETLIFY ? 'standalone' : undefined,
-  
+
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
     // Partytown: mueve GTM/GA a un Web Worker, libera el hilo principal por completo
@@ -67,6 +67,11 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
+          },
+          // Anular la inyección de IA para que no corrompa el robots.txt en motores que no lo soportan
+          {
+            key: 'Content-Signal',
+            value: '',
           },
         ],
       },

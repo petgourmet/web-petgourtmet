@@ -28,23 +28,31 @@ export default function WhatsappButton() {
           to   { transform: scale(1); opacity: 1; }
         }
         .wa-btn {
+          position: relative;
           display: flex; align-items: center; justify-content: center;
           width: 40px; height: 40px; border-radius: 9999px;
           background-color: #7AB8BF;
-          box-shadow: 0 4px 15px rgba(122,184,191,0.5);
           border: none; cursor: pointer;
-          animation: waPulse 2.5s ease-in-out infinite;
-          transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+          transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        /* El ripple effect hecho con pseudo-elemento es GPU-Acelerado (compuesto) */
+        .wa-btn::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 9999px;
+          background-color: inherit;
+          z-index: -1;
+          animation: waPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         .wa-btn:hover {
-          transform: scale(1.2);
+          transform: scale(1.1);
           background-color: #5A9EA6;
-          box-shadow: 0 6px 20px rgba(122,184,191,0.6);
         }
         .wa-btn:active { transform: scale(0.95); }
         @keyframes waPulse {
-          0%,100% { box-shadow: 0 4px 15px rgba(122,184,191,0.3); }
-          50%      { box-shadow: 0 4px 15px rgba(122,184,191,0.7); }
+          0% { transform: scale(1); opacity: 0.6; }
+          100% { transform: scale(1.6); opacity: 0; }
         }
       `}</style>
       <TooltipProvider>

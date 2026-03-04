@@ -14,7 +14,7 @@ import { useMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Modales solo se cargan cuando el usuario los abre — fuera del bundle inicial
-const CartModal     = dynamic(() => import("@/components/cart-modal").then(m => ({ default: m.CartModal })), { ssr: false })
+const CartModal = dynamic(() => import("@/components/cart-modal").then(m => ({ default: m.CartModal })), { ssr: false })
 const CheckoutModal = dynamic(() => import("@/components/checkout-modal").then(m => ({ default: m.CheckoutModal })), { ssr: false })
 
 export function Navbar() {
@@ -72,9 +72,8 @@ export function Navbar() {
   return (
     <>
       <header
-        className={`w-full sticky top-0 z-50 transition-all duration-500 backdrop-blur-sm ${
-          isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
-        }`}
+        className={`w-full sticky top-0 z-50 transition-all duration-500 backdrop-blur-sm ${isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
+          }`}
       >
         <div className="container mx-auto px-4 flex items-center justify-between">
           <Link href="/" className="flex items-center relative group z-10">
@@ -84,7 +83,8 @@ export function Navbar() {
               alt="Pet Gourmet Logo"
               width={150}
               height={40}
-              className="h-10 md:h-12 w-auto animate-logo-wiggle"
+              priority
+              className="h-10 md:h-12 w-[150px] md:w-[180px] object-contain"
             />
           </Link>
 
@@ -145,17 +145,21 @@ export function Navbar() {
 
             {user ? (
               <div className="relative group">
-                <button className="flex items-center space-x-2 bg-white hover:bg-white/90 text-primary rounded-full px-4 py-2 shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow">
-                  <User size={18} />
-                  <span className="max-w-[100px] truncate">{user.email?.split("@")[0]}</span>
+                <button className="flex items-center bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow user-btn-expand">
+                  <User size={20} className="flex-shrink-0" />
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 overflow-hidden">
                   <div className="py-2">
                     <Link
                       href="/perfil"
-                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary group/item"
                     >
-                      Mi Perfil
+                      <div className="flex flex-col leading-tight">
+                        <span>Mi Perfil</span>
+                        <span className="text-[10px] text-primary group-hover/item:text-white transition-colors font-medium">
+                          {user.email?.split("@")[0]}
+                        </span>
+                      </div>
                     </Link>
 
                     {isAdmin && (
@@ -197,9 +201,11 @@ export function Navbar() {
 
             <Button
               asChild
-              className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow"
+              className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow btn-buy-shimmer relative overflow-hidden"
             >
-              <Link href="/productos">Comprar Ahora</Link>
+              <Link href="/productos">
+                <span className="relative z-10">Comprar Ahora</span>
+              </Link>
             </Button>
           </div>
 
@@ -414,9 +420,9 @@ export function Navbar() {
               <Link
                 href="/productos"
                 onClick={() => setIsMenuOpen(false)}
-                className="block w-full bg-primary text-white py-3 px-4 rounded-md text-center font-medium mb-3"
+                className="block w-full bg-primary text-white py-3 px-4 rounded-md text-center font-medium mb-3 shadow-[0_0_15px_rgba(42,120,128,0.5)] btn-buy-shimmer relative overflow-hidden"
               >
-                Comprar Ahora
+                <span className="relative z-10">Comprar Ahora</span>
               </Link>
 
               <div className="grid grid-cols-2 gap-3">
@@ -437,8 +443,9 @@ export function Navbar() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </div >
+      )
+      }
 
       {/* Modales de carrito y checkout */}
       {showCart && <CartModal />}
