@@ -15,7 +15,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 // Inicializar Stripe con la clave secreta
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-09-30.clover',
+  apiVersion: '2025-08-27.basil' as any,
   typescript: true,
   appInfo: {
     name: 'PetGourmet',

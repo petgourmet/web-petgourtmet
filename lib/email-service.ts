@@ -131,6 +131,44 @@ export async function sendOrderStatusEmail(
   }
 }
 
+// Función para enviar correo de nuevo pedido al admin (contacto@petgourmet.mx)
+export async function sendAdminNewOrderEmail(orderData: any, maxRetries: number = 2) {
+  const adminEmail = 'contacto@petgourmet.mx';
+  console.log(`[EMAIL-SERVICE] Iniciando envío de notificación de nuevo pedido al admin`);
+
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.error('[EMAIL-SERVICE] ERROR: Configuración SMTP incompleta');
+    return { success: false, error: 'SMTP not configured' };
+  }
+
+  try {
+    const transporter = createTransporter();
+    const template = getAdminNewOrderTemplate(orderData);
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+      to: adminEmail,
+      subject: template.subject,
+      html: template.html
+    };
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await transporter.sendMail(mailOptions);
+        console.log(`[EMAIL-SERVICE] ✅ Notificación admin enviada:`, { messageId: result.messageId, attempt });
+        return { success: true, messageId: result.messageId, attempts: attempt };
+      } catch (error) {
+        console.error(`[EMAIL-SERVICE] ❌ Error intento ${attempt}/${maxRetries} email admin:`, error instanceof Error ? error.message : error);
+        if (attempt === maxRetries) throw error;
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+      }
+    }
+  } catch (error) {
+    console.error(`[EMAIL-SERVICE] ❌ Error crítico enviando email admin:`, error instanceof Error ? error.message : error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 // Función para logging de correos enviados con manejo de errores mejorado
 export async function logEmailSent(
   orderId: number,
@@ -1000,6 +1038,193 @@ function getOrderStatusTemplate(status: string, orderData: any) {
 
   return {
     subject: statusInfo.subject,
+    html: html
+  };
+}
+
+// Plantilla de notificación al admin cuando llega un nuevo pedido
+function getAdminNewOrderTemplate(orderData: any) {
+  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL 
+    ? `${process.env.NEXT_PUBLIC_BASE_URL}/petgourmet-logo.png` 
+    : 'https://petgourmet.mx/petgourmet-logo.png';
+
+  const customerName = orderData.customer_name || orderData.shipping_address?.full_name || orderData.shipping_address?.name || 'Cliente';
+  const customerEmail = orderData.customer_email || 'No proporcionado';
+  const customerPhone = orderData.shipping_address?.phone || orderData.customer_phone || 'No proporcionado';
+
+  // Productos
+  let productsHtml = '';
+  let subtotal = 0;
+  if (orderData?.products && Array.isArray(orderData.products)) {
+    productsHtml = orderData.products.map((product: any) => {
+      const pPrice = parseFloat(product.price || 0);
+      const pQty = parseInt(product.quantity || 1, 10);
+      subtotal += pPrice * pQty;
+      return `
+        <tr>
+          <td style="padding: 12px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; width: 60px;">
+            ${product.image ? `<img src="${product.image}" alt="${product.name}" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;" />` : `<div style="width: 50px; height: 50px; background-color: #d1d5db; border-radius: 8px;"></div>`}
+          </td>
+          <td style="padding: 12px 10px; border-bottom: 1px solid #d1d5db; vertical-align: middle;">
+            <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151; text-transform: uppercase;">${product.name || 'Producto'} × ${pQty}</p>
+            ${product.size ? `<p style="margin: 4px 0 0; font-size: 11px; color: #6b7280;">Talla: ${product.size}</p>` : ''}
+          </td>
+          <td style="padding: 12px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: right; width: 100px;">
+            <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151;">$${(pPrice * pQty).toFixed(2)}</p>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  const shippingCost = parseFloat(orderData?.shipping_cost || 0);
+  const displayTotal = parseFloat(orderData?.total || 0).toFixed(2);
+  const calculatedSubtotal = subtotal > 0 ? subtotal : parseFloat(orderData?.total || 0);
+
+  // Dirección de envío
+  let shippingAddressHtml = '';
+  if (orderData?.shipping_address) {
+    const addr = orderData.shipping_address;
+    shippingAddressHtml = `
+      <div style="margin-top: 25px; padding: 15px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+        <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">📍 Dirección de envío</h3>
+        <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.6;">
+          ${addr.name || addr.full_name || customerName}<br/>
+          ${addr.address_line_1 || addr.address || ''}
+          ${addr.address_line_2 ? `<br/>${addr.address_line_2}` : ''}
+          <br/>${addr.city || ''}${addr.state ? `, ${addr.state}` : ''}
+          ${addr.postal_code ? ` ${addr.postal_code}` : ''}
+          ${addr.phone ? `<br/>📞 ${addr.phone}` : ''}
+        </p>
+      </div>
+    `;
+  }
+
+  const adminUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/admin/orders/${orderData.id}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <title>Nuevo Pedido #${orderData.id}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+        
+        <div style="max-width: 600px; margin: 0 auto;">
+          
+          <!-- Header con Logo -->
+          <table style="width: 100%; margin-bottom: 0; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); border-radius: 8px 8px 0 0;" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 30px 20px;" valign="middle">
+                <table style="width: 100%;" border="0" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="width: 70%;" valign="middle">
+                      <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;" />
+                    </td>
+                    <td style="width: 30%; text-align: right; vertical-align: middle;" valign="middle">
+                      <div style="background-color: rgba(255, 255, 255, 0.2); padding: 8px 15px; border-radius: 6px;">
+                        <p style="margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600;">Pedido</p>
+                        <p style="margin: 0; color: white; font-size: 16px; font-weight: bold; margin-top: 2px;">#${orderData.id}</p>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Alerta nuevo pedido -->
+          <div style="background-color: #ecfdf5; padding: 20px; border-left: 4px solid #10b981;">
+            <table style="width: 100%;">
+              <tr>
+                <td style="width: 40px; vertical-align: top;">
+                  <span style="font-size: 28px;">🛒</span>
+                </td>
+                <td>
+                  <h2 style="font-size: 20px; color: #065f46; margin: 0 0 5px;">¡Nuevo Pedido Recibido!</h2>
+                  <p style="font-size: 14px; color: #047857; margin: 0;">Se ha recibido un nuevo pedido que requiere preparación.</p>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: white; padding: 25px 20px; border-radius: 0 0 8px 8px;">
+
+            <!-- Datos del cliente -->
+            <div style="margin-bottom: 25px; padding: 15px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+              <h3 style="font-size: 14px; color: #0c4a6e; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">👤 Datos del Cliente</h3>
+              <table style="width: 100%; font-size: 13px; color: #374151;">
+                <tr>
+                  <td style="padding: 4px 0; font-weight: 600; width: 100px;">Nombre:</td>
+                  <td style="padding: 4px 0;">${customerName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-weight: 600;">Email:</td>
+                  <td style="padding: 4px 0;"><a href="mailto:${customerEmail}" style="color: #7AB8BF; text-decoration: none;">${customerEmail}</a></td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-weight: 600;">Teléfono:</td>
+                  <td style="padding: 4px 0;">${customerPhone}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Resumen del pedido -->
+            <div style="margin-bottom: 20px;">
+              <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.05em;">📦 Productos del Pedido</h3>
+              
+              <table style="width: 100%; border-collapse: collapse;">
+                <tbody>
+                  ${productsHtml || '<tr><td style="padding: 15px; color: #6b7280; text-align: center;">Sin detalle de productos</td></tr>'}
+                </tbody>
+              </table>
+
+              <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <tr>
+                  <td style="width: 40%;"></td>
+                  <td style="width: 60%;">
+                    <table style="width: 100%; font-size: 13px; color: #6b7280;">
+                      <tr>
+                        <td style="padding: 5px 0;">Subtotal</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151;">$${parseFloat(String(calculatedSubtotal)).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0;">Envío</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151;">$${shippingCost.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 15px 0 5px; font-size: 16px; font-weight: bold; color: #374151; border-top: 2px solid #d1d5db;">Total</td>
+                        <td style="padding: 15px 0 5px; text-align: right; font-size: 18px; font-weight: bold; color: #065f46; border-top: 2px solid #d1d5db;">$${displayTotal} MXN</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            ${shippingAddressHtml}
+
+            <!-- Botón de acción -->
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${adminUrl}" style="background-color: #7AB8BF; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold; display: inline-block;">Ver Pedido en Admin</a>
+            </div>
+
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+            <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+              Este es un correo automático del sistema de pedidos de Pet Gourmet.
+            </p>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  return {
+    subject: `🛒 Nuevo Pedido #${orderData.id} - $${displayTotal} MXN - ${customerName}`,
     html: html
   };
 }

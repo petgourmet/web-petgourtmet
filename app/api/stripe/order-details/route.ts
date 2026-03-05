@@ -19,12 +19,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Obtener la sesión de Stripe
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ['line_items', 'line_items.data.price.product']
-    })
-
-    // Buscar la orden en la base de datos con información completa de productos
+    // Primero buscar la orden en la base de datos (más confiable)
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select(`
@@ -41,7 +36,6 @@ export async function GET(request: NextRequest) {
             id,
             name,
             category_id,
-            subcategory,
             categories (
               name
             )
@@ -51,41 +45,64 @@ export async function GET(request: NextRequest) {
       .eq('stripe_session_id', sessionId)
       .single()
 
-    if (orderError) {
+    if (orderError && orderError.code !== 'PGRST116') {
+      // PGRST116 = not found (single row expected but 0 returned) - esto es normal
       console.error('Error fetching order:', orderError)
     }
 
     if (!order) {
       // La orden aún no ha sido procesada por el webhook
-      // Devolver información básica de la sesión de Stripe
-      console.log('Order not found in DB yet, returning session data')
+      // Intentar obtener información de Stripe como fallback
+      console.log('Order not found in DB yet, trying Stripe session...')
       
-      const lineItems = session.line_items?.data || []
-      const items = lineItems.map((item: any) => {
-        const product = item.price?.product as any
-        return {
-          name: item.description || product?.name || 'Producto',
-          image: product?.images?.[0] || null,
-          quantity: item.quantity || 1,
-          price: (item.amount_total || 0) / 100 / (item.quantity || 1)
-        }
-      })
-      
-      const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-      const shipping = ((session.amount_total || 0) / 100) - subtotal
-      
-      return NextResponse.json({
-        orderId: null,
-        orderNumber: 'Procesando...',
-        total: (session.amount_total || 0) / 100,
-        subtotal: subtotal,
-        shipping: shipping,
-        items: items,
-        customerEmail: session.customer_email || session.customer_details?.email,
-        customerName: session.customer_details?.name,
-        shippingAddress: (session as any).shipping_details?.address || null,
-        pending: true // Indicar que aún está pendiente
-      })
+      try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId, {
+          expand: ['line_items', 'line_items.data.price.product']
+        })
+
+        const lineItems = session.line_items?.data || []
+        const items = lineItems.map((item: any) => {
+          const product = item.price?.product as any
+          return {
+            name: item.description || product?.name || 'Producto',
+            image: product?.images?.[0] || null,
+            quantity: item.quantity || 1,
+            price: (item.amount_total || 0) / 100 / (item.quantity || 1)
+          }
+        })
+        
+        const subtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0)
+        const shipping = ((session.amount_total || 0) / 100) - subtotal
+        
+        return NextResponse.json({
+          orderId: null,
+          orderNumber: 'Procesando...',
+          total: (session.amount_total || 0) / 100,
+          subtotal: subtotal,
+          shipping: shipping,
+          items: items,
+          customerEmail: session.customer_email || session.customer_details?.email,
+          customerName: session.customer_details?.name,
+          shippingAddress: (session as any).shipping_details?.address || null,
+          pending: true // Indicar que aún está pendiente
+        })
+      } catch (stripeError: any) {
+        console.error('Error retrieving Stripe session:', stripeError.message)
+        // No se encontró ni en DB ni en Stripe
+        return NextResponse.json({
+          orderId: null,
+          orderNumber: 'Procesando...',
+          total: 0,
+          subtotal: 0,
+          shipping: 0,
+          items: [],
+          customerEmail: null,
+          customerName: null,
+          shippingAddress: null,
+          pending: true,
+          message: 'Tu orden está siendo procesada. Por favor espera un momento.'
+        })
+      }
     }
 
     // Calcular subtotal y envío
@@ -122,7 +139,6 @@ export async function GET(request: NextRequest) {
         size: item.size,
         // Agregar información de productos desde la relación
         category: item.products?.categories?.name || null,
-        subcategory: item.products?.subcategory || null,
         brand: 'PET GOURMET', // Marca por defecto
         variant: item.size || null // Usar el tamaño como variante
       })) || [],

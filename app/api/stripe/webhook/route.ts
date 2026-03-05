@@ -22,6 +22,42 @@ const supabaseAdmin = createClient(
 )
 
 /**
+ * Envía emails de compra al cliente y admin sin bloquear el webhook.
+ * Se ejecuta en fire-and-forget desde handleCheckoutSessionCompleted.
+ */
+async function sendPurchaseEmails(customerEmail: string | null, orderData: any) {
+  const { sendOrderStatusEmail, sendAdminNewOrderEmail } = await import('@/lib/email-service')
+
+  console.log('[EMAIL] 📧 Iniciando envío de emails para orden', orderData.id)
+
+  // 1) Email al cliente: "¡Gracias por tu compra!"
+  if (customerEmail) {
+    try {
+      const result = await sendOrderStatusEmail('processing', customerEmail, orderData)
+      if (result?.success) {
+        console.log('[EMAIL] ✅ Email de confirmación enviado al cliente:', customerEmail)
+      } else {
+        console.error('[EMAIL] ❌ Fallo email al cliente:', result?.error)
+      }
+    } catch (e) {
+      console.error('[EMAIL] ❌ Error email cliente:', e instanceof Error ? e.message : e)
+    }
+  }
+
+  // 2) Email al admin: "Nuevo pedido recibido"
+  try {
+    const adminResult = await sendAdminNewOrderEmail(orderData)
+    if (adminResult?.success) {
+      console.log('[EMAIL] ✅ Email de nuevo pedido enviado al admin')
+    } else {
+      console.error('[EMAIL] ❌ Fallo email admin:', adminResult?.error)
+    }
+  } catch (e) {
+    console.error('[EMAIL] ❌ Error email admin:', e instanceof Error ? e.message : e)
+  }
+}
+
+/**
  * Maneja el evento checkout.session.completed
  * Se dispara cuando un pago o suscripción se completa
  */
@@ -154,101 +190,27 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       }
     }
 
-    // Enviar email de confirmación al cliente
-    try {
-      console.log('[WEBHOOK] 📧 Intentando enviar email de confirmación...')
-      console.log('[WEBHOOK] SMTP Config Check:', {
-        hasHost: !!process.env.SMTP_HOST,
-        hasUser: !!process.env.SMTP_USER,
-        hasPass: !!process.env.SMTP_PASS,
-        hasFrom: !!process.env.EMAIL_FROM
-      })
-      
-      const { sendOrderStatusEmail } = await import('@/lib/email-service')
-      
-      if (customerEmail) {
-        console.log('[WEBHOOK] Email destinatario:', customerEmail)
-        
-        // Preparar datos para el email
-        const orderDataForEmail = {
-          id: order.id,
-          total: order.total,
-          products: orderItems.map(item => ({
-            name: item.product_name,
-            quantity: item.quantity,
-            price: item.price
-          })),
-          shipping_address: fullShippingAddress?.shipping || null
-        }
-
-        console.log('[WEBHOOK] Datos de orden para email:', {
-          orderId: orderDataForEmail.id,
-          total: orderDataForEmail.total,
-          productsCount: orderDataForEmail.products.length
-        })
-
-        // Enviar email al cliente
-        const emailResult = await sendOrderStatusEmail('pending', customerEmail, orderDataForEmail)
-        
-        if (emailResult && emailResult.success) {
-          console.log('[WEBHOOK] ✅ Email de confirmación enviado exitosamente al cliente:', {
-            to: customerEmail,
-            messageId: emailResult.messageId,
-            attempts: emailResult.attempts
-          })
-        } else {
-          console.error('[WEBHOOK] ❌ Email no se pudo enviar al cliente:', {
-            to: customerEmail,
-            error: emailResult?.error || 'Unknown error'
-          })
-        }
-
-        // Enviar email de notificación al admin
-        try {
-          const adminOrderData = {
-            id: order.id,
-            total: order.total,
-            customer_name: customerName || 'Cliente',
-            customer_email: customerEmail,
-            products: orderItems.map(item => ({
-              name: item.product_name,
-              quantity: item.quantity,
-              price: item.price
-            })),
-            shipping_address: fullShippingAddress?.shipping || null
-          }
-
-          const adminEmailResult = await sendOrderStatusEmail('pending', 'contacto@petgourmet.mx', adminOrderData)
-          
-          if (adminEmailResult && adminEmailResult.success) {
-            console.log('[WEBHOOK] ✅ Email de notificación enviado exitosamente al admin:', {
-              to: 'contacto@petgourmet.mx',
-              messageId: adminEmailResult.messageId,
-              attempts: adminEmailResult.attempts
-            })
-          } else {
-            console.error('[WEBHOOK] ❌ Email no se pudo enviar al admin:', {
-              to: 'contacto@petgourmet.mx',
-              error: adminEmailResult?.error || 'Unknown error'
-            })
-          }
-        } catch (adminEmailError) {
-          console.error('[WEBHOOK] ❌ Error enviando email al admin:', {
-            error: adminEmailError instanceof Error ? adminEmailError.message : String(adminEmailError)
-          })
-        }
-      } else {
-        console.warn('[WEBHOOK] ⚠️ No hay email del cliente para enviar confirmación')
-      }
-    } catch (emailError) {
-      console.error('[WEBHOOK] ❌ Error crítico enviando email de confirmación:', {
-        error: emailError instanceof Error ? emailError.message : String(emailError),
-        stack: emailError instanceof Error ? emailError.stack : undefined,
-        orderId: order.id,
-        customerEmail: customerEmail
-      })
-      // No lanzar error, solo registrar
+    // Enviar emails de confirmación (no bloquear la respuesta del webhook)
+    const orderDataForEmail = {
+      id: order.id,
+      total: order.total,
+      customer_name: customerName || session.customer_details?.name || 'Cliente',
+      customer_email: customerEmail,
+      products: orderItems.map(item => ({
+        name: item.product_name,
+        image: item.product_image,
+        quantity: item.quantity,
+        price: item.price,
+        size: item.size
+      })),
+      shipping_address: fullShippingAddress?.shipping || null,
+      shipping_cost: ((session.amount_total || 0) / 100) - orderItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
     }
+
+    // Fire-and-forget: enviar emails sin bloquear la respuesta del webhook
+    sendPurchaseEmails(customerEmail, orderDataForEmail).catch(err => {
+      console.error('[WEBHOOK] ❌ Error en envío de emails (fire-and-forget):', err)
+    })
 
   } else if (session.mode === 'subscription') {
     // Suscripción - Crear/actualizar suscripción
@@ -938,21 +900,29 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('🔔 [WEBHOOK] Webhook recibido - Inicio del procesamiento')
+  
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
   if (!webhookSecret) {
-    console.error('STRIPE_WEBHOOK_SECRET no está configurado')
+    console.error('❌ [WEBHOOK] STRIPE_WEBHOOK_SECRET no está configurado')
     return NextResponse.json(
       { error: 'Webhook secret no configurado' },
       { status: 500 }
     )
   }
 
+  console.log('✅ [WEBHOOK] STRIPE_WEBHOOK_SECRET configurado (longitud:', webhookSecret.length, ')')
+
   try {
     const body = await request.text()
     const signature = request.headers.get('stripe-signature')
 
+    console.log('🔔 [WEBHOOK] Body recibido, longitud:', body.length)
+    console.log('🔔 [WEBHOOK] Signature presente:', !!signature)
+
     if (!signature) {
+      console.error('❌ [WEBHOOK] No se recibió stripe-signature header')
       return NextResponse.json(
         { error: 'Falta la firma de Stripe' },
         { status: 400 }
@@ -964,8 +934,10 @@ export async function POST(request: NextRequest) {
 
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+      console.log('✅ [WEBHOOK] Firma verificada correctamente')
     } catch (err) {
-      console.error('Error al verificar webhook:', err)
+      console.error('❌ [WEBHOOK] Error al verificar firma:', err instanceof Error ? err.message : err)
+      console.error('❌ [WEBHOOK] Webhook secret empieza con:', webhookSecret.substring(0, 8) + '...')
       return NextResponse.json(
         { error: 'Firma de webhook inválida' },
         { status: 400 }

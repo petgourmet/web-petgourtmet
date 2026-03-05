@@ -15,6 +15,11 @@ const PROTECTED_ROUTES = [
   '/checkout'
 ]
 
+// Rutas excluidas de TODA protección del middleware (webhooks externos)
+const EXCLUDED_ROUTES = [
+  '/api/stripe/webhook',
+]
+
 // Rutas de formularios que necesitan rate limiting más estricto (sin auth)
 const FORM_ROUTES = [
   '/api/contact',
@@ -23,6 +28,13 @@ const FORM_ROUTES = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Excluir webhooks externos de TODA lógica del middleware
+  // Los webhooks de Stripe necesitan pasar sin modificación
+  const isExcluded = EXCLUDED_ROUTES.some(route => pathname.startsWith(route))
+  if (isExcluded) {
+    return NextResponse.next()
+  }
   
   // IMPORTANTE: Refrescar la sesión de Supabase en cada request
   // Esto asegura que las cookies de autenticación se mantengan sincronizadas
