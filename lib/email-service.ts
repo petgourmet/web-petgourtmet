@@ -883,9 +883,8 @@ function getOrderStatusTemplate(status: string, orderData: any) {
     `;
   }
 
-  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL 
-    ? `${process.env.NEXT_PUBLIC_BASE_URL}/petgourmet-logo.png` 
-    : 'https://petgourmet.mx/petgourmet-logo.png';
+  // Siempre usar URL de producción para el logo (los clientes de email no pueden acceder a localhost)
+  const logoUrl = 'https://petgourmet.mx/petgourmet-logo.png';
 
   const html = `
     <!DOCTYPE html>
@@ -1044,9 +1043,8 @@ function getOrderStatusTemplate(status: string, orderData: any) {
 
 // Plantilla de notificación al admin cuando llega un nuevo pedido
 function getAdminNewOrderTemplate(orderData: any) {
-  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL 
-    ? `${process.env.NEXT_PUBLIC_BASE_URL}/petgourmet-logo.png` 
-    : 'https://petgourmet.mx/petgourmet-logo.png';
+  // Siempre usar URL de producción para el logo en emails
+  const logoUrl = 'https://petgourmet.mx/petgourmet-logo.png';
 
   const customerName = orderData.customer_name || orderData.shipping_address?.full_name || orderData.shipping_address?.name || 'Cliente';
   const customerEmail = orderData.customer_email || 'No proporcionado';
@@ -1300,9 +1298,8 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
     annual: 'Anual'
   }[data.subscription_type] || data.subscription_type;
 
-  const logoUrl = process.env.NEXT_PUBLIC_BASE_URL 
-    ? `${process.env.NEXT_PUBLIC_BASE_URL}/petgourmet-logo.png` 
-    : 'https://petgourmet.mx/petgourmet-logo.png';
+  // Siempre usar URL de producción para el logo en emails
+  const logoUrl = 'https://petgourmet.mx/petgourmet-logo.png';
 
   return {
     subject: typeInfo.subject,
