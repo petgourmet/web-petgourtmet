@@ -202,7 +202,7 @@ export default function OrderDetailPage() {
   try {
     return (
       <AuthGuard requireAdmin={true}>
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <button
@@ -301,18 +301,18 @@ export default function OrderDetailPage() {
           <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-4 text-sm md:text-base">
             {/* Información del pedido */}
             <Card className="lg:col-span-2 xl:col-span-3">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-xl">Detalles del Pedido</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+              <CardContent className="p-3 sm:p-6">
+                <div className="mb-6 grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="col-span-2 md:col-span-1 p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Fecha del pedido</p>
-                    <p className="font-semibold text-gray-900">{formatDate(order.created_at)}</p>
+                    <p className="font-semibold text-gray-900 text-sm leading-snug">{formatDate(order.created_at)}</p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Método de pago</p>
-                    <p className="font-semibold text-gray-900 capitalize">
+                    <p className="font-semibold text-gray-900 capitalize text-sm">
                       {order.stripe_session_id || order.stripe_payment_intent ? "Stripe" : (order.payment_method || "No especificado")}
                     </p>
                   </div>
@@ -329,19 +329,19 @@ export default function OrderDetailPage() {
                       <CreditCard className="h-5 w-5 text-blue-600" />
                       Bóveda Logística Stripe
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                       {order.stripe_session_id && (
-                        <div className="p-3 bg-white rounded-lg border border-blue-50 shadow-sm overflow-hidden text-ellipsis">
+                        <div className="p-3 bg-white rounded-lg border border-blue-50 shadow-sm min-w-0 overflow-hidden">
                           <p className="text-blue-700/80 font-semibold mb-1 text-xs uppercase tracking-wider">Session ID:</p>
-                          <p className="font-mono text-xs font-medium text-blue-900 truncate" title={order.stripe_session_id}>
+                          <p className="font-mono text-xs font-medium text-blue-900 break-all" title={order.stripe_session_id}>
                             {order.stripe_session_id}
                           </p>
                         </div>
                       )}
                       {order.stripe_payment_intent && (
-                        <div className="p-3 bg-white rounded-lg border border-blue-50 shadow-sm overflow-hidden text-ellipsis">
+                        <div className="p-3 bg-white rounded-lg border border-blue-50 shadow-sm min-w-0 overflow-hidden">
                           <p className="text-blue-700/80 font-semibold mb-1 text-xs uppercase tracking-wider">Payment Intent:</p>
-                          <p className="font-mono text-xs font-medium text-blue-900 truncate" title={order.stripe_payment_intent}>
+                          <p className="font-mono text-xs font-medium text-blue-900 break-all" title={order.stripe_payment_intent}>
                             {order.stripe_payment_intent}
                           </p>
                         </div>
@@ -352,7 +352,49 @@ export default function OrderDetailPage() {
 
                 <div className="mb-8">
                   <h3 className="mb-4 font-semibold text-lg flex items-center gap-2"><Package className="h-5 w-5 text-gray-500" />Productos Comprados</h3>
-                  <div className="overflow-x-auto rounded-xl border shadow-sm">
+
+                  {/* Vista móvil: tarjetas apiladas */}
+                  <div className="block sm:hidden space-y-3">
+                    {order.order_items && order.order_items.length > 0 ? (
+                      order.order_items.map((item: any, index: number) => (
+                        <div key={index} className="flex gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+                          {item.product_image && (
+                            <div className="shrink-0 h-16 w-16 overflow-hidden rounded-lg shadow-sm">
+                              <img src={item.product_image} alt={item.product_name} className="h-full w-full object-cover" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm leading-snug">{item.product_name || "Producto"}</p>
+                            {item.size && <span className="text-xs text-muted-foreground bg-gray-100 rounded px-2 py-0.5 inline-block mt-1">Talla: {item.size}</span>}
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-xs text-gray-500">× {item.quantity || 1}</span>
+                              <span className="font-bold text-sm text-gray-900 font-mono">{formatCurrency(item.price * item.quantity)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="p-6 text-center text-sm text-muted-foreground">No hay productos en este pedido</p>
+                    )}
+                    {/* Resumen totales móvil */}
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-600">
+                        <span>Subtotal</span>
+                        <span className="font-mono">{formatCurrency(order.order_items?.reduce((s: number, i: any) => s + i.price * i.quantity, 0) || 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Envío</span>
+                        <span className="font-mono">{formatCurrency(order.total - (order.order_items?.reduce((s: number, i: any) => s + i.price * i.quantity, 0) || 0))}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2">
+                        <span className="uppercase text-xs tracking-wide">Total Pagado</span>
+                        <span className="font-mono text-base text-primary">{formatCurrency(order.total)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vista desktop: tabla */}
+                  <div className="hidden sm:block overflow-x-auto rounded-xl border shadow-sm">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b bg-gray-50/80">
@@ -370,11 +412,7 @@ export default function OrderDetailPage() {
                                 <div className="flex items-center gap-4">
                                   {item.product_image && (
                                     <div className="relative h-14 w-14 lg:h-16 lg:w-16 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                                      <img
-                                        src={item.product_image}
-                                        alt={item.product_name}
-                                        className="h-full w-full object-cover"
-                                      />
+                                      <img src={item.product_image} alt={item.product_name} className="h-full w-full object-cover" />
                                     </div>
                                   )}
                                   <div className="min-w-0">
@@ -392,41 +430,21 @@ export default function OrderDetailPage() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={4} className="p-8 text-center text-muted-foreground">
-                              No hay productos en este pedido
-                            </td>
+                            <td colSpan={4} className="p-8 text-center text-muted-foreground">No hay productos en este pedido</td>
                           </tr>
                         )}
                       </tbody>
                       <tfoot className="bg-gray-50/50">
                         <tr className="border-t">
-                          <td colSpan={3} className="p-3 text-right text-gray-600">
-                            Subtotal de productos
-                          </td>
-                          <td className="p-3 text-right font-mono font-medium text-gray-800">
-                            {formatCurrency(
-                              order.order_items?.reduce((sum: number, item: any) =>
-                                sum + (item.price * item.quantity), 0
-                              ) || 0
-                            )}
-                          </td>
+                          <td colSpan={3} className="p-3 text-right text-gray-600">Subtotal de productos</td>
+                          <td className="p-3 text-right font-mono font-medium text-gray-800">{formatCurrency(order.order_items?.reduce((s: number, i: any) => s + i.price * i.quantity, 0) || 0)}</td>
                         </tr>
                         <tr>
-                          <td colSpan={3} className="p-3 text-right text-gray-600">
-                            Costo de Envío
-                          </td>
-                          <td className="p-3 text-right font-mono font-medium text-gray-800">
-                            {formatCurrency(
-                              order.total - (order.order_items?.reduce((sum: number, item: any) =>
-                                sum + (item.price * item.quantity), 0
-                              ) || 0)
-                            )}
-                          </td>
+                          <td colSpan={3} className="p-3 text-right text-gray-600">Costo de Envío</td>
+                          <td className="p-3 text-right font-mono font-medium text-gray-800">{formatCurrency(order.total - (order.order_items?.reduce((s: number, i: any) => s + i.price * i.quantity, 0) || 0))}</td>
                         </tr>
                         <tr className="border-t-2 border-gray-200">
-                          <td colSpan={3} className="p-4 text-right font-bold text-lg text-gray-900 uppercase">
-                            Total Pagado
-                          </td>
+                          <td colSpan={3} className="p-4 text-right font-bold text-lg text-gray-900 uppercase">Total Pagado</td>
                           <td className="p-4 text-right font-mono font-bold text-xl text-primary">{formatCurrency(order.total)}</td>
                         </tr>
                       </tfoot>
@@ -440,53 +458,53 @@ export default function OrderDetailPage() {
                     <Mail className="inline h-3 w-3 mr-1" />
                     Al cambiar el estado se enviará notificación oficial por email al cliente.
                   </p>
-                  <div className="flex flex-wrap gap-3 mt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
                     <button
                       onClick={() => updateOrderStatus("pending")}
                       disabled={updating || order.status === "pending"}
-                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-yellow-50 px-4 py-2.5 text-sm font-semibold text-yellow-800 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-100 disabled:opacity-50 transition-colors shadow-sm"
+                      className="justify-center inline-flex items-center rounded-lg bg-yellow-50 px-3 py-2.5 text-sm font-semibold text-yellow-800 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-100 disabled:opacity-50 transition-colors shadow-sm w-full"
                     >
-                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
+                      {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Package className="mr-1.5 h-4 w-4" />}
                       Pendiente
                     </button>
                     <button
                       onClick={() => updateOrderStatus("processing")}
                       disabled={updating || order.status === "processing"}
-                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors shadow-sm"
+                      className="justify-center inline-flex items-center rounded-lg bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors shadow-sm w-full"
                     >
-                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Loader2 className="mr-2 h-4 w-4" />}
+                      {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Loader2 className="mr-1.5 h-4 w-4" />}
                       Procesando
                     </button>
                     <button
                       onClick={() => updateOrderStatus("shipped")}
                       disabled={updating || order.status === "shipped"}
-                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 ring-1 ring-inset ring-indigo-600/20 hover:bg-indigo-100 disabled:opacity-50 transition-colors shadow-sm"
+                      className="justify-center inline-flex items-center rounded-lg bg-indigo-50 px-3 py-2.5 text-sm font-semibold text-indigo-800 ring-1 ring-inset ring-indigo-600/20 hover:bg-indigo-100 disabled:opacity-50 transition-colors shadow-sm w-full"
                     >
-                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
+                      {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Truck className="mr-1.5 h-4 w-4" />}
                       En camino
                     </button>
                     <button
                       onClick={() => updateOrderStatus("completed")}
                       disabled={updating || order.status === "completed"}
-                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50 transition-colors shadow-sm"
+                      className="justify-center inline-flex items-center rounded-lg bg-green-50 px-3 py-2.5 text-sm font-semibold text-green-800 ring-1 ring-inset ring-green-600/20 hover:bg-green-100 disabled:opacity-50 transition-colors shadow-sm w-full"
                     >
-                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-1.5 h-4 w-4" />}
                       Entregado
                     </button>
                     <button
                       onClick={() => updateOrderStatus("cancelled")}
                       disabled={updating || order.status === "cancelled"}
-                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 ring-1 ring-inset ring-red-600/20 hover:bg-red-100 disabled:opacity-50 transition-colors shadow-sm"
+                      className="justify-center inline-flex items-center rounded-lg bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-800 ring-1 ring-inset ring-red-600/20 hover:bg-red-100 disabled:opacity-50 transition-colors shadow-sm w-full"
                     >
-                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                      {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <XCircle className="mr-1.5 h-4 w-4" />}
                       Cancelar
                     </button>
                     <button
                       onClick={() => updateOrderStatus("refunded")}
                       disabled={updating || order.status === "refunded"}
-                      className="flex-1 min-w-[140px] justify-center inline-flex items-center rounded-lg bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-800 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-100 disabled:opacity-50 transition-colors shadow-sm"
+                      className="justify-center inline-flex items-center rounded-lg bg-orange-50 px-3 py-2.5 text-sm font-semibold text-orange-800 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-100 disabled:opacity-50 transition-colors shadow-sm w-full"
                     >
-                      {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Clock className="mr-2 h-4 w-4" />}
+                      {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Clock className="mr-1.5 h-4 w-4" />}
                       Reembolsado
                     </button>
                   </div>
@@ -548,113 +566,133 @@ export default function OrderDetailPage() {
             </Card>
 
             {/* Información del cliente */}
-            <div className="space-y-6">
-              <Card className="shadow-sm border-gray-200 h-max sticky top-6">
-                <CardHeader className="bg-gray-50 border-b pb-4 rounded-t-xl">
-                  <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
-                    <span className="bg-[#78b7bf]/20 p-2 rounded-lg"><Users className="h-5 w-5 text-[#5a898f]" /></span>
-                    Expediente de Cliente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-5">
-                    <div className="border-b border-gray-50 pb-4">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Nombre</p>
-                      <p className="font-semibold text-gray-900 text-base">{order.customer_name || "Comprador Invitado"}</p>
-                    </div>
-                    <div className="border-b border-gray-50 pb-4">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Correo Electrónico</p>
-                      <p className="font-medium text-blue-600 text-sm break-all">
-                        <a href={`mailto:${order.customer_email}`} className="hover:underline">{order.customer_email || "No provisto"}</a>
-                      </p>
-                    </div>
-                    <div className="border-b border-gray-50 pb-4">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Teléfono Fijo / Móvil</p>
-                      <p className="font-medium text-gray-900">{order.customer_phone || "No provisto"}</p>
-                    </div>
+            <div className="space-y-4 lg:sticky lg:top-6 h-max">
+              {/* Encabezado */}
+              <div className="flex items-center gap-2 px-1">
+                <span className="bg-[#78b7bf]/20 p-2 rounded-lg"><Users className="h-5 w-5 text-[#5a898f]" /></span>
+                <h2 className="text-lg font-bold text-gray-800">Expediente de Cliente</h2>
+              </div>
 
-                    {/* Dirección de Envío */}
-                    <div className="mt-6 bg-gray-50/80 p-4 rounded-xl border border-gray-100 shadow-inner">
-                      <h3 className="mb-3 font-bold text-gray-800 flex items-center gap-2">
-                        <Truck className="h-4 w-4" /> Destino de Envío
-                      </h3>
-                      <div className="text-sm text-gray-700 leading-relaxed font-medium">
-                        {(() => {
-                          try {
-                            let shippingData = null
-                            if (order.shipping_address) {
-                              if (typeof order.shipping_address === 'string') {
-                                const parsed = JSON.parse(order.shipping_address)
-                                shippingData = parsed.shipping || parsed
-                              } else {
-                                shippingData = order.shipping_address.shipping || order.shipping_address
-                              }
-                            }
+              {/* Tarjetas de datos personales en grid 2 columnas en móvil */}
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+                <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all col-span-2 sm:col-span-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Nombre</p>
+                  <p className="font-semibold text-gray-900 text-sm leading-snug">{order.customer_name || "Comprador Invitado"}</p>
+                </div>
+                <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all col-span-2 sm:col-span-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Correo Electrónico</p>
+                  <a
+                    href={`mailto:${order.customer_email}`}
+                    className="font-medium text-blue-600 text-xs break-all hover:underline leading-snug block"
+                  >
+                    {order.customer_email || "No provisto"}
+                  </a>
+                </div>
+                <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Teléfono</p>
+                  <p className="font-medium text-gray-900 text-sm">{order.customer_phone || "—"}</p>
+                </div>
+                <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Método de Pago</p>
+                  <p className="font-medium text-gray-900 text-sm capitalize">
+                    {order.stripe_session_id || order.stripe_payment_intent ? "Stripe" : (order.payment_method || "—")}
+                  </p>
+                </div>
+              </div>
 
-                            if (shippingData && (shippingData.address || shippingData.street)) {
-                              return (
-                                <div className="space-y-1">
-                                  <p className="flex gap-2"><span className="text-gray-400">📍</span> <span>{shippingData.address || `${shippingData.street} ${shippingData.number || ''}`}</span></p>
-                                  {shippingData.city && (
-                                    <p className="flex gap-2"><span className="text-gray-400">🏙️</span> <span>{shippingData.city}{shippingData.state ? `, ${shippingData.state}` : ''}</span></p>
-                                  )}
-                                  {shippingData.postalCode && <p className="flex gap-2 text-gray-500 font-mono text-xs mt-2"><span className="text-gray-400">🔢</span> CP: {shippingData.postalCode}</p>}
-                                  {shippingData.country && <p className="text-gray-500 mt-1 uppercase text-xs font-bold tracking-widest">{shippingData.country}</p>}
-                                </div>
-                              )
-                            }
-                            return <p className="text-muted-foreground italic flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-yellow-500" /> Dirección no proporcionada en la orden base</p>
-                          } catch (e) {
-                            console.error('Error parsing shipping address:', e)
-                            return <p className="text-red-500 bg-red-50 p-2 rounded text-xs">Error decodificando el plano de dirección</p>
-                          }
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Metadatos Avanzados */}
-                    {(() => {
-                      try {
-                        let metadata = null
-                        if (order.shipping_address) {
-                          if (typeof order.shipping_address === 'string') {
-                            metadata = JSON.parse(order.shipping_address)
-                          } else {
-                            metadata = order.shipping_address
-                          }
+              {/* Tarjeta de dirección de envío */}
+              <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                <h3 className="mb-3 font-bold text-gray-800 text-sm flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-[#5a898f]" /> Destino de Envío
+                </h3>
+                <div className="text-sm text-gray-700 leading-relaxed">
+                  {(() => {
+                    try {
+                      let shippingData = null
+                      if (order.shipping_address) {
+                        if (typeof order.shipping_address === 'string') {
+                          const parsed = JSON.parse(order.shipping_address)
+                          shippingData = parsed.shipping || parsed
+                        } else {
+                          shippingData = order.shipping_address.shipping || order.shipping_address
                         }
-
-                        if (metadata && metadata.items) {
-                          const subtotal = metadata.items.reduce((sum: number, item: any) =>
-                            sum + ((item.price || item.unit_price || 0) * (item.quantity || 1)), 0
-                          )
-
-                          return (
-                            <div className="mt-8 pt-6 border-t border-gray-100">
-                              <h3 className="mb-3 font-semibold text-xs text-gray-400 uppercase tracking-wider">Metadatos Internos (Payload)</h3>
-                              <div className="rounded-lg bg-gray-900 p-4 text-gray-300 font-mono text-[11px] overflow-hidden">
-                                <div className="grid grid-cols-1 gap-3">
-                                  <div className="border-b border-gray-800 pb-2">
-                                    <p className="text-gray-500 mb-1">ID Trazabilidad:</p>
-                                    <p className="text-green-400 break-all">{order.id}</p>
-                                  </div>
-                                  <div className="border-b border-gray-800 pb-2">
-                                    <p className="text-gray-500 mb-1">Subtotal Neto Calc:</p>
-                                    <p className="text-yellow-300">{formatCurrency(subtotal)}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        }
-                        return null
-                      } catch (e) {
-                        return null
                       }
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
+
+                      if (shippingData && (shippingData.address || shippingData.street)) {
+                        return (
+                          <div className="grid grid-cols-1 gap-1.5">
+                            <p className="flex gap-2 items-start">
+                              <span className="shrink-0">📍</span>
+                              <span className="font-medium">{shippingData.address || `${shippingData.street} ${shippingData.number || ''}`}</span>
+                            </p>
+                            {shippingData.city && (
+                              <p className="flex gap-2 items-start">
+                                <span className="shrink-0">🏙️</span>
+                                <span>{shippingData.city}{shippingData.state ? `, ${shippingData.state}` : ''}</span>
+                              </p>
+                            )}
+                            {shippingData.postalCode && (
+                              <p className="flex gap-2 items-center text-gray-500 font-mono text-xs mt-1">
+                                <span>🔢</span> CP: {shippingData.postalCode}
+                              </p>
+                            )}
+                            {shippingData.country && (
+                              <p className="text-gray-400 text-xs font-bold tracking-widest uppercase mt-1">{shippingData.country}</p>
+                            )}
+                          </div>
+                        )
+                      }
+                      return (
+                        <p className="text-muted-foreground italic flex items-center gap-2 text-xs">
+                          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+                          Dirección no proporcionada
+                        </p>
+                      )
+                    } catch (e) {
+                      return <p className="text-red-500 bg-red-50 p-2 rounded text-xs">Error decodificando dirección</p>
+                    }
+                  })()}
+                </div>
+              </div>
+
+              {/* Metadatos Avanzados */}
+              {(() => {
+                try {
+                  let metadata = null
+                  if (order.shipping_address) {
+                    if (typeof order.shipping_address === 'string') {
+                      metadata = JSON.parse(order.shipping_address)
+                    } else {
+                      metadata = order.shipping_address
+                    }
+                  }
+
+                  if (metadata && metadata.items) {
+                    const subtotal = metadata.items.reduce((sum: number, item: any) =>
+                      sum + ((item.price || item.unit_price || 0) * (item.quantity || 1)), 0
+                    )
+
+                    return (
+                      <div className="p-4 bg-gray-900 rounded-xl shadow-sm">
+                        <h3 className="mb-3 font-semibold text-xs text-gray-400 uppercase tracking-wider">Metadatos Internos</h3>
+                        <div className="grid grid-cols-1 gap-3 font-mono text-[11px]">
+                          <div className="border-b border-gray-800 pb-2">
+                            <p className="text-gray-500 mb-1">ID Trazabilidad:</p>
+                            <p className="text-green-400 break-all">{order.id}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 mb-1">Subtotal Neto Calc:</p>
+                            <p className="text-yellow-300">{formatCurrency(subtotal)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                } catch (e) {
+                  return null
+                }
+              })()}
             </div>
           </div>
         </div>

@@ -730,10 +730,10 @@ export default function AdminSubscriptionOrdersPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-3 sm:p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
           Administración de Suscripciones
         </h1>
         <p className="text-gray-600">
@@ -744,69 +744,57 @@ export default function AdminSubscriptionOrdersPage() {
 
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Activas</p>
-                <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.status === 'active').length}
-                </p>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-gray-600 truncate">Activas</p>
+                <p className="text-xl font-bold">{subscriptions.filter(s => s.status === 'active').length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center">
-              <Clock className="h-6 w-6 text-yellow-600" />
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Pendientes</p>
-                <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.status === "pending").length}
-                </p>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-yellow-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-gray-600 truncate">Pendientes</p>
+                <p className="text-xl font-bold">{subscriptions.filter(s => s.status === 'pending').length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center">
-              <XCircle className="h-6 w-6 text-red-600" />
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Canceladas</p>
-                <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.status === 'cancelled' || s.status === 'canceled').length}
-                </p>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-red-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-gray-600 truncate">Canceladas</p>
+                <p className="text-xl font-bold">{subscriptions.filter(s => s.status === 'cancelled' || s.status === 'canceled').length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center">
-              <Activity className="h-6 w-6 text-gray-600" />
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Pausadas</p>
-                <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.status === 'paused').length}
-                </p>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-gray-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-gray-600 truncate">Pausadas</p>
+                <p className="text-xl font-bold">{subscriptions.filter(s => s.status === 'paused').length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center">
-              <Package className="h-6 w-6 text-blue-600" />
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Total</p>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-blue-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-gray-600 truncate">Total</p>
                 <p className="text-xl font-bold">{subscriptions.length}</p>
               </div>
             </div>
@@ -816,24 +804,24 @@ export default function AdminSubscriptionOrdersPage() {
 
       {/* Search and Filters */}
       <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar por nombre, email, producto o ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col gap-3">
+            {/* Buscador */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar por nombre, email, producto o ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-            <div className="flex gap-2">
+            {/* Filtro + botones — apilados en móvil */}
+            <div className="flex flex-col sm:flex-row gap-2">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="all">Todos los estados</option>
                 <option value="active">Activas</option>
@@ -841,38 +829,32 @@ export default function AdminSubscriptionOrdersPage() {
                 <option value="inactive">Pausadas</option>
                 <option value="cancelled">Canceladas</option>
               </select>
-              
-
-              
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 sm:flex gap-2">
                 <Button
                   onClick={handleRefresh}
                   disabled={refreshing}
                   variant="outline"
+                  className="justify-center"
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                   Actualizar
                 </Button>
-                
                 <Button
                   onClick={handleCleanupSubscriptions}
                   disabled={cleanupLoading}
                   variant="outline"
-                  className="flex items-center gap-2 bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
+                  className="justify-center bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                 >
-                  <Trash2 className={`h-4 w-4 ${cleanupLoading ? 'animate-pulse' : ''}`} />
+                  <Trash2 className={`h-4 w-4 mr-2 ${cleanupLoading ? 'animate-pulse' : ''}`} />
                   {cleanupLoading ? 'Limpiando...' : 'Limpiar Estados'}
                 </Button>
-                
                 {filteredSubscriptions.some(sub => sub.status === 'pending') && (
                   <Button
-                    onClick={() => {
-                      toast.info('Función de procesamiento manual en desarrollo');
-                    }}
+                    onClick={() => toast.info('Función de procesamiento manual en desarrollo')}
                     variant="outline"
-                    className="flex items-center gap-2"
+                    className="col-span-2 sm:col-span-1 justify-center"
                   >
-                    <CheckCircle className="h-4 w-4" />
+                    <CheckCircle className="h-4 w-4 mr-2" />
                     Procesar Pendientes
                   </Button>
                 )}
