@@ -25,7 +25,7 @@ export function FacebookPixel() {
     <>
       <Script 
         id="facebook-pixel" 
-        strategy="lazyOnload"
+        strategy="afterInteractive"
         onError={(e) => {
           console.warn('Facebook Pixel failed to load:', e)
         }}
