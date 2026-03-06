@@ -43,33 +43,36 @@ export default function GraciasPorTuCompra() {
 
   const fetchOrderDetails = async (session_id: string, retryCount = 0) => {
     try {
-      console.log('🔵 [API] Llamando a /api/stripe/order-details con session_id:', session_id, 'intento:', retryCount + 1)
-      const response = await fetch(`/api/stripe/order-details?session_id=${session_id}`)
+      // Pasar el número de intento al API para activar fallback de creación
+      const attempt = retryCount + 1
+      console.log('🔵 [API] Llamando a /api/stripe/order-details con session_id:', session_id, 'intento:', attempt)
+      const response = await fetch(`/api/stripe/order-details?session_id=${session_id}&attempt=${attempt}`)
       console.log('🔵 [API] Response status:', response.status, response.ok)
       
       if (response.ok) {
         const data = await response.json()
         console.log('🔵 [API] Datos recibidos del servidor:', data)
 
-        // Si la orden está pendiente (aún no procesada por webhook), reintentar
-        if (data.pending && retryCount < 6) {
-          console.log('⏳ [API] Orden aún pendiente, reintentando en 3 segundos... (intento', retryCount + 1, 'de 6)')
-          // Actualizar UI con datos temporales pero NO hacer tracking todavía
+        // Si la orden está pendiente (aún no procesada), reintentar con backoff reducido
+        if (data.pending && retryCount < 4) {
+          // Reintentar: 1.5s, 2s, 2.5s, 3s (máx ~9s total)
+          const delay = 1500 + (retryCount * 500)
+          console.log(`⏳ [API] Orden aún pendiente, reintentando en ${delay}ms... (intento ${attempt} de 4)`)
+          // Mostrar datos temporales al usuario inmediatamente
           setOrderDetails(data)
+          setLoading(false)
           setTimeout(() => {
             fetchOrderDetails(session_id, retryCount + 1)
-          }, 3000)
+          }, delay)
           return
         }
         
-        // Si después de 6 intentos sigue pendiente, procesar con datos temporales
-        if (data.pending && retryCount >= 6) {
-          console.warn('⚠️ [API] Orden sigue pendiente después de 6 intentos')
-          console.log('📋 [API] Webhook probablemente no está procesando. Usando datos de Stripe directamente.')
-          // Generar número basado en la sesión
+        // Si después de 4 intentos sigue pendiente, los datos de Stripe son suficientes
+        if (data.pending && retryCount >= 4) {
+          console.warn('⚠️ [API] Orden sigue pendiente después de 4 intentos')
           data.orderNumber = `TEMP-${session_id.substring(8, 16).toUpperCase()}`
-          data.orderId = session_id // Usar session_id completo como orderId
-          data.pending = false // Marcar como no pendiente para procesar tracking
+          data.orderId = session_id
+          data.pending = false
         }
         
         // ===== ASEGURAR QUE SIEMPRE HAYA UN ID VÁLIDO =====

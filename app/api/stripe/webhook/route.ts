@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe/config'
 import { createClient } from '@supabase/supabase-js'
+import { createOrderFromSession } from '@/lib/stripe/create-order'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,198 +23,33 @@ const supabaseAdmin = createClient(
 )
 
 /**
- * Envía emails de compra al cliente y admin sin bloquear el webhook.
- * Se ejecuta en fire-and-forget desde handleCheckoutSessionCompleted.
- */
-async function sendPurchaseEmails(customerEmail: string | null, orderData: any) {
-  const { sendOrderStatusEmail, sendAdminNewOrderEmail } = await import('@/lib/email-service')
-
-  console.log('[EMAIL] 📧 Iniciando envío de emails para orden', orderData.id)
-
-  // 1) Email al cliente: "¡Gracias por tu compra!"
-  if (customerEmail) {
-    try {
-      const result = await sendOrderStatusEmail('processing', customerEmail, orderData)
-      if (result?.success) {
-        console.log('[EMAIL] ✅ Email de confirmación enviado al cliente:', customerEmail)
-      } else {
-        console.error('[EMAIL] ❌ Fallo email al cliente:', result?.error)
-      }
-    } catch (e) {
-      console.error('[EMAIL] ❌ Error email cliente:', e instanceof Error ? e.message : e)
-    }
-  }
-
-  // 2) Email al admin: "Nuevo pedido recibido"
-  try {
-    const adminResult = await sendAdminNewOrderEmail(orderData)
-    if (adminResult?.success) {
-      console.log('[EMAIL] ✅ Email de nuevo pedido enviado al admin')
-    } else {
-      console.error('[EMAIL] ❌ Fallo email admin:', adminResult?.error)
-    }
-  } catch (e) {
-    console.error('[EMAIL] ❌ Error email admin:', e instanceof Error ? e.message : e)
-  }
-}
-
-/**
  * Maneja el evento checkout.session.completed
- * Se dispara cuando un pago o suscripción se completa
+ * Usa la utilidad compartida createOrderFromSession para idempotencia
  */
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  console.log('Checkout session completed:', session.id)
-
-  const metadata = session.metadata || {}
-  const userId = metadata.user_id
-  const customerName = metadata.customer_name
-  const shippingAddress = metadata.shipping_address ? JSON.parse(metadata.shipping_address) : null
-
-  // Obtener line items
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    expand: ['data.price.product'],
-  })
+  console.log('[WEBHOOK] Checkout session completed:', session.id)
 
   if (session.mode === 'payment') {
-    // Pago único - Crear orden
-    
-    // Preparar datos del cliente desde session
-    let customerEmail = session.customer_email || session.customer_details?.email || null
-    let customerPhone = session.customer_details?.phone || null
-    
-    // Intentar extraer del metadata si está disponible
-    let shippingData = null
+    // Pago único - Usar utilidad compartida idempotente
     try {
-      if (metadata.shipping_address) {
-        shippingData = typeof metadata.shipping_address === 'string' 
-          ? JSON.parse(metadata.shipping_address) 
-          : metadata.shipping_address
-      }
-    } catch (e) {
-      console.error('Error parsing shipping_address:', e)
-    }
-
-    // Construir objeto completo de shipping_address con todos los datos
-    const fullShippingAddress = {
-      customer: {
-        name: customerName || session.customer_details?.name,
-        email: customerEmail,
-        phone: customerPhone,
-      },
-      shipping: shippingData || shippingAddress,
-      items: lineItems.data.map((item: any) => ({
-        id: item.id,
-        product_id: item.price?.product?.metadata?.product_id || null,
-        name: item.description,
-        quantity: item.quantity,
-        price: (item.amount_total || 0) / 100 / (item.quantity || 1),
-        unit_price: (item.amount_total || 0) / 100 / (item.quantity || 1),
-        product_name: item.description,
-        product_image: item.price?.product?.images?.[0] || null,
-      }))
-    }
-
-    const { data: order, error } = await supabaseAdmin
-      .from('orders')
-      .insert({
-        user_id: userId || null,
-        customer_email: customerEmail,
-        customer_name: customerName || session.customer_details?.name,
-        customer_phone: customerPhone,
-        total: (session.amount_total || 0) / 100,
-        currency: session.currency?.toUpperCase() || 'MXN',
-        payment_status: 'paid',
-        status: 'pending',
-        stripe_session_id: session.id,
-        stripe_payment_intent_id: session.payment_intent as string,
-        stripe_customer_id: session.customer as string,
-        shipping_address: fullShippingAddress,
-        metadata: metadata,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error al crear orden:', error)
+      const result = await createOrderFromSession(session.id, 'webhook')
+      console.log(`[WEBHOOK] ✅ Orden ${result.isNew ? 'creada' : 'ya existía'}: ${result.order.id}`)
+    } catch (error: any) {
+      console.error('[WEBHOOK] ❌ Error creando orden:', error.message)
       throw error
     }
-
-    console.log('Orden creada:', order.id)
-
-    // Crear order_items individuales
-    const orderItems = []
-    for (const item of lineItems.data) {
-      // Extraer product_id del metadata del producto de Stripe
-      const productMetadata = (item.price?.product as any)?.metadata || {}
-      const productId = productMetadata.product_id
-
-      if (!productId) {
-        console.warn('Line item sin product_id:', item.id, item.description)
-        continue
-      }
-
-      // Obtener la imagen del producto desde Stripe
-      const product = item.price?.product as any
-      let productImage = product?.images?.[0] || null
-      
-      // Si no hay imagen en Stripe, obtenerla de la base de datos
-      if (!productImage) {
-        const { data: productData } = await supabaseAdmin
-          .from('products')
-          .select('image')
-          .eq('id', parseInt(productId))
-          .single()
-        
-        productImage = productData?.image || ''
-      }
-
-      orderItems.push({
-        order_id: order.id,
-        product_id: parseInt(productId),
-        product_name: item.description,
-        product_image: productImage,
-        quantity: item.quantity || 1,
-        price: (item.amount_total || 0) / 100 / (item.quantity || 1),
-        size: productMetadata.size || null,
-      })
-    }
-
-    if (orderItems.length > 0) {
-      const { error: itemsError } = await supabaseAdmin
-        .from('order_items')
-        .insert(orderItems)
-
-      if (itemsError) {
-        console.error('Error al crear order_items:', itemsError)
-      } else {
-        console.log(`${orderItems.length} order_items creados para orden ${order.id}`)
-      }
-    }
-
-    // Enviar emails de confirmación (no bloquear la respuesta del webhook)
-    const orderDataForEmail = {
-      id: order.id,
-      total: order.total,
-      customer_name: customerName || session.customer_details?.name || 'Cliente',
-      customer_email: customerEmail,
-      products: orderItems.map(item => ({
-        name: item.product_name,
-        image: item.product_image,
-        quantity: item.quantity,
-        price: item.price,
-        size: item.size
-      })),
-      shipping_address: fullShippingAddress?.shipping || null,
-      shipping_cost: ((session.amount_total || 0) / 100) - orderItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0)
-    }
-
-    // Fire-and-forget: enviar emails sin bloquear la respuesta del webhook
-    sendPurchaseEmails(customerEmail, orderDataForEmail).catch(err => {
-      console.error('[WEBHOOK] ❌ Error en envío de emails (fire-and-forget):', err)
-    })
-
   } else if (session.mode === 'subscription') {
     // Suscripción - Crear/actualizar suscripción
+    const metadata = session.metadata || {}
+    const userId = metadata.user_id
+    const customerName = metadata.customer_name
+    const shippingAddress = metadata.shipping_address ? JSON.parse(metadata.shipping_address) : null
+
+    // Obtener line items para suscripción
+    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+      expand: ['data.price.product'],
+    })
+
     const subscriptionId = session.subscription as string
     
     // Verificar si la suscripción ya existe
