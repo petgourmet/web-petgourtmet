@@ -6,13 +6,6 @@
   NODE_VERSION = "20"
   NODE_OPTIONS = "--max-old-space-size=4096"
 
-# Cache HTML — Netlify CDN retiene el HTML 1h, sirve stale mientras revalida
-# Elimina el cold-start de Netlify para visitas recurrentes
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
-
 # Headers para assets estáticos
 [[headers]]
   for = "/_next/static/*"
