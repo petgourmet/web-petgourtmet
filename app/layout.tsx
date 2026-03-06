@@ -4,7 +4,6 @@ import { Montserrat, Baloo_2 } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./ClientLayout"
 import { ThemeProvider } from "@/components/theme-provider"
-import { GoogleAnalytics } from "@/components/google-analytics"
 import { FacebookPixel } from "@/components/facebook-pixel"
 import { StructuredData } from "@/components/structured-data"
 import { GoogleTagManager, GoogleTagManagerNoScript } from "@/components/google-tag-manager"
@@ -135,18 +134,17 @@ export default function RootLayout({
         {/* DNS prefetch para dominios secundarios */}
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
-        {/* Preload LCP image — poster del video hero (ahorra ~610ms en LCP) */}
+        {/* Preload LCP image — poster estático local (sin latencia CDN externa) */}
         <link
           rel="preload"
           as="image"
-          href="https://res.cloudinary.com/dn7unepxa/video/upload/so_0.0,q_80,f_auto/v1772482021/video_ev8mjp.jpg"
+          href="/hero-poster.webp"
           fetchPriority="high"
         />
       </head>
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>
         <GoogleTagManagerNoScript />
         <GoogleTagManager />
-        <GoogleAnalytics />
         <FacebookPixel />
         <DataLayerInit />
         <StructuredData type="organization" />

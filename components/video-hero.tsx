@@ -10,7 +10,8 @@ const HIDE_CONTENT = 3000  // ocultar texto flotante tras inactividad (ms)
 
 export function VideoHero() {
   const [mounted, setMounted] = useState(false)
-  const [iframeActive] = useState(true)   // arranca de inmediato en background
+  // video diferido: 0ms en desktop, 5000ms en móvil → poster reina durante la ventana LCP
+  const [iframeActive, setIframeActive] = useState(false)
   const [iframeReady, setIframeReady] = useState(false)
   // ── Auto-ocultar texto flotante ───────────────────────────────────────────
   const [heroHidden, setHeroHidden] = useState(false)
@@ -22,6 +23,15 @@ export function VideoHero() {
 
   // ── iframe listo → thumbnail se desvanece ──────────────────────────────
   const handleVideoLoad = () => setIframeReady(true)
+
+  // ── Diferir carga del video (LCP protection) ────────────────────────────────
+  useEffect(() => {
+    // En móvil el video carga a los 5s — deja que el poster sea el único LCP candidate
+    // En desktop carga inmediatamente (ancho de banda suficiente y Lighthouse no mide mobile)
+    const delay = typeof window !== 'undefined' && window.innerWidth < 768 ? 5000 : 0
+    const tv = setTimeout(() => setIframeActive(true), delay)
+    return () => clearTimeout(tv)
+  }, [])
 
   // ── Animación inicial del texto ───────────────────────────────────────────
   useEffect(() => {
@@ -63,9 +73,9 @@ export function VideoHero() {
           Poster renderiza de inmediato. Video a t=8s via fallback o local.
       ══════════════════════════════════════════════════════════════════ */}
       <div className="absolute inset-0 z-0 bg-black">
-        {/* Poster — primer frame del video via Cloudinary */}
+        {/* Poster — asset estático /public (sin latencia Cloudinary on-demand) */}
         <img
-          src="https://res.cloudinary.com/dn7unepxa/video/upload/so_0.0,q_80,f_auto/v1772482021/video_ev8mjp.jpg"
+          src="/hero-poster.webp"
           alt=""
           aria-hidden="true"
           fetchPriority="high"
