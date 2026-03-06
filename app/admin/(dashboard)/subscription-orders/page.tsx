@@ -496,7 +496,7 @@ export default function AdminSubscriptionOrdersPage() {
     const matchesStatus = statusFilter === "all" || 
       (statusFilter === "active" && sub.status === 'active') ||
       (statusFilter === "inactive" && sub.status === 'paused') ||
-      (statusFilter === "cancelled" && sub.status === 'cancelled') ||
+      (statusFilter === "cancelled" && (sub.status === 'cancelled' || sub.status === 'canceled')) ||
       (statusFilter === "pending" && sub.status === "pending")
     
     return matchesSearch && matchesStatus
@@ -565,16 +565,32 @@ export default function AdminSubscriptionOrdersPage() {
   // Las funciones de cálculo ahora se importan desde @/utils/subscription-calculations
 
   const getStatusBadge = (subscription: AdminSubscription) => {
-    if (subscription.status === 'cancelled') {
+    const status = subscription.status
+    if (status === 'cancelled' || status === 'canceled') {
       return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelada</Badge>
     }
-    if (subscription.status === "pending") {
+    if (status === 'pending') {
       return <Badge variant="outline" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pendiente (Webhook)</Badge>
     }
-    if (subscription.status === 'active') {
+    if (status === 'active') {
       return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Activa</Badge>
     }
-    return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Inactiva</Badge>
+    if (status === 'past_due') {
+      return <Badge variant="outline" className="bg-orange-100 text-orange-800"><AlertTriangle className="h-3 w-3 mr-1" />Pago vencido</Badge>
+    }
+    if (status === 'paused') {
+      return <Badge variant="outline" className="bg-gray-100 text-gray-800"><Clock className="h-3 w-3 mr-1" />Pausada</Badge>
+    }
+    if (status === 'incomplete' || status === 'incomplete_expired') {
+      return <Badge variant="outline" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Incompleta</Badge>
+    }
+    if (status === 'trialing') {
+      return <Badge variant="outline" className="bg-blue-100 text-blue-800"><Clock className="h-3 w-3 mr-1" />En prueba</Badge>
+    }
+    if (status === 'unpaid') {
+      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Sin pagar</Badge>
+    }
+    return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />{status || 'Desconocido'}</Badge>
   }
 
   const getPaymentStatusBadge = (payment?: AdminSubscription['last_payment']) => {
@@ -764,7 +780,7 @@ export default function AdminSubscriptionOrdersPage() {
               <div className="ml-3">
                 <p className="text-sm text-gray-600">Canceladas</p>
                 <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.status === 'cancelled').length}
+                  {subscriptions.filter(s => s.status === 'cancelled' || s.status === 'canceled').length}
                 </p>
               </div>
             </div>

@@ -766,12 +766,17 @@ function PerfilPageContent() {
                                 variant={subscription.status === 'active' ? 'default' : 'secondary'}
                                 className={`${subscription.status === 'active' ? 'bg-green-100 text-green-800' :
                                     subscription.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-red-100 text-red-800'
+                                      subscription.status === 'past_due' ? 'bg-orange-100 text-orange-800' :
+                                        (subscription.status === 'incomplete' || subscription.status === 'incomplete_expired') ? 'bg-orange-100 text-orange-800' :
+                                          'bg-red-100 text-red-800'
                                   }`}
                               >
                                 {subscription.status === 'active' ? '✅ Activa' :
                                   subscription.status === 'paused' ? '⏸️ Pausada' :
-                                    '❌ Cancelada'}
+                                    subscription.status === 'past_due' ? '⚠️ Pago vencido' :
+                                      (subscription.status === 'incomplete' || subscription.status === 'incomplete_expired') ? '⚠️ Incompleta' :
+                                        subscription.status === 'trialing' ? '🔄 En prueba' :
+                                          '❌ Cancelada'}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-4 text-sm text-gray-600">

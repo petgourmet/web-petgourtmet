@@ -683,7 +683,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const { error } = await supabaseAdmin
     .from('unified_subscriptions')
     .update({
-      status: 'cancelled',
+      status: 'canceled',
       cancelled_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

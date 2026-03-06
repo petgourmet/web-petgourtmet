@@ -83,7 +83,9 @@ async function fetchUserOrders(userId: string) {
 
 async function fetchUserSubscriptions(userId: string) {
     const supabase = createClient()
-    const { data, error } = await supabase
+
+    // Buscar por user_id
+    const { data: byUserId, error: error1 } = await supabase
         .from('unified_subscriptions')
         .select(`
       *,
@@ -97,11 +99,38 @@ async function fetchUserSubscriptions(userId: string) {
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (error1) throw error1
+
+    // También buscar por email del usuario autenticado (fallback si user_id no se guardó)
+    const { data: { user } } = await supabase.auth.getUser()
+    let byEmail: typeof byUserId = []
+    if (user?.email) {
+        const { data: emailData, error: error2 } = await supabase
+            .from('unified_subscriptions')
+            .select(`
+          *,
+          products (
+            id,
+            name,
+            image,
+            price
+          )
+        `)
+            .eq('customer_email', user.email)
+            .is('user_id', null)
+            .order('created_at', { ascending: false })
+
+        if (!error2 && emailData) {
+            byEmail = emailData
+        }
+    }
+
+    // Combinar resultados sin duplicados
+    const allSubs = [...(byUserId ?? []), ...(byEmail ?? [])]
 
     // Deduplicar por stripe_subscription_id (lógica preservada del original)
     const seen = new Set<string>()
-    return (data ?? []).filter(sub => {
+    return allSubs.filter(sub => {
         if (!sub.stripe_subscription_id) return true
         if (seen.has(sub.stripe_subscription_id)) return false
         seen.add(sub.stripe_subscription_id)

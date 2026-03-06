@@ -226,7 +226,7 @@ export function SubscriptionCard({
                 </div>
               )}
 
-              {subscription.status === 'cancelled' && subscription.cancelled_at && (
+              {(subscription.status === 'cancelled' || subscription.status === 'canceled') && subscription.cancelled_at && (
                 <div>
                   <p className="text-gray-500">Cancelada</p>
                   <div className="flex flex-col">

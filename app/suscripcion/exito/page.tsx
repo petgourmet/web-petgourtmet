@@ -60,16 +60,25 @@ function ExitoSuscripcionContent() {
       console.log('🎉 Procesando éxito de suscripción para usuario:', user.id)
       console.log('📋 Session ID:', sessionId)
 
-      // Obtener detalles de la sesión de Stripe
-      const sessionResponse = await fetch(`/api/stripe/session/${sessionId}`)
-      if (!sessionResponse.ok) {
-        throw new Error('No se pudo obtener la información de la suscripción')
+      // Paso 1: Sincronizar suscripción con Stripe (crea o retorna existente)
+      console.log('🔄 Sincronizando suscripción con Stripe...')
+      const syncResponse = await fetch('/api/subscriptions/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+
+      let syncedSubscription = null
+      if (syncResponse.ok) {
+        const syncData = await syncResponse.json()
+        syncedSubscription = syncData.subscription
+        console.log(`✅ Suscripción ${syncData.isNew ? 'creada' : 'ya existía'}:`, syncedSubscription?.id)
+      } else {
+        const errData = await syncResponse.json().catch(() => ({}))
+        console.warn('⚠️ Error en sync:', errData.error || syncResponse.status)
       }
 
-      const sessionData = await sessionResponse.json()
-      console.log('📊 Datos de sesión:', sessionData)
-
-      // Buscar suscripciones del usuario
+      // Paso 2: Buscar suscripciones del usuario (incluye la recién sincronizada)
       console.log('🔍 Buscando suscripciones del usuario...')
       const { data: subscriptions, error: fetchError } = await supabase
         .from('unified_subscriptions')
@@ -89,6 +98,11 @@ function ExitoSuscripcionContent() {
         const isRecent = new Date(sub.created_at).getTime() > Date.now() - (24 * 60 * 60 * 1000)
         return (sub.status === 'active' || sub.status === 'pending') && isRecent
       }) || []
+
+      // Si no se encontraron por user_id pero el sync retornó una, usarla
+      if (recentActiveSubscriptions.length === 0 && syncedSubscription) {
+        recentActiveSubscriptions.push(syncedSubscription)
+      }
 
       console.log('✅ Suscripciones activas recientes:', recentActiveSubscriptions.length)
 
@@ -177,87 +191,12 @@ function ExitoSuscripcionContent() {
         return
       }
 
-      // Si no hay suscripciones activas recientes, buscar por stripe_subscription_id
-      console.log('🔄 Buscando suscripción por session_id en metadata...')
-      
-      // Esperar un momento para que el webhook procese la suscripción
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Volver a buscar suscripciones
-      const { data: updatedSubscriptions } = await supabase
-        .from('unified_subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      if (updatedSubscriptions && updatedSubscriptions.length > 0) {
-        setActivatedSubscriptions(updatedSubscriptions as any)
-        
-        // ===== TRACKING DE GTM PARA SUSCRIPCIONES (caso alternativo) =====
-        console.log('🔵 [GTM] Iniciando tracking de suscripción (alternativo)')
-        
-        if (sessionId) {
-          initializeDataLayer(sessionId)
-        }
-        
-        const subscription = updatedSubscriptions[0] as any
-        const basePrice = subscription.original_price || subscription.base_price || subscription.discounted_price || 0
-        const discountPercentage = subscription.discount_percentage || 0
-        const discountAmount = basePrice * (discountPercentage / 100)
-        const priceAfterDiscount = basePrice - discountAmount
-        const shippingCost = basePrice >= 1000 ? 0 : 100
-        const totalPerPeriod = priceAfterDiscount + shippingCost
-        
-        const item = {
-          id: subscription.id,
-          product_id: subscription.id,
-          name: subscription.product_name,
-          price: totalPerPeriod,
-          quantity: 1,
-          category: 'Suscripción',
-          subcategory: getSubscriptionTypeText(subscription.subscription_type),
-          brand: 'PET GOURMET',
-          variant: subscription.size || 'Standard'
-        }
-        
-        pushProductDataLayer({
-          productCategory: item.category,
-          productCategoryC: item.category,
-          productName: item.name,
-          productNameC: item.name,
-          productPrice: item.price,
-          productPriceC: item.price,
-          productQuantityC: item.quantity,
-          productSKUC: String(item.product_id),
-          productos: 1
-        })
-        
-        trackPurchase({
-          orderId: sessionId || `sub_${Date.now()}`,
-          orderNumber: sessionId ? `SUB-${sessionId.substring(0, 8)}` : `SUB-${Date.now()}`,
-          total: totalPerPeriod,
-          subtotal: totalPerPeriod,
-          shipping: 0,
-          tax: 0,
-          affiliation: 'PetGourmet Suscripciones',
-          items: [item],
-          customerEmail: user.email || '',
-          customerName: user.user_metadata?.full_name || user.email || 'Cliente',
-        })
-        
-        console.log('🟢 [GTM] Tracking de suscripción completado (alternativo)')
-        
-        toast({
-          title: "¡Bienvenido a Pet Gourmet!",
-          description: "Tu suscripción ha sido activada exitosamente.",
-        })
-      } else {
-        toast({
-          title: "Pago procesado",
-          description: "Tu pago fue recibido. La suscripción se está activando automáticamente.",
-        })
-      }
+      // La sincronización ya garantiza que la suscripción existe
+      // Si aún así no se encontró, mostrar mensaje genérico
+      toast({
+        title: "Pago procesado",
+        description: "Tu pago fue recibido. La suscripción se está activando automáticamente.",
+      })
     } catch (error) {
       console.error('❌ Error procesando éxito de suscripción:', error)
       toast({
