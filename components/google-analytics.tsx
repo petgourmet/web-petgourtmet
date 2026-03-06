@@ -23,15 +23,15 @@ export function GoogleAnalytics() {
 
   return (
     <>
-      {/* GA corre en el Web Worker junto a GTM */}
+      {/* GA — carga después de interactividad */}
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-        strategy="worker"
+        strategy="afterInteractive"
         onError={(e) => {
           console.warn('Google Analytics failed to load:', e)
         }}
       />
-      <Script id="google-analytics" strategy="worker">
+      <Script id="google-analytics" strategy="afterInteractive">
         {`
           try {
             window.dataLayer = window.dataLayer || [];
