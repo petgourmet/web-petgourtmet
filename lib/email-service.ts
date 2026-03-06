@@ -773,39 +773,39 @@ export class EmailService {
 function getOrderStatusTemplate(status: string, orderData: any) {
   const statusMessages: Record<string, any> = {
     pending: {
-      subject: '🛍️ Completar tu compra - Pet Gourmet',
+      subject: `🛍️ Completar tu compra #${orderData.id} - Pet Gourmet`,
       title: 'Completar tu compra',
       intro: `Hola ${orderData.shipping_address?.full_name || orderData.customer_name || ''}, tu pedido ha sido registrado.`,
       message: 'Estos artículos estarán siendo procesados una vez completado o verificado el pago. Te notificaremos pronto.',
-      showOrderButton: true,
-      buttonText: 'Completar tu compra',
+      showOrderButton: false,
+      buttonText: '',
     },
     processing: {
-      subject: '🎉 ¡Gracias por tu compra! - Pet Gourmet',
+      subject: `🎉 ¡Gracias por tu compra! Pedido #${orderData.id} - Pet Gourmet`,
       title: '¡Gracias por tu compra!',
       intro: `Hola ${orderData.shipping_address?.full_name || orderData.customer_name || ''}, estamos preparando tu pedido para enviarlo.`,
       message: 'Regularmente enviamos todas nuestras deliciosas recetas al día siguiente de tu compra, si quieres más detalles de tu envío, escríbenos a través de WhatsApp.',
-      showOrderButton: true,
-      buttonText: 'Ver tu pedido',
+      showOrderButton: false,
+      buttonText: '',
     },
     shipped: {
-      subject: '🚚 Tu pedido está en camino - Pet Gourmet',
+      subject: `🚚 Tu pedido #${orderData.id} está en camino - Pet Gourmet`,
       title: 'Tu pedido está en camino y se entregará en unas horas',
       intro: 'Tu pedido está en camino. Rastrea tu envío para ver el estado de la entrega.',
       message: '',
-      showOrderButton: true,
-      buttonText: 'Ver tu pedido',
+      showOrderButton: false,
+      buttonText: '',
     },
     completed: {
-      subject: '✅ Tu pedido ha sido entregado - Pet Gourmet',
+      subject: `✅ Tu pedido #${orderData.id} ha sido entregado - Pet Gourmet`,
       title: 'Tu pedido se ha entregado',
       intro: '¿No has recibido tu pedido? <a href="mailto:contacto@petgourmet.mx" style="color:#7AB8BF;">Infórmanos</a>.',
       message: '',
-      showOrderButton: true,
-      buttonText: 'Ver tu pedido',
+      showOrderButton: false,
+      buttonText: '',
     },
     cancelled: {
-      subject: '❌ Tu pedido ha sido cancelado - Pet Gourmet',
+      subject: `❌ Tu pedido #${orderData.id} ha sido cancelado - Pet Gourmet`,
       title: 'Lo lamentamos pero tu pedido ha sido cancelado',
       intro: `El pedido #${orderData.id} fue cancelado y tu pago ha sido anulado o no fue procesado.`,
       message: '',
@@ -813,7 +813,7 @@ function getOrderStatusTemplate(status: string, orderData: any) {
       buttonText: '',
     },
     refunded: {
-      subject: '💸 Reembolso procesado - Pet Gourmet',
+      subject: `💸 Reembolso del pedido #${orderData.id} procesado - Pet Gourmet`,
       title: 'Te informamos que el monto de tu pedido ha sido reembolsado',
       intro: `Monto total reembolsado: <strong>$${orderData.total || '0.00'} MXN</strong>`,
       message: '',
@@ -898,9 +898,9 @@ function getOrderStatusTemplate(status: string, orderData: any) {
         <div style="max-width: 600px; margin: 0 auto;">
           
           <!-- Header con Logo -->
-          <table style="width: 100%; margin-bottom: 30px; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); border-radius: 8px 8px 0 0;" border="0" cellpadding="0" cellspacing="0">
+          <table style="width: 100%; margin-bottom: 30px; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="padding: 30px 20px;" valign="middle">
+              <td style="padding: 30px 20px; background-color: #7AB8BF;" bgcolor="#7AB8BF" valign="middle">
                 <table style="width: 100%;" border="0" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="width: 70%;" valign="middle">
@@ -925,18 +925,7 @@ function getOrderStatusTemplate(status: string, orderData: any) {
             ${statusInfo.intro ? `<p style="font-size: 14px; color: #4B5563; margin-top: 0; margin-bottom: ${statusInfo.message ? '10px' : '30px'};">${statusInfo.intro}</p>` : ''}
             ${statusInfo.message ? `<p style="font-size: 14px; color: #4B5563; margin-top: 0; margin-bottom: 30px;">${statusInfo.message}</p>` : ''}
 
-            ${statusInfo.showOrderButton ? `
-              <table style="margin-bottom: 40px;">
-                <tr>
-                  <td>
-                    <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}" style="background-color: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; display: inline-block;">${statusInfo.buttonText}</a>
-                  </td>
-                  <td style="padding-left: 15px;">
-                    <span style="color: #6B7280; font-size: 13px;">o <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/tienda" style="color: #7AB8BF; text-decoration: none;">Visita nuestra tienda</a></span>
-                  </td>
-                </tr>
-              </table>
-            ` : ''}
+
 
             ${['pending', 'processing', 'shipped', 'completed'].includes(status) ? `
             <div style="margin-bottom: 40px; padding: 20px; background-color: white; border-radius: 8px; border: 1px solid #E5E7EB;">
@@ -1300,6 +1289,16 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
 
   // Siempre usar URL de producción para el logo en emails
   const logoUrl = 'https://petgourmet.mx/petgourmet-logo.png';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx';
+
+  // Texto legible de frecuencia para condiciones
+  const frequencyLabel = {
+    weekly: 'cada semana',
+    biweekly: 'cada 2 semanas',
+    monthly: 'cada mes',
+    quarterly: 'cada 3 meses',
+    annual: 'cada año'
+  }[data.subscription_type] || 'cada período';
 
   return {
     subject: typeInfo.subject,
@@ -1313,9 +1312,13 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
         <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header con Logo -->
-          <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 200px; height: auto; display: block; margin: 0 auto;" />
-          </div>
+          <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
+                <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 200px; height: auto; display: block; margin: 0 auto;" />
+              </td>
+            </tr>
+          </table>
 
           <!-- Content -->
           <div style="padding: 30px 20px;">
@@ -1431,13 +1434,54 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
               ` : ''
             }
 
+            <!-- Condiciones de suscripción (solo para correo de creación) -->
+            ${type === 'created' ? `
+              <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #bae6fd;">
+                <h3 style="margin-top: 0; color: #0369a1; font-size: 15px; font-weight: 600;">📋 Condiciones de tu suscripción</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #374151;">
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; width: 50%;">Frecuencia de cobro</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600; color: #0369a1; text-transform: capitalize;">${frequencyText} (${frequencyLabel})</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe;">Monto por período</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600; color: #10b981;">$${data.amount.toFixed(2)} MXN</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe;">Renovación</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600;">Automática ${frequencyLabel}</td>
+                  </tr>
+                  ${data.next_payment_date ? `
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe;">Próximo cargo</td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600; color: #7AB8BF;">${typeof data.next_payment_date === 'string' && data.next_payment_date.includes('-') ? new Date(data.next_payment_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : data.next_payment_date}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 8px 0;">Cancelación</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #059669;">Gratuita · en cualquier momento</td>
+                  </tr>
+                </table>
+              </div>
+            ` : ''}
+
             <!-- Acciones -->
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/perfil"
-                 style="background-color: #7AB8BF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
-                Ver Mi Suscripción
+              <a href="${appUrl}/suscripcion"
+                 style="background-color: #7AB8BF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 15px;">
+                Gestionar mi suscripción
               </a>
             </div>
+
+            ${type === 'created' ? `
+              <div style="text-align: center; margin: 0 0 20px 0; padding: 15px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280;">¿Deseas cancelar o pausar tu suscripción en cualquier momento?</p>
+                <a href="${appUrl}/suscripcion"
+                   style="color: #ef4444; text-decoration: underline; font-size: 13px; font-weight: 600;">
+                  Cancelar o pausar mi suscripción →
+                </a>
+              </div>
+            ` : ''}
 
             <div style="text-align: center; margin: 30px 0; padding-top: 20px; border-top: 1px solid #e5e7eb;">
               <p style="color: #6b7280; font-size: 14px; margin-bottom: 10px;">¿Tienes alguna pregunta? Contáctanos:</p>

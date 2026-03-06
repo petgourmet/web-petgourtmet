@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { User, Shield } from "lucide-react"
+import { User, Shield, Mail, Loader2 } from "lucide-react"
 
 interface SubscriptionCardProps {
   subscription: {
@@ -18,7 +19,9 @@ interface SubscriptionCardProps {
     }
     mercadopago_subscription_id?: string
     status: string
-    frequency?: string
+    subscription_type?: string
+    frequency?: number | string
+    frequency_type?: string
     size?: string
     quantity?: number
     discount_percentage?: number
@@ -43,6 +46,8 @@ interface SubscriptionCardProps {
   getTotalPrice: (subscription: any) => number
   getNextPaymentDate?: (subscription: any) => Date | null
   processImageUrl?: (url: string) => string
+  onSendEmail?: (emailType: 'created' | 'cancelled') => void
+  sendingEmail?: 'created' | 'cancelled' | null
 }
 
 export function SubscriptionCard({
@@ -58,7 +63,9 @@ export function SubscriptionCard({
   getShippingCost,
   getTotalPrice,
   getNextPaymentDate,
-  processImageUrl
+  processImageUrl,
+  onSendEmail,
+  sendingEmail
 }: SubscriptionCardProps) {
   return (
     <Card>
@@ -253,6 +260,41 @@ export function SubscriptionCard({
             )}
           </div>
         </div>
+
+        {/* Botones de reenvío de correo — solo visibles para admin */}
+        {onSendEmail && (
+          <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+            <span className="text-xs text-gray-400 self-center mr-1">Reenviar correo:</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-8 gap-1.5 border-teal-300 text-teal-700 hover:bg-teal-50"
+              disabled={sendingEmail === 'created'}
+              onClick={() => onSendEmail('created')}
+            >
+              {sendingEmail === 'created' ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Mail className="h-3 w-3" />
+              )}
+              Bienvenida / Suscripción activa
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-8 gap-1.5 border-red-300 text-red-600 hover:bg-red-50"
+              disabled={sendingEmail === 'cancelled'}
+              onClick={() => onSendEmail('cancelled')}
+            >
+              {sendingEmail === 'cancelled' ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Mail className="h-3 w-3" />
+              )}
+              Cancelación
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

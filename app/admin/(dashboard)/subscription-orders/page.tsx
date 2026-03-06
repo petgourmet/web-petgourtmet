@@ -138,6 +138,7 @@ export default function AdminSubscriptionOrdersPage() {
   const [cleanupLoading, setCleanupLoading] = useState(false)
   const [cleanupResults, setCleanupResults] = useState<any>(null)
   const [showCleanupModal, setShowCleanupModal] = useState(false)
+  const [sendingEmailMap, setSendingEmailMap] = useState<Record<string, 'created' | 'cancelled' | null>>({})
   
   const supabase = createClient()
 
@@ -301,6 +302,31 @@ export default function AdminSubscriptionOrdersPage() {
     await fetchAllSubscriptions()
     setRefreshing(false)
     toast.success("Suscripciones actualizadas")
+  }
+
+  const handleSendSubscriptionEmail = async (
+    subscription: AdminSubscription,
+    emailType: 'created' | 'cancelled'
+  ) => {
+    const key = String(subscription.id)
+    setSendingEmailMap(prev => ({ ...prev, [key]: emailType }))
+    try {
+      const res = await fetch('/api/admin/resend-subscription-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: subscription.id, emailType }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        toast.success(result.message || `Correo enviado correctamente`)
+      } else {
+        toast.error(`Error al enviar el correo: ${result.error || 'Error desconocido'}`)
+      }
+    } catch (err) {
+      toast.error('Error de conexión al enviar el correo')
+    } finally {
+      setSendingEmailMap(prev => ({ ...prev, [key]: null }))
+    }
   }
 
   const validatePaymentWithMercadoPago = async (paymentId: string) => {
@@ -874,6 +900,8 @@ export default function AdminSubscriptionOrdersPage() {
               getTotalPrice={getTotalPrice}
               getNextPaymentDate={getNextPaymentDate}
               processImageUrl={processImageUrl}
+              onSendEmail={(emailType) => handleSendSubscriptionEmail(subscription, emailType)}
+              sendingEmail={sendingEmailMap[String(subscription.id)] ?? null}
             />
           ))
         )}
