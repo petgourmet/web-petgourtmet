@@ -26,10 +26,15 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient()
 
-    // Obtener la orden actual
+    // Obtener la orden actual con sus items
     const { data: currentOrder, error: fetchError } = await supabase
       .from('orders')
-      .select('*')
+      .select(`
+        *,
+        order_items (
+          id, product_id, product_name, product_image, quantity, price, size
+        )
+      `)
       .eq('id', orderId)
       .single()
 
@@ -113,11 +118,19 @@ export async function POST(request: NextRequest) {
           })
 
           // Preparar datos completos de la orden para el email
+          const orderItems = (currentOrder.order_items || []).map((item: any) => ({
+            name: item.product_name,
+            image: item.product_image,
+            quantity: item.quantity,
+            price: item.price,
+            size: item.size,
+          }))
+
           const orderDataForEmail = {
             id: orderNumber,
             status: newStatus,
             total: currentOrder.total,
-            products: currentOrder.products || [],
+            products: orderItems,
             shipping_address: {
               full_name: customerName || 'Cliente',
               email: customerEmail,
