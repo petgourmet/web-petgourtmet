@@ -17,7 +17,8 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Loader2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, Search, Filter, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
+import { createBrowserClient } from "@supabase/ssr"
 import { AuthGuard } from "@/components/admin/auth-guard"
 import Link from "next/link"
 import { useOrders } from "@/lib/query/hooks/use-orders"
@@ -29,6 +30,8 @@ export default function OrdersAdminPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState(1)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   // ── TanStack Query ────────────────────────────────────────────────
   // useOrders incluye:
@@ -68,6 +71,38 @@ export default function OrdersAdminPage() {
     setCurrentPage(1) // Reset a primera página al cambiar filtro
   }
 
+  async function handleSyncOrders() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setSyncResult({ message: 'Sesión no válida', type: 'error' })
+        return
+      }
+      const res = await fetch('/api/admin/sync-orders', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSyncResult({ message: data.message, type: 'success' })
+        if (data.stats?.recovered > 0) refetch()
+      } else {
+        setSyncResult({ message: data.error || 'Error al sincronizar', type: 'error' })
+      }
+    } catch (err: any) {
+      setSyncResult({ message: err.message || 'Error de conexión', type: 'error' })
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncResult(null), 6000)
+    }
+  }
+
   // ── Helpers (preservados 100% del original) ───────────────────────
 
   function formatCurrency(amount: number) {
@@ -94,7 +129,27 @@ export default function OrdersAdminPage() {
   return (
     <AuthGuard requireAdmin={true}>
       <div className="p-3 sm:p-4 md:p-6">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-6">Gestión de Pedidos</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold">Gestión de Pedidos</h1>
+          <div className="flex items-center gap-3">
+            {syncResult && (
+              <span className={`text-sm px-3 py-1 rounded-full ${
+                syncResult.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {syncResult.message}
+              </span>
+            )}
+            <button
+              onClick={handleSyncOrders}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50 transition-colors"
+              title="Sincronizar órdenes pagadas en Stripe que no estén en la base de datos"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar Stripe'}
+            </button>
+          </div>
+        </div>
 
         {/* Filtros y búsqueda */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
