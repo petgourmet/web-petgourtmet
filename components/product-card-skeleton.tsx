@@ -4,7 +4,7 @@ export function ProductCardSkeleton() {
   return (
     <div className="rounded-xl overflow-hidden shadow-xl h-full flex flex-col bg-white animate-pulse">
       {/* Imagen skeleton */}
-      <div className="h-48 bg-gray-200 relative">
+      <div className="w-full aspect-[4/3] bg-gray-200 relative">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse"></div>
       </div>
       

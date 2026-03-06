@@ -843,10 +843,10 @@ export default function AdminSubscriptionOrdersPage() {
                   onClick={handleCleanupSubscriptions}
                   disabled={cleanupLoading}
                   variant="outline"
-                  className="justify-center bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
+                  title="Limpiar estados"
+                  className="justify-center bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200 px-3"
                 >
-                  <Trash2 className={`h-4 w-4 mr-2 ${cleanupLoading ? 'animate-pulse' : ''}`} />
-                  {cleanupLoading ? 'Limpiando...' : 'Limpiar Estados'}
+                  <Trash2 className={`h-4 w-4 ${cleanupLoading ? 'animate-pulse' : ''}`} />
                 </Button>
                 {filteredSubscriptions.some(sub => sub.status === 'pending') && (
                   <Button

@@ -8,7 +8,6 @@ import Image from "next/image"
 import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCart } from "@/components/cart-context"
 import {
   ShoppingCart,
@@ -48,6 +47,7 @@ export default function ProductDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
+  const [activeInfoTab, setActiveInfoTab] = useState<"ingredients" | "nutritional">("ingredients")
 
   // Estados para variantes
   const [variants, setVariants] = useState<ProductVariant[]>([])
@@ -541,34 +541,6 @@ export default function ProductDetailPage() {
                     </div>
                   )}
                 </div>
-
-                <div className="text-gray-600 dark:text-gray-300 mb-6 text-lg leading-relaxed prose prose-lg dark:prose-invert max-w-none">
-                  <ReactMarkdown>{product.description}</ReactMarkdown>
-                </div>
-
-                {product.features && product.features.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {product.features.map((feature, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="outline"
-                        className="bg-[#7BBDC5]/10 text-[#7BBDC5] border-[#7BBDC5]/30 px-3 py-1"
-                      >
-                        {feature.name}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                {/* Información de venta por peso */}
-                {product.sellByWeight && (
-                  <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      Este producto se vende por peso.
-                      {product.weightReference && ` Precio de referencia: ${product.weightReference}`}
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Selector de Variantes */}
@@ -633,10 +605,10 @@ export default function ProductDetailPage() {
               {/* Tipo de compra */}
               <div>
                 <h3 className="font-bold mb-3 text-lg">Tipo de compra</h3>
-                <div className="flex gap-3">
+                <div className={`grid gap-3 ${product.subscription_available ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <Button
                     variant={!isSubscription ? "default" : "outline"}
-                    className={`rounded-full px-6 py-3 ${!isSubscription
+                    className={`w-full rounded-full py-3 text-sm font-semibold ${!isSubscription
                       ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
                       : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                       }`}
@@ -647,7 +619,7 @@ export default function ProductDetailPage() {
                   {product.subscription_available && (
                     <Button
                       variant={isSubscription ? "default" : "outline"}
-                      className={`rounded-full px-6 py-3 ${isSubscription
+                      className={`w-full rounded-full py-3 text-sm font-semibold ${isSubscription
                         ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
                         : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                         }`}
@@ -796,66 +768,146 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Precio y botón de compra */}
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6">
-                <div className="flex justify-between items-center">
-                  <div>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5">
+                <div className="flex flex-col gap-4">
+                  {/* Precio */}
+                  <div className="flex items-baseline justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-400">Precio total:</p>
-                    <p className="text-3xl font-bold text-[#7BBDC5]">
-                      $
-                      {(
-                        (isVariableProduct && selectedVariant
-                          ? selectedVariant.price
-                          : selectedSize
-                            ? selectedSize.price
-                            : product.price || 0) *
-                        quantity *
-                        (isSubscription ? 1 - getSubscriptionDiscount() : 1)
-                      ).toFixed(2)}{" "}
-                      MXN
-                    </p>
-                    {isSubscription && (
-                      <p className="text-sm text-green-600 flex items-center mt-1">
-                        <Check className="h-3 w-3 inline mr-1" />
-                        Ahorro del {(getSubscriptionDiscount() * 100).toFixed(0)}% aplicado
+                    <div className="text-right">
+                      <p className="text-2xl sm:text-3xl font-bold text-[#7BBDC5]">
+                        ${
+                          (
+                            (isVariableProduct && selectedVariant
+                              ? selectedVariant.price
+                              : selectedSize
+                                ? selectedSize.price
+                                : product.price || 0) *
+                            quantity *
+                            (isSubscription ? 1 - getSubscriptionDiscount() : 1)
+                          ).toFixed(2)
+                        }{" "}MXN
                       </p>
-                    )}
+                      {isSubscription && (
+                        <p className="text-xs text-green-600 flex items-center justify-end gap-1 mt-0.5">
+                          <Check className="h-3 w-3 shrink-0" />
+                          Ahorro del {(getSubscriptionDiscount() * 100).toFixed(0)}% aplicado
+                        </p>
+                      )}
+                    </div>
                   </div>
+                  {/* Botón comprar — ancho completo */}
                   <Button
-                    className="rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white px-8 py-4 text-lg font-semibold"
+                    className="w-full rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white py-4 text-base font-semibold"
                     onClick={handleAddToCart}
                     disabled={isVariableProduct && !selectedVariant}
                   >
-                    <ShoppingCart className="h-5 w-5 mr-2" />
-                    {isVariableProduct && !selectedVariant ? "Selecciona una variante" : "Añadir al carrito"}
+                    <ShoppingCart className="h-5 w-5 mr-2 shrink-0" />
+                    {isVariableProduct && !selectedVariant
+                      ? "Selecciona una variante"
+                      : isSubscription ? "Suscribirme ahora" : "Comprar"
+                    }
                   </Button>
                 </div>
               </div>
 
-              {/* Información adicional */}
-              {(product.ingredients || product.nutritional_info) && (
-                <Tabs defaultValue="ingredients" className="mt-6">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="ingredients">Ingredientes</TabsTrigger>
-                    <TabsTrigger value="nutritional">Información Nutricional</TabsTrigger>
-                  </TabsList>
-                  <TabsContent
-                    value="ingredients"
-                    className="p-4 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                  >
-                    <div className="whitespace-pre-wrap">
-                      {displayIngredients || "Información no disponible"}
-                    </div>
-                  </TabsContent>
-                  <TabsContent
-                    value="nutritional"
-                    className="p-4 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                  >
-                    <div className="whitespace-pre-wrap">
-                      {product.nutritional_info || "Información no disponible"}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+            </div>
+          </div>
+
+          {/* ─── Descripción + Ingredientes — ancho completo bajo el grid ─── */}
+          <div className="px-6 pb-8 pt-2 space-y-5 border-t border-[#7BBDC5]/20">
+
+            {/* Card descripción */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-[#7BBDC5]/50 shadow-sm p-6">
+              <h3 className="text-base font-bold text-[#7BBDC5] mb-3 flex items-center gap-2">
+                <Info className="h-4 w-4 shrink-0" /> Descripción del producto
+              </h3>
+              <div className="text-gray-700 dark:text-gray-300 leading-relaxed prose prose-base dark:prose-invert max-w-none">
+                <ReactMarkdown>{product.description}</ReactMarkdown>
+              </div>
+              {product.features && product.features.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[#7BBDC5]/20">
+                  {product.features.map((feature, idx) => (
+                    <Badge key={idx} variant="outline" className="bg-[#7BBDC5]/10 text-[#7BBDC5] border-[#7BBDC5]/30 px-3 py-1">
+                      {feature.name}
+                    </Badge>
+                  ))}
+                </div>
               )}
+              {product.sellByWeight && (
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Este producto se vende por peso.
+                    {product.weightReference && ` Precio de referencia: ${product.weightReference}`}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Ingredientes y nutrición */}
+            {/* Móvil: tabs apilados | Desktop: dos columnas siempre visibles */}
+            <div className="rounded-2xl border-2 border-[#7BBDC5]/50 shadow-sm overflow-hidden">
+
+              {/* ── MÓVIL: selector de pestañas ── */}
+              <div className="sm:hidden">
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => setActiveInfoTab("ingredients")}
+                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-all border-b border-[#7BBDC5]/20 ${
+                      activeInfoTab === "ingredients"
+                        ? "bg-white dark:bg-gray-800 text-[#7BBDC5]"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                    }`}
+                  >
+                    Ingredientes
+                  </button>
+                  <button
+                    onClick={() => setActiveInfoTab("nutritional")}
+                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-all ${
+                      activeInfoTab === "nutritional"
+                        ? "bg-white dark:bg-gray-800 text-[#7BBDC5]"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                    }`}
+                  >
+                    Información Nutricional
+                  </button>
+                </div>
+                <div className="p-5 bg-white dark:bg-gray-800 min-h-[80px]">
+                  {activeInfoTab === "ingredients" ? (
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                      {displayIngredients || "Información de ingredientes no disponible para este producto."}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                      {product.nutritional_info || "Información nutricional no disponible para este producto."}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* ── DESKTOP: dos columnas siempre visibles ── */}
+              <div className="hidden sm:grid sm:grid-cols-2 divide-x divide-[#7BBDC5]/20">
+                <div className="flex flex-col">
+                  <div className="py-3 px-5 bg-gray-100 dark:bg-gray-700 border-b border-[#7BBDC5]/20">
+                    <p className="text-sm font-semibold text-[#7BBDC5]">Ingredientes</p>
+                  </div>
+                  <div className="p-5 bg-white dark:bg-gray-800 flex-1 min-h-[80px]">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                      {displayIngredients || "Información de ingredientes no disponible para este producto."}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="py-3 px-5 bg-gray-100 dark:bg-gray-700 border-b border-[#7BBDC5]/20">
+                    <p className="text-sm font-semibold text-[#7BBDC5]">Información Nutricional</p>
+                  </div>
+                  <div className="p-5 bg-white dark:bg-gray-800 flex-1 min-h-[80px]">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                      {product.nutritional_info || "Información nutricional no disponible para este producto."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

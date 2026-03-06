@@ -72,6 +72,14 @@ export function ProductCard({
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
 
+  const handleNavigate = () => {
+    if (slug) {
+      router.push(`/producto/${slug}`)
+    } else {
+      onShowDetail && onShowDetail({ id, name, description, image, rating, reviews, price, sizes, features, category, gallery })
+    }
+  }
+
   // Determinar el texto de precio a mostrar
   const hasVariantRange =
     product_type === 'variable' &&
@@ -111,15 +119,16 @@ export function ProductCard({
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col bg-white dark:bg-gray-800"
+      className="relative rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col bg-white dark:bg-gray-800 cursor-pointer"
       style={{
         boxShadow: "0 10px 30px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07)",
       }}
+      onClick={handleNavigate}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Imagen del producto */}
-      <div className="relative h-48 overflow-hidden">
+      <div className="relative w-full aspect-[4/3] overflow-hidden">
         <div
           className="absolute inset-0 transition-opacity duration-300"
           style={{ backgroundColor: spotlightColor, opacity: isHovered ? 0.2 : 0 }}
@@ -127,95 +136,25 @@ export function ProductCard({
         <LazyImage
           src={image || "/placeholder.svg"}
           alt={name}
-          className={`w-full h-full object-cover transition-transform duration-500 ${
+          className={`w-full h-full object-cover object-center transition-transform duration-500 ${
             isHovered ? "scale-110 brightness-[0.1]" : "scale-100"
           }`}
-          width={400}
-          height={300}
-          priority={false}
         />
         {isHovered && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <button
-              onClick={() => {
-                if (slug) {
-                  router.push(`/producto/${slug}`)
-                } else {
-                  // Fallback al modal si no hay slug (compatibilidad)
-                  onShowDetail &&
-                    onShowDetail({
-                      id,
-                      name,
-                      description,
-                      image,
-                      rating,
-                      reviews,
-                      price,
-                      sizes,
-                      features,
-                      category,
-                      gallery,
-                    })
-                }
-              }}
-              className="bg-white text-primary hover:bg-primary hover:text-white transition-colors duration-300 font-medium py-2 px-4 rounded-full"
-            >
+            <span className="bg-white text-primary hover:bg-primary hover:text-white transition-colors duration-300 font-medium py-2 px-4 rounded-full pointer-events-none">
               Ver detalles
-            </button>
+            </span>
           </div>
         )}
       </div>
 
       {/* Contenido del producto */}
       <div className="p-4 flex flex-col flex-grow">
-        <h2 
-          className="font-bold text-sm mb-2 cursor-pointer hover:text-primary transition-colors duration-200"
-          onClick={() => {
-            if (slug) {
-              router.push(`/producto/${slug}`)
-            } else {
-              onShowDetail &&
-                onShowDetail({
-                  id,
-                  name,
-                  description,
-                  image,
-                  rating,
-                  reviews,
-                  price,
-                  sizes,
-                  features,
-                  category,
-                  gallery,
-                })
-            }
-          }}
-        >
+        <h2 className="font-bold text-sm mb-2 hover:text-primary transition-colors duration-200">
           {name}
         </h2>
-        <p 
-          className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2 cursor-pointer hover:text-primary transition-colors duration-200"
-          onClick={() => {
-            if (slug) {
-              router.push(`/producto/${slug}`)
-            } else {
-              onShowDetail &&
-                onShowDetail({
-                  id,
-                  name,
-                  description,
-                  image,
-                  rating,
-                  reviews,
-                  price,
-                  sizes,
-                  features,
-                  category,
-                  gallery,
-                })
-            }
-          }}
-        >
+        <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
           {description}
         </p>
 

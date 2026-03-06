@@ -35,21 +35,11 @@ export function GoogleAnalytics() {
         {`
           try {
             window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}', {
-              page_title: document.title,
-              page_location: window.location.href,
-              cookie_flags: 'SameSite=None;Secure',
-              // Configuración para evitar interferencias con navegación
-              send_page_view: false,
-              transport_type: 'beacon'
-            });
-            
-            // Enviar page view inicial manualmente
-            gtag('event', 'page_view', {
-              page_title: document.title,
-              page_location: window.location.href
+            window.gtag = function(){ window.dataLayer.push(arguments); };
+            window.gtag('js', new Date());
+            window.gtag('config', '${GA_MEASUREMENT_ID}', {
+              transport_type: 'beacon',
+              cookie_flags: 'SameSite=None;Secure'
             });
           } catch (error) {
             console.warn('Google Analytics initialization error:', error);
