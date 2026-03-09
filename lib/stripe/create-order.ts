@@ -257,10 +257,13 @@ export async function createOrderFromSession(
       shipping_cost: ((session.amount_total || 0) / 100) - orderItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0),
     }
 
-    // Fire-and-forget: emails no bloquean la respuesta
-    sendPurchaseEmails(customerEmail, orderDataForEmail).catch(err => {
+    // Esperar emails para que se envíen antes de que Netlify termine la función
+    try {
+      await sendPurchaseEmails(customerEmail, orderDataForEmail)
+    } catch (err) {
       console.error(`${logPrefix} ❌ Error en envío de emails:`, err)
-    })
+      // No relanzar: la orden ya fue creada exitosamente
+    }
   }
 
   // 7. Retornar orden completa con items
@@ -305,29 +308,41 @@ async function sendPurchaseEmails(customerEmail: string | null, orderData: any) 
 
   console.log('[EMAIL] 📧 Iniciando envío de emails para orden', orderData.id)
 
+  // Enviar ambos emails en paralelo para minimizar el tiempo en serverless
+  const emailPromises: Promise<void>[] = []
+
   // 1) Email al cliente
   if (customerEmail) {
-    try {
-      const result = await sendOrderStatusEmail('processing', customerEmail, orderData)
-      if (result?.success) {
-        console.log('[EMAIL] ✅ Email de confirmación enviado al cliente:', customerEmail)
-      } else {
-        console.error('[EMAIL] ❌ Fallo email al cliente:', result?.error)
-      }
-    } catch (e) {
-      console.error('[EMAIL] ❌ Error email cliente:', e instanceof Error ? e.message : e)
-    }
+    emailPromises.push(
+      sendOrderStatusEmail('processing', customerEmail, orderData)
+        .then((result: any) => {
+          if (result?.success) {
+            console.log('[EMAIL] ✅ Email de confirmación enviado al cliente:', customerEmail)
+          } else {
+            console.error('[EMAIL] ❌ Fallo email al cliente:', result?.error)
+          }
+        })
+        .catch((e: any) => {
+          console.error('[EMAIL] ❌ Error email cliente:', e instanceof Error ? e.message : e)
+        })
+    )
   }
 
   // 2) Email al admin
-  try {
-    const adminResult = await sendAdminNewOrderEmail(orderData)
-    if (adminResult?.success) {
-      console.log('[EMAIL] ✅ Email de nuevo pedido enviado al admin')
-    } else {
-      console.error('[EMAIL] ❌ Fallo email admin:', adminResult?.error)
-    }
-  } catch (e) {
-    console.error('[EMAIL] ❌ Error email admin:', e instanceof Error ? e.message : e)
-  }
+  emailPromises.push(
+    sendAdminNewOrderEmail(orderData)
+      .then((result: any) => {
+        if (result?.success) {
+          console.log('[EMAIL] ✅ Email de nuevo pedido enviado al admin')
+        } else {
+          console.error('[EMAIL] ❌ Fallo email admin:', result?.error)
+        }
+      })
+      .catch((e: any) => {
+        console.error('[EMAIL] ❌ Error email admin:', e instanceof Error ? e.message : e)
+      })
+  )
+
+  await Promise.allSettled(emailPromises)
+  console.log('[EMAIL] 📧 Envío de emails completado para orden', orderData.id)
 }
