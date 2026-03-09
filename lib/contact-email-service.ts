@@ -97,74 +97,106 @@ export const getAdminNotificationTemplate = (formData: ContactFormData) => ({
   subject: `[Pet Gourmet] Nuevo mensaje de contacto - ${formData.name}`,
   html: `
     <!DOCTYPE html>
-    <html>
+    <html lang="es">
       <head>
         <meta charset="utf-8">
         <title>Nuevo Mensaje de Contacto</title>
       </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #7AB8BF;">🔔 Nuevo mensaje de contacto</h1>
-          
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #333;">Detalles del contacto:</h3>
-            
-            <table style="width: 100%; border-collapse: collapse;">
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+        <div style="max-width: 600px; margin: 0 auto;">
+
+          <!-- Header con Logo -->
+          <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+              </td>
+            </tr>
+          </table>
+
+          <!-- Alerta nuevo contacto -->
+          <div style="background-color: #ecfdf5; padding: 20px; border-left: 4px solid #10b981;">
+            <table style="width: 100%;">
               <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Nombre</td>
-                <td style="padding: 8px 12px; border: 1px solid #ddd;">${formData.name}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Email</td>
-                <td style="padding: 8px 12px; border: 1px solid #ddd;">
-                  <a href="mailto:${formData.email}">${formData.email}</a>
+                <td style="width: 40px; vertical-align: top;">
+                  <span style="font-size: 28px;">💬</span>
                 </td>
-              </tr>
-              ${formData.phone ? `
-              <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Teléfono</td>
-                <td style="padding: 8px 12px; border: 1px solid #ddd;">
-                  <a href="tel:${formData.phone}">${formData.phone}</a>
+                <td>
+                  <h2 style="font-size: 20px; color: #065f46; margin: 0 0 5px;">Nuevo Mensaje de Contacto</h2>
+                  <p style="font-size: 14px; color: #047857; margin: 0;">Un cliente ha enviado un mensaje a través del formulario de contacto.</p>
                 </td>
-              </tr>
-              ` : ''}
-              <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Tipo de formulario</td>
-                <td style="padding: 8px 12px; border: 1px solid #ddd;">${formData.formType}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Fecha</td>
-                <td style="padding: 8px 12px; border: 1px solid #ddd;">${new Date().toLocaleString('es-MX', { 
-                  timeZone: 'America/Mexico_City'
-                })}</td>
               </tr>
             </table>
           </div>
-          
-          <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #856404;">💬 Mensaje del cliente:</h3>
-            <p style="background-color: white; padding: 15px; border-radius: 4px; white-space: pre-wrap; border-left: 4px solid #ffc107;">
-${formData.message}</p>
+
+          <div style="background-color: white; padding: 25px 20px; border-radius: 0 0 8px 8px;">
+
+            <!-- Datos del cliente -->
+            <div style="margin-bottom: 25px; padding: 15px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+              <h3 style="font-size: 14px; color: #0c4a6e; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">👤 Datos del Cliente</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px; width: 40%;">Nombre</td>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${formData.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Email</td>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">
+                    <a href="mailto:${formData.email}" style="color: #7AB8BF; text-decoration: none;">${formData.email}</a>
+                  </td>
+                </tr>
+                ${formData.phone ? `
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Teléfono</td>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">
+                    <a href="tel:${formData.phone}" style="color: #7AB8BF; text-decoration: none;">${formData.phone}</a>
+                  </td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Tipo de formulario</td>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${formData.formType}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Fecha</td>
+                  <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${new Date().toLocaleString('es-MX', { 
+                    timeZone: 'America/Mexico_City'
+                  })}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Mensaje del cliente -->
+            <div style="margin-bottom: 25px;">
+              <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">💬 Mensaje del Cliente</h3>
+              <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                <p style="background-color: white; padding: 15px; border-radius: 4px; white-space: pre-wrap; margin: 0; font-size: 13px; color: #374151; line-height: 1.6;">${formData.message}</p>
+              </div>
+            </div>
+
+            <!-- Acciones recomendadas -->
+            <div style="padding: 15px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 20px;">
+              <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #374151;">📋 Acciones recomendadas:</p>
+              <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #4b5563; line-height: 1.8;">
+                <li>Responder al cliente en un plazo máximo de 24 horas</li>
+                <li>Revisar si el mensaje requiere seguimiento especial</li>
+                <li>Actualizar el CRM con la información del contacto</li>
+              </ol>
+            </div>
+
+            <!-- Responder directamente -->
+            <p style="font-size: 13px; color: #4b5563; margin: 0;">
+              <strong>Responder directamente a:</strong> <a href="mailto:${formData.email}" style="color: #7AB8BF; text-decoration: none;">${formData.email}</a>
+            </p>
+
           </div>
-          
-          <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>📋 Acciones recomendadas:</strong></p>
-            <ol>
-              <li>Responder al cliente en un plazo máximo de 24 horas</li>
-              <li>Revisar si el mensaje requiere seguimiento especial</li>
-              <li>Actualizar el CRM con la información del contacto</li>
-            </ol>
+
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+            <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+              Sistema automático de notificaciones - Pet Gourmet · Generado el ${new Date().toLocaleString('es-MX')}
+            </p>
           </div>
-          
-          <p style="margin-top: 30px;">
-            <strong>Responder directamente a:</strong> <a href="mailto:${formData.email}">${formData.email}</a>
-          </p>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          <p style="color: #666; font-size: 12px; text-align: center;">
-            Sistema automático de notificaciones - Pet Gourmet<br>
-            Generado el ${new Date().toLocaleString('es-MX')}
-          </p>
+
         </div>
       </body>
     </html>
@@ -326,38 +358,77 @@ export async function sendNewsletterEmail(email: string) {
       subject: `[Pet Gourmet] Nueva suscripción al newsletter: ${email}`,
       html: `
         <!DOCTYPE html>
-        <html>
+        <html lang="es">
           <head>
             <meta charset="utf-8">
             <title>Nueva Suscripción Newsletter</title>
           </head>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #7AB8BF;">📧 Nueva suscripción al newsletter</h1>
-              
-              <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
-                <h3 style="margin-top: 0; color: #8c4a23;">Nuevo suscriptor agregado</h3>
-                <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
-                <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-MX', { 
-                  timeZone: 'America/Mexico_City'
-                })}</p>
-                <p><strong>Estado:</strong> Email de confirmación enviado exitosamente ✅</p>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+            <div style="max-width: 600px; margin: 0 auto;">
+
+              <!-- Header con Logo -->
+              <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
+                    <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alerta nueva suscripción newsletter -->
+              <div style="background-color: #ecfdf5; padding: 20px; border-left: 4px solid #10b981;">
+                <table style="width: 100%;">
+                  <tr>
+                    <td style="width: 40px; vertical-align: top;">
+                      <span style="font-size: 28px;">📧</span>
+                    </td>
+                    <td>
+                      <h2 style="font-size: 20px; color: #065f46; margin: 0 0 5px;">Nueva Suscripción al Newsletter</h2>
+                      <p style="font-size: 14px; color: #047857; margin: 0;">Un nuevo usuario se ha suscrito al newsletter de Pet Gourmet.</p>
+                    </td>
+                  </tr>
+                </table>
               </div>
-              
-              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>📋 Acciones recomendadas:</strong></p>
-                <ul>
-                  <li>Agregar el email a la lista de marketing</li>
-                  <li>Considerar envío de ofertas exclusivas</li>
-                  <li>Incluir en próximas campañas de newsletter</li>
-                </ul>
+
+              <div style="background-color: white; padding: 25px 20px; border-radius: 0 0 8px 8px;">
+
+                <!-- Datos del suscriptor -->
+                <div style="margin-bottom: 25px; padding: 15px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+                  <h3 style="font-size: 14px; color: #0c4a6e; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">👤 Datos del Suscriptor</h3>
+                  <table style="width: 100%; font-size: 13px; color: #374151;">
+                    <tr>
+                      <td style="padding: 4px 0; font-weight: 600; width: 100px;">Email:</td>
+                      <td style="padding: 4px 0;"><a href="mailto:${email}" style="color: #7AB8BF; text-decoration: none;">${email}</a></td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; font-weight: 600;">Fecha:</td>
+                      <td style="padding: 4px 0;">${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; font-weight: 600;">Estado:</td>
+                      <td style="padding: 4px 0; color: #047857; font-weight: 600;">✅ Email de confirmación enviado</td>
+                    </tr>
+                  </table>
+                </div>
+
+                <!-- Acciones recomendadas -->
+                <div style="padding: 15px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                  <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #374151;">📋 Acciones recomendadas:</p>
+                  <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #4b5563; line-height: 1.8;">
+                    <li>Agregar el email a la lista de marketing</li>
+                    <li>Considerar envío de ofertas exclusivas</li>
+                    <li>Incluir en próximas campañas de newsletter</li>
+                  </ul>
+                </div>
+
               </div>
-              
-              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-              <p style="color: #666; font-size: 12px; text-align: center;">
-                Sistema automático de notificaciones - Pet Gourmet<br>
-                Generado el ${new Date().toLocaleString('es-MX')}
-              </p>
+
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+                <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+                  Sistema automático de notificaciones - Pet Gourmet · Generado el ${new Date().toLocaleString('es-MX')}
+                </p>
+              </div>
+
             </div>
           </body>
         </html>
@@ -589,19 +660,87 @@ export const sendSubscriptionPaymentSuccess = async (data: SubscriptionPaymentSu
       subject: `💰 Pago de suscripción procesado - ${data.productName}`,
       html: `
         <!DOCTYPE html>
-        <html>
-          <body style="font-family: Arial, sans-serif;">
-            <h2>💰 Pago de Suscripción Procesado</h2>
-            <p><strong>Cliente:</strong> ${data.userName} (${data.userEmail})</p>
-            <p><strong>Producto:</strong> ${data.productName}</p>
-            <p><strong>Monto:</strong> $${data.amount.toLocaleString('es-MX')} MXN</p>
-            <p><strong>Fecha de pago:</strong> ${paymentDate}</p>
-            <p><strong>Próximo pago:</strong> ${nextPaymentDate}</p>
-            <hr>
-            <p style="color: #666; font-size: 12px;">
-              Sistema automático de notificaciones - Pet Gourmet<br>
-              Generado el ${new Date().toLocaleString('es-MX')}
-            </p>
+        <html lang="es">
+          <head>
+            <meta charset="utf-8">
+            <title>Pago de Suscripción Procesado</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+            <div style="max-width: 600px; margin: 0 auto;">
+
+              <!-- Header con Logo -->
+              <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
+                    <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alerta pago procesado -->
+              <div style="background-color: #ecfdf5; padding: 20px; border-left: 4px solid #10b981;">
+                <table style="width: 100%;">
+                  <tr>
+                    <td style="width: 40px; vertical-align: top;">
+                      <span style="font-size: 28px;">💰</span>
+                    </td>
+                    <td>
+                      <h2 style="font-size: 20px; color: #065f46; margin: 0 0 5px;">Pago de Suscripción Procesado</h2>
+                      <p style="font-size: 14px; color: #047857; margin: 0;">Se ha procesado exitosamente un pago de suscripción.</p>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <div style="background-color: white; padding: 25px 20px; border-radius: 0 0 8px 8px;">
+
+                <!-- Datos del cliente -->
+                <div style="margin-bottom: 25px; padding: 15px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+                  <h3 style="font-size: 14px; color: #0c4a6e; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">👤 Datos del Cliente</h3>
+                  <table style="width: 100%; font-size: 13px; color: #374151;">
+                    <tr>
+                      <td style="padding: 4px 0; font-weight: 600; width: 120px;">Nombre:</td>
+                      <td style="padding: 4px 0;">${data.userName}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; font-weight: 600;">Email:</td>
+                      <td style="padding: 4px 0;"><a href="mailto:${data.userEmail}" style="color: #7AB8BF; text-decoration: none;">${data.userEmail}</a></td>
+                    </tr>
+                  </table>
+                </div>
+
+                <!-- Detalles del pago -->
+                <div style="margin-bottom: 20px;">
+                  <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.05em;">📦 Detalles del Pago</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px; width: 40%;">Producto</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${data.productName}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Monto</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 14px; font-weight: bold; color: #065f46;">$${data.amount.toLocaleString('es-MX')} MXN</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Fecha de pago</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${paymentDate}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Próximo pago</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px; color: #7AB8BF; font-weight: 600;">${nextPaymentDate}</td>
+                    </tr>
+                  </table>
+                </div>
+
+              </div>
+
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+                <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+                  Sistema automático de notificaciones - Pet Gourmet · Generado el ${new Date().toLocaleString('es-MX')}
+                </p>
+              </div>
+
+            </div>
           </body>
         </html>
       `

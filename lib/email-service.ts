@@ -601,70 +601,110 @@ export class EmailService {
   // Plantilla de correo para admin sobre cambio de estado
   private createAdminSubscriptionStatusChangeTemplate(data: SubscriptionStatusChangeData) {
     const statusBadge = this.getStatusBadge(data.new_status);
+    const logoUrl = 'https://petgourmet.mx/petgourmet-logo.png';
+    const adminUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://petgourmet.mx'}/admin/subscriptions`;
 
     return {
       subject: `🔔 Cambio de estado de suscripción #${data.subscription_id} - ${data.new_status.toUpperCase()}`,
       html: `
         <!DOCTYPE html>
-        <html>
+        <html lang="es">
           <head>
             <meta charset="utf-8">
             <title>Cambio de estado de suscripción</title>
           </head>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #7AB8BF;">🔔 Cambio de estado de suscripción</h1>
-              
-              <p>Se ha registrado un cambio de estado en una suscripción:</p>
-              
-              <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="margin-top: 0;">📊 Información de la suscripción:</h3>
-                <table style="width: 100%; border-collapse: collapse;">
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+            <div style="max-width: 600px; margin: 0 auto;">
+
+              <!-- Header con Logo -->
+              <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
+                    <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alerta cambio de estado -->
+              <div style="background-color: #fef3c7; padding: 20px; border-left: 4px solid #f59e0b;">
+                <table style="width: 100%;">
                   <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">ID Suscripción</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">#${data.subscription_id}</td>
+                    <td style="width: 40px; vertical-align: top;">
+                      <span style="font-size: 28px;">🔔</span>
+                    </td>
+                    <td>
+                      <h2 style="font-size: 20px; color: #92400e; margin: 0 0 5px;">Cambio de Estado de Suscripción</h2>
+                      <p style="font-size: 14px; color: #b45309; margin: 0;">Se ha registrado un cambio de estado en una suscripción.</p>
+                    </td>
                   </tr>
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Cliente</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.user_name} (${data.user_email})</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Tipo</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.subscription_type}</td>
-                  </tr>
-                  ${data.product_name ? `
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Producto</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.product_name}</td>
-                  </tr>
-                  ` : ''}
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Estado anterior</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.old_status || 'N/A'}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Nuevo estado</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${statusBadge}</td>
-                  </tr>
-                  ${data.external_reference ? `
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Referencia</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; font-family: monospace; font-size: 12px;">${data.external_reference}</td>
-                  </tr>
-                  ` : ''}
                 </table>
               </div>
-              
-              <div style="text-align: center; margin: 20px 0;">
-                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/subscriptions" 
-                   style="display: inline-block; background-color: #7AB8BF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  Ver en Panel de Admin
-                </a>
+
+              <div style="background-color: white; padding: 25px 20px; border-radius: 0 0 8px 8px;">
+
+                <!-- Datos del cliente -->
+                <div style="margin-bottom: 25px; padding: 15px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+                  <h3 style="font-size: 14px; color: #0c4a6e; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">👤 Datos del Cliente</h3>
+                  <table style="width: 100%; font-size: 13px; color: #374151;">
+                    <tr>
+                      <td style="padding: 4px 0; font-weight: 600; width: 100px;">Nombre:</td>
+                      <td style="padding: 4px 0;">${data.user_name}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; font-weight: 600;">Email:</td>
+                      <td style="padding: 4px 0;"><a href="mailto:${data.user_email}" style="color: #7AB8BF; text-decoration: none;">${data.user_email}</a></td>
+                    </tr>
+                  </table>
+                </div>
+
+                <!-- Detalles de la suscripción -->
+                <div style="margin-bottom: 20px;">
+                  <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.05em;">📊 Información de la Suscripción</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px; width: 40%;">ID Suscripción</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">#${data.subscription_id}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Tipo</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${data.subscription_type}</td>
+                    </tr>
+                    ${data.product_name ? `
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Producto</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${data.product_name}</td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Estado anterior</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px; color: #6b7280;">${data.old_status || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Nuevo estado</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${statusBadge}</td>
+                    </tr>
+                    ${data.external_reference ? `
+                    <tr>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Referencia</td>
+                      <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 12px; font-family: monospace;">${data.external_reference}</td>
+                    </tr>
+                    ` : ''}
+                  </table>
+                </div>
+
+                <!-- Botón de acción -->
+                <div style="text-align: center; margin-top: 30px;">
+                  <a href="${adminUrl}" style="background-color: #7AB8BF; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold; display: inline-block;">Ver en Panel de Admin</a>
+                </div>
+
               </div>
-              
-              <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
-                Pet Gourmet - Notificación automática del sistema
-              </p>
+
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+                <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+                  Este es un correo automático del sistema de suscripciones de Pet Gourmet.
+                </p>
+              </div>
+
             </div>
           </body>
         </html>

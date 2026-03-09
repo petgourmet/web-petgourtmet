@@ -352,144 +352,104 @@ function generateAdminNotificationHtml(userName: string, userEmail: string, subs
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Nueva Suscripción Activada - PetGourmet</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          background-color: #f8f9fa;
-        }
-        .container {
-          background-color: white;
-          border-radius: 10px;
-          padding: 30px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          background-color: #e67e22;
-          color: white;
-          padding: 20px;
-          border-radius: 10px;
-        }
-        .logo {
-          font-size: 28px;
-          font-weight: bold;
-          margin-bottom: 10px;
-        }
-        .title {
-          font-size: 24px;
-          margin-bottom: 10px;
-        }
-        .content {
-          margin-bottom: 25px;
-        }
-        .user-details, .subscription-details {
-          background-color: #f8f9fa;
-          border-left: 4px solid #e67e22;
-          padding: 20px;
-          margin: 20px 0;
-          border-radius: 5px;
-        }
-        .detail-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 10px;
-          padding: 5px 0;
-          border-bottom: 1px solid #eee;
-        }
-        .detail-row:last-child {
-          border-bottom: none;
-        }
-        .detail-label {
-          font-weight: bold;
-          color: #555;
-        }
-        .detail-value {
-          color: #333;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #eee;
-          color: #666;
-          font-size: 14px;
-        }
-      </style>
+      <title>Nueva Suscripción Activada - Pet Gourmet</title>
     </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">🐾 PetGourmet Admin</div>
-          <h1 class="title">Nueva Suscripción Activada</h1>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+      <div style="max-width: 600px; margin: 0 auto;">
+
+        <!-- Header con Logo -->
+        <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
+              <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+            </td>
+          </tr>
+        </table>
+
+        <!-- Alerta nueva suscripción -->
+        <div style="background-color: #ecfdf5; padding: 20px; border-left: 4px solid #10b981;">
+          <table style="width: 100%;">
+            <tr>
+              <td style="width: 40px; vertical-align: top;">
+                <span style="font-size: 28px;">🎉</span>
+              </td>
+              <td>
+                <h2 style="font-size: 20px; color: #065f46; margin: 0 0 5px;">¡Nueva Suscripción Activada!</h2>
+                <p style="font-size: 14px; color: #047857; margin: 0;">Se ha activado una nueva suscripción en el sistema.</p>
+              </td>
+            </tr>
+          </table>
         </div>
-        
-        <div class="content">
-          <p><strong>¡Se ha activado una nueva suscripción!</strong></p>
-          
-          <div class="user-details">
-            <h3 style="margin-top: 0; color: #e67e22;">Información del Cliente:</h3>
-            
-            <div class="detail-row">
-              <span class="detail-label">Nombre:</span>
-              <span class="detail-value">${userName}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Email:</span>
-              <span class="detail-value">${userEmail}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Fecha de activación:</span>
-              <span class="detail-value">${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}</span>
-            </div>
+
+        <div style="background-color: white; padding: 25px 20px; border-radius: 0 0 8px 8px;">
+
+          <!-- Datos del cliente -->
+          <div style="margin-bottom: 25px; padding: 15px; background-color: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+            <h3 style="font-size: 14px; color: #0c4a6e; margin-top: 0; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">👤 Datos del Cliente</h3>
+            <table style="width: 100%; font-size: 13px; color: #374151;">
+              <tr>
+                <td style="padding: 4px 0; font-weight: 600; width: 130px;">Nombre:</td>
+                <td style="padding: 4px 0;">${userName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; font-weight: 600;">Email:</td>
+                <td style="padding: 4px 0;"><a href="mailto:${userEmail}" style="color: #7AB8BF; text-decoration: none;">${userEmail}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; font-weight: 600;">Fecha de activación:</td>
+                <td style="padding: 4px 0;">${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}</td>
+              </tr>
+            </table>
           </div>
-          
-          <div class="subscription-details">
-            <h3 style="margin-top: 0; color: #e67e22;">Detalles de la Suscripción:</h3>
-            
-            <div class="detail-row">
-              <span class="detail-label">Plan:</span>
-              <span class="detail-value">${product_name}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Frecuencia:</span>
-              <span class="detail-value">${frequency_text}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Precio:</span>
-              <span class="detail-value">$${discounted_price} MXN</span>
-            </div>
-            
-            ${next_billing_date ? `
-            <div class="detail-row">
-              <span class="detail-label">Próximo cobro:</span>
-              <span class="detail-value">${new Date(next_billing_date).toLocaleDateString('es-ES')}</span>
-            </div>
-            ` : ''}
+
+          <!-- Detalles de la suscripción -->
+          <div style="margin-bottom: 25px;">
+            <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.05em;">📦 Detalles de la Suscripción</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px; width: 40%;">Plan</td>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${product_name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Frecuencia</td>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px;">${frequency_text}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Precio</td>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 14px; font-weight: bold; color: #065f46;">$${discounted_price} MXN</td>
+              </tr>
+              ${next_billing_date ? `
+              <tr>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px;">Próximo cobro</td>
+                <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px; color: #7AB8BF; font-weight: 600;">${new Date(next_billing_date).toLocaleDateString('es-MX')}</td>
+              </tr>
+              ` : ''}
+            </table>
           </div>
-          
-          <p><strong>Acciones recomendadas:</strong></p>
-          <ul>
-            <li>Verificar el estado de la suscripción en el panel de administración</li>
-            <li>Preparar el primer envío del producto</li>
-            <li>Contactar al cliente si es necesario para confirmar detalles de entrega</li>
-          </ul>
+
+          <!-- Acciones recomendadas -->
+          <div style="padding: 15px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 20px;">
+            <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #374151;">📋 Acciones recomendadas:</p>
+            <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #4b5563; line-height: 1.8;">
+              <li>Verificar el estado de la suscripción en el panel de administración</li>
+              <li>Preparar el primer envío del producto</li>
+              <li>Contactar al cliente si es necesario para confirmar detalles de entrega</li>
+            </ul>
+          </div>
+
+          <!-- Botón de acción -->
+          <div style="text-align: center; margin-top: 25px;">
+            <a href="https://petgourmet.mx/admin/subscriptions" style="background-color: #7AB8BF; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold; display: inline-block;">Ver en Panel de Admin</a>
+          </div>
+
         </div>
-        
-        <div class="footer">
-          <p>Notificación automática del sistema PetGourmet<br>
-          <small>Este email se envía cuando se activa una nueva suscripción.</small></p>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+          <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+            Este es un correo automático del sistema de suscripciones de Pet Gourmet.
+          </p>
         </div>
+
       </div>
     </body>
     </html>
