@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Usuario autenticado:', user.email, '(', user.id, ')')
 
-    // Obtener suscripciones del usuario
+    // Obtener suscripciones del usuario por user_id O por email (para suscripciones creadas sin sesión activa)
     const { data: subscriptions, error } = await supabase
       .from('unified_subscriptions')
       .select(`
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
           price
         )
       `)
-      .eq('user_id', user.id)
+      .or(`user_id.eq.${user.id},customer_email.eq.${user.email}`)
       .order('created_at', { ascending: false })
 
     if (error) {

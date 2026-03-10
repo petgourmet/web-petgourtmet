@@ -460,14 +460,6 @@ export default function OrderDetailPage() {
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
                     <button
-                      onClick={() => updateOrderStatus("pending")}
-                      disabled={updating || order.status === "pending"}
-                      className="justify-center inline-flex items-center rounded-lg bg-yellow-50 px-3 py-2.5 text-sm font-semibold text-yellow-800 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-100 disabled:opacity-50 transition-colors shadow-sm w-full"
-                    >
-                      {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Package className="mr-1.5 h-4 w-4" />}
-                      Pendiente
-                    </button>
-                    <button
                       onClick={() => updateOrderStatus("processing")}
                       disabled={updating || order.status === "processing"}
                       className="justify-center inline-flex items-center rounded-lg bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-800 ring-1 ring-inset ring-blue-600/20 hover:bg-blue-100 disabled:opacity-50 transition-colors shadow-sm w-full"

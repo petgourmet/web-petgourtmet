@@ -34,11 +34,13 @@ export function CheckoutModal() {
     firstName: "",
     lastName: "",
     email: "",
+    phoneCode: "+52",
     phone: "",
   })
 
   const [shippingInfo, setShippingInfo] = useState({
     address: "",
+    address2: "",
     city: "",
     state: "",
     postalCode: "",
@@ -60,11 +62,23 @@ export function CheckoutModal() {
             const typedProfile = profile as Profile
             if (typedProfile.full_name) {
               const nameParts = typedProfile.full_name.split(" ")
+              const savedPhone = typedProfile.phone || ""
+              const knownCodes = ['+593', '+52', '+57', '+1', '+34', '+54', '+55', '+56', '+51', '+58']
+              let parsedPhoneCode = "+52"
+              let parsedPhoneNumber = savedPhone
+              for (const code of knownCodes) {
+                if (savedPhone.startsWith(code)) {
+                  parsedPhoneCode = code
+                  parsedPhoneNumber = savedPhone.slice(code.length)
+                  break
+                }
+              }
               setCustomerInfo({
                 firstName: nameParts[0] || "",
                 lastName: nameParts.slice(1).join(" ") || "",
                 email: user?.email || "",
-                phone: typedProfile.phone || "",
+                phoneCode: parsedPhoneCode,
+                phone: parsedPhoneNumber,
               })
             } else if (user?.email) {
               setCustomerInfo(prev => ({
@@ -81,7 +95,8 @@ export function CheckoutModal() {
                     : typedProfile.shipping_address
 
                 setShippingInfo({
-                  address: `${address.street_name} ${address.street_number}`,
+                  address: `${address.street_name || ''} ${address.street_number || ''}`.trim(),
+                  address2: address.address_line_2 || address.address2 || "",
                   city: address.city || "",
                   state: address.state || "",
                   postalCode: address.zip_code || "",
@@ -217,12 +232,13 @@ export function CheckoutModal() {
         email: customerInfo.email,
         firstName: customerInfo.firstName,
         lastName: customerInfo.lastName,
-        phone: customerInfo.phone,
+        phone: customerInfo.phoneCode + customerInfo.phone,
         userId: user?.id || undefined,
       }
 
       const shipping = {
         address: shippingInfo.address,
+        ...(shippingInfo.address2.trim() ? { address2: shippingInfo.address2.trim() } : {}),
         city: shippingInfo.city,
         state: shippingInfo.state,
         postalCode: shippingInfo.postalCode,
@@ -360,14 +376,33 @@ export function CheckoutModal() {
               </div>
               <div>
                 <Label htmlFor="phone">Teléfono *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={customerInfo.phone}
-                  onChange={handleInputChange}
-                  placeholder="5512345678"
-                  required
-                />
+                <div className="flex gap-2">
+                  <select
+                    value={customerInfo.phoneCode}
+                    onChange={(e) => setCustomerInfo(prev => ({ ...prev, phoneCode: e.target.value }))}
+                    className="h-10 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring flex-shrink-0"
+                    style={{ width: '7rem' }}
+                  >
+                    <option value="+52">🇲🇽 +52</option>
+                    <option value="+57">🇨🇴 +57</option>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+34">🇪🇸 +34</option>
+                    <option value="+54">🇦🇷 +54</option>
+                    <option value="+55">🇧🇷 +55</option>
+                    <option value="+56">🇨🇱 +56</option>
+                    <option value="+51">🇵🇪 +51</option>
+                    <option value="+58">🇻🇪 +58</option>
+                    <option value="+593">🇪🇨 +593</option>
+                  </select>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={customerInfo.phone}
+                    onChange={handleInputChange}
+                    placeholder="3228836459"
+                    required
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -383,6 +418,15 @@ export function CheckoutModal() {
                   onChange={handleInputChange}
                   placeholder="Calle y número"
                   required
+                />
+              </div>
+              <div>
+                <Label htmlFor="address2">Interior / Apartamento / Torre</Label>
+                <Input
+                  id="address2"
+                  value={shippingInfo.address2}
+                  onChange={handleInputChange}
+                  placeholder="Apto. 101, Torre B, Int. 5..."
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

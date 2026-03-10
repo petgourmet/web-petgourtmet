@@ -229,7 +229,7 @@ export class EnhancedEmailService {
                 <div class="footer">
                     <p>Gracias por confiar en Pet Gourmet</p>
                     <p>Este email fue enviado automáticamente, por favor no respondas a este mensaje.</p>
-                    <p>Si necesitas ayuda, contacta a soporte@petgourmet.com</p>
+                    <p>Si necesitas ayuda, contacta a contacto@petgourmet.mx</p>
                 </div>
             </div>
         </div>

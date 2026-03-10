@@ -42,9 +42,9 @@ export const productQuestions: FAQ[] = [
       "La tecnología de ultracongelación permite congelar molecularmente los alimentos para mantener sus propiedades organolépticas (sabor, textura, color) intactas por extensos períodos de tiempo. Basta pasar la receta del congelador al refrigerador 12 horas antes (noche anterior) para disfrutar de un producto listo, como recién preparado. En situaciones especiales o solicitud de clientes recurrentes las recetas se entregan ultracongeladas para comodidad de abastecimiento y duración prolongada de almacenamiento.\n\nRECOMENDACIONES:\n• Mantén siempre en el CONGELADOR de la nevera (Parte superior) las recetas entregadas ULTRACONGELADAS en la tienda.\n• Para descongelar la receta que deseas darle a tu perro, pásala 12 horas (noche anterior) antes a la zona de REFRIGERACIÓN de la nevera (parte inferior)\n• Permítele a tu perro disfrutar de la receta como recién preparada o consérvala REFRIGERADA hasta 5 días más.\n• Evita descongelar las recetas ULTRACONGELADAS por calentamiento directo\n• Evita volver a congelar una receta que hayas descongelado previamente",
   },
   {
-    question: "¿MI PERRO SÓLO COME CONCENTRADO, PUEDO DARLE LAS RECETAS DE PET GOURMET SIN QUE LE HAGAN DAÑO?",
+    question: "¿MI PERRO SÓLO COME CROQUETAS, PUEDO DARLE LAS RECETAS DE PET GOURMET SIN QUE LE HAGAN DAÑO?",
     answer:
-      "Si se trata de probar nuestras recetas como snacks, en cantidades moderadas, no debería existir ningún problema. Pero por el contrario si tu perro desea incluir nuestros productos dentro de su dieta diaria, es necesario que al principio pruebe las recetas de Pet Gourmet en pocas cantidades y mezcladas con el concentrado habitual, incrementando poco a poco la proporción, como se acostumbra hacer cuando se cambia de marca concentrado.\n\nPor otro lado no es recomendable que tu perro se alimente únicamente y exclusivamente de una fuente de alimento como el concentrado, las dietas horneadas o la dieta Barf. Además del tedio que esto representa, él necesita estar motivado en su dieta a través de alimentos naturales que le ayuden a tener una dieta variada y también pueda recibir los beneficios de los alimentos frescos y naturales no procesados.",
+      "Si se trata de probar nuestras recetas como snacks, en cantidades moderadas, no debería existir ningún problema. Pero por el contrario si tu perro desea incluir nuestros productos dentro de su dieta diaria, es necesario que al principio pruebe las recetas de Pet Gourmet en pocas cantidades y mezcladas con las croquetas habituales, incrementando poco a poco la proporción, como se acostumbra hacer cuando se cambia de marca croquetas.\n\nPor otro lado no es recomendable que tu perro se alimente únicamente y exclusivamente de una fuente de alimento como las croquetas, las dietas horneadas o la dieta Barf. Además del tedio que esto representa, él necesita estar motivado en su dieta a través de alimentos naturales que le ayuden a tener una dieta variada y también pueda recibir los beneficios de los alimentos frescos y naturales no procesados.",
   },
   {
     question: "¿MI PERRO ES APENAS UN CACHORRO, PUEDE PROBAR LAS RECETAS DE PET GOURMET?",
@@ -57,7 +57,7 @@ export const productQuestions: FAQ[] = [
   },
   {
     question:
-      "¿MI VETERINARIO DICE QUE NO LE DÉ A MI PERRO NADA DIFERENTE AL CONCENTRADO, ENTONCES POR QUÉ DEBERÍA DARLE A PROBAR PRODUCTOS DE PET GOURMET?",
+      "¿MI VETERINARIO DICE QUE NO LE DÉ A MI PERRO NADA DIFERENTE A LAS CROQUETAS, ENTONCES POR QUÉ DEBERÍA DARLE A PROBAR PRODUCTOS DE PET GOURMET?",
     answer:
       "Porque las recetas de Pet Gourmet cuentan con el respaldo de médicos veterinarios, buenas prácticas de manufactura y los mejores ingredientes seleccionados para ofrecer productos de excelente calidad. Además todos nuestros clientes y Chef, nuestra mascota oficial, son clara evidencia de la gran calidad de las recetas de Pet Gourmet.",
   },
@@ -69,7 +69,7 @@ export const productQuestions: FAQ[] = [
   {
     question: "¿MI PERRO HA PERDIDO EL APETITO, NO QUIERE COMER NADA, ¿QUÉ PUEDO HACER?",
     answer:
-      "Esta es una consulta frecuente y en estos casos es donde más nos gusta ayudar. Puedes comenzar a motivarlo de nuevo por el alimento con alguna de nuestras recetas mezclada con el concentrado habitual o uno nuevo recomendado por un veterinario. De esta forma él olerá, sentirá y probará que hay algo nuevo en la comida, algo realmente delicioso, y se sentirá atraído otra vez por el alimento a la hora de comer.",
+      "Esta es una consulta frecuente y en estos casos es donde más nos gusta ayudar. Puedes comenzar a motivarlo de nuevo por el alimento con alguna de nuestras recetas mezclada con las croquetas habituales o unas nuevas recomendadas por un veterinario. De esta forma él olerá, sentirá y probará que hay algo nuevo en la comida, algo realmente delicioso, y se sentirá atraído otra vez por el alimento a la hora de comer.",
   },
   {
     question: "¿POR CUÁNTO TIEMPO PUEDO CONSERVAR LAS RECETAS DE PET GOURMET?",
@@ -92,12 +92,12 @@ export const shippingQuestions: FAQ[] = [
   {
     question: "¿SI NECESITO UN PEDIDO PARA HOY MISMO QUÉ DEBO HACER?",
     answer:
-      "Para entregas el mismo día debes ordenar y pagar tu pedido antes de las 12 del mediodía en esta tienda online o si deseas también puedes comunicarte directamente a la tienda más cercana. y solicitar el servicio de domicilio",
+      "Regularmente entregamos el día siguiente a la compra, pero escríbenos a través de WhatsApp y vemos cómo podemos resolverlo.",
   },  
   {
-    question: "¿PUEDO RESERVARLA PARA OTRO DÍA?",
+    question: "¿PUEDO RESERVAR PARA OTRO DÍA?",
     answer:
-      "Por supuesto, elige la presentación, el tamaño, la receta y la fecha de entrega deseada. Si vives en Ciudad de México Por supuesto, elige la presentación, el tamaño, la receta que quieres y contactanos vía WhatApp para agendar la fecha de entrega deseada",
+      "Por supuesto, elige la presentación, el tamaño, la receta y realiza tu compra, una vez realices tu compra contactanos vía WhatsApp para agendar la fecha de entrega deseada.",
   },
   {
     question: "¿PUEDO COMPRAR DESDE CUALQUIER PARTE DEL PAÍS?",
@@ -116,7 +116,7 @@ export const shippingQuestions: FAQ[] = [
   {
     question: "¿CÓMO PUEDO PAGAR? PUEDO COMPRAR SI NO TENGO TARJETA CRÉDITO O DÉBITO?",
     answer:
-      "Puedes pagar usando cualquier tarjeta débito o crédito u otro método aceptado por Mercado pago",
+      "Puedes pagar usando cualquier tarjeta DÉBITO O CRÉDITO u otro método de pago aceptado por Stripe.",
   },
   {
     question: "¿PUEDO SABER EL ESTADO DE MI ENVÍO?",

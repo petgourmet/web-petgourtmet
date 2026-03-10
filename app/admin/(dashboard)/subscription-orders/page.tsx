@@ -138,7 +138,9 @@ export default function AdminSubscriptionOrdersPage() {
   const [cleanupLoading, setCleanupLoading] = useState(false)
   const [cleanupResults, setCleanupResults] = useState<any>(null)
   const [showCleanupModal, setShowCleanupModal] = useState(false)
-  const [sendingEmailMap, setSendingEmailMap] = useState<Record<string, 'created' | 'cancelled' | null>>({})
+  const [sendingEmailMap, setSendingEmailMap] = useState<Record<string, 'created' | 'cancelled' | 'reminder' | null>>({})
+  const [syncingSubscriptions, setSyncingSubscriptions] = useState(false)
+  const [syncSubscriptionResult, setSyncSubscriptionResult] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   
   const supabase = createClient()
 
@@ -304,9 +306,37 @@ export default function AdminSubscriptionOrdersPage() {
     toast.success("Suscripciones actualizadas")
   }
 
+  const handleSyncSubscriptions = async () => {
+    setSyncingSubscriptions(true)
+    setSyncSubscriptionResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setSyncSubscriptionResult({ message: 'Sesión no válida', type: 'error' })
+        return
+      }
+      const res = await fetch('/api/admin/sync-subscriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSyncSubscriptionResult({ message: data.message, type: 'success' })
+        if (data.stats?.recovered > 0) await fetchAllSubscriptions()
+      } else {
+        setSyncSubscriptionResult({ message: data.error || 'Error al sincronizar', type: 'error' })
+      }
+    } catch (err: any) {
+      setSyncSubscriptionResult({ message: err.message || 'Error de conexión', type: 'error' })
+    } finally {
+      setSyncingSubscriptions(false)
+      setTimeout(() => setSyncSubscriptionResult(null), 6000)
+    }
+  }
+
   const handleSendSubscriptionEmail = async (
     subscription: AdminSubscription,
-    emailType: 'created' | 'cancelled'
+    emailType: 'created' | 'cancelled' | 'reminder'
   ) => {
     const key = String(subscription.id)
     setSendingEmailMap(prev => ({ ...prev, [key]: emailType }))
@@ -830,6 +860,22 @@ export default function AdminSubscriptionOrdersPage() {
                 <option value="cancelled">Canceladas</option>
               </select>
               <div className="grid grid-cols-2 sm:flex gap-2">
+                {syncSubscriptionResult && (
+                  <span className={`text-xs px-2 py-1 rounded-full self-center ${
+                    syncSubscriptionResult.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {syncSubscriptionResult.message}
+                  </span>
+                )}
+                <Button
+                  onClick={handleSyncSubscriptions}
+                  disabled={syncingSubscriptions}
+                  className="justify-center bg-teal-600 hover:bg-teal-700 text-white"
+                  title="Importar desde Stripe todas las suscripciones que no estén en la base de datos"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${syncingSubscriptions ? 'animate-spin' : ''}`} />
+                  {syncingSubscriptions ? 'Sincronizando...' : 'Sincronizar Stripe'}
+                </Button>
                 <Button
                   onClick={handleRefresh}
                   disabled={refreshing}

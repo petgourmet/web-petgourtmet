@@ -87,7 +87,7 @@ export default async function PagoPendientePage({
                 <ul className="list-disc list-inside space-y-1">
                   <li>Realiza el pago en efectivo por <strong>${order.total} MXN</strong></li>
                   <li>Una vez realizado el pago, comunícate con nosotros para confirmar</li>
-                  <li>Envía tu comprobante de pago al WhatsApp: <strong>+52 123 456 7890</strong></li>
+                  <li>Envía tu comprobante de pago al WhatsApp: <strong>+52 5561269681</strong></li>
                   <li>Incluye tu número de pedido: <strong>{order.order_number}</strong></li>
                 </ul>
                 <div className="bg-blue-100 rounded p-3 mt-3">

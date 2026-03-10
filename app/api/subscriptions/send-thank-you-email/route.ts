@@ -163,142 +163,89 @@ function generateThankYouEmailHtml(userName: string, subscriptionDetails: any): 
   return `
     <!DOCTYPE html>
     <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>¡Gracias por suscribirte a PetGourmet!</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          background-color: #f8f9fa;
-        }
-        .container {
-          background-color: white;
-          border-radius: 10px;
-          padding: 30px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-        }
-        .logo {
-          font-size: 28px;
-          font-weight: bold;
-          color: #e67e22;
-          margin-bottom: 10px;
-        }
-        .title {
-          color: #2c3e50;
-          font-size: 24px;
-          margin-bottom: 20px;
-        }
-        .content {
-          margin-bottom: 25px;
-        }
-        .subscription-details {
-          background-color: #f8f9fa;
-          border-left: 4px solid #e67e22;
-          padding: 20px;
-          margin: 20px 0;
-          border-radius: 5px;
-        }
-        .detail-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 10px;
-          padding: 5px 0;
-          border-bottom: 1px solid #eee;
-        }
-        .detail-row:last-child {
-          border-bottom: none;
-        }
-        .detail-label {
-          font-weight: bold;
-          color: #555;
-        }
-        .detail-value {
-          color: #333;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #eee;
-          color: #666;
-          font-size: 14px;
-        }
-        .cta-button {
-          display: inline-block;
-          background-color: #e67e22;
-          color: white;
-          padding: 12px 25px;
-          text-decoration: none;
-          border-radius: 5px;
-          margin: 20px 0;
-          font-weight: bold;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">🐾 PetGourmet</div>
-          <h1 class="title">¡Gracias por suscribirte!</h1>
-        </div>
-        
-        <div class="content">
-          <p>Hola <strong>${userName}</strong>,</p>
-          
-          <p>¡Estamos emocionados de tenerte como parte de la familia PetGourmet! Tu suscripción ha sido confirmada exitosamente.</p>
-          
-          <div class="subscription-details">
-            <h3 style="margin-top: 0; color: #e67e22;">Detalles de tu suscripción:</h3>
-            
-            <div class="detail-row">
-              <span class="detail-label">Plan:</span>
-              <span class="detail-value">${product_name}</span>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>¡Gracias por suscribirte a Pet Gourmet!</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+        <div style="max-width: 600px; margin: 0 auto;">
+
+          <!-- Header con Logo -->
+          <table style="width: 100%; margin-bottom: 0; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); border-radius: 8px 8px 0 0;" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 30px 20px; text-align: center;">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+              </td>
+            </tr>
+          </table>
+
+          <!-- Contenido principal -->
+          <div style="background-color: white; border-radius: 0 0 8px 8px; padding: 30px 25px;">
+
+            <h2 style="font-size: 22px; color: #374151; margin-top: 0; margin-bottom: 8px; font-weight: 600; text-align: center;">🎉 ¡Gracias por suscribirte!</h2>
+            <p style="font-size: 15px; color: #4B5563; margin-top: 0; margin-bottom: 25px; text-align: center;">
+              Hola <strong>${userName}</strong>, tu suscripción ha sido confirmada exitosamente.
+            </p>
+
+            <!-- Detalles de suscripción -->
+            <div style="margin-bottom: 30px; padding: 20px; background-color: #f9fafb; border-radius: 8px; border: 1px solid #E5E7EB;">
+              <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">📋 Detalles de tu suscripción</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; background-color: #7AB8BF; color: white; font-weight: bold; width: 40%;">Plan</td>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; color: #374151;">${product_name || 'Suscripción Pet Gourmet'}</td>
+                </tr>
+                ${frequency_text ? `
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; background-color: #7AB8BF; color: white; font-weight: bold;">Frecuencia</td>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; color: #374151;">${frequency_text}</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; background-color: #7AB8BF; color: white; font-weight: bold;">Precio</td>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; color: #16a34a; font-weight: bold;">$${discounted_price} MXN</td>
+                </tr>
+                ${next_billing_date ? `
+                <tr>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; background-color: #7AB8BF; color: white; font-weight: bold;">Próximo cobro</td>
+                  <td style="padding: 8px 12px; border: 1px solid #E5E7EB; color: #374151;">${new Date(next_billing_date).toLocaleDateString('es-MX')}</td>
+                </tr>
+                ` : ''}
+              </table>
             </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Frecuencia:</span>
-              <span class="detail-value">${frequency_text}</span>
+
+            <p style="font-size: 14px; color: #4B5563; margin-bottom: 25px;">
+              Tu mascota recibirá los mejores productos gourmet directamente en tu puerta. ¡Nos aseguraremos de que cada entrega sea una experiencia especial!
+            </p>
+
+            <div style="text-align: center; margin-bottom: 25px;">
+              <a href="https://petgourmet.mx/perfil" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold;">Administrar mi suscripción</a>
             </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Precio:</span>
-              <span class="detail-value">$${discounted_price}</span>
+
+            <!-- WhatsApp CTA -->
+            <div style="margin: 25px 0; padding: 20px; background-color: #f0fafe; border-radius: 12px; border: 1px solid #c6e9eb; text-align: center;">
+              <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Tienes alguna pregunta?</p>
+              <p style="margin: 0 0 15px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
+              <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;">💬 Enviar WhatsApp</a>
             </div>
-            
-            ${next_billing_date ? `
-            <div class="detail-row">
-              <span class="detail-label">Próximo cobro:</span>
-              <span class="detail-value">${new Date(next_billing_date).toLocaleDateString('es-ES')}</span>
+
+            <!-- Redes sociales & footer -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: center;">
+              <div style="margin-bottom: 12px;">
+                <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display: inline-block; background-color: #1877F2; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 0 5px;">f</a>
+                <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display: inline-block; background-color: #E1306C; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 13px; margin: 0 5px;">ig</a>
+                <a href="https://www.tiktok.com/@petgourmet_mx" target="_blank" style="display: inline-block; background-color: #010101; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 12px; margin: 0 5px;">tt</a>
+              </div>
+              <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
+                Si tienes alguna pregunta, contáctanos en
+                <a href="mailto:contacto@petgourmet.mx" style="color: #7AB8BF; text-decoration: none;">contacto@petgourmet.mx</a>
+              </p>
             </div>
-            ` : ''}
+
           </div>
-          
-          <p>Tu mascota recibirá los mejores productos gourmet directamente en tu puerta. Nos aseguraremos de que cada entrega sea una experiencia especial.</p>
-          
-          <div style="text-align: center;">
-            <a href="https://petgourmet.mx/perfil" class="cta-button">Administrar mi suscripción</a>
-          </div>
-          
-          <p><strong>¿Tienes alguna pregunta?</strong><br>
-          No dudes en contactarnos en cualquier momento. Estamos aquí para ayudarte.</p>
         </div>
-        
-        <div class="footer">
-          <p>Gracias por confiar en PetGourmet<br>
-          <small>Este email fue enviado porque confirmaste tu suscripción en nuestro sitio web.</small></p>
-        </div>
-      </div>
-    </body>
+      </body>
     </html>
   `
 }

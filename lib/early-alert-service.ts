@@ -268,7 +268,7 @@ export class EarlyAlertService {
           
           <p style="color: #666; font-size: 12px; text-align: center; margin: 0;">
             Este es un recordatorio automático de PetGourmet.<br>
-            Si tienes alguna pregunta, contáctanos en soporte@petgourmet.com
+            Si tienes alguna pregunta, contáctanos en contacto@petgourmet.mx
           </p>
         </div>
       </div>

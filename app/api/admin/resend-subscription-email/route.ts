@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { subscriptionId, emailType } = body as {
       subscriptionId: string | number
-      emailType: 'created' | 'cancelled'
+      emailType: 'created' | 'cancelled' | 'reminder'
     }
 
     if (!subscriptionId || !emailType) {
@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!['created', 'cancelled'].includes(emailType)) {
+    if (!['created', 'cancelled', 'reminder'].includes(emailType)) {
       return NextResponse.json(
-        { success: false, error: 'emailType debe ser "created" o "cancelled"' },
+        { success: false, error: 'emailType debe ser "created", "cancelled" o "reminder"' },
         { status: 400 }
       )
     }
@@ -139,13 +139,26 @@ export async function POST(request: NextRequest) {
 
     console.log(`[RESEND-SUB-EMAIL] Reenviando correo tipo "${emailType}" a ${userEmail} (sub #${subscriptionId})`)
 
-    await sendSubscriptionEmail(emailType, emailData)
+    const internalEmailType = emailType === 'reminder' ? 'payment_reminder' : emailType
+    if (emailType === 'reminder') {
+      emailData.days_until_payment = sub.next_billing_date
+        ? Math.max(0, Math.ceil((new Date(sub.next_billing_date).getTime() - Date.now()) / 86_400_000))
+        : undefined
+    }
+
+    await sendSubscriptionEmail(internalEmailType as any, emailData)
 
     console.log(`[RESEND-SUB-EMAIL] ✅ Correo "${emailType}" enviado a ${userEmail}`)
 
+    const typeLabel: Record<string, string> = {
+      created: 'suscripción activa',
+      cancelled: 'cancelación',
+      reminder: 'recordatorio de mensualidad',
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Correo de ${emailType === 'created' ? 'suscripción' : 'cancelación'} enviado a ${userEmail}`,
+      message: `Correo de ${typeLabel[emailType] ?? emailType} enviado a ${userEmail}`,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'

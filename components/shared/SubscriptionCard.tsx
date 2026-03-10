@@ -46,8 +46,8 @@ interface SubscriptionCardProps {
   getTotalPrice: (subscription: any) => number
   getNextPaymentDate?: (subscription: any) => Date | null
   processImageUrl?: (url: string) => string
-  onSendEmail?: (emailType: 'created' | 'cancelled') => void
-  sendingEmail?: 'created' | 'cancelled' | null
+  onSendEmail?: (emailType: 'created' | 'cancelled' | 'reminder') => void
+  sendingEmail?: 'created' | 'cancelled' | 'reminder' | null
 }
 
 export function SubscriptionCard({
@@ -226,6 +226,16 @@ export function SubscriptionCard({
               >
                 {sendingEmail === 'created' ? <Loader2 className="h-3 w-3 animate-spin shrink-0" /> : <Mail className="h-3 w-3 shrink-0" />}
                 <span className="truncate">Bienvenida / Suscripción activa</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-8 gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-50 w-full justify-center"
+                disabled={sendingEmail === 'reminder'}
+                onClick={() => onSendEmail('reminder')}
+              >
+                {sendingEmail === 'reminder' ? <Loader2 className="h-3 w-3 animate-spin shrink-0" /> : <Mail className="h-3 w-3 shrink-0" />}
+                <span className="truncate">Recordatorio mensualidad</span>
               </Button>
               <Button
                 size="sm"

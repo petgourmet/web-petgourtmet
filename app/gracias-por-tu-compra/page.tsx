@@ -265,9 +265,9 @@ export default function GraciasPorTuCompra() {
           {/* Proceso */}
           <div className="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-[#6aa5ad]">
             <Package className="w-10 h-10 text-[#6aa5ad] mx-auto mb-3" />
-            <h3 className="font-semibold text-gray-900 mb-2">Preparando Pedido</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">Preparando pedido</h3>
             <p className="text-sm text-gray-600">
-              Tu pedido será enviado en 1-2 días hábiles
+              Regularmente enviamos tu pedido al día siguiente de la compra, si quieres recibirlo en otro fecha escribemos por WhatsApp.
             </p>
           </div>
 
@@ -454,13 +454,13 @@ export default function GraciasPorTuCompra() {
           <h3 className="font-bold text-gray-900 mb-3">¿Necesitas Ayuda?</h3>
           <p className="text-gray-600 mb-4">Nuestro equipo está disponible para ayudarte</p>
           <div className="flex flex-wrap justify-center gap-4 text-sm">
-            <a href="mailto:soporte@petgourmet.mx" className="flex items-center gap-2 text-[#78b7bf] hover:text-[#6aa5ad] font-medium">
+            <a href="mailto:contacto@petgourmet.mx" className="flex items-center gap-2 text-[#78b7bf] hover:text-[#6aa5ad] font-medium">
               <Mail className="w-4 h-4" />
-              soporte@petgourmet.mx
+              contacto@petgourmet.mx
             </a>
-            <a href="tel:+525555555555" className="flex items-center gap-2 text-[#78b7bf] hover:text-[#6aa5ad] font-medium">
+            <a href="tel:+525561269681" className="flex items-center gap-2 text-[#78b7bf] hover:text-[#6aa5ad] font-medium">
               <Phone className="w-4 h-4" />
-              (55) 5555-5555
+              +52 5561269681
             </a>
           </div>
         </div>

@@ -23,18 +23,6 @@ export interface SubscriptionEmailData {
   days_until_payment?: number; // Para recordatorios de pago
 }
 
-export interface ThankYouEmailData {
-  user_email: string;
-  user_name: string;
-  subscription_type: string;
-  original_price: number;
-  discounted_price?: number;
-  discount_percentage?: number;
-  start_date: string;
-  next_billing_date: string;
-  external_reference: string;
-}
-
 export interface SubscriptionStatusChangeData {
   user_email: string;
   user_name: string;
@@ -277,42 +265,6 @@ export async function sendSubscriptionEmail(
 
 // Clase EmailService para manejar los nuevos correos
 export class EmailService {
-  // Enviar correo de agradecimiento al cliente
-  async sendThankYouEmail(data: ThankYouEmailData) {
-    try {
-      const template = this.createThankYouTemplate(data);
-      return await this.sendEmail({
-        to: data.user_email,
-        subject: template.subject,
-        html: template.html
-      });
-    } catch (error) {
-      console.error('Error enviando correo de agradecimiento:', error);
-      throw error;
-    }
-  }
-
-  // Enviar correo de notificación a administradores
-  async sendAdminNotificationEmail(data: ThankYouEmailData) {
-    try {
-      const template = this.createAdminNotificationTemplate(data);
-      const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['admin@petgourmet.mx'];
-
-      const promises = adminEmails.map(email =>
-        this.sendEmail({
-          to: email.trim(),
-          subject: template.subject,
-          html: template.html
-        })
-      );
-
-      return await Promise.all(promises);
-    } catch (error) {
-      console.error('Error enviando correo a administradores:', error);
-      throw error;
-    }
-  }
-
   // Método privado para enviar correos con reintentos automáticos
   private async sendEmail({ to, subject, html }: { to: string; subject: string; html: string }, maxRetries: number = 3) {
     console.log(`[EMAIL-SERVICE] Iniciando envío de correo a ${to} - Asunto: ${subject}`);
@@ -369,101 +321,6 @@ export class EmailService {
     }
 
     return { success: false, error: 'Max retries exceeded', attempts: maxRetries };
-  }
-
-  // Plantilla de correo de agradecimiento
-  private createThankYouTemplate(data: ThankYouEmailData) {
-    const discountText = data.discount_percentage
-      ? `<tr>
-          <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Descuento aplicado</td>
-          <td style="padding: 8px 12px; border: 1px solid #ddd; color: #16a34a; font-weight: bold;">${data.discount_percentage}% de descuento</td>
-        </tr>`
-      : `<tr>
-          <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Precio</td>
-          <td style="padding: 8px 12px; border: 1px solid #ddd; color: #16a34a; font-weight: bold;">$${data.original_price} MXN</td>
-        </tr>`;
-
-    return {
-      subject: '🎉 ¡Gracias por tu suscripción a Pet Gourmet!',
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <title>¡Gracias por tu suscripción!</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #7AB8BF; text-align: center;">🎉 ¡Gracias por tu suscripción, ${data.user_name}!</h1>
-              
-              <p>¡Excelente elección! Tu suscripción ha sido activada exitosamente.</p>
-              
-              <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="margin-top: 0;">📋 Detalles de tu suscripción:</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Plan</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.subscription_type}</td>
-                  </tr>
-                  ${discountText}
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #7AB8BF; color: white; font-weight: bold;">Próximo cobro</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.next_billing_date}</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <p>Gracias por elegir Pet Gourmet.</p>
-              
-              <p>Saludos cordiales,<br><strong>El equipo de Pet Gourmet</strong></p>
-            </div>
-          </body>
-        </html>
-      `
-    };
-  }
-
-  // Plantilla de correo para administradores
-  private createAdminNotificationTemplate(data: ThankYouEmailData) {
-    return {
-      subject: `🔔 Nueva suscripción activada - ${data.user_name}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Nueva suscripción activada</title>
-          </head>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #7AB8BF;">🔔 Nueva suscripción activada</h1>
-              
-              <p>Se ha activado una nueva suscripción en Pet Gourmet:</p>
-              
-              <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="margin-top: 0;">👤 Información del cliente:</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Nombre</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.user_name}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Email</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.user_email}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd; background-color: #007bff; color: white; font-weight: bold;">Plan</td>
-                    <td style="padding: 8px 12px; border: 1px solid #ddd;">${data.subscription_type}</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <p>Pet Gourmet - Panel de administración</p>
-            </div>
-          </body>
-        </html>
-      `
-    };
   }
 
   // Enviar correo de cambio de estado de suscripción
@@ -532,14 +389,17 @@ export class EmailService {
             <meta charset="utf-8">
             <title>${statusInfo.title}</title>
           </head>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-              <!-- Header -->
-              <div style="background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); padding: 30px 20px; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">
-                  ${statusInfo.icon} Pet Gourmet
-                </h1>
-              </div>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+            <div style="max-width: 600px; margin: 0 auto;">
+              <!-- Header con Logo -->
+              <table style="width: 100%; margin-bottom: 0; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); border-radius: 8px 8px 0 0;" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 30px 20px; text-align: center;">
+                    <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+                  </td>
+                </tr>
+              </table>
+              <div style="background-color: white; border-radius: 0 0 8px 8px;">
               
               <!-- Content -->
               <div style="padding: 30px 20px;">
@@ -575,21 +435,28 @@ export class EmailService {
                   </div>
                 ` : ''}
                 
-                <div style="text-align: center; margin: 30px 0;">
-                  <p style="color: #6b7280; font-size: 14px;">¿Tienes alguna pregunta?</p>
-                  <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📧 contacto@petgourmet.mx</p>
-                  <p style="color: #7AB8BF; font-weight: bold;">📞 +52 123 456 7890</p>
+                <!-- WhatsApp CTA -->
+                <div style="margin: 25px 0; padding: 20px; background-color: #f0fafe; border-radius: 12px; border: 1px solid #c6e9eb; text-align: center;">
+                  <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda?</p>
+                  <p style="margin: 0 0 15px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
+                  <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;">💬 Enviar WhatsApp</a>
                 </div>
               </div>
               
               <!-- Footer -->
               <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                <div style="margin-bottom: 12px;">
+                  <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display: inline-block; background-color: #1877F2; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 0 5px;">f</a>
+                  <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display: inline-block; background-color: #E1306C; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 13px; margin: 0 5px;">ig</a>
+                  <a href="https://www.tiktok.com/@petgourmet_mx" target="_blank" style="display: inline-block; background-color: #010101; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 12px; margin: 0 5px;">tt</a>
+                </div>
                 <p style="margin: 0; color: #6b7280; font-size: 12px;">
                   © 2025 Pet Gourmet. Todos los derechos reservados.
                 </p>
                 <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
                   Este es un correo automático, por favor no respondas a este mensaje.
                 </p>
+              </div>
               </div>
             </div>
           </body>
@@ -821,10 +688,10 @@ function getOrderStatusTemplate(status: string, orderData: any) {
       buttonText: '',
     },
     processing: {
-      subject: `🎉 ¡Gracias por tu compra! Pedido #${orderData.id} - Pet Gourmet`,
-      title: '¡Gracias por tu compra!',
-      intro: `Hola ${orderData.shipping_address?.full_name || orderData.customer_name || ''}, estamos preparando tu pedido para enviarlo.`,
-      message: 'Regularmente enviamos todas nuestras deliciosas recetas al día siguiente de tu compra, si quieres más detalles de tu envío, escríbenos a través de WhatsApp.',
+      subject: `⚡ Tu pedido está siendo preparado - Pet Gourmet`,
+      title: 'Preparando tu pedido',
+      intro: `Hola ${orderData.shipping_address?.full_name || orderData.customer_name || ''}, ya estamos preparando tu pedido con mucho cuidado. Pronto estará listo para el envío.`,
+      message: 'Regularmente enviamos tu pedido al día siguiente de la compra. Si quieres recibirlo en otra fecha o tienes alguna indicación especial, escríbenos por WhatsApp.',
       showOrderButton: false,
       buttonText: '',
     },
@@ -907,9 +774,9 @@ function getOrderStatusTemplate(status: string, orderData: any) {
               <p style="margin: 0 0 5px; font-weight: bold; color: #374151;">Dirección de envío</p>
               <p style="margin: 0;">${addr.name || addr.full_name || 'Cliente'}</p>
               <p style="margin: 0;">${addr.address_line_1 || addr.address || ''}</p>
-              ${addr.address_line_2 ? `<p style="margin: 0;">${addr.address_line_2}</p>` : ''}
+              ${(addr.address_line_2 || addr.address2) ? `<p style="margin: 0;">${addr.address_line_2 || addr.address2}</p>` : ''}
               <p style="margin: 0;">${addr.city || ''}${addr.state ? `, ${addr.state}` : ''}</p>
-              <p style="margin: 0;">${addr.postal_code || ''}</p>
+              <p style="margin: 0;">${addr.postal_code || addr.postalCode || ''}</p>
             </td>
             <td style="width: 50%; vertical-align: top;">
               ${addr.phone ? `
@@ -1052,9 +919,21 @@ function getOrderStatusTemplate(status: string, orderData: any) {
 
           </div>
           
-          <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: left;">
+          <!-- WhatsApp CTA -->
+          <div style="margin: 25px 0; padding: 20px; background-color: #f0fafe; border-radius: 12px; border: 1px solid #c6e9eb; text-align: center;">
+            <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda con tu pedido?</p>
+            <p style="margin: 0 0 15px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
+            <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;">💬 Enviar WhatsApp</a>
+          </div>
+          <!-- Redes sociales & footer -->
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: center;">
+            <div style="margin-bottom: 12px;">
+              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display: inline-block; background-color: #1877F2; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 0 5px;">f</a>
+              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display: inline-block; background-color: #E1306C; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 13px; margin: 0 5px;">ig</a>
+              <a href="https://www.tiktok.com/@petgourmet_mx" target="_blank" style="display: inline-block; background-color: #010101; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 12px; margin: 0 5px;">tt</a>
+            </div>
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
-              Si tienes alguna pregunta, responde este correo electrónico o contáctanos a través de 
+              Si tienes alguna pregunta, contáctanos en
               <a href="mailto:contacto@petgourmet.mx" style="color: #7AB8BF; text-decoration: none;">contacto@petgourmet.mx</a>
             </p>
           </div>
@@ -1118,9 +997,9 @@ function getAdminNewOrderTemplate(orderData: any) {
         <p style="margin: 0; font-size: 13px; color: #4b5563; line-height: 1.6;">
           ${addr.name || addr.full_name || customerName}<br/>
           ${addr.address_line_1 || addr.address || ''}
-          ${addr.address_line_2 ? `<br/>${addr.address_line_2}` : ''}
+          ${(addr.address_line_2 || addr.address2) ? `<br/>${addr.address_line_2 || addr.address2}` : ''}
           <br/>${addr.city || ''}${addr.state ? `, ${addr.state}` : ''}
-          ${addr.postal_code ? ` ${addr.postal_code}` : ''}
+          ${(addr.postal_code || addr.postalCode) ? ` ${addr.postal_code || addr.postalCode}` : ''}
           ${addr.phone ? `<br/>📞 ${addr.phone}` : ''}
         </p>
       </div>
@@ -1523,15 +1402,21 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
               </div>
             ` : ''}
 
-            <div style="text-align: center; margin: 30px 0; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-              <p style="color: #6b7280; font-size: 14px; margin-bottom: 10px;">¿Tienes alguna pregunta? Contáctanos:</p>
-              <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📧 soporte@petgourmet.mx</p>
-              <p style="color: #7AB8BF; font-weight: bold; margin: 5px 0;">📱 WhatsApp: +52 123 456 7890</p>
+            <!-- WhatsApp CTA -->
+            <div style="margin: 25px 0; padding: 20px; background-color: #f0fafe; border-radius: 12px; border: 1px solid #c6e9eb; text-align: center;">
+              <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda?</p>
+              <p style="margin: 0 0 15px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
+              <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;">💬 Enviar WhatsApp</a>
             </div>
           </div>
 
           <!-- Footer -->
           <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <div style="margin-bottom: 12px;">
+              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display: inline-block; background-color: #1877F2; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 0 5px;">f</a>
+              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display: inline-block; background-color: #E1306C; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 13px; margin: 0 5px;">ig</a>
+              <a href="https://www.tiktok.com/@petgourmet_mx" target="_blank" style="display: inline-block; background-color: #010101; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 12px; margin: 0 5px;">tt</a>
+            </div>
             <p style="margin: 0; color: #6b7280; font-size: 12px;">
               © 2025 Pet Gourmet. Todos los derechos reservados.
             </p>

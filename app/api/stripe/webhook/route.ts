@@ -277,31 +277,34 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         external_reference: subscriptionId
       }
 
-      // Enviar email al cliente
-      await sendSubscriptionEmail('created', subscriptionEmailData)
-      console.log('✅ Email de confirmación de suscripción enviado a:', subscriptionEmailData.user_email)
-
-      // Enviar email al admin
-      try {
-        const adminSubscriptionData = {
-          user_email: 'contacto@petgourmet.mx',
-          user_name: 'Admin Pet Gourmet',
-          subscription_type: subscriptionType,
-          amount: totalAmount,
-          next_payment_date: new Date(currentPeriodEnd * 1000).toLocaleDateString('es-MX', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }),
-          plan_description: `${customerName} - ${subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet'} - $${totalAmount.toFixed(2)} MXN`,
-          external_reference: subscriptionId
-        }
-
-        await sendSubscriptionEmail('created', adminSubscriptionData)
-        console.log('✅ Email de confirmación de suscripción enviado al admin: contacto@petgourmet.mx')
-      } catch (adminEmailError) {
-        console.error('❌ Error enviando email al admin:', adminEmailError)
+      const adminSubscriptionData = {
+        user_email: 'contacto@petgourmet.mx',
+        user_name: 'Admin Pet Gourmet',
+        subscription_type: subscriptionType,
+        amount: totalAmount,
+        next_payment_date: new Date(currentPeriodEnd * 1000).toLocaleDateString('es-MX', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        plan_description: `${customerName} - ${subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet'} - $${totalAmount.toFixed(2)} MXN`,
+        external_reference: subscriptionId
       }
+
+      // Enviar emails al cliente y admin en paralelo
+      const emailResults = await Promise.allSettled([
+        sendSubscriptionEmail('created', subscriptionEmailData),
+        sendSubscriptionEmail('created', adminSubscriptionData)
+      ])
+
+      emailResults.forEach((result, i) => {
+        const dest = i === 0 ? subscriptionEmailData.user_email : 'contacto@petgourmet.mx'
+        if (result.status === 'fulfilled') {
+          console.log(`✅ Email de confirmación de suscripción enviado a: ${dest}`)
+        } else {
+          console.error(`❌ Error enviando email de suscripción a ${dest}:`, result.reason)
+        }
+      })
     } catch (emailError) {
       console.error('❌ Error enviando email de confirmación de suscripción:', emailError)
       // No lanzar error, solo registrar
@@ -406,43 +409,40 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   try {
     const { sendSubscriptionEmail } = await import('@/lib/email-service')
     
-    // Email al cliente
-    await sendSubscriptionEmail('payment', {
-      user_email: subscription.customer_email,
-      user_name: subscription.customer_name,
-      subscription_type: subscription.subscription_type,
-      amount: (invoice.amount_paid || 0) / 100,
-      next_payment_date: nextBillingDate 
-        ? new Date(nextBillingDate).toLocaleDateString('es-MX', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })
-        : 'Próximamente',
-      plan_description: subscription.product_name,
-      external_reference: subscriptionId
+    const paymentNextDate = nextBillingDate
+      ? new Date(nextBillingDate).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })
+      : 'Próximamente'
+
+    // Enviar emails al cliente y admin en paralelo
+    const paymentEmailResults = await Promise.allSettled([
+      sendSubscriptionEmail('payment', {
+        user_email: subscription.customer_email,
+        user_name: subscription.customer_name,
+        subscription_type: subscription.subscription_type,
+        amount: (invoice.amount_paid || 0) / 100,
+        next_payment_date: paymentNextDate,
+        plan_description: subscription.product_name,
+        external_reference: subscriptionId
+      }),
+      sendSubscriptionEmail('payment', {
+        user_email: 'contacto@petgourmet.mx',
+        user_name: 'Admin Pet Gourmet',
+        subscription_type: subscription.subscription_type,
+        amount: (invoice.amount_paid || 0) / 100,
+        next_payment_date: paymentNextDate,
+        plan_description: `${subscription.customer_name} - ${subscription.product_name} - $${((invoice.amount_paid || 0) / 100).toFixed(2)} MXN`,
+        external_reference: subscriptionId
+      })
+    ])
+
+    paymentEmailResults.forEach((result, i) => {
+      const dest = i === 0 ? subscription.customer_email : 'contacto@petgourmet.mx'
+      if (result.status === 'fulfilled') {
+        console.log(`✅ Email de pago enviado a: ${dest}`)
+      } else {
+        console.error(`❌ Error enviando email de pago a ${dest}:`, result.reason)
+      }
     })
-
-    console.log('✅ Email de pago enviado al cliente:', subscription.customer_email)
-
-    // Email al admin
-    await sendSubscriptionEmail('payment', {
-      user_email: 'contacto@petgourmet.mx',
-      user_name: 'Admin Pet Gourmet',
-      subscription_type: subscription.subscription_type,
-      amount: (invoice.amount_paid || 0) / 100,
-      next_payment_date: nextBillingDate 
-        ? new Date(nextBillingDate).toLocaleDateString('es-MX', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })
-        : 'Próximamente',
-      plan_description: `${subscription.customer_name} - ${subscription.product_name} - $${((invoice.amount_paid || 0) / 100).toFixed(2)} MXN`,
-      external_reference: subscriptionId
-    })
-
-    console.log('✅ Email de pago enviado al admin: contacto@petgourmet.mx')
   } catch (emailError) {
     console.error('❌ Error enviando emails de pago:', emailError)
     // No fallar el webhook por error de email
@@ -526,29 +526,34 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   try {
     const { sendSubscriptionEmail } = await import('@/lib/email-service')
     
-    // Email al cliente
-    await sendSubscriptionEmail('payment_failed', {
-      user_email: subscription.customer_email,
-      user_name: subscription.customer_name,
-      subscription_type: subscription.subscription_type,
-      amount: (invoice.amount_due || 0) / 100,
-      plan_description: subscription.product_name,
-      external_reference: subscriptionId
+    // Enviar emails al cliente y admin en paralelo
+    const failedEmailResults = await Promise.allSettled([
+      sendSubscriptionEmail('payment_failed', {
+        user_email: subscription.customer_email,
+        user_name: subscription.customer_name,
+        subscription_type: subscription.subscription_type,
+        amount: (invoice.amount_due || 0) / 100,
+        plan_description: subscription.product_name,
+        external_reference: subscriptionId
+      }),
+      sendSubscriptionEmail('payment_failed', {
+        user_email: 'contacto@petgourmet.mx',
+        user_name: 'Admin Pet Gourmet',
+        subscription_type: subscription.subscription_type,
+        amount: (invoice.amount_due || 0) / 100,
+        plan_description: `${subscription.customer_name} - ${subscription.product_name} - PAGO FALLIDO`,
+        external_reference: subscriptionId
+      })
+    ])
+
+    failedEmailResults.forEach((result, i) => {
+      const dest = i === 0 ? subscription.customer_email : 'contacto@petgourmet.mx'
+      if (result.status === 'fulfilled') {
+        console.log(`✅ Email de pago fallido enviado a: ${dest}`)
+      } else {
+        console.error(`❌ Error enviando email de pago fallido a ${dest}:`, result.reason)
+      }
     })
-
-    console.log('✅ Email de pago fallido enviado al cliente:', subscription.customer_email)
-
-    // Email al admin
-    await sendSubscriptionEmail('payment_failed', {
-      user_email: 'contacto@petgourmet.mx',
-      user_name: 'Admin Pet Gourmet',
-      subscription_type: subscription.subscription_type,
-      amount: (invoice.amount_due || 0) / 100,
-      plan_description: `${subscription.customer_name} - ${subscription.product_name} - PAGO FALLIDO`,
-      external_reference: subscriptionId
-    })
-
-    console.log('✅ Email de pago fallido enviado al admin: contacto@petgourmet.mx')
   } catch (emailError) {
     console.error('❌ Error enviando emails de pago fallido:', emailError)
     // No fallar el webhook por error de email
@@ -631,31 +636,36 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
         next_payment_date: currentPeriodEnd
       }
 
-      // Email al cliente
+      const updateEmailPromises = [
+        sendSubscriptionEmail('subscription_updated', {
+          ...emailData,
+          user_email: 'contacto@petgourmet.mx',
+          user_name: 'Admin Pet Gourmet',
+          plan_description: `[ACTUALIZACIÓN] ${updatedSubscription.customer_name} - ${updatedSubscription.product_name}`,
+          admin_details: {
+            user_id: updatedSubscription.user_id,
+            subscription_id: subscription.id,
+            previous_period_start: existingSubscription?.current_period_start,
+            previous_period_end: existingSubscription?.current_period_end,
+            previous_status: existingSubscription?.status,
+            changes: { dates: hasDateChanges, status: hasStatusChange }
+          }
+        })
+      ]
+
       if (updatedSubscription.customer_email) {
-        await sendSubscriptionEmail('subscription_updated', emailData)
-        console.log('✅ Email de actualización enviado al cliente:', updatedSubscription.customer_email)
+        updateEmailPromises.unshift(sendSubscriptionEmail('subscription_updated', emailData))
       }
 
-      // Email al admin con detalles adicionales
-      await sendSubscriptionEmail('subscription_updated', {
-        ...emailData,
-        user_email: 'contacto@petgourmet.mx',
-        user_name: 'Admin Pet Gourmet',
-        plan_description: `[ACTUALIZACIÓN] ${updatedSubscription.customer_name} - ${updatedSubscription.product_name}`,
-        admin_details: {
-          user_id: updatedSubscription.user_id,
-          subscription_id: subscription.id,
-          previous_period_start: existingSubscription?.current_period_start,
-          previous_period_end: existingSubscription?.current_period_end,
-          previous_status: existingSubscription?.status,
-          changes: {
-            dates: hasDateChanges,
-            status: hasStatusChange
-          }
+      const updateResults = await Promise.allSettled(updateEmailPromises)
+      updateResults.forEach((result, i) => {
+        const dest = updatedSubscription.customer_email && i === 0 ? updatedSubscription.customer_email : 'contacto@petgourmet.mx'
+        if (result.status === 'fulfilled') {
+          console.log(`✅ Email de actualización enviado a: ${dest}`)
+        } else {
+          console.error(`❌ Error enviando email de actualización a ${dest}:`, result.reason)
         }
       })
-      console.log('✅ Email de actualización enviado al admin: contacto@petgourmet.mx')
 
     } catch (emailError) {
       console.error('❌ Error enviando emails de actualización:', emailError)
@@ -700,35 +710,40 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     try {
       const { sendSubscriptionEmail } = await import('@/lib/email-service')
       
-      // Email al cliente
-      await sendSubscriptionEmail('cancelled', {
-        user_email: existingSubscription.customer_email,
-        user_name: existingSubscription.customer_name,
-        subscription_type: existingSubscription.subscription_type,
-        amount: existingSubscription.amount || 0,
-        plan_description: existingSubscription.product_name,
-        external_reference: subscription.id
-      })
+      // Enviar emails al cliente y admin en paralelo
+      const cancelEmailResults = await Promise.allSettled([
+        sendSubscriptionEmail('cancelled', {
+          user_email: existingSubscription.customer_email,
+          user_name: existingSubscription.customer_name,
+          subscription_type: existingSubscription.subscription_type,
+          amount: existingSubscription.amount || 0,
+          plan_description: existingSubscription.product_name,
+          external_reference: subscription.id
+        }),
+        sendSubscriptionEmail('cancelled', {
+          user_email: 'contacto@petgourmet.mx',
+          user_name: 'Admin Pet Gourmet',
+          subscription_type: existingSubscription.subscription_type,
+          amount: existingSubscription.amount || 0,
+          plan_description: `${existingSubscription.customer_name} - ${existingSubscription.product_name} - CANCELADA`,
+          external_reference: subscription.id,
+          admin_details: {
+            user_id: existingSubscription.user_id,
+            subscription_id: existingSubscription.id,
+            cancelled_at: new Date().toISOString(),
+            last_payment_date: existingSubscription.last_payment_date
+          }
+        })
+      ])
 
-      console.log('✅ Email de cancelación enviado al cliente:', existingSubscription.customer_email)
-
-      // Email al admin
-      await sendSubscriptionEmail('cancelled', {
-        user_email: 'contacto@petgourmet.mx',
-        user_name: 'Admin Pet Gourmet',
-        subscription_type: existingSubscription.subscription_type,
-        amount: existingSubscription.amount || 0,
-        plan_description: `${existingSubscription.customer_name} - ${existingSubscription.product_name} - CANCELADA`,
-        external_reference: subscription.id,
-        admin_details: {
-          user_id: existingSubscription.user_id,
-          subscription_id: existingSubscription.id,
-          cancelled_at: new Date().toISOString(),
-          last_payment_date: existingSubscription.last_payment_date
+      cancelEmailResults.forEach((result, i) => {
+        const dest = i === 0 ? existingSubscription.customer_email : 'contacto@petgourmet.mx'
+        if (result.status === 'fulfilled') {
+          console.log(`✅ Email de cancelación enviado a: ${dest}`)
+        } else {
+          console.error(`❌ Error enviando email de cancelación a ${dest}:`, result.reason)
         }
       })
-
-      console.log('✅ Email de cancelación enviado al admin: contacto@petgourmet.mx')
     } catch (emailError) {
       console.error('❌ Error enviando emails de cancelación:', emailError)
     }
@@ -831,8 +846,19 @@ export async function POST(request: NextRequest) {
       }
     } catch (handlerError) {
       console.error(`❌ Error manejando evento ${event.type}:`, handlerError)
-      // Log del error pero no lanzar - queremos responder 200 a Stripe
-      // para evitar reintentos innecesarios
+      // Retornar 500 para eventos críticos de creación de datos (checkout / suscripción)
+      // para que Stripe pueda reintentar. Para eventos secundarios devolvemos 200.
+      const criticalEvents = [
+        'checkout.session.completed',
+        'invoice.payment_succeeded',
+        'customer.subscription.deleted'
+      ]
+      if (criticalEvents.includes(event.type)) {
+        return NextResponse.json(
+          { error: 'Error crítico procesando evento', eventType: event.type },
+          { status: 500 }
+        )
+      }
     }
 
     return NextResponse.json({ received: true })

@@ -208,60 +208,82 @@ export const getNewsletterConfirmationTemplate = (email: string) => ({
   subject: '¡Bienvenido a la familia Pet Gourmet! 🐾',
   html: `
     <!DOCTYPE html>
-    <html>
+    <html lang="es">
       <head>
         <meta charset="utf-8">
-        <title>Bienvenido a Pet Gourmet</title>
+        <title>Bienvenido a Pet Gourmet Newsletter</title>
       </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="display: inline-block; background: linear-gradient(135deg, #7AB8BF 0%, #5A9EA6 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(122, 184, 191, 0.3);">
-              <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;">
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
+        <div style="max-width: 600px; margin: 0 auto;">
+
+          <!-- Header con Logo -->
+          <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+              </td>
+            </tr>
+          </table>
+
+          <!-- Contenido principal -->
+          <div style="background-color: white; padding: 30px 25px;">
+
+            <h1 style="color: #7AB8BF; text-align: center; font-size: 24px; margin-top: 0;">¡Bienvenido a nuestra manada! 🐾</h1>
+
+            <p>¡Hola!</p>
+            <p>Gracias por suscribirte al newsletter de Pet Gourmet. Nos emociona tenerte como parte de nuestra familia.</p>
+
+            <!-- Confirmación -->
+            <div style="background-color: #e6f4f5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border-left: 4px solid #7AB8BF;">
+              <h3 style="margin-top: 0; color: #7AB8BF;">🎉 ¡Suscripción confirmada!</h3>
+              <p style="margin-bottom: 0;">Tu email <strong>${email}</strong> ha sido agregado exitosamente a nuestra lista.</p>
             </div>
+
+            <!-- Qué esperar -->
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #7AB8BF;">¿Qué puedes esperar?</h3>
+              <ul style="padding-left: 20px; margin: 0;">
+                <li style="margin-bottom: 8px;">🏷️ <strong>Ofertas exclusivas</strong> para suscriptores</li>
+                <li style="margin-bottom: 8px;">🍽️ <strong>Consejos de nutrición</strong> para tu mascota</li>
+                <li style="margin-bottom: 8px;">🆕 <strong>Nuevos productos</strong> antes que nadie</li>
+                <li style="margin-bottom: 8px;">📚 <strong>Recetas gourmet</strong> caseras para tu pet</li>
+                <li style="margin-bottom: 0;">💡 <strong>Tips de cuidado</strong> y bienestar animal</li>
+              </ul>
+            </div>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://petgourmet.mx/productos" target="_blank"
+                 style="background-color: #7AB8BF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block; font-size: 15px;">
+                🛒 Explorar Productos
+              </a>
+            </div>
+
+            <!-- WhatsApp CTA -->
+            <div style="margin: 25px 0; padding: 20px; background-color: #f0fafe; border-radius: 12px; border: 1px solid #c6e9eb; text-align: center;">
+              <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Tienes alguna pregunta?</p>
+              <p style="margin: 0 0 15px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
+              <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;">💬 Enviar WhatsApp</a>
+            </div>
+
           </div>
-          
-          <h1 style="color: #7AB8BF; text-align: center;">¡Bienvenido a nuestra manada! 🐾</h1>
-          
-          <p>¡Hola!</p>
-          <p>Gracias por suscribirte al newsletter de Pet Gourmet. Nos emociona tenerte como parte de nuestra familia.</p>
-          
-          <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-            <h3 style="margin-top: 0; color: #8c4a23;">🎉 ¡Suscripción confirmada!</h3>
-            <p>Tu email <strong>${email}</strong> ha sido agregado exitosamente a nuestra lista.</p>
+
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+            <div style="margin-bottom: 12px;">
+              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display: inline-block; background-color: #1877F2; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 0 5px;">f</a>
+              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display: inline-block; background-color: #E1306C; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 13px; margin: 0 5px;">ig</a>
+              <a href="https://www.tiktok.com/@petgourmet_mx" target="_blank" style="display: inline-block; background-color: #010101; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 12px; margin: 0 5px;">tt</a>
+            </div>
+            <p style="margin: 0; color: #6b7280; font-size: 12px;">
+              © 2025 Pet Gourmet. Todos los derechos reservados.
+            </p>
+            <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 11px; line-height: 1.6;">
+              Avenida José María Castorena 425, plaza Cuajimalpa Local 8, Cuajimalpa, Ciudad de México<br>
+              Si no deseas recibir más emails, puedes <a href="https://petgourmet.mx/unsubscribe?email=${encodeURIComponent(email)}" style="color: #7AB8BF;">darte de baja aquí</a>.
+            </p>
           </div>
-          
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #7AB8BF;">¿Qué puedes esperar?</h3>
-            <ul>
-              <li>🏷️ <strong>Ofertas exclusivas</strong> para suscriptores</li>
-              <li>🍽️ <strong>Consejos de nutrición</strong> para tu mascota</li>
-              <li>🆕 <strong>Nuevos productos</strong> antes que nadie</li>
-              <li>📚 <strong>Recetas gourmet</strong> caseras para tu pet</li>
-              <li>💡 <strong>Tips de cuidado</strong> y bienestar animal</li>
-            </ul>
-          </div>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://petgourmet.mx/productos" 
-               style="background-color: #7AB8BF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
-              🛒 Explorar Productos
-            </a>
-          </div>
-          
-          <p>Mientras tanto, te invitamos a seguirnos en nuestras redes sociales para mantenerte al día con todas las novedades.</p>
-          
-          <p style="margin-top: 30px;">
-            ¡Bienvenido a la familia Pet Gourmet!<br>
-            <strong>El equipo de Pet Gourmet</strong>
-          </p>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          <p style="color: #666; font-size: 12px; text-align: center;">
-            Si no deseas recibir más emails, puedes <a href="https://petgourmet.mx/unsubscribe?email=${encodeURIComponent(email)}">darte de baja aquí</a>.<br>
-            Pet Gourmet - Nutrición premium para tus compañeros<br>
-            Avenida José María Castorena 425, plaza Cuajimalpa Local 6, Cuajimalpa, Ciudad de México
-          </p>
+
         </div>
       </body>
     </html>
