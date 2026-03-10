@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -54,7 +54,8 @@ export default function ProductDetailPage() {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [isVariableProduct, setIsVariableProduct] = useState(false)
 
-  const { addToCart } = useCart()
+  const { addToCart, setShowCart } = useCart()
+  const router = useRouter()
   const imageContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -227,20 +228,20 @@ export default function ProductDetailPage() {
     loadProductDetails()
   }, [productSlug])
 
-  const handleAddToCart = () => {
-    if (!product) return
+  const handleAddToCart = (): boolean => {
+    if (!product) return false
 
     // Si es producto variable y no hay variante seleccionada, no permitir agregar
     if (isVariableProduct && !selectedVariant) {
       alert("Por favor selecciona una variante")
-      return
+      return false
     }
 
     // Si es producto variable, validar stock de la variante
     if (isVariableProduct && selectedVariant) {
       if ((selectedVariant.stock || 0) < quantity) {
         alert(`Solo hay ${selectedVariant.stock} unidades disponibles de esta variante`)
-        return
+        return false
       }
     }
 
@@ -285,6 +286,7 @@ export default function ProductDetailPage() {
       variantId: isVariableProduct && selectedVariant ? selectedVariant.id : undefined,
       variantName: isVariableProduct && selectedVariant ? selectedVariant.name : undefined,
     })
+    return true
   }
 
   const incrementQuantity = () => setQuantity((prev) => prev + 1)
@@ -612,7 +614,15 @@ export default function ProductDetailPage() {
                       ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
                       : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
                       }`}
-                    onClick={() => setIsSubscription(false)}
+                    onClick={() => {
+                      setIsSubscription(false)
+                      if (!product?.subscription_available) {
+                        if (handleAddToCart()) {
+                          setShowCart(false)
+                          router.push('/checkout')
+                        }
+                      }
+                    }}
                   >
                     Comprar ahora
                   </Button>
@@ -798,7 +808,7 @@ export default function ProductDetailPage() {
                   {/* Botón comprar — ancho completo */}
                   <Button
                     className="w-full rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white py-4 text-base font-semibold"
-                    onClick={handleAddToCart}
+                    onClick={() => { if (handleAddToCart()) { setShowCart(false); router.push('/checkout') } }}
                     disabled={isVariableProduct && !selectedVariant}
                   >
                     <ShoppingCart className="h-5 w-5 mr-2 shrink-0" />

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mejoras UX Checkout Directo – Pet Gourmet</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, #7BBDC5 0%, #4a9aaa 100%);
+      color: #fff;
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+    }
+
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p  { margin-top: .5rem; opacity: .9; font-size: 1rem; }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,.2);
+      border: 1px solid rgba(255,255,255,.4);
+      border-radius: 999px;
+      padding: .25rem .9rem;
+      font-size: .8rem;
+      margin-top: .75rem;
+    }
+
+    main { max-width: 960px; margin: 2rem auto; padding: 0 1.25rem 3rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+      margin-bottom: 1.75rem;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: 1.1rem 1.5rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .card-header .icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .icon-teal   { background: #e0f4f6; }
+    .icon-purple { background: #ede9fe; }
+    .icon-green  { background: #dcfce7; }
+    .icon-orange { background: #ffedd5; }
+
+    .card-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .card-header span.tag {
+      margin-left: auto;
+      font-size: .72rem;
+      background: #e0f4f6;
+      color: #0e7490;
+      border-radius: 999px;
+      padding: .2rem .7rem;
+      font-weight: 600;
+    }
+
+    .card-body { padding: 1.25rem 1.5rem; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      margin-bottom: .6rem;
+    }
+
+    /* ── File list ── */
+    .file-list { list-style: none; }
+    .file-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: .6rem;
+      padding: .45rem 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: .9rem;
+    }
+    .file-list li:last-child { border-bottom: none; }
+    .file-list .filepath {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: .15rem .55rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: .78rem;
+      color: #475569;
+      white-space: nowrap;
+    }
+    .file-list .desc { color: #475569; }
+
+    /* ── Code block ── */
+    pre {
+      background: #0f172a;
+      color: #94d8e0;
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      font-size: .82rem;
+      line-height: 1.65;
+      font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    }
+    pre .comment { color: #64748b; }
+    pre .keyword { color: #e879f9; }
+    pre .fn      { color: #38bdf8; }
+    pre .str     { color: #86efac; }
+
+    /* ── Before / After ── */
+    .diff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: .75rem;
+    }
+    @media (max-width: 640px) { .diff-grid { grid-template-columns: 1fr; } }
+
+    .diff-box h4 {
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      margin-bottom: .5rem;
+    }
+    .diff-box.before h4 { color: #ef4444; }
+    .diff-box.after  h4 { color: #22c55e; }
+    .diff-box.before pre { border-left: 3px solid #ef4444; }
+    .diff-box.after  pre { border-left: 3px solid #22c55e; }
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin: .75rem 0;
+    }
+    .flow-step {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: .45rem .9rem;
+      font-size: .85rem;
+      font-weight: 600;
+      color: #0369a1;
+    }
+    .flow-arrow { color: #94a3b8; font-size: 1.2rem; }
+
+    /* ── Summary table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+    }
+    th {
+      background: #f8fafc;
+      padding: .6rem .9rem;
+      text-align: left;
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: #64748b;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    td {
+      padding: .6rem .9rem;
+      border-bottom: 1px solid #f1f5f9;
+      color: #475569;
+    }
+    tr:last-child td { border-bottom: none; }
+    .status-done {
+      display: inline-block;
+      background: #dcfce7;
+      color: #15803d;
+      border-radius: 999px;
+      padding: .15rem .6rem;
+      font-size: .72rem;
+      font-weight: 700;
+    }
+
+    /* ── Info box ── */
+    .info-box {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      border-radius: 0 8px 8px 0;
+      padding: .85rem 1rem;
+      margin: .75rem 0;
+      font-size: .88rem;
+      color: #1e3a5f;
+    }
+
+    footer {
+      text-align: center;
+      color: #94a3b8;
+      font-size: .78rem;
+      padding: 1.5rem;
+      border-top: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 Checkout Directo – Sin Modal del Carrito</h1>
+  <p>Resumen de mejoras UX implementadas en la página de producto y formularios de checkout</p>
+  <div class="badge">Pet Gourmet · Sesión Marzo 2026</div>
+</header>
+
+<main>
+
+  <!-- ─────────────────────────────────────────── -->
+  <!-- RESUMEN EJECUTIVO                          -->
+  <!-- ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="icon icon-teal">📋</div>
+      <h2>Resumen ejecutivo</h2>
+      <span class="tag">Sesión completa</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:.92rem; color:#475569; margin-bottom:1rem;">
+        Se realizaron tres grupos de mejoras durante esta sesión: (1) campos adicionales en los formularios de checkout,
+        (2) navegación directa a <code>/checkout</code> desde la página de producto, y (3) eliminación del modal del
+        carrito al usar los botones de compra directa.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Mejora</th>
+            <th>Archivos afectados</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Campo <code>address2</code> + selector de código de país en checkout</td>
+            <td>checkout-modal, checkout/page, checkout-service, email-service</td>
+            <td><span class="status-done">✓ Listo</span></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Botón "Comprar ahora" → ir directo a <code>/checkout</code></td>
+            <td>app/producto/[slug]/page.tsx</td>
+            <td><span class="status-done">✓ Listo</span></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Botón "Comprar" → ir directo a <code>/checkout</code></td>
+            <td>app/producto/[slug]/page.tsx</td>
+            <td><span class="status-done">✓ Listo</span></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Suprimir apertura del modal del carrito al usar ambos botones</td>
+            <td>app/producto/[slug]/page.tsx (+ cart-context)</td>
+            <td><span class="status-done">✓ Listo</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────── -->
+  <!-- MEJORA 1: CAMPOS DE CHECKOUT               -->
+  <!-- ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="icon icon-purple">📝</div>
+      <h2>Mejora 1 – Campos adicionales en formularios de checkout</h2>
+    </div>
+    <div class="card-body">
+
+      <p class="section-label">Archivos modificados</p>
+      <ul class="file-list">
+        <li>
+          <span class="filepath">components/checkout-modal.tsx</span>
+          <span class="desc">Modal overlay de checkout – campo dirección 2 + selector código de país</span>
+        </li>
+        <li>
+          <span class="filepath">app/checkout/page.tsx</span>
+          <span class="desc">Página completa de checkout – mismos campos nuevos</span>
+        </li>
+        <li>
+          <span class="filepath">lib/stripe/checkout-service.ts</span>
+          <span class="desc">Interfaz <code>ShippingInfo</code> – <code>address2?: string</code></span>
+        </li>
+        <li>
+          <span class="filepath">lib/email-service.ts</span>
+          <span class="desc">Plantillas HTML de email – renderiza <code>address2</code>, fix <code>postalCode</code></span>
+        </li>
+      </ul>
+
+      <br/>
+      <p class="section-label">Detalle de campos añadidos</p>
+      <div class="info-box">
+        <strong>Campo «Dirección 2» (address2):</strong> campo opcional para número de interior, piso, departamento, etc.
+        Se añadió en ambos formularios (modal y página completa) y se transmite al servicio de checkout de Stripe y a las
+        plantillas de email de confirmación.<br/><br/>
+        <strong>Selector de código de país:</strong> dropdown con 10 países de LATAM + España (default <code>+52</code> México)
+        precediendo al campo de teléfono. Carga automáticamente el código guardado en el perfil del usuario.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────── -->
+  <!-- MEJORA 2-4: BOTONES DE COMPRA              -->
+  <!-- ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="icon icon-green">🚀</div>
+      <h2>Mejoras 2, 3 y 4 – Botones de compra directa</h2>
+    </div>
+    <div class="card-body">
+
+      <p class="section-label">Flujo anterior (con carrito)</p>
+      <div class="flow">
+        <div class="flow-step">Click en "Comprar"</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">addToCart()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="background:#fff0f0;border-color:#fca5a5;color:#dc2626;">Modal carrito se abre ❌</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Usuario cierra el modal</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Usuario navega a checkout manualmente</div>
+      </div>
+
+      <p class="section-label" style="margin-top:1rem;">Flujo nuevo (checkout directo)</p>
+      <div class="flow">
+        <div class="flow-step">Click en "Comprar"</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">addToCart()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="background:#f0fdf4;border-color:#86efac;color:#15803d;">setShowCart(false) ✓</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step" style="background:#f0fdf4;border-color:#86efac;color:#15803d;">router.push('/checkout') ✓</div>
+      </div>
+
+      <br/>
+      <p class="section-label">Causa raíz del problema</p>
+      <div class="info-box">
+        La función <code>addToCart()</code> en <strong>components/cart-context.tsx</strong> siempre ejecuta
+        <code>setShowCart(true)</code> internamente (línea 144). No podía modificarse esa lógica global porque
+        otros flujos (navbar, catálogo) sí necesitan abrir el carrito. La solución fue capturar
+        <code>setShowCart</code> del contexto en la página de producto y llamarlo con <code>false</code>
+        inmediatamente después de que <code>handleAddToCart()</code> retorna <code>true</code>.
+      </div>
+
+      <br/>
+      <p class="section-label">Cambios en app/producto/[slug]/page.tsx</p>
+
+      <div class="diff-grid">
+        <div class="diff-box before">
+          <h4>Antes</h4>
+<pre><span class="comment">// Solo destructuraba addToCart</span>
+<span class="keyword">const</span> { <span class="fn">addToCart</span> } = <span class="fn">useCart</span>()
+<span class="keyword">const</span> router = <span class="fn">useRouter</span>()
+
+<span class="comment">// Botón "Comprar ahora"</span>
+onClick={() => {
+  <span class="fn">setIsSubscription</span>(<span class="keyword">false</span>)
+  <span class="keyword">if</span> (!product?.subscription_available) {
+    <span class="keyword">if</span> (<span class="fn">handleAddToCart</span>()) {
+      router.<span class="fn">push</span>(<span class="str">'/checkout'</span>)
+    }
+    <span class="comment">// ❌ carrito se abre igual</span>
+  }
+}}
+
+<span class="comment">// Botón "Comprar"</span>
+onClick={<span class="fn">handleAddToCart</span>}
+<span class="comment">// ❌ no navega, abre carrito</span></pre>
+        </div>
+        <div class="diff-box after">
+          <h4>Después</h4>
+<pre><span class="comment">// Captura también setShowCart</span>
+<span class="keyword">const</span> { <span class="fn">addToCart</span>, <span class="fn">setShowCart</span> } = <span class="fn">useCart</span>()
+<span class="keyword">const</span> router = <span class="fn">useRouter</span>()
+
+<span class="comment">// Botón "Comprar ahora"</span>
+onClick={() => {
+  <span class="fn">setIsSubscription</span>(<span class="keyword">false</span>)
+  <span class="keyword">if</span> (!product?.subscription_available) {
+    <span class="keyword">if</span> (<span class="fn">handleAddToCart</span>()) {
+      <span class="fn">setShowCart</span>(<span class="keyword">false</span>) <span class="comment">// ✅</span>
+      router.<span class="fn">push</span>(<span class="str">'/checkout'</span>)
+    }
+  }
+}}
+
+<span class="comment">// Botón "Comprar"</span>
+onClick={() => {
+  <span class="keyword">if</span> (<span class="fn">handleAddToCart</span>()) {
+    <span class="fn">setShowCart</span>(<span class="keyword">false</span>) <span class="comment">// ✅</span>
+    router.<span class="fn">push</span>(<span class="str">'/checkout'</span>)
+  }
+}}</pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────── -->
+  <!-- ARQUITECTURA                               -->
+  <!-- ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="icon icon-orange">🏗️</div>
+      <h2>Arquitectura relevante</h2>
+    </div>
+    <div class="card-body">
+
+      <p class="section-label">Contexto del carrito (components/cart-context.tsx)</p>
+      <pre><span class="comment">// Las funciones expuestas por el contexto</span>
+<span class="keyword">interface</span> CartContextType {
+  cart: CartItem[]
+  <span class="fn">addToCart</span>: (item: CartItem) => <span class="keyword">void</span>   <span class="comment">// siempre setShowCart(true)</span>
+  <span class="fn">removeFromCart</span>: (index: number) => <span class="keyword">void</span>
+  showCart: <span class="keyword">boolean</span>
+  <span class="fn">setShowCart</span>: (show: <span class="keyword">boolean</span>) => <span class="keyword">void</span>  <span class="comment">// ← clave para suprimir</span>
+  showCheckout: <span class="keyword">boolean</span>
+  <span class="fn">setShowCheckout</span>: (show: <span class="keyword">boolean</span>) => <span class="keyword">void</span>
+}</pre>
+
+      <br/>
+      <p class="section-label">handleAddToCart en página de producto</p>
+      <pre><span class="keyword">const</span> <span class="fn">handleAddToCart</span> = (): <span class="keyword">boolean</span> => {
+  <span class="comment">// Validación de variante si producto variable</span>
+  <span class="keyword">if</span> (isVariableProduct && !selectedVariant) {
+    toast({ title: <span class="str">"Selecciona una variante"</span> })
+    <span class="keyword">return false</span>           <span class="comment">// ← retorna false si falla</span>
+  }
+  <span class="fn">addToCart</span>({ ... })
+  <span class="keyword">return true</span>             <span class="comment">// ← retorna true si se añadió ok</span>
+}
+
+<span class="comment">// Los botones usan el booleano para decidir si navegar:</span>
+<span class="keyword">if</span> (<span class="fn">handleAddToCart</span>()) {
+  <span class="fn">setShowCart</span>(<span class="keyword">false</span>)    <span class="comment">// cancela apertura del sidebar</span>
+  router.<span class="fn">push</span>(<span class="str">'/checkout'</span>)
+}</pre>
+
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────── -->
+  <!-- CHECKLIST FINAL                            -->
+  <!-- ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="icon icon-teal">✅</div>
+      <h2>Checklist final</h2>
+    </div>
+    <div class="card-body">
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Verificación</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Campo address2 en checkout modal</td><td><span class="status-done">✓ Sin errores TS</span></td></tr>
+          <tr><td>Campo address2 en checkout página</td><td><span class="status-done">✓ Sin errores TS</span></td></tr>
+          <tr><td>Selector código de país (+52 default)</td><td><span class="status-done">✓ Sin errores TS</span></td></tr>
+          <tr><td>ShippingInfo interface actualizada</td><td><span class="status-done">✓ Sin errores TS</span></td></tr>
+          <tr><td>Email templates renderizan address2</td><td><span class="status-done">✓ Sin errores TS</span></td></tr>
+          <tr><td>Botón "Comprar ahora" → /checkout sin carrito</td><td><span class="status-done">✓ Sin errores TS</span></td></tr>
+          <tr><td>Botón "Comprar" → /checkout sin carrito</td><td><span class="status-done">✓ Sin errores TS</span></td></tr>
+          <tr><td>Modal del carrito no se abre al comprar</td><td><span class="status-done">✓ setShowCart(false)</span></td></tr>
+          <tr><td>Validación de variante sigue funcional</td><td><span class="status-done">✓ Retorna false y no navega</span></td></tr>
+          <tr><td>Flujo normal del carrito (navbar) sin cambios</td><td><span class="status-done">✓ No se modificó cart-context</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Pet Gourmet · Sesión de optimización Marzo 2026 · GitHub Copilot
+</footer>
+
+</body>
+</html>
