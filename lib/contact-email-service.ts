@@ -100,6 +100,9 @@ export const getCustomerConfirmationTemplate = (formData: ContactFormData) => ({
               Avenida José María Castorena 425, plaza Cuajimalpa Local 6, Cuajimalpa, Ciudad de México<br>
               Este es un mensaje automático, por favor no respondas a este email.
             </p>
+            <p style="margin: 8px 0 0 0; color: #c9cdd4; font-size: 11px;">
+              ¿No deseas recibir más correos? <a href="https://petgourmet.mx/unsubscribe" style="color: #c9cdd4; text-decoration: underline;">Darte de baja</a>
+            </p>
           </div>
         </div>
       </body>

@@ -227,19 +227,22 @@ function generateThankYouEmailHtml(userName: string, subscriptionDetails: any): 
             <div style="margin: 25px 0; padding: 20px; background-color: #f0fafe; border-radius: 12px; border: 1px solid #c6e9eb; text-align: center;">
               <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Tienes alguna pregunta?</p>
               <p style="margin: 0 0 15px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
-              <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #25D366; color: white; padding: 10px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;">💬 Enviar WhatsApp</a>
+              <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 10px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
             </div>
 
             <!-- Redes sociales & footer -->
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: center;">
+            <div style="background-color: #f9fafb; margin-top: 20px; padding: 20px; text-align: center; border-top: 1px solid #E5E7EB; border-radius: 0 0 8px 8px;">
               <div style="margin-bottom: 12px;">
-                <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display: inline-block; background-color: #1877F2; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 0 5px;">f</a>
-                <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display: inline-block; background-color: #E1306C; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 13px; margin: 0 5px;">ig</a>
-                <a href="https://www.tiktok.com/@petgourmet_mx" target="_blank" style="display: inline-block; background-color: #010101; width: 36px; height: 36px; border-radius: 50%; color: white; text-align: center; line-height: 36px; text-decoration: none; font-weight: bold; font-size: 12px; margin: 0 5px;">tt</a>
+                <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
+                <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+                <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
               </div>
               <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
                 Si tienes alguna pregunta, contáctanos en
                 <a href="mailto:contacto@petgourmet.mx" style="color: #7AB8BF; text-decoration: none;">contacto@petgourmet.mx</a>
+              </p>
+              <p style="margin: 8px 0 0 0; color: #c9cdd4; font-size: 11px;">
+                ¿No deseas recibir más correos? <a href="https://petgourmet.mx/suscripcion" style="color: #c9cdd4; text-decoration: underline;">Darte de baja</a>
               </p>
             </div>
 

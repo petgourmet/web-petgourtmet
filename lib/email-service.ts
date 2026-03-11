@@ -457,6 +457,9 @@ export class EmailService {
                 <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
                   Este es un correo automático, por favor no respondas a este mensaje.
                 </p>
+                <p style="margin: 8px 0 0 0; color: #c9cdd4; font-size: 11px;">
+                  ¿No deseas recibir más correos? <a href="https://petgourmet.mx/suscripcion" style="color: #c9cdd4; text-decoration: underline;">Darte de baja</a>
+                </p>
               </div>
               </div>
             </div>
@@ -948,6 +951,9 @@ function getOrderStatusTemplate(status: string, orderData: any) {
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
               Si tienes alguna pregunta, contáctanos en
               <a href="mailto:contacto@petgourmet.mx" style="color: #7AB8BF; text-decoration: none;">contacto@petgourmet.mx</a>
+            </p>
+            <p style="margin: 8px 0 0 0; color: #c9cdd4; font-size: 11px;">
+              ¿No deseas recibir más correos? <a href="https://petgourmet.mx/suscripcion" style="color: #c9cdd4; text-decoration: underline;">Darte de baja</a>
             </p>
           </div>
 
@@ -1443,7 +1449,7 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
             <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
               Este correo fue enviado a ${data.user_email}
             </p>
-            ${type === 'created' ? `<p style="margin: 8px 0 0 0; color: #d1d5db; font-size: 11px;">¿Deseas <a href="${appUrl}/suscripcion" style="color: #bfc4cc; text-decoration: underline;">cancelar o pausar tu suscripción</a>? Puedes hacerlo en cualquier momento.</p>` : ''}
+            <p style="margin: 8px 0 0 0; color: #c9cdd4; font-size: 11px;">¿No deseas recibir más correos? <a href="${appUrl}/suscripcion" style="color: #c9cdd4; text-decoration: underline;">Darte de baja</a></p>
           </div>
         </div>
       </body>
