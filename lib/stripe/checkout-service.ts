@@ -286,7 +286,7 @@ export async function createSubscriptionCheckoutSession(
     mode: 'subscription',
     line_items: lineItems,
     customer: stripeCustomerId,
-    success_url: `${successUrl || stripeConfig.successUrl.subscription}?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: successUrl || `${stripeConfig.successUrl.subscription}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: cancelUrl || stripeConfig.cancelUrl,
     shipping_address_collection: {
       allowed_countries: ['MX'],

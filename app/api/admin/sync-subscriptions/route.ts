@@ -119,6 +119,37 @@ export async function POST(request: NextRequest) {
 
           const priceInMXN = (price?.unit_amount || 0) / 100
 
+          // Buscar producto en BD para precio base y descuento
+          let basePrice = priceInMXN
+          let discountPercentage = 0
+          let productFromDB: any = null
+          const dbProductId = productMetadata.product_id
+
+          if (dbProductId) {
+            const { data: productData } = await supabaseAdmin
+              .from('products')
+              .select('*')
+              .eq('id', parseInt(dbProductId))
+              .single()
+
+            if (productData) {
+              productFromDB = productData
+              basePrice = productData.price
+              switch (subscriptionType) {
+                case 'weekly': discountPercentage = productData.weekly_discount || 0; break
+                case 'biweekly': discountPercentage = productData.biweekly_discount || 0; break
+                case 'monthly': discountPercentage = productData.monthly_discount || 0; break
+                case 'quarterly': discountPercentage = productData.quarterly_discount || 0; break
+                case 'annual': discountPercentage = productData.annual_discount || 0; break
+                default: discountPercentage = productData.monthly_discount || 0
+              }
+            }
+          }
+
+          // Calcular total incluyendo envío (envío gratis si producto >= $1000)
+          const shippingCost = priceInMXN >= 1000 ? 0 : 100
+          const totalAmount = (priceInMXN * (item?.quantity || 1)) + shippingCost
+
           let shippingAddress = null
           try {
             if (metadata.shipping_address) {
@@ -142,13 +173,15 @@ export async function POST(request: NextRequest) {
               stripe_price_id: price?.id || null,
               status: dbStatus,
               subscription_type: subscriptionType,
-              product_id: productMetadata.product_id ? parseInt(productMetadata.product_id) : null,
-              product_name: product?.name || (item as any)?.description || 'Suscripción Pet Gourmet',
-              product_image: product?.images?.[0] || null,
+              product_id: dbProductId ? parseInt(dbProductId) : null,
+              product_name: product?.name || (item as any)?.description || productFromDB?.name || 'Suscripción Pet Gourmet',
+              product_image: product?.images?.[0] || productFromDB?.image || null,
               frequency,
               frequency_type: frequencyType,
-              discounted_price: priceInMXN,
-              transaction_amount: priceInMXN,
+              base_price: basePrice,
+              discounted_price: priceInMXN || basePrice,
+              discount_percentage: discountPercentage,
+              transaction_amount: totalAmount,
               next_billing_date: currentPeriodEnd
                 ? new Date(currentPeriodEnd * 1000).toISOString()
                 : null,

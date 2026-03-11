@@ -43,6 +43,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Sanitizar session_id: si viene duplicado por bug de URL (?session_id=X?session_id=X)
+    // extraer solo el primer ID válido
+    let cleanSessionId = sessionId
+    if (sessionId.includes('?')) {
+      cleanSessionId = sessionId.split('?')[0]
+      console.warn('[SYNC] session_id contenía parámetros duplicados, limpiado:', cleanSessionId)
+    }
+    // Validar longitud máxima (Stripe session IDs tienen máximo 66 caracteres)
+    if (cleanSessionId.length > 66) {
+      return NextResponse.json(
+        { error: 'ID de sesión inválido (demasiado largo)' },
+        { status: 400 }
+      )
+    }
+
     // Verificar autenticación del usuario
     const supabase = await createServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -54,8 +69,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener la sesión de Stripe
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    // Obtener la sesión de Stripe (usar ID sanitizado)
+    const session = await stripe.checkout.sessions.retrieve(cleanSessionId, {
       expand: ['line_items', 'line_items.data.price.product', 'subscription'],
     })
 
@@ -153,7 +168,8 @@ export async function POST(request: NextRequest) {
     const subscriptionLineItem = lineItems[0]
     const product = subscriptionLineItem?.price?.product as any
     const productMetadata = product?.metadata || {}
-    const productId = productMetadata.product_id
+    // product_id desde metadata del producto Stripe O desde metadata de la sesión
+    const productId = productMetadata.product_id || metadata.product_id
 
     // Total incluyendo envío
     const totalAmount = lineItems.reduce((sum: number, item: any) => {
@@ -216,9 +232,10 @@ export async function POST(request: NextRequest) {
         subscription_type: subscriptionType,
         status: 'active',
         base_price: basePrice,
-        discounted_price: priceInMXN,
+        discounted_price: priceInMXN || basePrice,
         discount_percentage: discountPercentage,
         transaction_amount: totalAmount,
+        quantity: subscriptionLineItem?.quantity || 1,
         size: productMetadata.size || null,
         frequency,
         frequency_type: frequencyType,

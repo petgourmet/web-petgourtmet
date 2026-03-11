@@ -15,6 +15,7 @@ import { createOrderFromSession } from '@/lib/stripe/create-order'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60 // Aumentar timeout para webhook (Netlify Pro: hasta 26s)
 
 // Configuración de Supabase con Service Role Key para operaciones admin
 const supabaseAdmin = createClient(
@@ -55,13 +56,23 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // Verificar si la suscripción ya existe
     const { data: existingSubscription } = await supabaseAdmin
       .from('unified_subscriptions')
-      .select('id, status')
+      .select('id, status, base_price, discounted_price, transaction_amount')
       .eq('stripe_subscription_id', subscriptionId)
       .single()
     
     if (existingSubscription) {
-      console.log('⚠️ Suscripción ya existe:', subscriptionId, '- Saltando creación')
-      return // Ya fue procesada, no crear duplicado
+      // Si la suscripción existe PERO tiene precios en 0 o null, reparar datos
+      const needsRepair = !existingSubscription.base_price || 
+                          !existingSubscription.discounted_price || 
+                          !existingSubscription.transaction_amount
+      
+      if (!needsRepair) {
+        console.log('⚠️ Suscripción ya existe con datos completos:', subscriptionId, '- Saltando')
+        return // Ya fue procesada correctamente
+      }
+      
+      console.log('🔧 Suscripción existe pero tiene datos incompletos, reparando:', subscriptionId)
+      // Continuar para obtener datos de Stripe y actualizar
     }
     
     // Expandir la suscripción para obtener todos los datos
@@ -120,7 +131,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     const subscriptionLineItem = lineItems.data[0]
     const product = subscriptionLineItem.price?.product as any
     const productMetadata = product?.metadata || {}
-    const productId = productMetadata.product_id
+    // product_id desde metadata del producto Stripe O desde metadata de la sesión
+    const productId = productMetadata.product_id || metadata.product_id
+
+    console.log('📦 [WEBHOOK] Line items recibidos:', lineItems.data.length, lineItems.data.map(li => ({
+      description: li.description,
+      unit_amount: li.price?.unit_amount,
+      quantity: li.quantity,
+    })))
 
     // Calcular precio TOTAL de la suscripción (incluye todos los line items: producto + envío)
     const totalAmount = lineItems.data.reduce((sum, item) => {
@@ -130,6 +148,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // Precio base del producto (sin envío)
     const unitAmount = subscriptionLineItem.price?.unit_amount || 0
     const priceInMXN = unitAmount / 100
+
+    console.log('💰 [WEBHOOK] Precios calculados:', {
+      unitAmount,
+      priceInMXN,
+      totalAmount,
+      productId,
+      productMetadata,
+    })
 
     // Obtener información adicional del producto desde la BD
     let productFromDB = null
@@ -199,67 +225,95 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         break
     }
 
-    const { data: subs, error } = await supabaseAdmin
-      .from('unified_subscriptions')
-      .insert({
-        user_id: userId || null,
-        customer_email: session.customer_email || session.customer_details?.email,
-        customer_name: customerName,
-        customer_phone: session.customer_details?.phone || null,
+    const subscriptionRecord = {
+      user_id: userId || null,
+      customer_email: session.customer_email || session.customer_details?.email,
+      customer_name: customerName,
+      customer_phone: session.customer_details?.phone || null,
+      product_id: productId ? parseInt(productId) : null,
+      product_name: subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet',
+      product_image: product?.images?.[0] || productFromDB?.image || null,
+      subscription_type: subscriptionType,
+      status: 'active',
+      base_price: basePrice,
+      discounted_price: priceInMXN || basePrice,
+      discount_percentage: discountPercentage,
+      transaction_amount: totalAmount, // Total incluyendo producto + envío
+      quantity: subscriptionLineItem.quantity || 1,
+      size: productMetadata.size || null,
+      frequency: frequency,
+      frequency_type: frequencyType,
+      next_billing_date: new Date(currentPeriodEnd * 1000).toISOString(),
+      last_billing_date: new Date(currentPeriodStart * 1000).toISOString(),
+      current_period_start: new Date(currentPeriodStart * 1000).toISOString(),
+      current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
+      stripe_subscription_id: subscriptionId,
+      stripe_customer_id: session.customer as string,
+      stripe_price_id: subscriptionData.items.data[0].price.id,
+      shipping_address: shippingAddress,
+      customer_data: {
+        email: session.customer_email || session.customer_details?.email,
+        firstName: customerName?.split(' ')[0] || '',
+        lastName: customerName?.split(' ').slice(1).join(' ') || '',
+        phone: session.customer_details?.phone || null,
+        address: shippingAddress
+      },
+      cart_items: [{
         product_id: productId ? parseInt(productId) : null,
-        product_name: subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet',
-        product_image: product?.images?.[0] || productFromDB?.image || null,
-        subscription_type: subscriptionType,
-        status: 'active',
-        base_price: basePrice,
-        discounted_price: priceInMXN,
-        discount_percentage: discountPercentage,
-        transaction_amount: totalAmount, // Total incluyendo producto + envío
+        product_name: subscriptionLineItem.description || productFromDB?.name,
+        name: subscriptionLineItem.description || productFromDB?.name,
+        image: product?.images?.[0] || productFromDB?.image,
+        price: priceInMXN,
+        quantity: subscriptionLineItem.quantity || 1,
         size: productMetadata.size || null,
-        frequency: frequency,
-        frequency_type: frequencyType,
-        next_billing_date: new Date(currentPeriodEnd * 1000).toISOString(),
-        last_billing_date: new Date(currentPeriodStart * 1000).toISOString(),
-        current_period_start: new Date(currentPeriodStart * 1000).toISOString(),
-        current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
-        stripe_subscription_id: subscriptionId,
-        stripe_customer_id: session.customer as string,
-        stripe_price_id: subscriptionData.items.data[0].price.id,
-        shipping_address: shippingAddress,
-        customer_data: {
-          email: session.customer_email || session.customer_details?.email,
-          firstName: customerName?.split(' ')[0] || '',
-          lastName: customerName?.split(' ').slice(1).join(' ') || '',
-          phone: session.customer_details?.phone || null,
-          address: shippingAddress
-        },
-        cart_items: [{
-          product_id: productId ? parseInt(productId) : null,
-          product_name: subscriptionLineItem.description || productFromDB?.name,
-          name: subscriptionLineItem.description || productFromDB?.name,
-          image: product?.images?.[0] || productFromDB?.image,
-          price: priceInMXN,
-          quantity: subscriptionLineItem.quantity || 1,
-          size: productMetadata.size || null,
-          isSubscription: true,
-          subscriptionType: subscriptionType
-        }],
-        metadata: metadata,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        processed_at: new Date().toISOString()
-      })
-      .select()
-      .single()
+        isSubscription: true,
+        subscriptionType: subscriptionType
+      }],
+      metadata: metadata,
+      updated_at: new Date().toISOString(),
+      processed_at: new Date().toISOString()
+    }
+
+    let subs: any
+    let error: any
+
+    if (existingSubscription) {
+      // Reparar suscripción existente con datos incompletos
+      const { data, error: updateError } = await supabaseAdmin
+        .from('unified_subscriptions')
+        .update(subscriptionRecord)
+        .eq('id', existingSubscription.id)
+        .select()
+        .single()
+      subs = data
+      error = updateError
+    } else {
+      // Crear nueva suscripción
+      const { data, error: insertError } = await supabaseAdmin
+        .from('unified_subscriptions')
+        .insert({
+          ...subscriptionRecord,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+      subs = data
+      error = insertError
+    }
 
     if (error) {
-      console.error('Error al crear suscripción:', error)
+      console.error('Error al crear/actualizar suscripción:', error)
       throw error
     }
 
-    console.log('✅ Suscripción creada con todos los campos:', subs.id)
+    console.log(`✅ Suscripción ${existingSubscription ? 'reparada' : 'creada'}:`, subs.id, {
+      base_price: basePrice,
+      discounted_price: priceInMXN,
+      transaction_amount: totalAmount,
+    })
     
-    // Enviar email de confirmación de suscripción
+    // Enviar email de confirmación solo si es nueva (no al reparar)
+    if (!existingSubscription) {
     try {
       const { sendSubscriptionEmail } = await import('@/lib/email-service')
       
@@ -310,6 +364,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       console.error('❌ Error enviando email de confirmación de suscripción:', emailError)
       // No lanzar error, solo registrar
     }
+    } // fin de !existingSubscription
   }
 }
 

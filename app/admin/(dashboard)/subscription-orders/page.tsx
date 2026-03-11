@@ -682,9 +682,21 @@ export default function AdminSubscriptionOrdersPage() {
   const getFrequencyLabel = (subscription: AdminSubscription) => {
     // Si tiene frequency y frequency_type (datos del webhook), usar esos
     if (subscription.frequency && subscription.frequency_type) {
-      const frequency = subscription.frequency
+      const frequency = typeof subscription.frequency === 'number' ? subscription.frequency : parseInt(subscription.frequency as any)
       const type = subscription.frequency_type
       
+      // Si frequency no es un número válido, usar fallback de subscription_type
+      if (isNaN(frequency)) {
+        const labels: Record<string, string> = {
+          'weekly': 'Semanal',
+          'biweekly': 'Cada 2 semanas',
+          'monthly': 'Mensual',
+          'quarterly': 'Cada 3 meses',
+          'annual': 'Anual'
+        }
+        return labels[subscription.subscription_type] || labels[String(subscription.frequency)] || subscription.subscription_type
+      }
+
       if (type === 'weeks') {
         return frequency === 1 ? 'Semanal' : `Cada ${frequency} semanas`
       } else if (type === 'months') {
