@@ -440,16 +440,16 @@ export class EmailService {
                 <div style="margin: 28px 0; padding: 20px 24px; background-color: #f0fafe; border-radius: 14px; border: 1px solid #c6e9eb; text-align: center;">
                   <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda?</p>
                   <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
-                  <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
+                  <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png?v=2" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
                 </div>
               </div>
               
               <!-- Footer -->
               <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
                 <div style="margin-bottom: 14px;">
-                  <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
-                  <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-                  <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
+                  <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
                 </div>
                 <p style="margin: 0; color: #6b7280; font-size: 12px;">
                   © 2025 Pet Gourmet. Todos los derechos reservados.
@@ -574,14 +574,14 @@ export class EmailService {
               <div style="margin: 20px 0; padding: 20px 24px; background-color: #f0fafe; border-radius: 14px; border: 1px solid #c6e9eb; text-align: center;">
                 <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda?</p>
                 <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">Escríbenos para cualquier consulta sobre la suscripción.</p>
-                <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
+                <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png?v=2" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
               </div>
               <!-- Footer redes sociales -->
               <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
                 <div style="margin-bottom: 14px;">
-                  <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
-                  <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-                  <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
+                  <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
                 </div>
                 <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
                   Este es un correo automático del sistema de suscripciones de Pet Gourmet.
@@ -939,14 +939,14 @@ function getOrderStatusTemplate(status: string, orderData: any) {
           <div style="margin: 28px 0; padding: 20px 24px; background-color: #f0fafe; border-radius: 14px; border: 1px solid #c6e9eb; text-align: center;">
             <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda con tu pedido?</p>
             <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
-            <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
+            <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png?v=2" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
           </div>
           <!-- Redes sociales & footer -->
           <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
             <div style="margin-bottom: 14px;">
-              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
-              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-              <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
+              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
+              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+              <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
               Si tienes alguna pregunta, contáctanos en
@@ -1141,14 +1141,14 @@ function getAdminNewOrderTemplate(orderData: any) {
           <div style="margin: 20px 0; padding: 20px 24px; background-color: #f0fafe; border-radius: 14px; border: 1px solid #c6e9eb; text-align: center;">
             <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda?</p>
             <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">Escríbenos para cualquier consulta sobre el pedido.</p>
-            <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
+            <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png?v=2" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
           </div>
           <!-- Footer redes sociales -->
           <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
             <div style="margin-bottom: 14px;">
-              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
-              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-              <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
+              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
+              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+              <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
               Este es un correo automático del sistema de pedidos de Pet Gourmet.
@@ -1432,16 +1432,16 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
             <div style="margin: 28px 0; padding: 20px 24px; background-color: #f0fafe; border-radius: 14px; border: 1px solid #c6e9eb; text-align: center;">
               <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda?</p>
               <p style="margin: 0 0 16px 0; font-size: 13px; color: #6b7280;">Escríbenos con tus dudas o comentarios.</p>
-              <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
+              <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png?v=2" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
             </div>
           </div>
 
           <!-- Footer -->
           <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
             <div style="margin-bottom: 14px;">
-              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
-              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-              <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
+              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
+              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+              <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #6b7280; font-size: 12px;">
               © 2025 Pet Gourmet. Todos los derechos reservados.
