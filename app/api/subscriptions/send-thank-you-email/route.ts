@@ -81,7 +81,10 @@ export async function POST(request: NextRequest) {
       to: user_email,
       subject: emailSubject,
       html: emailHtml,
-      text: emailText
+      text: emailText,
+      headers: {
+        'X-Entity-Ref-ID': `thankyou-${subscription_id || user_email}-${Date.now()}`,
+      }
     }
 
     const emailResult = await transporter.sendMail(mailOptions)

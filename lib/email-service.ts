@@ -73,7 +73,10 @@ export async function sendOrderStatusEmail(
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
       to: customerEmail,
       subject: template.subject,
-      html: template.html
+      html: template.html,
+      headers: {
+        'X-Entity-Ref-ID': `order-${orderData.id}-${orderStatus}-${Date.now()}`,
+      }
     };
 
     // Implementar reintentos automáticos con backoff exponencial
@@ -228,7 +231,10 @@ export async function sendSubscriptionEmail(
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
       to: subscriptionData.user_email,
       subject: template.subject,
-      html: template.html
+      html: template.html,
+      headers: {
+        'X-Entity-Ref-ID': `sub-${subscriptionData.external_reference || subscriptionData.user_email}-${emailType}-${Date.now()}`,
+      }
     };
 
     // Implementar reintentos automáticos

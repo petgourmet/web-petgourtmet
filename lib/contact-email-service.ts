@@ -331,7 +331,10 @@ export async function sendContactEmails(formData: ContactFormData) {
       from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
       to: formData.email,
       subject: customerTemplate.subject,
-      html: customerTemplate.html
+      html: customerTemplate.html,
+      headers: {
+        'X-Entity-Ref-ID': `contact-${formData.email}-${Date.now()}`,
+      }
     }
     
     // Email de notificación al admin
