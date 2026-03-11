@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
         subscription_type: subscription.subscription_type,
         amount: subscription.transaction_amount || subscription.discounted_price || 0,
         plan_description: subscription.product_name,
-        external_reference: subscription.stripe_subscription_id
+        external_reference: subscription.stripe_subscription_id,
+        subscription_id: subscription.id
       })
 
       // Email al admin

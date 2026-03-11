@@ -110,7 +110,8 @@ export async function POST(request: NextRequest) {
             })
           : 'Próximamente',
         plan_description: subscription.product_name,
-        external_reference: subscription.stripe_subscription_id
+        external_reference: subscription.stripe_subscription_id,
+        subscription_id: subscription.id
       })
 
       // Email al admin

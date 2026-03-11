@@ -106,7 +106,8 @@ export async function GET(request: NextRequest) {
           next_payment_date: nextPaymentDate,
           plan_description: subscription.product_name,
           external_reference: subscription.stripe_subscription_id || subscription.id,
-          days_until_payment: DAYS_BEFORE_PAYMENT
+          days_until_payment: DAYS_BEFORE_PAYMENT,
+          subscription_id: subscription.id
         })
 
         console.log(`✅ Notificación enviada a: ${subscription.customer_email}`)

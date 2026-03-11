@@ -274,7 +274,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           day: 'numeric'
         }),
         plan_description: `${subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet'} - Cada ${frequency} ${frequencyType === 'weeks' ? 'semana(s)' : 'mes(es)'}`,
-        external_reference: subscriptionId
+        external_reference: subscriptionId,
+        subscription_id: subs.id
       }
 
       const adminSubscriptionData = {
@@ -422,7 +423,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
         amount: (invoice.amount_paid || 0) / 100,
         next_payment_date: paymentNextDate,
         plan_description: subscription.product_name,
-        external_reference: subscriptionId
+        external_reference: subscriptionId,
+        subscription_id: subscription.id
       }),
       sendSubscriptionEmail('payment', {
         user_email: 'contacto@petgourmet.mx',

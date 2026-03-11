@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
       current_period_start: sub.current_period_start || undefined,
       current_period_end: sub.current_period_end || undefined,
       status: sub.status,
+      subscription_id: sub.id,
     }
 
     console.log(`[RESEND-SUB-EMAIL] Reenviando correo tipo "${emailType}" a ${userEmail} (sub #${subscriptionId})`)

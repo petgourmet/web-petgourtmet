@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Preview Emails – Pet Gourmet</title>
+  <style>
+    body { background: #d1d5db; font-family: sans-serif; padding: 20px; }
+    h2 { color: #374151; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 32px 0 8px; }
+    .email-wrapper { max-width: 620px; margin: 0 auto 60px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; background-color: white; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .tab { background: #7AB8BF; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .tab.active { background: #374151; }
+    .section { display: none; }
+    .section.active { display: block; }
+  </style>
+</head>
+<body>
+
+<div style="max-width:620px;margin:0 auto;">
+  <div style="background:#7AB8BF;padding:20px;border-radius:8px;margin-bottom:20px;text-align:center;">
+    <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width:160px;height:auto;">
+    <p style="color:white;margin:8px 0 0;font-size:13px;">Preview de Emails con Nuevo Diseño</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="show('pedido')">📦 Pedido</button>
+    <button class="tab" onclick="show('suscripcion')">🔄 Suscripción</button>
+    <button class="tab" onclick="show('newsletter')">📧 Newsletter</button>
+    <button class="tab" onclick="show('contacto')">💬 Contacto</button>
+    <button class="tab" onclick="show('admin-pedido')">🛒 Admin Pedido</button>
+    <button class="tab" onclick="show('admin-suscripcion')">🔔 Admin Suscripción</button>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PEDIDO                                                        -->
+<!-- ============================================================ -->
+<div id="pedido" class="section active">
+  <h2 style="max-width:620px;margin:0 auto 8px;">Email de Pedido (processing)</h2>
+  <div class="email-wrapper">
+    <!-- Header -->
+    <table style="width:100%;background:linear-gradient(135deg,#7AB8BF 0%,#5a9aa0 100%);background-color:#7AB8BF;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:30px 20px;" bgcolor="#7AB8BF" valign="middle">
+          <table style="width:100%;" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="width:70%;" valign="middle">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width:180px;height:auto;display:block;" />
+              </td>
+              <td style="width:30%;text-align:right;vertical-align:middle;" valign="middle">
+                <div style="background-color:rgba(255,255,255,0.2);padding:8px 15px;border-radius:6px;">
+                  <p style="margin:0;color:rgba(255,255,255,0.9);font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;">Pedido</p>
+                  <p style="margin:0;color:white;font-size:16px;font-weight:bold;margin-top:2px;">#1042</p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Body -->
+    <div style="padding:24px 20px;">
+      <h2 style="font-size:20px;color:#374151;margin-top:0;margin-bottom:15px;font-weight:normal;">Preparando tu pedido</h2>
+      <p style="font-size:14px;color:#4B5563;margin-top:0;margin-bottom:30px;">Hola <strong>Ana García</strong>, ya estamos preparando tu pedido con mucho cuidado. Pronto estará listo para el envío.</p>
+
+      <!-- Progress bar -->
+      <div style="margin-bottom:40px;padding:20px;background-color:white;border-radius:8px;border:1px solid #E5E7EB;">
+        <h3 style="font-size:14px;color:#374151;margin-top:0;margin-bottom:20px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;text-align:center;">Progreso del Pedido</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="width:25%;text-align:center;position:relative;">
+              <div style="background-color:#7AB8BF;color:white;width:32px;height:32px;border-radius:50%;display:inline-block;line-height:32px;font-size:16px;font-weight:bold;">1</div>
+              <div style="color:#374151;font-size:12px;margin-top:8px;font-weight:600;">Confirmado</div>
+            </td>
+            <td style="width:25%;text-align:center;">
+              <div style="background-color:#7AB8BF;color:white;width:32px;height:32px;border-radius:50%;display:inline-block;line-height:32px;font-size:16px;font-weight:bold;">2</div>
+              <div style="color:#374151;font-size:12px;margin-top:8px;font-weight:600;">Preparando</div>
+            </td>
+            <td style="width:25%;text-align:center;">
+              <div style="background-color:#E5E7EB;color:white;width:32px;height:32px;border-radius:50%;display:inline-block;line-height:32px;font-size:16px;font-weight:bold;">3</div>
+              <div style="color:#9CA3AF;font-size:12px;margin-top:8px;font-weight:600;">En camino</div>
+            </td>
+            <td style="width:25%;text-align:center;">
+              <div style="background-color:#E5E7EB;color:white;width:32px;height:32px;border-radius:50%;display:inline-block;line-height:32px;font-size:16px;font-weight:bold;">4</div>
+              <div style="color:#9CA3AF;font-size:12px;margin-top:8px;font-weight:600;">Entregado</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Productos -->
+      <div style="margin-bottom:30px;">
+        <h3 style="font-size:15px;color:#374151;margin-top:0;margin-bottom:15px;font-weight:normal;">Resumen del pedido</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:15px 0;border-bottom:1px solid #d1d5db;vertical-align:middle;width:60px;">
+              <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Flan de Pollo" style="width:50px;height:50px;border-radius:8px;object-fit:cover;" />
+            </td>
+            <td style="padding:15px 10px;border-bottom:1px solid #d1d5db;vertical-align:middle;text-align:left;">
+              <p style="margin:0;font-weight:bold;font-size:13px;color:#374151;text-transform:uppercase;">FLAN DE POLLO × 1</p>
+              <p style="margin:4px 0 0;font-size:11px;color:#6b7280;">Talla: Único</p>
+            </td>
+            <td style="padding:15px 0;border-bottom:1px solid #d1d5db;vertical-align:middle;text-align:right;width:100px;">
+              <p style="margin:0;font-weight:bold;font-size:13px;color:#374151;">$45.00</p>
+            </td>
+          </tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;margin-top:20px;">
+          <tr><td style="width:40%;"></td>
+          <td style="width:60%;">
+            <table style="width:100%;font-size:13px;color:#6b7280;">
+              <tr><td>Subtotal</td><td style="text-align:right;color:#374151;">$45.00</td></tr>
+              <tr><td>Envíos</td><td style="text-align:right;color:#374151;">$0.00</td></tr>
+              <tr><td style="border-bottom:1px solid #d1d5db;padding-bottom:15px;">Impuestos</td><td style="border-bottom:1px solid #d1d5db;padding-bottom:15px;text-align:right;color:#374151;">$0.00</td></tr>
+              <tr><td style="padding-top:20px;font-size:15px;">Total</td><td style="padding-top:20px;text-align:right;font-size:18px;font-weight:bold;color:#374151;">$145.00 MXN</td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </div>
+
+      <!-- Shipping info -->
+      <div style="margin-top:40px;padding-top:20px;border-top:1px solid #d1d5db;">
+        <h3 style="font-size:16px;color:#374151;margin-top:0;margin-bottom:15px;">Información del cliente</h3>
+        <table style="width:100%;font-size:13px;color:#6b7280;">
+          <tr>
+            <td style="width:50%;vertical-align:top;">
+              <p style="margin:0 0 5px;font-weight:bold;color:#374151;">Dirección de envío</p>
+              <p style="margin:0;">Cristofer Escalante</p>
+              <p style="margin:0;">carrera36#50-40 carrera36#50-40</p>
+              <p style="margin:0;">manizales, Caldas</p>
+              <p style="margin:0;">170004</p>
+            </td>
+            <td style="width:50%;vertical-align:top;">
+              <p style="margin:0 0 5px;font-weight:bold;color:#374151;">Teléfono</p>
+              <p style="margin:0;">+523228836459</p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- WhatsApp CTA -->
+    <div style="margin:28px 20px;padding:20px 24px;background-color:#f0fafe;border-radius:14px;border:1px solid #c6e9eb;text-align:center;">
+      <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#374151;">¿Necesitas ayuda con tu pedido?</p>
+      <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Escríbenos con tus dudas o comentarios.</p>
+      <a href="https://wa.me/525561269681" style="display:inline-block;background-color:#7AB8BF;color:white;padding:11px 26px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Enviar WhatsApp
+      </a>
+    </div>
+
+    <!-- Footer redes -->
+    <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
+      <div style="margin-bottom:14px;">
+        <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M20.23 19.2h-2.08v7.8H15.3v-7.8H13.8v-2.88h1.5v-1.73c0-2 .93-3.19 3.19-3.19h2.21v2.88H19.4c-.55 0-.73.25-.73.73v1.31h2.07l-.51 2.88z"/></svg></a>
+        <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M18 10.8c-1.97 0-2.22.01-3 .04-2.35.11-3.45 1.22-3.56 3.56-.03.77-.04 1.02-.04 2.99s.01 2.22.04 3c.11 2.34 1.21 3.45 3.56 3.56.77.03 1.02.04 3 .04s2.22-.01 3-.04c2.35-.11 3.45-1.22 3.56-3.56.03-.77.04-1.02.04-3s-.01-2.22-.04-3c-.11-2.34-1.21-3.45-3.56-3.56C20.22 10.81 19.97 10.8 18 10.8zm0 1.31c1.93 0 2.16 0 2.92.04 1.78.08 2.6.91 2.69 2.69.03.76.04.98.04 2.92s0 2.16-.04 2.92c-.09 1.77-.91 2.61-2.69 2.69-.76.03-.99.04-2.92.04s-2.16 0-2.92-.04c-1.78-.08-2.6-.92-2.69-2.69-.04-.76-.04-.99-.04-2.92s0-2.16.04-2.92c.09-1.78.91-2.61 2.69-2.69.76-.04.99-.04 2.92-.04zm0 2.23a3.66 3.66 0 100 7.32 3.66 3.66 0 000-7.32zm0 6.03a2.37 2.37 0 110-4.74 2.37 2.37 0 010 4.74zm4.67-6.18a.86.86 0 100 1.72.86.86 0 000-1.72z"/></svg></a>
+        <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M27.4 13.4a2.45 2.45 0 00-1.73-1.73C24 11.2 18 11.2 18 11.2s-6 0-7.67.47a2.45 2.45 0 00-1.73 1.73C8.13 15.07 8.13 18 8.13 18s0 2.93.47 4.6a2.45 2.45 0 001.73 1.73c1.67.47 7.67.47 7.67.47s6 0 7.67-.47a2.45 2.45 0 001.73-1.73C27.87 20.93 27.87 18 27.87 18s0-2.93-.47-4.6zM15.73 20.73V15.27L21.2 18l-5.47 2.73z"/></svg></a>
+      </div>
+      <p style="margin:0;color:#9CA3AF;font-size:12px;">Si tienes alguna pregunta, contáctanos en <a href="mailto:contacto@petgourmet.mx" style="color:#7AB8BF;">contacto@petgourmet.mx</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SUSCRIPCION                                                   -->
+<!-- ============================================================ -->
+<div id="suscripcion" class="section">
+  <h2 style="max-width:620px;margin:0 auto 8px;">Email de Suscripción (created)</h2>
+  <div class="email-wrapper">
+    <table style="width:100%;background:linear-gradient(135deg,#7AB8BF 0%,#5a9aa0 100%);background-color:#7AB8BF;border-radius:8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+      <tr><td style="padding:30px 20px;background-color:#7AB8BF;text-align:center;" bgcolor="#7AB8BF">
+        <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width:200px;height:auto;display:block;margin:0 auto;" />
+      </td></tr>
+    </table>
+    <div style="padding:30px 20px;background:white;">
+      <div style="text-align:center;margin-bottom:30px;">
+        <div style="background-color:#7AB8BF;color:white;padding:15px 25px;border-radius:25px;display:inline-block;font-size:18px;font-weight:bold;">
+          🎉 ¡Suscripción Activada!
+        </div>
+      </div>
+      <p style="font-size:16px;margin-bottom:20px;text-align:center;">Hola <strong>María López</strong>,</p>
+      <p style="font-size:16px;margin-bottom:20px;text-align:center;">Gracias por suscribirte a Pet Gourmet. Tu suscripción ha sido activada exitosamente y recibirás tu primer envío pronto.</p>
+
+      <div style="background-color:#f8fafc;padding:20px;border-radius:8px;margin:20px 0;">
+        <h3 style="margin-top:0;color:#374151;text-align:center;">📦 Detalles de tu Suscripción</h3>
+        <div style="margin:15px 0;padding:15px;background-color:white;border-radius:8px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px 12px;border:1px solid #e5e7eb;background-color:#7AB8BF;color:white;font-weight:bold;font-size:13px;width:40%;">ID Suscripción</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;font-weight:bold;color:#374151;">#842</td></tr>
+            <tr><td style="padding:10px 0;color:#6b7280;font-size:14px;border-top:1px solid #e5e7eb;">Tipo de suscripción:</td><td style="padding:10px 0;text-align:right;font-weight:bold;color:#374151;border-top:1px solid #e5e7eb;">Suscripción Mensual</td></tr>
+            <tr><td style="padding:10px 0;color:#6b7280;font-size:14px;border-top:1px solid #e5e7eb;">Monto por período:</td><td style="padding:10px 0;text-align:right;font-weight:bold;color:#10b981;font-size:18px;border-top:1px solid #e5e7eb;">$349.00 MXN</td></tr>
+            <tr><td style="padding:10px 0;color:#6b7280;font-size:14px;border-top:1px solid #e5e7eb;">Próximo cobro:</td><td style="padding:10px 0;text-align:right;font-weight:bold;color:#7AB8BF;border-top:1px solid #e5e7eb;">11 de abril de 2026</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div style="background-color:#ecfdf5;padding:20px;border-radius:8px;margin:20px 0;">
+        <h3 style="margin-top:0;color:#065f46;text-align:center;">🎁 Beneficios de tu Suscripción</h3>
+        <ul style="list-style:none;padding:0;margin:0;">
+          <li style="padding:8px 0;color:#047857;">✓ Nutrición premium para tu mascota</li>
+          <li style="padding:8px 0;color:#047857;">✓ Entrega automática cada período</li>
+          <li style="padding:8px 0;color:#047857;">✓ Descuentos exclusivos de suscriptor</li>
+          <li style="padding:8px 0;color:#047857;">✓ Soporte prioritario</li>
+          <li style="padding:8px 0;color:#047857;">✓ Cancela o pausa cuando quieras</li>
+        </ul>
+      </div>
+
+      <div style="text-align:center;margin:30px 0;">
+        <a href="https://petgourmet.mx/suscripcion" style="background-color:#7AB8BF;color:white;padding:12px 32px;text-decoration:none;border-radius:50px;display:inline-block;font-weight:bold;font-size:15px;">Gestionar mi suscripción</a>
+      </div>
+
+      <div style="margin:28px 0;padding:20px 24px;background-color:#f0fafe;border-radius:14px;border:1px solid #c6e9eb;text-align:center;">
+        <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#374151;">¿Necesitas ayuda?</p>
+        <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Escríbenos con tus dudas o comentarios.</p>
+        <a href="https://wa.me/525561269681" style="display:inline-block;background-color:#7AB8BF;color:white;padding:11px 26px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Enviar WhatsApp
+        </a>
+      </div>
+    </div>
+    <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
+      <div style="margin-bottom:14px;">
+        <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M20.23 19.2h-2.08v7.8H15.3v-7.8H13.8v-2.88h1.5v-1.73c0-2 .93-3.19 3.19-3.19h2.21v2.88H19.4c-.55 0-.73.25-.73.73v1.31h2.07l-.51 2.88z"/></svg></a>
+        <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M18 10.8c-1.97 0-2.22.01-3 .04-2.35.11-3.45 1.22-3.56 3.56-.03.77-.04 1.02-.04 2.99s.01 2.22.04 3c.11 2.34 1.21 3.45 3.56 3.56.77.03 1.02.04 3 .04s2.22-.01 3-.04c2.35-.11 3.45-1.22 3.56-3.56.03-.77.04-1.02.04-3s-.01-2.22-.04-3c-.11-2.34-1.21-3.45-3.56-3.56C20.22 10.81 19.97 10.8 18 10.8zm0 1.31c1.93 0 2.16 0 2.92.04 1.78.08 2.6.91 2.69 2.69.03.76.04.98.04 2.92s0 2.16-.04 2.92c-.09 1.77-.91 2.61-2.69 2.69-.76.03-.99.04-2.92.04s-2.16 0-2.92-.04c-1.78-.08-2.6-.92-2.69-2.69-.04-.76-.04-.99-.04-2.92s0-2.16.04-2.92c.09-1.78.91-2.61 2.69-2.69.76-.04.99-.04 2.92-.04zm0 2.23a3.66 3.66 0 100 7.32 3.66 3.66 0 000-7.32zm0 6.03a2.37 2.37 0 110-4.74 2.37 2.37 0 010 4.74zm4.67-6.18a.86.86 0 100 1.72.86.86 0 000-1.72z"/></svg></a>
+        <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M27.4 13.4a2.45 2.45 0 00-1.73-1.73C24 11.2 18 11.2 18 11.2s-6 0-7.67.47a2.45 2.45 0 00-1.73 1.73C8.13 15.07 8.13 18 8.13 18s0 2.93.47 4.6a2.45 2.45 0 001.73 1.73c1.67.47 7.67.47 7.67.47s6 0 7.67-.47a2.45 2.45 0 001.73-1.73C27.87 20.93 27.87 18 27.87 18s0-2.93-.47-4.6zM15.73 20.73V15.27L21.2 18l-5.47 2.73z"/></svg></a>
+      </div>
+      <p style="margin:0;color:#6b7280;font-size:12px;">© 2025 Pet Gourmet. Todos los derechos reservados.</p>
+      <p style="margin:10px 0 0;color:#9ca3af;font-size:11px;">Este correo fue enviado a maria@ejemplo.com</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- NEWSLETTER                                                    -->
+<!-- ============================================================ -->
+<div id="newsletter" class="section">
+  <h2 style="max-width:620px;margin:0 auto 8px;">Email de Newsletter (bienvenida)</h2>
+  <div class="email-wrapper">
+    <table style="width:100%;background:linear-gradient(135deg,#7AB8BF 0%,#5a9aa0 100%);background-color:#7AB8BF;border-radius:8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+      <tr><td style="padding:30px 20px;background-color:#7AB8BF;text-align:center;" bgcolor="#7AB8BF">
+        <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width:180px;height:auto;display:block;margin:0 auto;" />
+      </td></tr>
+    </table>
+    <div style="background-color:white;padding:30px 25px;">
+      <h1 style="color:#7AB8BF;text-align:center;font-size:24px;margin-top:0;">¡Bienvenido a nuestra manada! 🐾</h1>
+      <p>¡Hola!</p>
+      <p>Gracias por suscribirte al newsletter de Pet Gourmet. Nos emociona tenerte como parte de nuestra familia.</p>
+      <div style="background-color:#e6f4f5;padding:20px;border-radius:8px;margin:20px 0;text-align:center;border-left:4px solid #7AB8BF;">
+        <h3 style="margin-top:0;color:#7AB8BF;">🎉 ¡Suscripción confirmada!</h3>
+        <p style="margin-bottom:0;">Tu email <strong>usuario@ejemplo.com</strong> ha sido agregado exitosamente a nuestra lista.</p>
+      </div>
+      <div style="background-color:#f8f9fa;padding:20px;border-radius:8px;margin:20px 0;">
+        <h3 style="margin-top:0;color:#7AB8BF;">¿Qué puedes esperar?</h3>
+        <ul style="padding-left:20px;margin:0;">
+          <li style="margin-bottom:8px;">🏷️ <strong>Ofertas exclusivas</strong> para suscriptores</li>
+          <li style="margin-bottom:8px;">🍽️ <strong>Consejos de nutrición</strong> para tu mascota</li>
+          <li style="margin-bottom:8px;">🆕 <strong>Nuevos productos</strong> antes que nadie</li>
+          <li style="margin-bottom:0;">💡 <strong>Tips de cuidado</strong> y bienestar animal</li>
+        </ul>
+      </div>
+      <div style="text-align:center;margin:30px 0;">
+        <a href="https://petgourmet.mx/productos" style="background-color:#7AB8BF;color:white;padding:15px 30px;text-decoration:none;border-radius:25px;font-weight:bold;display:inline-block;font-size:15px;">🛒 Explorar Productos</a>
+      </div>
+      <div style="margin:25px 0;padding:20px;background-color:#f0fafe;border-radius:12px;border:1px solid #c6e9eb;text-align:center;">
+        <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#374151;">¿Tienes alguna pregunta?</p>
+        <p style="margin:0 0 15px;font-size:13px;color:#6b7280;">Escríbenos con tus dudas o comentarios.</p>
+        <a href="https://wa.me/525561269681" style="display:inline-block;background-color:#7AB8BF;color:white;padding:10px 26px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Enviar WhatsApp
+        </a>
+      </div>
+    </div>
+    <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;border-radius:0 0 8px 8px;">
+      <div style="margin-bottom:12px;">
+        <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M20.23 19.2h-2.08v7.8H15.3v-7.8H13.8v-2.88h1.5v-1.73c0-2 .93-3.19 3.19-3.19h2.21v2.88H19.4c-.55 0-.73.25-.73.73v1.31h2.07l-.51 2.88z"/></svg></a>
+        <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M18 10.8c-1.97 0-2.22.01-3 .04-2.35.11-3.45 1.22-3.56 3.56-.03.77-.04 1.02-.04 2.99s.01 2.22.04 3c.11 2.34 1.21 3.45 3.56 3.56.77.03 1.02.04 3 .04s2.22-.01 3-.04c2.35-.11 3.45-1.22 3.56-3.56.03-.77.04-1.02.04-3s-.01-2.22-.04-3c-.11-2.34-1.21-3.45-3.56-3.56C20.22 10.81 19.97 10.8 18 10.8zm0 1.31c1.93 0 2.16 0 2.92.04 1.78.08 2.6.91 2.69 2.69.03.76.04.98.04 2.92s0 2.16-.04 2.92c-.09 1.77-.91 2.61-2.69 2.69-.76.03-.99.04-2.92.04s-2.16 0-2.92-.04c-1.78-.08-2.6-.92-2.69-2.69-.04-.76-.04-.99-.04-2.92s0-2.16.04-2.92c.09-1.78.91-2.61 2.69-2.69.76-.04.99-.04 2.92-.04zm0 2.23a3.66 3.66 0 100 7.32 3.66 3.66 0 000-7.32zm0 6.03a2.37 2.37 0 110-4.74 2.37 2.37 0 010 4.74zm4.67-6.18a.86.86 0 100 1.72.86.86 0 000-1.72z"/></svg></a>
+        <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M27.4 13.4a2.45 2.45 0 00-1.73-1.73C24 11.2 18 11.2 18 11.2s-6 0-7.67.47a2.45 2.45 0 00-1.73 1.73C8.13 15.07 8.13 18 8.13 18s0 2.93.47 4.6a2.45 2.45 0 001.73 1.73c1.67.47 7.67.47 7.67.47s6 0 7.67-.47a2.45 2.45 0 001.73-1.73C27.87 20.93 27.87 18 27.87 18s0-2.93-.47-4.6zM15.73 20.73V15.27L21.2 18l-5.47 2.73z"/></svg></a>
+      </div>
+      <p style="margin:0;color:#6b7280;font-size:12px;">© 2025 Pet Gourmet. Todos los derechos reservados.</p>
+      <p style="margin:8px 0 0;color:#9ca3af;font-size:11px;line-height:1.6;">
+        Avenida José María Castorena 425, plaza Cuajimalpa Local 8, Cuajimalpa, Ciudad de México<br>
+        Si no deseas recibir más emails, puedes <a href="#" style="color:#7AB8BF;">darte de baja aquí</a>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- CONTACTO                                                      -->
+<!-- ============================================================ -->
+<div id="contacto" class="section">
+  <h2 style="max-width:620px;margin:0 auto 8px;">Email de Confirmación de Contacto</h2>
+  <div class="email-wrapper">
+    <div style="text-align:center;margin-bottom:30px;padding:20px;background:linear-gradient(135deg,#7AB8BF 0%,#5a9aa0 100%);">
+      <div style="display:inline-block;background:linear-gradient(135deg,#7AB8BF 0%,#5A9EA6 100%);padding:20px;border-radius:15px;box-shadow:0 4px 15px rgba(122,184,191,0.3);">
+        <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width:180px;height:auto;display:block;">
+      </div>
+    </div>
+    <div style="padding:0 30px 20px;background-color:white;">
+      <h1 style="color:#7AB8BF;">¡Gracias por contactarnos, Carlos!</h1>
+      <p>Hemos recibido tu mensaje y queremos confirmarte que llegó correctamente a nuestro equipo.</p>
+      <div style="background-color:#f8f9fa;padding:20px;border-radius:8px;margin:20px 0;">
+        <h3 style="margin-top:0;color:#7AB8BF;">Resumen de tu mensaje:</h3>
+        <p><strong>Nombre:</strong> Carlos Mendoza</p>
+        <p><strong>Email:</strong> carlos@ejemplo.com</p>
+        <p><strong>Mensaje:</strong></p>
+        <p style="background-color:white;padding:15px;border-radius:4px;border-left:4px solid #7AB8BF;">
+          Hola, me gustaría saber más sobre sus planes de alimentación personalizados para mi golden retriever de 3 años.
+        </p>
+      </div>
+      <div style="background-color:#d4edda;padding:15px;border-radius:8px;margin:20px 0;">
+        <p><strong>📞 ¿Qué sigue?</strong></p>
+        <p>Nuestro equipo revisará tu mensaje y te responderemos en un plazo máximo de 24 horas.</p>
+      </div>
+    </div>
+
+    <!-- WhatsApp CTA -->
+    <div style="margin:0 20px 20px;padding:20px;background-color:#f0fafe;border-radius:12px;border:1px solid #c6e9eb;text-align:center;">
+      <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#374151;">¿Tienes alguna pregunta?</p>
+      <p style="margin:0 0 15px;font-size:13px;color:#6b7280;">Escríbenos con tus dudas o comentarios.</p>
+      <a href="https://wa.me/525561269681" style="display:inline-block;background-color:#7AB8BF;color:white;padding:10px 26px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Enviar WhatsApp
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;border-radius:0 0 8px 8px;">
+      <div style="margin-bottom:12px;">
+        <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M20.23 19.2h-2.08v7.8H15.3v-7.8H13.8v-2.88h1.5v-1.73c0-2 .93-3.19 3.19-3.19h2.21v2.88H19.4c-.55 0-.73.25-.73.73v1.31h2.07l-.51 2.88z"/></svg></a>
+        <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M18 10.8c-1.97 0-2.22.01-3 .04-2.35.11-3.45 1.22-3.56 3.56-.03.77-.04 1.02-.04 2.99s.01 2.22.04 3c.11 2.34 1.21 3.45 3.56 3.56.77.03 1.02.04 3 .04s2.22-.01 3-.04c2.35-.11 3.45-1.22 3.56-3.56.03-.77.04-1.02.04-3s-.01-2.22-.04-3c-.11-2.34-1.21-3.45-3.56-3.56C20.22 10.81 19.97 10.8 18 10.8zm0 1.31c1.93 0 2.16 0 2.92.04 1.78.08 2.6.91 2.69 2.69.03.76.04.98.04 2.92s0 2.16-.04 2.92c-.09 1.77-.91 2.61-2.69 2.69-.76.03-.99.04-2.92.04s-2.16 0-2.92-.04c-1.78-.08-2.6-.92-2.69-2.69-.04-.76-.04-.99-.04-2.92s0-2.16.04-2.92c.09-1.78.91-2.61 2.69-2.69.76-.04.99-.04 2.92-.04zm0 2.23a3.66 3.66 0 100 7.32 3.66 3.66 0 000-7.32zm0 6.03a2.37 2.37 0 110-4.74 2.37 2.37 0 010 4.74zm4.67-6.18a.86.86 0 100 1.72.86.86 0 000-1.72z"/></svg></a>
+        <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M27.4 13.4a2.45 2.45 0 00-1.73-1.73C24 11.2 18 11.2 18 11.2s-6 0-7.67.47a2.45 2.45 0 00-1.73 1.73C8.13 15.07 8.13 18 8.13 18s0 2.93.47 4.6a2.45 2.45 0 001.73 1.73c1.67.47 7.67.47 7.67.47s6 0 7.67-.47a2.45 2.45 0 001.73-1.73C27.87 20.93 27.87 18 27.87 18s0-2.93-.47-4.6zM15.73 20.73V15.27L21.2 18l-5.47 2.73z"/></svg></a>
+      </div>
+      <p style="margin:0;color:#6b7280;font-size:12px;">© 2025 Pet Gourmet. Todos los derechos reservados.</p>
+      <p style="margin:8px 0 0;color:#9ca3af;font-size:11px;line-height:1.6;">
+        Avenida José María Castorena 425, plaza Cuajimalpa Local 6, Cuajimalpa, Ciudad de México<br>
+        Este es un mensaje automático, por favor no respondas a este email.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ADMIN PEDIDO                                                  -->
+<!-- ============================================================ -->
+<div id="admin-pedido" class="section">
+  <h2 style="max-width:620px;margin:0 auto 8px;">Email Centro Logística – Nuevo Pedido</h2>
+  <div class="email-wrapper">
+    <table style="width:100%;background:linear-gradient(135deg,#7AB8BF 0%,#5a9aa0 100%);background-color:#7AB8BF;border-radius:8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:30px 20px;background-color:#7AB8BF;" bgcolor="#7AB8BF" valign="middle">
+          <table style="width:100%;" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="width:70%;" valign="middle">
+                <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width:180px;height:auto;display:block;" />
+              </td>
+              <td style="width:30%;text-align:right;" valign="middle">
+                <div style="background-color:rgba(255,255,255,0.2);padding:8px 15px;border-radius:6px;">
+                  <p style="margin:0;color:rgba(255,255,255,0.9);font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;">Pedido</p>
+                  <p style="margin:0;color:white;font-size:16px;font-weight:bold;margin-top:2px;">#1042</p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Alerta nuevo pedido -->
+    <div style="background-color:#ecfdf5;padding:20px;border-left:4px solid #10b981;">
+      <table style="width:100%;">
+        <tr>
+          <td style="width:40px;vertical-align:top;"><span style="font-size:28px;">🛒</span></td>
+          <td>
+            <h2 style="font-size:20px;color:#065f46;margin:0 0 5px;">¡Nuevo Pedido Recibido!</h2>
+            <p style="font-size:14px;color:#047857;margin:0;">Se ha recibido un nuevo pedido que requiere preparación.</p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="background-color:white;padding:25px 20px;border-radius:0 0 8px 8px;">
+      <!-- Datos del cliente -->
+      <div style="margin-bottom:25px;padding:15px;background-color:#f0f9ff;border-radius:8px;border:1px solid #bae6fd;">
+        <h3 style="font-size:14px;color:#0c4a6e;margin-top:0;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">👤 Datos del Cliente</h3>
+        <table style="width:100%;font-size:13px;color:#374151;">
+          <tr><td style="padding:4px 0;font-weight:600;width:100px;">Nombre:</td><td style="padding:4px 0;">Ana García López</td></tr>
+          <tr><td style="padding:4px 0;font-weight:600;">Email:</td><td style="padding:4px 0;"><a href="mailto:ana@ejemplo.com" style="color:#7AB8BF;text-decoration:none;">ana@ejemplo.com</a></td></tr>
+          <tr><td style="padding:4px 0;font-weight:600;">Teléfono:</td><td style="padding:4px 0;">+525561234567</td></tr>
+        </table>
+      </div>
+
+      <!-- Productos -->
+      <div style="margin-bottom:20px;">
+        <h3 style="font-size:14px;color:#374151;margin-top:0;margin-bottom:15px;text-transform:uppercase;letter-spacing:0.05em;">📦 Productos del Pedido</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:12px 0;border-bottom:1px solid #d1d5db;vertical-align:middle;width:60px;">
+              <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Flan de Pollo" style="width:50px;height:50px;border-radius:8px;object-fit:cover;" />
+            </td>
+            <td style="padding:12px 10px;border-bottom:1px solid #d1d5db;vertical-align:middle;">
+              <p style="margin:0;font-weight:bold;font-size:13px;color:#374151;text-transform:uppercase;">FLAN DE POLLO × 1</p>
+            </td>
+            <td style="padding:12px 0;border-bottom:1px solid #d1d5db;vertical-align:middle;text-align:right;width:100px;">
+              <p style="margin:0;font-weight:bold;font-size:13px;color:#374151;">$145.00</p>
+            </td>
+          </tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;margin-top:15px;">
+          <tr><td style="width:40%;"></td>
+          <td style="width:60%;">
+            <table style="width:100%;font-size:13px;color:#6b7280;">
+              <tr><td style="padding:5px 0;border-top:2px solid #d1d5db;font-size:16px;font-weight:bold;color:#374151;">Total</td><td style="padding:5px 0;border-top:2px solid #d1d5db;text-align:right;font-size:18px;font-weight:bold;color:#065f46;">$145.00 MXN</td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </div>
+
+      <!-- Dirección -->
+      <div style="margin-top:25px;padding:15px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+        <h3 style="font-size:14px;color:#374151;margin-top:0;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">📍 Dirección de envío</h3>
+        <p style="margin:0;font-size:13px;color:#4b5563;line-height:1.6;">Ana García López<br>Av. Insurgentes Sur 1234, Col. Del Valle<br>Ciudad de México, CDMX 03100<br>📞 +525561234567</p>
+      </div>
+
+      <!-- Botón admin -->
+      <div style="text-align:center;margin-top:30px;">
+        <a href="https://petgourmet.mx/admin/orders/1042" style="background-color:#7AB8BF;color:white;padding:14px 30px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;display:inline-block;">Ver Pedido en Admin</a>
+      </div>
+
+      <!-- WhatsApp CTA -->
+      <div style="margin:20px 0;padding:20px 24px;background-color:#f0fafe;border-radius:14px;border:1px solid #c6e9eb;text-align:center;">
+        <p style="margin:0 0 4px 0;font-size:15px;font-weight:700;color:#374151;">¿Necesitas ayuda?</p>
+        <p style="margin:0 0 16px 0;font-size:13px;color:#6b7280;">Escríbenos para cualquier consulta sobre el pedido.</p>
+        <a href="https://wa.me/525561269681" style="display:inline-block;background-color:#7AB8BF;color:white;padding:11px 26px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Enviar WhatsApp
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer redes -->
+    <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
+      <div style="margin-bottom:14px;">
+        <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M20.23 19.2h-2.08v7.8H15.3v-7.8H13.8v-2.88h1.5v-1.73c0-2 .93-3.19 3.19-3.19h2.21v2.88H19.4c-.55 0-.73.25-.73.73v1.31h2.07l-.51 2.88z"/></svg></a>
+        <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M18 10.8c-1.97 0-2.22.01-3 .04-2.35.11-3.45 1.22-3.56 3.56-.03.77-.04 1.02-.04 2.99s.01 2.22.04 3c.11 2.34 1.21 3.45 3.56 3.56.77.03 1.02.04 3 .04s2.22-.01 3-.04c2.35-.11 3.45-1.22 3.56-3.56.03-.77.04-1.02.04-3s-.01-2.22-.04-3c-.11-2.34-1.21-3.45-3.56-3.56C20.22 10.81 19.97 10.8 18 10.8zm0 1.31c1.93 0 2.16 0 2.92.04 1.78.08 2.6.91 2.69 2.69.03.76.04.98.04 2.92s0 2.16-.04 2.92c-.09 1.77-.91 2.61-2.69 2.69-.76.03-.99.04-2.92.04s-2.16 0-2.92-.04c-1.78-.08-2.6-.92-2.69-2.69-.04-.76-.04-.99-.04-2.92s0-2.16.04-2.92c.09-1.78.91-2.61 2.69-2.69.76-.04.99-.04 2.92-.04zm0 2.23a3.66 3.66 0 100 7.32 3.66 3.66 0 000-7.32zm0 6.03a2.37 2.37 0 110-4.74 2.37 2.37 0 010 4.74zm4.67-6.18a.86.86 0 100 1.72.86.86 0 000-1.72z"/></svg></a>
+        <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M27.4 13.4a2.45 2.45 0 00-1.73-1.73C24 11.2 18 11.2 18 11.2s-6 0-7.67.47a2.45 2.45 0 00-1.73 1.73C8.13 15.07 8.13 18 8.13 18s0 2.93.47 4.6a2.45 2.45 0 001.73 1.73c1.67.47 7.67.47 7.67.47s6 0 7.67-.47a2.45 2.45 0 001.73-1.73C27.87 20.93 27.87 18 27.87 18s0-2.93-.47-4.6zM15.73 20.73V15.27L21.2 18l-5.47 2.73z"/></svg></a>
+      </div>
+      <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:1.5;">Este es un correo automático del sistema de pedidos de Pet Gourmet.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ADMIN SUSCRIPCION                                             -->
+<!-- ============================================================ -->
+<div id="admin-suscripcion" class="section">
+  <h2 style="max-width:620px;margin:0 auto 8px;">Email Centro Logística – Cambio de Suscripción</h2>
+  <div class="email-wrapper">
+    <table style="width:100%;background:linear-gradient(135deg,#7AB8BF 0%,#5a9aa0 100%);background-color:#7AB8BF;border-radius:8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+      <tr><td style="padding:30px 20px;background-color:#7AB8BF;text-align:center;" bgcolor="#7AB8BF">
+        <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width:180px;height:auto;display:block;margin:0 auto;" />
+      </td></tr>
+    </table>
+
+    <!-- Alerta cambio de estado -->
+    <div style="background-color:#fef3c7;padding:20px;border-left:4px solid #f59e0b;">
+      <table style="width:100%;">
+        <tr>
+          <td style="width:40px;vertical-align:top;"><span style="font-size:28px;">🔔</span></td>
+          <td>
+            <h2 style="font-size:20px;color:#92400e;margin:0 0 5px;">Cambio de Estado de Suscripción</h2>
+            <p style="font-size:14px;color:#b45309;margin:0;">Se ha registrado un cambio de estado en una suscripción.</p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="background-color:white;padding:25px 20px;border-radius:0 0 8px 8px;">
+      <!-- Datos del cliente -->
+      <div style="margin-bottom:25px;padding:15px;background-color:#f0f9ff;border-radius:8px;border:1px solid #bae6fd;">
+        <h3 style="font-size:14px;color:#0c4a6e;margin-top:0;margin-bottom:10px;text-transform:uppercase;">👤 Datos del Cliente</h3>
+        <table style="width:100%;font-size:13px;color:#374151;">
+          <tr><td style="padding:4px 0;font-weight:600;width:100px;">Nombre:</td><td>María López García</td></tr>
+          <tr><td style="padding:4px 0;font-weight:600;">Email:</td><td><a href="mailto:maria@ejemplo.com" style="color:#7AB8BF;text-decoration:none;">maria@ejemplo.com</a></td></tr>
+        </table>
+      </div>
+
+      <!-- Detalles suscripción -->
+      <div style="margin-bottom:20px;">
+        <h3 style="font-size:14px;color:#374151;margin-top:0;margin-bottom:15px;text-transform:uppercase;">📊 Información de la Suscripción</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr><td style="padding:8px 12px;border:1px solid #e5e7eb;background-color:#7AB8BF;color:white;font-weight:bold;font-size:13px;width:40%;">ID Suscripción</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;">#SUB-2024-0842</td></tr>
+          <tr><td style="padding:8px 12px;border:1px solid #e5e7eb;background-color:#7AB8BF;color:white;font-weight:bold;font-size:13px;">Tipo</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;">Suscripción Mensual</td></tr>
+          <tr><td style="padding:8px 12px;border:1px solid #e5e7eb;background-color:#7AB8BF;color:white;font-weight:bold;font-size:13px;">Estado anterior</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">pending</td></tr>
+          <tr><td style="padding:8px 12px;border:1px solid #e5e7eb;background-color:#7AB8BF;color:white;font-weight:bold;font-size:13px;">Nuevo estado</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;"><span style="background-color:#d1fae5;color:#065f46;padding:3px 10px;border-radius:9999px;font-size:12px;font-weight:600;">✅ Activa</span></td></tr>
+        </table>
+      </div>
+
+      <!-- Botón admin -->
+      <div style="text-align:center;margin-top:30px;">
+        <a href="https://petgourmet.mx/admin/subscriptions" style="background-color:#7AB8BF;color:white;padding:14px 30px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;display:inline-block;">Ver en Panel de Admin</a>
+      </div>
+
+      <!-- WhatsApp CTA -->
+      <div style="margin:20px 0;padding:20px 24px;background-color:#f0fafe;border-radius:14px;border:1px solid #c6e9eb;text-align:center;">
+        <p style="margin:0 0 4px 0;font-size:15px;font-weight:700;color:#374151;">¿Necesitas ayuda?</p>
+        <p style="margin:0 0 16px 0;font-size:13px;color:#6b7280;">Escríbenos para cualquier consulta sobre la suscripción.</p>
+        <a href="https://wa.me/525561269681" style="display:inline-block;background-color:#7AB8BF;color:white;padding:11px 26px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Enviar WhatsApp
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer redes -->
+    <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
+      <div style="margin-bottom:14px;">
+        <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M20.23 19.2h-2.08v7.8H15.3v-7.8H13.8v-2.88h1.5v-1.73c0-2 .93-3.19 3.19-3.19h2.21v2.88H19.4c-.55 0-.73.25-.73.73v1.31h2.07l-.51 2.88z"/></svg></a>
+        <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M18 10.8c-1.97 0-2.22.01-3 .04-2.35.11-3.45 1.22-3.56 3.56-.03.77-.04 1.02-.04 2.99s.01 2.22.04 3c.11 2.34 1.21 3.45 3.56 3.56.77.03 1.02.04 3 .04s2.22-.01 3-.04c2.35-.11 3.45-1.22 3.56-3.56.03-.77.04-1.02.04-3s-.01-2.22-.04-3c-.11-2.34-1.21-3.45-3.56-3.56C20.22 10.81 19.97 10.8 18 10.8zm0 1.31c1.93 0 2.16 0 2.92.04 1.78.08 2.6.91 2.69 2.69.03.76.04.98.04 2.92s0 2.16-.04 2.92c-.09 1.77-.91 2.61-2.69 2.69-.76.03-.99.04-2.92.04s-2.16 0-2.92-.04c-1.78-.08-2.6-.92-2.69-2.69-.04-.76-.04-.99-.04-2.92s0-2.16.04-2.92c.09-1.78.91-2.61 2.69-2.69.76-.04.99-.04 2.92-.04zm0 2.23a3.66 3.66 0 100 7.32 3.66 3.66 0 000-7.32zm0 6.03a2.37 2.37 0 110-4.74 2.37 2.37 0 010 4.74zm4.67-6.18a.86.86 0 100 1.72.86.86 0 000-1.72z"/></svg></a>
+        <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><svg width="34" height="34" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="18" fill="#7AB8BF"/><path fill="white" d="M27.4 13.4a2.45 2.45 0 00-1.73-1.73C24 11.2 18 11.2 18 11.2s-6 0-7.67.47a2.45 2.45 0 00-1.73 1.73C8.13 15.07 8.13 18 8.13 18s0 2.93.47 4.6a2.45 2.45 0 001.73 1.73c1.67.47 7.67.47 7.67.47s6 0 7.67-.47a2.45 2.45 0 001.73-1.73C27.87 20.93 27.87 18 27.87 18s0-2.93-.47-4.6zM15.73 20.73V15.27L21.2 18l-5.47 2.73z"/></svg></a>
+      </div>
+      <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:1.5;">Este es un correo automático del sistema de suscripciones de Pet Gourmet.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

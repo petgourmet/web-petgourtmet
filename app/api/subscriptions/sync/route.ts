@@ -279,7 +279,8 @@ export async function POST(request: NextRequest) {
           year: 'numeric', month: 'long', day: 'numeric'
         }),
         plan_description: `${subscriptionLineItem?.description || productFromDB?.name || 'Suscripción Pet Gourmet'} - Cada ${frequency} ${frequencyType === 'weeks' ? 'semana(s)' : 'mes(es)'}`,
-        external_reference: stripeSubscriptionId
+        external_reference: stripeSubscriptionId,
+        subscription_id: newSub.id
       }
 
       // Email al cliente
