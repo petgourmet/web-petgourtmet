@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import { sendOrderStatusEmail } from "@/lib/email-service"
+import { resolveSubscriptionShipping, resolveSubscriptionProducts, resolveCustomerEmail, resolveCustomerName } from "@/lib/admin-email-helpers"
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,11 +70,9 @@ export async function POST(request: NextRequest) {
     // Enviar email de notificación al cliente
     if (sendEmail) {
       try {
-        const customerEmail = subscription.customer_email || subscription.customer_data?.email || subscription.user_profile?.email
-        const customerName = subscription.customer_name || subscription.customer_data?.firstName 
-          ? `${subscription.customer_data?.firstName || ''} ${subscription.customer_data?.lastName || ''}`.trim()
-          : 'Cliente'
-        
+        const customerEmail = resolveCustomerEmail(subscription)
+        const customerName = resolveCustomerName(subscription)
+
         let shippingInfo = null
         if (subscription.shipping_address) {
           shippingInfo = typeof subscription.shipping_address === 'string'
@@ -84,41 +83,16 @@ export async function POST(request: NextRequest) {
 
         if (customerEmail) {
           const orderNumber = `SUB-${subscription.id}`
-
-          // Calcular shipping_cost: usar valor de BD si es positivo,
-          // si no, calcularlo como total - precio del producto
-          const productPrice = subscription.discounted_price || subscription.base_price || 0
-          const orderTotal = subscription.transaction_amount || productPrice
-          const resolvedShipping = (subscription.shipping_cost && Number(subscription.shipping_cost) > 0)
-            ? Number(subscription.shipping_cost)
-            : Math.max(0, orderTotal - productPrice)
-
-          // Construir lista de productos: usar cart_items si existe, sino el producto de la suscripción
-          const cartItems = Array.isArray(subscription.cart_items) && subscription.cart_items.length > 0
-            ? subscription.cart_items
-            : subscription.product_name
-              ? [{
-                  product_name: subscription.product_name,
-                  name: subscription.product_name,
-                  image: subscription.product_image,
-                  price: productPrice,
-                  quantity: subscription.quantity || 1,
-                  size: subscription.size || 'Único',
-                }]
-              : []
+          const resolvedShipping = resolveSubscriptionShipping(subscription)
+          const products = resolveSubscriptionProducts(subscription)
+          const orderTotal = Number(subscription.transaction_amount || subscription.discounted_price || subscription.base_price || 0)
 
           const orderDataForEmail = {
             id: orderNumber,
             status: newStatus,
             total: orderTotal,
             shipping_cost: resolvedShipping,
-            products: cartItems.map((item: any) => ({
-              name: item.product_name || item.name || subscription.product_name,
-              image: item.image || subscription.product_image,
-              quantity: item.quantity || 1,
-              price: item.price || productPrice,
-              size: item.size || subscription.size,
-            })),
+            products,
             shipping_address: {
               full_name: customerName,
               email: customerEmail,

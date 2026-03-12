@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import { sendOrderStatusEmail } from "@/lib/email-service"
+import { resolveOrderShipping } from "@/lib/admin-email-helpers"
 
 export async function POST(request: NextRequest) {
   try {
@@ -126,12 +127,7 @@ export async function POST(request: NextRequest) {
             size: item.size,
           }))
 
-          // Calcular shipping_cost: usar valor de BD si es positivo,
-          // si no, calcularlo como total - suma de productos
-          const itemsTotal = orderItems.reduce((sum: number, item: any) => sum + ((item.price || 0) * (item.quantity || 1)), 0)
-          const resolvedShipping = (currentOrder.shipping_cost && Number(currentOrder.shipping_cost) > 0)
-            ? Number(currentOrder.shipping_cost)
-            : Math.max(0, (currentOrder.total || 0) - itemsTotal)
+          const resolvedShipping = resolveOrderShipping(currentOrder, orderItems)
 
           const orderDataForEmail = {
             id: orderNumber,

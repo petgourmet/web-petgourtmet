@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendSubscriptionEmail } from '@/lib/email-service'
+import { resolveSubscriptionShipping, resolveCustomerEmail, resolveCustomerName } from '@/lib/admin-email-helpers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,28 +55,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Resolver email y nombre del cliente
-    let userEmail = sub.customer_email || ''
-    let userName = sub.customer_name || ''
-
-    // Fallback: extraer del campo customer_data (puede ser string o objeto)
-    if (!userEmail || !userName) {
-      try {
-        const customerData =
-          typeof sub.customer_data === 'string'
-            ? JSON.parse(sub.customer_data)
-            : sub.customer_data
-        if (!userEmail) userEmail = customerData?.email || ''
-        if (!userName) {
-          userName =
-            customerData?.firstName && customerData?.lastName
-              ? `${customerData.firstName} ${customerData.lastName}`.trim()
-              : customerData?.firstName || customerData?.name || ''
-        }
-      } catch {
-        // customer_data no es JSON válido — ignorar
-      }
-    }
+    const userEmail = resolveCustomerEmail(sub)
+    const userName = resolveCustomerName(sub)
 
     if (!userEmail) {
       return NextResponse.json(
@@ -95,16 +76,8 @@ export async function POST(request: NextRequest) {
       ? `${sub.product_name} - Cada ${freqLabel}`
       : `Suscripción - Cada ${freqLabel}`
 
-    // Resolver monto y costo de envío
-    // shipping_cost: usar el valor de BD si existe y es positivo,
-    // si no, calcularlo como la diferencia entre el total y el precio del producto
-    const productPrice = sub.discounted_price || sub.base_price || 0
-    const totalAmount = sub.transaction_amount || productPrice
-    const resolvedShippingCost = (sub.shipping_cost && Number(sub.shipping_cost) > 0)
-      ? Number(sub.shipping_cost)
-      : Math.max(0, totalAmount - productPrice)
-
-    const amount = totalAmount
+    const resolvedShippingCost = resolveSubscriptionShipping(sub)
+    const amount = Number(sub.transaction_amount || sub.discounted_price || sub.base_price || 0)
 
     // Fecha próximo cobro legible
     const nextPaymentDate = sub.next_billing_date
