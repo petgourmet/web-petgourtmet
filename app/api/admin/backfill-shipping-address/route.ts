@@ -68,8 +68,7 @@ export async function POST(request: NextRequest) {
     // Obtener suscripciones sin dirección
     let query = supabaseAdmin
       .from('unified_subscriptions')
-      .select('id, stripe_subscription_id, stripe_customer_id, customer_name, customer_data, shipping_address')
-      .not('stripe_subscription_id', 'is', null)
+      .select('id, user_id, stripe_subscription_id, stripe_customer_id, customer_name, customer_data, shipping_address')
 
     if (targetSubscriptionId) {
       query = query.eq('id', targetSubscriptionId)
@@ -139,8 +138,47 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Fallback: copiar de otra suscripción del mismo usuario que sí tenga dirección
+        if (!address && sub.user_id) {
+          const { data: otherSubs } = await supabaseAdmin
+            .from('unified_subscriptions')
+            .select('id, shipping_address')
+            .eq('user_id', sub.user_id)
+            .not('shipping_address', 'is', null)
+            .limit(1)
+          
+          if (otherSubs?.[0]?.shipping_address) {
+            address = otherSubs[0].shipping_address
+            console.log(`[BACKFILL] Sub ${sub.id}: dirección copiada de sub ${otherSubs[0].id}`)
+          }
+        }
+
+        // Fallback: dirección del perfil del usuario
+        if (!address && sub.user_id) {
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('shipping_address')
+            .eq('id', sub.user_id)
+            .single()
+          
+          if (profile?.shipping_address) {
+            const pa = typeof profile.shipping_address === 'string' 
+              ? JSON.parse(profile.shipping_address) 
+              : profile.shipping_address
+            address = {
+              address: pa.street_name || pa.address || '',
+              address2: pa.street_number || pa.address2 || '',
+              city: pa.city || '',
+              state: pa.state || '',
+              postalCode: pa.zip_code || pa.postalCode || '',
+              country: pa.country || 'MX',
+            }
+            console.log(`[BACKFILL] Sub ${sub.id}: dirección obtenida del perfil del usuario`)
+          }
+        }
+
         if (!address) {
-          results.push({ id: sub.id, status: 'no_address_in_stripe' })
+          results.push({ id: sub.id, status: 'no_address_found' })
           continue
         }
 

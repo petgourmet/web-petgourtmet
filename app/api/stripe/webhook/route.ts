@@ -100,7 +100,45 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     }
 
     if (!shippingAddress) {
-      console.warn('⚠️ [WEBHOOK] No se pudo obtener dirección de envío para sesión:', session.id)
+      // Último recurso: buscar dirección en perfil del usuario o en otra suscripción del mismo user
+      if (userId) {
+        const { data: otherSubs } = await supabaseAdmin
+          .from('unified_subscriptions')
+          .select('shipping_address')
+          .eq('user_id', userId)
+          .not('shipping_address', 'is', null)
+          .limit(1)
+        
+        if (otherSubs?.[0]?.shipping_address) {
+          shippingAddress = otherSubs[0].shipping_address
+          console.log('📦 [WEBHOOK] Dirección copiada de otra suscripción del usuario')
+        } else {
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('shipping_address')
+            .eq('id', userId)
+            .single()
+          
+          if (profile?.shipping_address) {
+            const pa = typeof profile.shipping_address === 'string'
+              ? JSON.parse(profile.shipping_address)
+              : profile.shipping_address
+            shippingAddress = {
+              address: pa.street_name || pa.address || '',
+              address2: pa.street_number || pa.address2 || '',
+              city: pa.city || '',
+              state: pa.state || '',
+              postalCode: pa.zip_code || pa.postalCode || '',
+              country: pa.country || 'MX',
+            }
+            console.log('📦 [WEBHOOK] Dirección obtenida del perfil del usuario')
+          }
+        }
+      }
+      
+      if (!shippingAddress) {
+        console.warn('⚠️ [WEBHOOK] No se pudo obtener dirección de envío para sesión:', session.id)
+      }
     }
 
     // Obtener line items para suscripción
