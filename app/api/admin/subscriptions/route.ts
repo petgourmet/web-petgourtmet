@@ -106,12 +106,22 @@ export async function GET(request: NextRequest) {
       }
     
       // Descuento aplicado (si existe en el registro de suscripción), de lo contrario usar esperado
-      const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage))
+      const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage) && subscription.discount_percentage > 0)
         ? subscription.discount_percentage
         : expectedDiscount
     
-      const basePrice = (product?.price ?? subscription.price ?? 0) as number
-      const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
+      // Precio base: priorizar producto de BD > base_price guardado > discounted_price guardado > precio de suscripción
+      const basePrice = (product?.price ?? subscription.base_price ?? subscription.price ?? 0) as number
+      
+      // Precio con descuento: si tenemos base price y descuento, calcular; si no, usar el guardado
+      let discountedPrice: number
+      if (basePrice > 0 && appliedDiscount > 0) {
+        discountedPrice = Number((basePrice * (1 - appliedDiscount / 100)).toFixed(2))
+      } else if (subscription.discounted_price && subscription.discounted_price > 0) {
+        discountedPrice = subscription.discounted_price
+      } else {
+        discountedPrice = basePrice
+      }
       
       return {
         ...subscription,
@@ -165,12 +175,19 @@ export async function GET(request: NextRequest) {
           }
         }
     
-        const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage))
+        const appliedDiscount = (typeof subscription.discount_percentage === 'number' && !Number.isNaN(subscription.discount_percentage) && subscription.discount_percentage > 0)
           ? subscription.discount_percentage
           : expectedDiscount
     
-        const basePrice = (product?.price ?? subscription.price ?? 0) as number
-        const discountedPrice = Number((basePrice * (1 - (appliedDiscount || 0) / 100)).toFixed(2))
+        const basePrice = (product?.price ?? subscription.base_price ?? subscription.price ?? 0) as number
+        let discountedPrice: number
+        if (basePrice > 0 && appliedDiscount > 0) {
+          discountedPrice = Number((basePrice * (1 - appliedDiscount / 100)).toFixed(2))
+        } else if (subscription.discounted_price && subscription.discounted_price > 0) {
+          discountedPrice = subscription.discounted_price
+        } else {
+          discountedPrice = basePrice
+        }
         
         return {
           id: `billing_${subscription.id}`,

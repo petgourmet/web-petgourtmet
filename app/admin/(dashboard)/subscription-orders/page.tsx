@@ -162,7 +162,7 @@ export default function AdminSubscriptionOrdersPage() {
           .on('postgres_changes', {
             event: '*',
             schema: 'public',
-            table: 'subscriptions'
+            table: 'unified_subscriptions'
           }, (payload) => {
             console.log('📡 Cambio detectado en suscripciones:', payload.eventType)
             
@@ -197,7 +197,7 @@ export default function AdminSubscriptionOrdersPage() {
           .on('postgres_changes', {
             event: '*',
             schema: 'public',
-            table: 'subscriptions'
+            table: 'unified_subscriptions'
           }, (payload) => {
             console.log('📡 Cambio detectado en suscripciones pendientes:', payload.eventType)
             

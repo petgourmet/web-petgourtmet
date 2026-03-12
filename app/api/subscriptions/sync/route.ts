@@ -118,14 +118,80 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingSubscription) {
-      // Si existe pero no tiene user_id, actualizarlo
-      if (!existingSubscription.user_id && user.id) {
-        await supabaseAdmin
-          .from('unified_subscriptions')
-          .update({ user_id: user.id, updated_at: new Date().toISOString() })
-          .eq('id', existingSubscription.id)
-        
-        existingSubscription.user_id = user.id
+      const needsRepair = !existingSubscription.user_id ||
+        !existingSubscription.product_id ||
+        !existingSubscription.discount_percentage ||
+        !existingSubscription.base_price ||
+        existingSubscription.base_price === existingSubscription.discounted_price
+
+      if (needsRepair) {
+        const repairData: Record<string, any> = { updated_at: new Date().toISOString() }
+
+        if (!existingSubscription.user_id && user.id) {
+          repairData.user_id = user.id
+        }
+
+        // Reparar product_id y precios desde Stripe si faltan
+        if (!existingSubscription.product_id || !existingSubscription.discount_percentage ||
+            !existingSubscription.base_price || existingSubscription.base_price === existingSubscription.discounted_price) {
+          const sessionLineItems = session.line_items?.data || []
+          const firstItem = sessionLineItems[0]
+          const itemProduct = firstItem?.price?.product as any
+          const itemMetadata = itemProduct?.metadata || {}
+          const repairProductId = itemMetadata.product_id || session.metadata?.product_id
+
+          if (repairProductId && !existingSubscription.product_id) {
+            repairData.product_id = parseInt(repairProductId)
+          }
+
+          const pid = repairProductId || existingSubscription.product_id
+          if (pid) {
+            const { data: prodData } = await supabaseAdmin
+              .from('products')
+              .select('*')
+              .eq('id', parseInt(pid))
+              .single()
+
+            if (prodData) {
+              const subType = existingSubscription.subscription_type || session.metadata?.subscription_type || 'monthly'
+              let discount = 0
+              switch (subType) {
+                case 'weekly': discount = prodData.weekly_discount || 0; break
+                case 'biweekly': discount = prodData.biweekly_discount || 0; break
+                case 'monthly': discount = prodData.monthly_discount || 0; break
+                case 'quarterly': discount = prodData.quarterly_discount || 0; break
+                case 'annual': discount = prodData.annual_discount || 0; break
+                default: discount = prodData.monthly_discount || 0
+              }
+              if (!existingSubscription.base_price || existingSubscription.base_price === existingSubscription.discounted_price) {
+                repairData.base_price = prodData.price
+              }
+              if (!existingSubscription.discount_percentage || existingSubscription.discount_percentage === 0) {
+                repairData.discount_percentage = discount
+              }
+              if (discount > 0 && repairData.base_price) {
+                repairData.discounted_price = Number((repairData.base_price * (1 - discount / 100)).toFixed(2))
+              }
+            }
+          }
+        }
+
+        if (Object.keys(repairData).length > 1) { // más que solo updated_at
+          console.log('[SYNC] Reparando suscripción existente:', existingSubscription.id, repairData)
+          const { data: repairedSub } = await supabaseAdmin
+            .from('unified_subscriptions')
+            .update(repairData)
+            .eq('id', existingSubscription.id)
+            .select()
+            .single()
+          
+          return NextResponse.json({
+            subscription: repairedSub || { ...existingSubscription, ...repairData },
+            isNew: false,
+            repaired: true,
+            message: 'Suscripción reparada con datos faltantes'
+          })
+        }
       }
 
       return NextResponse.json({
@@ -274,6 +340,23 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
+      if (insertError.code === 'P0001') {
+        // Trigger de deduplicación: ya existe suscripción activa para este user+product
+        console.warn('[SYNC] Suscripción duplicada detectada, buscando existente:', insertError.message)
+        const { data: existing } = await supabaseAdmin
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('stripe_subscription_id', stripeSubscriptionId)
+          .single()
+        
+        if (existing) {
+          return NextResponse.json({
+            subscription: existing,
+            isNew: false,
+            message: 'Suscripción ya existe (detectada por deduplicación)'
+          })
+        }
+      }
       console.error('[SYNC] Error insertando suscripción:', insertError)
       return NextResponse.json(
         { error: 'Error al crear la suscripción', details: insertError.message },

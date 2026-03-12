@@ -285,8 +285,24 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         .eq('id', existingSubscription.id)
         .select()
         .single()
-      subs = data
-      error = updateError
+      
+      if (updateError && updateError.code === 'P0001') {
+        // Trigger de deduplicación: ya existe suscripción activa para este user+product
+        // Reintentar sin product_id
+        console.warn('⚠️ [WEBHOOK] Trigger de deduplicación, reintentando sin product_id:', updateError.message)
+        const { product_id, ...recordSinProductId } = subscriptionRecord
+        const { data: retryData, error: retryError } = await supabaseAdmin
+          .from('unified_subscriptions')
+          .update(recordSinProductId)
+          .eq('id', existingSubscription.id)
+          .select()
+          .single()
+        subs = retryData
+        error = retryError
+      } else {
+        subs = data
+        error = updateError
+      }
     } else {
       // Crear nueva suscripción
       const { data, error: insertError } = await supabaseAdmin
@@ -297,8 +313,21 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         })
         .select()
         .single()
-      subs = data
-      error = insertError
+      
+      if (insertError && insertError.code === 'P0001') {
+        // Ya existe suscripción activa para este user+product (race condition con sync)
+        console.warn('⚠️ [WEBHOOK] Suscripción duplicada detectada, buscando existente:', insertError.message)
+        const { data: existing } = await supabaseAdmin
+          .from('unified_subscriptions')
+          .select('*')
+          .eq('stripe_subscription_id', subscriptionRecord.stripe_subscription_id)
+          .single()
+        subs = existing
+        error = null
+      } else {
+        subs = data
+        error = insertError
+      }
     }
 
     if (error) {
