@@ -85,16 +85,38 @@ export async function POST(request: NextRequest) {
         if (customerEmail) {
           const orderNumber = `SUB-${subscription.id}`
 
+          // Calcular shipping_cost: usar valor de BD si es positivo,
+          // si no, calcularlo como total - precio del producto
+          const productPrice = subscription.discounted_price || subscription.base_price || 0
+          const orderTotal = subscription.transaction_amount || productPrice
+          const resolvedShipping = (subscription.shipping_cost && Number(subscription.shipping_cost) > 0)
+            ? Number(subscription.shipping_cost)
+            : Math.max(0, orderTotal - productPrice)
+
+          // Construir lista de productos: usar cart_items si existe, sino el producto de la suscripción
+          const cartItems = Array.isArray(subscription.cart_items) && subscription.cart_items.length > 0
+            ? subscription.cart_items
+            : subscription.product_name
+              ? [{
+                  product_name: subscription.product_name,
+                  name: subscription.product_name,
+                  image: subscription.product_image,
+                  price: productPrice,
+                  quantity: subscription.quantity || 1,
+                  size: subscription.size || 'Único',
+                }]
+              : []
+
           const orderDataForEmail = {
             id: orderNumber,
             status: newStatus,
-            total: subscription.transaction_amount || subscription.discounted_price || 0,
-            shipping_cost: subscription.shipping_cost ? Number(subscription.shipping_cost) : 0,
-            products: (subscription.cart_items || []).map((item: any) => ({
+            total: orderTotal,
+            shipping_cost: resolvedShipping,
+            products: cartItems.map((item: any) => ({
               name: item.product_name || item.name || subscription.product_name,
               image: item.image || subscription.product_image,
               quantity: item.quantity || 1,
-              price: item.price || subscription.discounted_price || 0,
+              price: item.price || productPrice,
               size: item.size || subscription.size,
             })),
             shipping_address: {

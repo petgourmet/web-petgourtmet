@@ -320,6 +320,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         break
     }
 
+    // Calcular costo de envío (diferencia entre total y precio del producto)
+    const shippingCost = Math.max(0, totalAmount - priceInMXN)
+
     const subscriptionRecord = {
       user_id: userId || null,
       customer_email: session.customer_email || session.customer_details?.email,
@@ -334,6 +337,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       discounted_price: priceInMXN || basePrice,
       discount_percentage: discountPercentage,
       transaction_amount: totalAmount, // Total incluyendo producto + envío
+      shipping_cost: shippingCost,
       quantity: subscriptionLineItem.quantity || 1,
       size: productMetadata.size || null,
       frequency: frequency,
@@ -440,8 +444,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     if (!existingSubscription) {
     try {
       const { sendSubscriptionEmail } = await import('@/lib/email-service')
-      
-      const shippingCost = totalAmount - priceInMXN
 
       const subscriptionEmailData = {
         user_email: session.customer_email || session.customer_details?.email || '',

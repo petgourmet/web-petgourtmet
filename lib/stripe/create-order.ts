@@ -171,6 +171,9 @@ export async function createOrderFromSession(
   }
 
   // 4. INSERTAR ORDEN (con re-check de idempotencia)
+  // Extraer shipping_cost desde metadata de la sesión (enviado por checkout page)
+  const shippingCostFromMeta = metadata.shipping_cost ? parseFloat(metadata.shipping_cost) : 0
+
   const { data: order, error: insertError } = await supabaseAdmin
     .from('orders')
     .insert({
@@ -186,6 +189,7 @@ export async function createOrderFromSession(
       stripe_payment_intent_id: session.payment_intent as string,
       stripe_customer_id: session.customer as string,
       shipping_address: fullShippingAddress,
+      shipping_cost: shippingCostFromMeta,
       metadata: metadata,
     })
     .select()

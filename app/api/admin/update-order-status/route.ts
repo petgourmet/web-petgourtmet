@@ -126,11 +126,18 @@ export async function POST(request: NextRequest) {
             size: item.size,
           }))
 
+          // Calcular shipping_cost: usar valor de BD si es positivo,
+          // si no, calcularlo como total - suma de productos
+          const itemsTotal = orderItems.reduce((sum: number, item: any) => sum + ((item.price || 0) * (item.quantity || 1)), 0)
+          const resolvedShipping = (currentOrder.shipping_cost && Number(currentOrder.shipping_cost) > 0)
+            ? Number(currentOrder.shipping_cost)
+            : Math.max(0, (currentOrder.total || 0) - itemsTotal)
+
           const orderDataForEmail = {
             id: orderNumber,
             status: newStatus,
             total: currentOrder.total,
-            shipping_cost: currentOrder.shipping_cost ? Number(currentOrder.shipping_cost) : 0,
+            shipping_cost: resolvedShipping,
             products: orderItems,
             shipping_address: {
               full_name: customerName || 'Cliente',

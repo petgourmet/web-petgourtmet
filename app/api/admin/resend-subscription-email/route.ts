@@ -32,32 +32,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Si el ID viene con prefijo 'billing_' (suscripciones del historial de facturación),
+    // extraer el UUID real para buscar en unified_subscriptions
+    const rawId = String(subscriptionId)
+    const realId = rawId.startsWith('billing_') ? rawId.replace(/^billing_/, '') : rawId
+
     // Leer la suscripción (solo lectura — sin escrituras)
+    // Usamos select('*') para evitar error si alguna columna no existe en la BD
     const supabase = createServiceClient()
     const { data: sub, error } = await supabase
       .from('unified_subscriptions')
-      .select(`
-        id,
-        customer_email,
-        customer_name,
-        customer_data,
-        subscription_type,
-        status,
-        transaction_amount,
-        discounted_price,
-        base_price,
-        next_billing_date,
-        current_period_start,
-        current_period_end,
-        product_name,
-        product_image,
-        shipping_cost,
-        frequency,
-        frequency_type,
-        external_reference,
-        stripe_subscription_id
-      `)
-      .eq('id', subscriptionId)
+      .select('*')
+      .eq('id', realId)
       .single()
 
     if (error || !sub) {
@@ -109,12 +95,16 @@ export async function POST(request: NextRequest) {
       ? `${sub.product_name} - Cada ${freqLabel}`
       : `Suscripción - Cada ${freqLabel}`
 
-    // Resolver monto
-    const amount =
-      sub.transaction_amount ||
-      sub.discounted_price ||
-      sub.base_price ||
-      0
+    // Resolver monto y costo de envío
+    // shipping_cost: usar el valor de BD si existe y es positivo,
+    // si no, calcularlo como la diferencia entre el total y el precio del producto
+    const productPrice = sub.discounted_price || sub.base_price || 0
+    const totalAmount = sub.transaction_amount || productPrice
+    const resolvedShippingCost = (sub.shipping_cost && Number(sub.shipping_cost) > 0)
+      ? Number(sub.shipping_cost)
+      : Math.max(0, totalAmount - productPrice)
+
+    const amount = totalAmount
 
     // Fecha próximo cobro legible
     const nextPaymentDate = sub.next_billing_date
@@ -138,7 +128,7 @@ export async function POST(request: NextRequest) {
       current_period_end: sub.current_period_end || undefined,
       status: sub.status,
       subscription_id: sub.id,
-      shipping_cost: sub.shipping_cost ? Number(sub.shipping_cost) : undefined,
+      shipping_cost: resolvedShippingCost > 0 ? resolvedShippingCost : undefined,
       product_image: sub.product_image || undefined,
       days_until_payment: undefined as number | undefined,
     }
