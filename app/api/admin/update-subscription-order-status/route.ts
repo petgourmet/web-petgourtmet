@@ -45,47 +45,23 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Actualizar el estado - usar metadata.order_status (compatible sin columna nueva)
+    // Actualizar el estado en columna order_status y en metadata
     const updatedMetadata = { ...(subscription.metadata || {}), order_status: newStatus }
     
-    // Intentar actualizar order_status como columna directa, si falla solo usar metadata
-    const updateData: Record<string, any> = {
-      metadata: updatedMetadata,
-      updated_at: new Date().toISOString()
-    }
+    const { data: updatedSub, error: updateError } = await supabase
+      .from('unified_subscriptions')
+      .update({
+        order_status: newStatus,
+        metadata: updatedMetadata,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', subscriptionId)
+      .select()
+      .single()
 
-    // Intentar incluir order_status directo (si la columna existe, funciona; si no, Supabase lo ignora con el catch)
-    try {
-      const { data: testUpdate, error: testError } = await supabase
-        .from('unified_subscriptions')
-        .update({ ...updateData, order_status: newStatus })
-        .eq('id', subscriptionId)
-        .select()
-        .single()
-
-      if (testError) {
-        // Si falla por columna inexistente, actualizar solo metadata
-        const { error: fallbackError } = await supabase
-          .from('unified_subscriptions')
-          .update(updateData)
-          .eq('id', subscriptionId)
-
-        if (fallbackError) {
-          console.error('Error updating subscription:', fallbackError)
-          return NextResponse.json({ error: 'Failed to update subscription' }, { status: 500 })
-        }
-      }
-    } catch {
-      // Fallback: solo actualizamos metadata
-      const { error: fallbackError } = await supabase
-        .from('unified_subscriptions')
-        .update(updateData)
-        .eq('id', subscriptionId)
-
-      if (fallbackError) {
-        console.error('Error updating subscription (fallback):', fallbackError)
-        return NextResponse.json({ error: 'Failed to update subscription' }, { status: 500 })
-      }
+    if (updateError) {
+      console.error('Error updating subscription:', updateError)
+      return NextResponse.json({ error: 'Failed to update subscription' }, { status: 500 })
     }
 
     console.log(`✅ Subscription ${subscriptionId} order_status updated to: ${newStatus}`)
