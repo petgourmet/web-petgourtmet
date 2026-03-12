@@ -84,7 +84,7 @@ export function Footer() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link
-                      href="https://www.tiktok.com/@petgourmet_cdmx"
+                      href="https://www.tiktok.com/@petgourmetmex"
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="Seguirnos en TikTok"

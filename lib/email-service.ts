@@ -481,7 +481,7 @@ export class EmailService {
                 <div style="margin-bottom: 14px;">
                   <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
                   <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-                  <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.tiktok.com/@petgourmetmex" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
                   <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
                 </div>
                 <p style="margin: 0; color: #6b7280; font-size: 12px;">
@@ -613,7 +613,7 @@ export class EmailService {
                 <div style="margin-bottom: 14px;">
                   <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
                   <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-                  <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.tiktok.com/@petgourmetmex" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
                   <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
                 </div>
                 <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
@@ -979,7 +979,7 @@ function getOrderStatusTemplate(status: string, orderData: any) {
             <div style="margin-bottom: 14px;">
               <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
               <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-              <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
+              <a href="https://www.tiktok.com/@petgourmetmex" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
               <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
@@ -1182,7 +1182,7 @@ function getAdminNewOrderTemplate(orderData: any) {
             <div style="margin-bottom: 14px;">
               <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
               <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-              <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
+              <a href="https://www.tiktok.com/@petgourmetmex" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
               <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
@@ -1509,7 +1509,7 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
             <div style="margin-bottom: 14px;">
               <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
               <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
-              <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
+              <a href="https://www.tiktok.com/@petgourmetmex" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
               <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #6b7280; font-size: 12px;">
