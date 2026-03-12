@@ -130,6 +130,7 @@ export async function POST(request: NextRequest) {
             id: orderNumber,
             status: newStatus,
             total: currentOrder.total,
+            shipping_cost: currentOrder.shipping_cost ? Number(currentOrder.shipping_cost) : 0,
             products: orderItems,
             shipping_address: {
               full_name: customerName || 'Cliente',

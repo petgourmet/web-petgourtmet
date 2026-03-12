@@ -22,7 +22,8 @@ export interface SubscriptionEmailData {
   admin_details?: any;
   days_until_payment?: number; // Para recordatorios de pago
   subscription_id?: number;
-  shipping_cost?: number; // Costo de envío (solo para email de creación)
+  shipping_cost?: number; // Costo de envío
+  product_image?: string; // Imagen del producto
 }
 
 export interface SubscriptionStatusChangeData {
@@ -1381,9 +1382,10 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                 <tbody>
                   <tr>
                     <td style="padding: 15px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; width: 60px;">
-                      <div style="width: 50px; height: 50px; background-color: #7AB8BF; border-radius: 8px; text-align: center; line-height: 50px;">
-                        <span style="color: white; font-size: 22px;">🐾</span>
-                      </div>
+                      ${data.product_image
+                        ? `<img src="${data.product_image}" alt="Producto" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;" />`
+                        : `<div style="width: 50px; height: 50px; background-color: #7AB8BF; border-radius: 8px; text-align: center; line-height: 50px;"><span style="color: white; font-size: 22px;">🐾</span></div>`
+                      }
                     </td>
                     <td style="padding: 15px 10px; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: left;">
                       <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151; text-transform: uppercase;">${data.plan_description || 'Suscripción ' + frequencyText}</p>

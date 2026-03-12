@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
             id: orderNumber,
             status: newStatus,
             total: subscription.transaction_amount || subscription.discounted_price || 0,
+            shipping_cost: subscription.shipping_cost ? Number(subscription.shipping_cost) : 0,
             products: (subscription.cart_items || []).map((item: any) => ({
               name: item.product_name || item.name || subscription.product_name,
               image: item.image || subscription.product_image,

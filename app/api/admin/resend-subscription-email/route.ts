@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
         current_period_start,
         current_period_end,
         product_name,
+        product_image,
+        shipping_cost,
         frequency,
         frequency_type,
         external_reference,
@@ -136,6 +138,9 @@ export async function POST(request: NextRequest) {
       current_period_end: sub.current_period_end || undefined,
       status: sub.status,
       subscription_id: sub.id,
+      shipping_cost: sub.shipping_cost ? Number(sub.shipping_cost) : undefined,
+      product_image: sub.product_image || undefined,
+      days_until_payment: undefined as number | undefined,
     }
 
     console.log(`[RESEND-SUB-EMAIL] Reenviando correo tipo "${emailType}" a ${userEmail} (sub #${subscriptionId})`)
