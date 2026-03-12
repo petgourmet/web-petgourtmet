@@ -105,7 +105,7 @@ export async function createOrderFromSession(
   const customerEmail = session.customer_email || session.customer_details?.email || null
   const customerPhone = session.customer_details?.phone || null
 
-  // Parsear dirección de envío
+  // Parsear dirección de envío con múltiples fallbacks
   let shippingData = null
   try {
     if (metadata.shipping_address) {
@@ -115,6 +115,36 @@ export async function createOrderFromSession(
     }
   } catch (e) {
     console.error(`${logPrefix} Error parsing shipping_address:`, e)
+  }
+
+  // Fallback: Stripe shipping_details (dirección nativa recopilada por Stripe)
+  if (!shippingData && (session as any).shipping_details) {
+    const sd = (session as any).shipping_details
+    shippingData = {
+      address: sd.address?.line1 || '',
+      address2: sd.address?.line2 || '',
+      city: sd.address?.city || '',
+      state: sd.address?.state || '',
+      postalCode: sd.address?.postal_code || '',
+      country: sd.address?.country || 'MX',
+      name: sd.name || customerName || '',
+    }
+    console.log(`${logPrefix} 📦 Dirección obtenida de Stripe shipping_details`)
+  }
+
+  // Fallback: billing address del customer_details
+  if (!shippingData && session.customer_details?.address) {
+    const ba = session.customer_details.address as any
+    shippingData = {
+      address: ba.line1 || '',
+      address2: ba.line2 || '',
+      city: ba.city || '',
+      state: ba.state || '',
+      postalCode: ba.postal_code || '',
+      country: ba.country || 'MX',
+      name: session.customer_details.name || customerName || '',
+    }
+    console.log(`${logPrefix} 📦 Dirección obtenida de customer_details (billing)`)
   }
 
   // Line items de Stripe

@@ -68,6 +68,7 @@ interface AdminSubscription {
   metadata?: {
     preapproval_id?: string
     processed_manually?: boolean
+    order_status?: string
     original_cart_items?: Array<{
       size: string
       price: number
@@ -121,6 +122,13 @@ interface AdminSubscription {
   }
   payment_history_count: number
   total_paid: number
+  shipping_address?: any
+  customer_data?: any
+  order_status?: string
+  customer_email?: string
+  customer_name?: string
+  customer_phone?: string
+  cart_items?: any[]
 }
 
 export default function AdminSubscriptionOrdersPage() {
@@ -139,8 +147,10 @@ export default function AdminSubscriptionOrdersPage() {
   const [cleanupResults, setCleanupResults] = useState<any>(null)
   const [showCleanupModal, setShowCleanupModal] = useState(false)
   const [sendingEmailMap, setSendingEmailMap] = useState<Record<string, 'created' | 'cancelled' | 'reminder' | null>>({})
+  const [updatingOrderStatusMap, setUpdatingOrderStatusMap] = useState<Record<string, boolean>>({})
   const [syncingSubscriptions, setSyncingSubscriptions] = useState(false)
   const [syncSubscriptionResult, setSyncSubscriptionResult] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [backfillingAddresses, setBackfillingAddresses] = useState(false)
   
   const supabase = createClient()
 
@@ -356,6 +366,69 @@ export default function AdminSubscriptionOrdersPage() {
       toast.error('Error de conexión al enviar el correo')
     } finally {
       setSendingEmailMap(prev => ({ ...prev, [key]: null }))
+    }
+  }
+
+  const handleUpdateSubscriptionOrderStatus = async (
+    subscription: AdminSubscription,
+    newStatus: string
+  ) => {
+    const key = String(subscription.id)
+    setUpdatingOrderStatusMap(prev => ({ ...prev, [key]: true }))
+    try {
+      const res = await fetch('/api/admin/update-subscription-order-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: subscription.id, newStatus, sendEmail: true }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        const statusLabels: Record<string, string> = {
+          processing: 'Procesando', shipped: 'En camino', completed: 'Entregado',
+          cancelled: 'Cancelado', refunded: 'Reembolsado'
+        }
+        toast.success(`Estado actualizado a ${statusLabels[newStatus] || newStatus}`, {
+          description: '✉️ Email de notificación enviado al cliente'
+        })
+        // Actualizar el estado local
+        setSubscriptions(prev => prev.map(s => 
+          String(s.id) === key 
+            ? { ...s, order_status: newStatus, metadata: { ...s.metadata, order_status: newStatus } }
+            : s
+        ))
+      } else {
+        toast.error(`Error: ${result.error || 'Error desconocido'}`)
+      }
+    } catch {
+      toast.error('Error de conexión al actualizar estado')
+    } finally {
+      setUpdatingOrderStatusMap(prev => ({ ...prev, [key]: false }))
+    }
+  }
+
+  const handleBackfillShippingAddresses = async () => {
+    setBackfillingAddresses(true)
+    try {
+      const res = await fetch('/api/admin/backfill-shipping-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const result = await res.json()
+      if (result.success) {
+        toast.success(result.message, {
+          description: `${result.updated} direcciones cargadas de Stripe`
+        })
+        if (result.updated > 0) {
+          await handleRefresh()
+        }
+      } else {
+        toast.error(`Error: ${result.error || 'Error desconocido'}`)
+      }
+    } catch {
+      toast.error('Error de conexión al cargar direcciones')
+    } finally {
+      setBackfillingAddresses(false)
     }
   }
 
@@ -889,6 +962,16 @@ export default function AdminSubscriptionOrdersPage() {
                   {syncingSubscriptions ? 'Sincronizando...' : 'Sincronizar Stripe'}
                 </Button>
                 <Button
+                  onClick={handleBackfillShippingAddresses}
+                  disabled={backfillingAddresses}
+                  variant="outline"
+                  title="Cargar direcciones de envío desde Stripe para suscripciones sin dirección"
+                  className="justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                >
+                  <Download className={`h-4 w-4 mr-2 ${backfillingAddresses ? 'animate-pulse' : ''}`} />
+                  {backfillingAddresses ? 'Cargando...' : 'Direcciones Stripe'}
+                </Button>
+                <Button
                   onClick={handleRefresh}
                   disabled={refreshing}
                   variant="outline"
@@ -958,6 +1041,8 @@ export default function AdminSubscriptionOrdersPage() {
               processImageUrl={processImageUrl}
               onSendEmail={(emailType) => handleSendSubscriptionEmail(subscription, emailType)}
               sendingEmail={sendingEmailMap[String(subscription.id)] ?? null}
+              onUpdateOrderStatus={(status) => handleUpdateSubscriptionOrderStatus(subscription, status)}
+              updatingOrderStatus={updatingOrderStatusMap[String(subscription.id)] ?? false}
             />
           ))
         )}

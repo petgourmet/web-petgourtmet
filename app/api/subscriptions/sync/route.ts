@@ -122,13 +122,56 @@ export async function POST(request: NextRequest) {
         !existingSubscription.product_id ||
         !existingSubscription.discount_percentage ||
         !existingSubscription.base_price ||
-        existingSubscription.base_price === existingSubscription.discounted_price
+        existingSubscription.base_price === existingSubscription.discounted_price ||
+        !existingSubscription.shipping_address
 
       if (needsRepair) {
         const repairData: Record<string, any> = { updated_at: new Date().toISOString() }
+        const sessionForRepair = session as any
 
         if (!existingSubscription.user_id && user.id) {
           repairData.user_id = user.id
+        }
+
+        // Reparar shipping_address desde Stripe si falta
+        if (!existingSubscription.shipping_address) {
+          let repairAddress = session.metadata?.shipping_address ? JSON.parse(session.metadata.shipping_address) : null
+          if (!repairAddress && sessionForRepair.shipping_details) {
+            const sd = sessionForRepair.shipping_details
+            repairAddress = {
+              address: sd.address?.line1 || '',
+              address2: sd.address?.line2 || '',
+              city: sd.address?.city || '',
+              state: sd.address?.state || '',
+              postalCode: sd.address?.postal_code || '',
+              country: sd.address?.country || 'MX',
+              name: sd.name || '',
+            }
+          }
+          // Fallback a billing address del customer_details
+          if (!repairAddress && (session as any).customer_details?.address) {
+            const ba = (session as any).customer_details.address
+            repairAddress = {
+              address: ba.line1 || '',
+              address2: ba.line2 || '',
+              city: ba.city || '',
+              state: ba.state || '',
+              postalCode: ba.postal_code || '',
+              country: ba.country || 'MX',
+              name: (session as any).customer_details.name || '',
+            }
+            console.log('[SYNC] Dirección obtenida de customer_details (billing)')
+          }
+          if (repairAddress) {
+            repairData.shipping_address = repairAddress
+            if (!existingSubscription.customer_data?.address) {
+              repairData.customer_data = {
+                ...(existingSubscription.customer_data || {}),
+                address: repairAddress
+              }
+            }
+            console.log('[SYNC] Reparando shipping_address desde Stripe')
+          }
         }
 
         // Reparar product_id y precios desde Stripe si faltan
@@ -209,7 +252,42 @@ export async function POST(request: NextRequest) {
     const lineItems = session.line_items?.data || []
     const metadata = session.metadata || {}
     const customerName = metadata.customer_name || session.customer_details?.name || ''
-    const shippingAddress = metadata.shipping_address ? JSON.parse(metadata.shipping_address) : null
+    
+    // Dirección de envío: múltiples fuentes con fallback garantizado
+    let shippingAddress = metadata.shipping_address ? JSON.parse(metadata.shipping_address) : null
+    const sessionAny = session as any
+    if (!shippingAddress && sessionAny.shipping_details) {
+      const sd = sessionAny.shipping_details
+      shippingAddress = {
+        address: sd.address?.line1 || '',
+        address2: sd.address?.line2 || '',
+        city: sd.address?.city || '',
+        state: sd.address?.state || '',
+        postalCode: sd.address?.postal_code || '',
+        country: sd.address?.country || 'MX',
+        name: sd.name || customerName || '',
+      }
+      console.log('📦 [SYNC] Dirección obtenida de Stripe shipping_details:', shippingAddress)
+    }
+
+    // Fallback: billing address del customer_details
+    if (!shippingAddress && session.customer_details?.address) {
+      const ba = session.customer_details.address as any
+      shippingAddress = {
+        address: ba.line1 || '',
+        address2: ba.line2 || '',
+        city: ba.city || '',
+        state: ba.state || '',
+        postalCode: ba.postal_code || '',
+        country: ba.country || 'MX',
+        name: session.customer_details.name || customerName || '',
+      }
+      console.log('📦 [SYNC] Dirección obtenida de customer_details (billing):', shippingAddress)
+    }
+
+    if (!shippingAddress) {
+      console.warn('⚠️ [SYNC] No se pudo obtener dirección de envío para sesión:', cleanSessionId)
+    }
 
     // Obtener timestamps
     let currentPeriodStart = subscriptionData.current_period_start || subscriptionData.billing_cycle_anchor

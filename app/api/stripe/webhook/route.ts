@@ -44,7 +44,64 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     const metadata = session.metadata || {}
     const userId = metadata.user_id
     const customerName = metadata.customer_name
-    const shippingAddress = metadata.shipping_address ? JSON.parse(metadata.shipping_address) : null
+    
+    // Dirección de envío: primero desde metadata del checkout modal, luego desde Stripe shipping_details
+    let shippingAddress = metadata.shipping_address ? JSON.parse(metadata.shipping_address) : null
+
+    // Extraer shipping_details del evento webhook
+    const sessionAny = session as any
+    if (!shippingAddress && sessionAny.shipping_details) {
+      const sd = sessionAny.shipping_details
+      shippingAddress = {
+        address: sd.address?.line1 || '',
+        address2: sd.address?.line2 || '',
+        city: sd.address?.city || '',
+        state: sd.address?.state || '',
+        postalCode: sd.address?.postal_code || '',
+        country: sd.address?.country || 'MX',
+        name: sd.name || customerName || '',
+      }
+      console.log('📦 [WEBHOOK] Dirección obtenida de Stripe shipping_details (evento):', shippingAddress)
+    }
+
+    // Si aún no hay dirección, recuperar sesión completa de la API de Stripe para garantizar la dirección
+    if (!shippingAddress) {
+      try {
+        const fullSession = await stripe.checkout.sessions.retrieve(session.id) as any
+        if (fullSession.shipping_details) {
+          const sd = fullSession.shipping_details
+          shippingAddress = {
+            address: sd.address?.line1 || '',
+            address2: sd.address?.line2 || '',
+            city: sd.address?.city || '',
+            state: sd.address?.state || '',
+            postalCode: sd.address?.postal_code || '',
+            country: sd.address?.country || 'MX',
+            name: sd.name || customerName || '',
+          }
+          console.log('📦 [WEBHOOK] Dirección obtenida de Stripe retrieve session:', shippingAddress)
+        } else if (fullSession.customer_details?.address) {
+          // Fallback a billing address del customer
+          const ba = fullSession.customer_details.address
+          shippingAddress = {
+            address: ba.line1 || '',
+            address2: ba.line2 || '',
+            city: ba.city || '',
+            state: ba.state || '',
+            postalCode: ba.postal_code || '',
+            country: ba.country || 'MX',
+            name: fullSession.customer_details.name || customerName || '',
+          }
+          console.log('📦 [WEBHOOK] Dirección obtenida de customer_details (billing):', shippingAddress)
+        }
+      } catch (retrieveError) {
+        console.error('⚠️ [WEBHOOK] Error al recuperar sesión para dirección:', retrieveError)
+      }
+    }
+
+    if (!shippingAddress) {
+      console.warn('⚠️ [WEBHOOK] No se pudo obtener dirección de envío para sesión:', session.id)
+    }
 
     // Obtener line items para suscripción
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
