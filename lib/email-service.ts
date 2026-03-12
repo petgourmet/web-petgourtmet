@@ -392,57 +392,81 @@ export class EmailService {
       subject: `${statusInfo.icon} ${statusInfo.subjectPrefix} - Pet Gourmet`,
       html: `
         <!DOCTYPE html>
-        <html>
+        <html lang="es">
           <head>
             <meta charset="utf-8">
             <title>${statusInfo.title}</title>
           </head>
           <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
-            <div style="max-width: 600px; margin: 0 auto;">
-              <!-- Header con Logo -->
-              <table style="width: 100%; margin-bottom: 0; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); border-radius: 8px 8px 0 0;" border="0" cellpadding="0" cellspacing="0">
+            <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+
+              <!-- Header con Logo + ID de suscripción -->
+              <table style="width: 100%; margin-bottom: 0; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="padding: 30px 20px; text-align: center;">
-                    <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block; margin: 0 auto;" />
+                  <td style="padding: 30px 20px; background-color: #7AB8BF;" bgcolor="#7AB8BF" valign="middle">
+                    <table style="width: 100%;" border="0" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="width: 70%;" valign="middle">
+                          <img src="https://petgourmet.mx/petgourmet-logo.png" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;" />
+                        </td>
+                        <td style="width: 30%; text-align: right; vertical-align: middle;" valign="middle">
+                          <div style="background-color: rgba(255, 255, 255, 0.2); padding: 8px 15px; border-radius: 6px; backdrop-filter: blur(10px);">
+                            <p style="margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600;">Suscripción</p>
+                            <p style="margin: 0; color: white; font-size: 16px; font-weight: bold; margin-top: 2px;">#${data.subscription_id}</p>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
-              <div style="background-color: white; border-radius: 0 0 8px 8px;">
-              
-              <!-- Content -->
-              <div style="padding: 30px 20px;">
-                <h2 style="color: ${statusInfo.color}; text-align: center; margin-bottom: 20px;">
-                  ${statusInfo.title}
-                </h2>
-                
-                <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
+
+              <div style="padding: 25px 20px;">
+
+                <h2 style="font-size: 20px; color: #374151; margin-top: 0; margin-bottom: 15px; font-weight: normal;">${statusInfo.title}</h2>
+
+                <p style="font-size: 14px; color: #4B5563; margin-top: 0; margin-bottom: 20px;">
                   Hola <strong>${data.user_name}</strong>,
                 </p>
-                
-                <div style="background-color: ${statusInfo.backgroundColor}; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-                  <p style="margin: 0; font-size: 16px; color: ${statusInfo.textColor};">
+
+                <div style="background-color: ${statusInfo.backgroundColor}; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                  <p style="margin: 0; font-size: 14px; color: ${statusInfo.textColor};">
                     ${statusInfo.message}
                   </p>
                 </div>
-                
+
                 ${productSection}
-                
-                <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                  <p style="margin: 0; font-size: 14px; color: #6b7280; text-align: center;">ID de Suscripción:</p>
-                  <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold; color: #374151; text-align: center;">#${data.subscription_id}</p>
+
+                <!-- Resumen de la suscripción -->
+                <div style="margin-bottom: 30px;">
+                  <h3 style="font-size: 15px; color: #374151; margin-top: 0; margin-bottom: 15px; font-weight: normal;">Resumen de la suscripción</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 15px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; width: 60px;">
+                        <div style="width: 50px; height: 50px; background-color: #7AB8BF; border-radius: 8px; text-align: center; line-height: 50px;">
+                          <span style="color: white; font-size: 22px;">🐾</span>
+                        </div>
+                      </td>
+                      <td style="padding: 15px 10px; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: left;">
+                        <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151; text-transform: uppercase;">${data.subscription_type}</p>
+                        <p style="margin: 4px 0 0; font-size: 11px; color: #6b7280;">ID: #${data.subscription_id}</p>
+                      </td>
+                      <td style="padding: 15px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: right; width: 80px;">
+                        ${data.new_status === 'active' && data.next_billing_date ? `<p style="margin: 0; font-size: 11px; color: #6b7280;">Próximo cobro</p><p style="margin: 2px 0 0; font-size: 12px; font-weight: bold; color: #10b981;">${data.next_billing_date}</p>` : ''}
+                      </td>
+                    </tr>
+                  </table>
                 </div>
-                
-                ${nextBillingSection}
-                
+
                 ${statusInfo.additionalInfo ? `
-                  <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                     <p style="margin: 0; color: #92400e;">
                       <strong>ℹ️ Información importante:</strong><br>
                       ${statusInfo.additionalInfo}
                     </p>
                   </div>
                 ` : ''}
-                
+
                 <!-- WhatsApp CTA -->
                 <div style="margin: 28px 0; padding: 20px 24px; background-color: #f0fafe; border-radius: 14px; border: 1px solid #c6e9eb; text-align: center;">
                   <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #374151;">¿Necesitas ayuda?</p>
@@ -450,12 +474,13 @@ export class EmailService {
                   <a href="https://wa.me/525561269681" target="_blank" style="display: inline-block; background-color: #7AB8BF; color: white; padding: 11px 26px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px;"><img src="https://petgourmet.mx/iconos/whatsapp.png?v=2" width="15" height="15" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;margin-bottom:2px;">Enviar WhatsApp</a>
                 </div>
               </div>
-              
+
               <!-- Footer -->
               <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
                 <div style="margin-bottom: 14px;">
                   <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
                   <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
                   <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
                 </div>
                 <p style="margin: 0; color: #6b7280; font-size: 12px;">
@@ -467,7 +492,6 @@ export class EmailService {
                 <p style="margin: 8px 0 0 0; color: #c9cdd4; font-size: 11px;">
                   ¿No deseas recibir más correos? <a href="https://petgourmet.mx/suscripcion" style="color: #c9cdd4; text-decoration: underline;">Darte de baja</a>
                 </p>
-              </div>
               </div>
             </div>
           </body>
@@ -588,6 +612,7 @@ export class EmailService {
                 <div style="margin-bottom: 14px;">
                   <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
                   <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+                  <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
                   <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
                 </div>
                 <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
@@ -953,6 +978,7 @@ function getOrderStatusTemplate(status: string, orderData: any) {
             <div style="margin-bottom: 14px;">
               <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
               <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+              <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
               <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
@@ -1155,6 +1181,7 @@ function getAdminNewOrderTemplate(orderData: any) {
             <div style="margin-bottom: 14px;">
               <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
               <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+              <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
               <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.5;">
@@ -1261,107 +1288,159 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
     subject: typeInfo.subject,
     html: `
     <!DOCTYPE html>
-      <html>
+      <html lang="es">
       <head>
         <meta charset="utf-8">
         <title>${typeInfo.title}</title>
       </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb;">
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 40px 10px; background-color: #EAECEF;">
         <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header con Logo -->
-          <table style="width: 100%; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
+
+          <!-- Header con Logo + ID de suscripción -->
+          <table style="width: 100%; margin-bottom: 0; background: linear-gradient(135deg, #7AB8BF 0%, #5a9aa0 100%); background-color: #7AB8BF; border-radius: 8px 8px 0 0;" bgcolor="#7AB8BF" border="0" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="padding: 30px 20px; background-color: #7AB8BF; text-align: center;" bgcolor="#7AB8BF">
-                <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 200px; height: auto; display: block; margin: 0 auto;" />
+              <td style="padding: 30px 20px; background-color: #7AB8BF;" bgcolor="#7AB8BF" valign="middle">
+                <table style="width: 100%;" border="0" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="width: 70%;" valign="middle">
+                      <img src="${logoUrl}" alt="Pet Gourmet" style="max-width: 180px; height: auto; display: block;" />
+                    </td>
+                    <td style="width: 30%; text-align: right; vertical-align: middle;" valign="middle">
+                      ${data.subscription_id ? `
+                      <div style="background-color: rgba(255, 255, 255, 0.2); padding: 8px 15px; border-radius: 6px; backdrop-filter: blur(10px);">
+                        <p style="margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600;">Suscripción</p>
+                        <p style="margin: 0; color: white; font-size: 16px; font-weight: bold; margin-top: 2px;">#${data.subscription_id}</p>
+                      </div>
+                      ` : ''}
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
 
-          <!-- Content -->
-          <div style="padding: 30px 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <div style="background-color: #7AB8BF; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block; font-size: 18px; font-weight: bold;">
-                ${typeInfo.title}
-              </div>
+          <div style="padding: 25px 20px;">
+
+            <h2 style="font-size: 20px; color: #374151; margin-top: 0; margin-bottom: 15px; font-weight: normal;">${typeInfo.title}</h2>
+
+            <p style="font-size: 14px; color: #4B5563; margin-top: 0; margin-bottom: 10px;">Hola <strong>${data.user_name}</strong>,</p>
+            <p style="font-size: 14px; color: #4B5563; margin-top: 0; margin-bottom: 30px;">${typeInfo.message}</p>
+
+            <!-- Línea de tiempo del estado de suscripción -->
+            ${['created', 'payment', 'resumed', 'subscription_updated', 'payment_reminder'].includes(type) ? `
+            <div style="margin-bottom: 40px; padding: 20px; background-color: white; border-radius: 8px; border: 1px solid #E5E7EB;">
+              <h3 style="font-size: 14px; color: #374151; margin-top: 0; margin-bottom: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; text-align: center;">Estado de tu Suscripción</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: #7AB8BF; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">1</div>
+                    <div style="color: #374151; font-size: 12px; margin-top: 8px; font-weight: 600;">Suscrito</div>
+                    <div style="position: absolute; top: 15px; left: 50%; width: 100%; height: 2px; background-color: #7AB8BF; z-index: 1;"></div>
+                  </td>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: #7AB8BF; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">2</div>
+                    <div style="color: #374151; font-size: 12px; margin-top: 8px; font-weight: 600;">Activo</div>
+                    <div style="position: absolute; top: 15px; left: 50%; width: 100%; height: 2px; background-color: ${type === 'payment' ? '#7AB8BF' : '#E5E7EB'}; z-index: 1;"></div>
+                  </td>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: ${type === 'payment' ? '#7AB8BF' : '#E5E7EB'}; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">3</div>
+                    <div style="color: ${type === 'payment' ? '#374151' : '#9CA3AF'}; font-size: 12px; margin-top: 8px; font-weight: 600;">En envío</div>
+                    <div style="position: absolute; top: 15px; left: 50%; width: 100%; height: 2px; background-color: #E5E7EB; z-index: 1;"></div>
+                  </td>
+                  <td style="width: 25%; text-align: center; position: relative;">
+                    <div style="background-color: #E5E7EB; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-block; line-height: 32px; font-size: 16px; font-weight: bold; z-index: 2; position: relative;">4</div>
+                    <div style="color: #9CA3AF; font-size: 12px; margin-top: 8px; font-weight: 600;">Renovando</div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            ` : ''}
+
+            <!-- Alerta para cancelación / pausa / fallo de pago -->
+            ${['cancelled', 'paused', 'payment_failed'].includes(type) ? `
+            <div style="margin-bottom: 40px; padding: 20px; background-color: ${type === 'paused' ? '#FFFBEB' : '#FEF2F2'}; border-radius: 8px; border: 1px solid ${type === 'paused' ? '#FDE68A' : '#FCA5A5'};">
+              <table style="width: 100%;">
+                <tr>
+                  <td style="width: 40px; vertical-align: top;">
+                    <span style="font-size: 24px;">${typeInfo.icon}</span>
+                  </td>
+                  <td>
+                    <h3 style="font-size: 15px; color: ${type === 'paused' ? '#92400E' : '#B91C1C'}; margin-top: 0; margin-bottom: 5px; font-weight: 600;">${typeInfo.title}</h3>
+                    <p style="font-size: 13px; color: ${type === 'paused' ? '#78350F' : '#7F1D1D'}; margin: 0;">${typeInfo.message}</p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            ` : ''}
+
+            <!-- Resumen de la suscripción -->
+            <div style="margin-bottom: 30px;">
+              <h3 style="font-size: 15px; color: #374151; margin-top: 0; margin-bottom: 15px; font-weight: normal;">Resumen de la suscripción</h3>
+
+              <table style="width: 100%; border-collapse: collapse;">
+                <tbody>
+                  <tr>
+                    <td style="padding: 15px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; width: 60px;">
+                      <div style="width: 50px; height: 50px; background-color: #7AB8BF; border-radius: 8px; text-align: center; line-height: 50px;">
+                        <span style="color: white; font-size: 22px;">🐾</span>
+                      </div>
+                    </td>
+                    <td style="padding: 15px 10px; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: left;">
+                      <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151; text-transform: uppercase;">${data.plan_description || 'Suscripción ' + frequencyText}</p>
+                      <p style="margin: 4px 0 0; font-size: 11px; color: #6b7280;">Frecuencia: ${frequencyText}${data.status ? ' · ' + (data.status === 'active' ? '✅ Activa' : data.status === 'paused' ? '⏸️ Pausada' : data.status) : ''}</p>
+                    </td>
+                    <td style="padding: 15px 0; border-bottom: 1px solid #d1d5db; vertical-align: middle; text-align: right; width: 100px;">
+                      <p style="margin: 0; font-weight: bold; font-size: 13px; color: #374151;">$${data.amount.toFixed(2)}</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <tr>
+                  <td style="width: 40%;"></td>
+                  <td style="width: 60%;">
+                    <table style="width: 100%; font-size: 13px; color: #6b7280;">
+                      <tr>
+                        <td style="padding: 5px 0;">Subtotal</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151;">$${data.shipping_cost ? (data.amount - data.shipping_cost).toFixed(2) : data.amount.toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0;">Envíos</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151;">$${data.shipping_cost ? data.shipping_cost.toFixed(2) : '0.00'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; border-bottom: 1px solid #d1d5db; padding-bottom: 15px;">Impuestos</td>
+                        <td style="padding: 5px 0; border-bottom: 1px solid #d1d5db; padding-bottom: 15px; text-align: right; color: #374151;">$0.00</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 20px 0 5px; font-size: 15px; color: #6b7280;">Total</td>
+                        <td style="padding: 20px 0 5px; text-align: right; font-size: 18px; font-weight: bold; color: #374151;">$${data.amount.toFixed(2)} MXN</td>
+                      </tr>
+                      ${data.next_payment_date ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #6b7280;">Próximo cobro</td>
+                        <td style="padding: 5px 0; text-align: right; color: #7AB8BF; font-weight: bold; font-size: 12px;">${typeof data.next_payment_date === 'string' && data.next_payment_date.includes('-') ? new Date(data.next_payment_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : data.next_payment_date}</td>
+                      </tr>
+                      ` : ''}
+                      ${data.current_period_end ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #6b7280;">Período hasta</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151; font-size: 12px;">${new Date(data.current_period_end).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                      </tr>
+                      ` : ''}
+                      ${data.current_period_start ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #6b7280;">Período desde</td>
+                        <td style="padding: 5px 0; text-align: right; color: #374151; font-size: 12px;">${new Date(data.current_period_start).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
             </div>
 
-            <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
-              Hola <strong>${data.user_name}</strong>,
-            </p>
-
-            <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
-              ${typeInfo.message}
-            </p>
-
-            <!-- Detalles de la suscripción -->
-            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #374151; text-align: center;">📦 Detalles de tu Suscripción</h3>
-
-              <div style="margin: 15px 0; padding: 15px; background-color: white; border-radius: 8px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  ${data.subscription_id ? `
-                  <tr>
-                    <td style="padding: 8px 12px; border: 1px solid #e5e7eb; background-color: #7AB8BF; color: white; font-weight: bold; font-size: 13px; width: 40%;">ID Suscripción</td>
-                    <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 13px; font-weight: bold; color: #374151;">#${data.subscription_id}</td>
-                  </tr>
-                  ` : ''}
-                  <tr>
-                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px;${data.subscription_id ? ' border-top: 1px solid #e5e7eb;' : ''}">Tipo de suscripción:</td>
-                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151;${data.subscription_id ? ' border-top: 1px solid #e5e7eb;' : ''}">Suscripción ${frequencyText}</td>
-                  </tr>
-                    ${data.plan_description ? `
-                      <tr>
-                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Plan:</td>
-                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.plan_description}</td>
-                      </tr>
-                    ` : ''
-      }
-                    ${data.status ? `
-                      <tr>
-                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Estado:</td>
-                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${data.status === 'active' ? '✅ Activa' : data.status === 'paused' ? '⏸️ Pausada' : data.status}</td>
-                      </tr>
-                    ` : ''
-                    }
-                  ${data.shipping_cost ? `
-                  <tr>
-                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Subtotal producto:</td>
-                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">$${(data.amount - data.shipping_cost).toFixed(2)} MXN</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Envío:</td>
-                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">$${data.shipping_cost.toFixed(2)} MXN</td>
-                  </tr>
-                  ` : ''}
-                  <tr>
-                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">${data.shipping_cost ? 'Total por período:' : 'Monto por período:'}</td>
-                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;">$${data.amount.toFixed(2)} MXN</td>
-                  </tr>
-                    ${data.current_period_start ? `
-                      <tr>
-                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Período actual inicia:</td>
-                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">${new Date(data.current_period_start).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                      </tr>
-                    ` : ''
-      }
-                    ${data.current_period_end ? `
-                      <tr>
-                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Período actual termina:</td>
-                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${new Date(data.current_period_end).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                      </tr>
-                    ` : ''
-      }
-                    ${data.next_payment_date ? `
-                      <tr>
-                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Próximo cobro:</td>
-                        <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #7AB8BF; border-top: 1px solid #e5e7eb;">${typeof data.next_payment_date === 'string' && data.next_payment_date.includes('-') ? new Date(data.next_payment_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : data.next_payment_date}</td>
-                      </tr>
-                    ` : ''
-                    }
-                </table>
-              </div>
-            </div>
-              
             ${type === 'subscription_updated' && data.admin_details ? `
                 <!-- Detalles para Admin -->
                 <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
@@ -1392,7 +1471,7 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
               ` : ''
             }
 
-            <!-- Beneficios -->
+            <!-- Beneficios (solo en creación) -->
             ${type === 'created' ? `
                 <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="margin-top: 0; color: #065f46; text-align: center;">🎁 Beneficios de tu Suscripción</h3>
@@ -1406,37 +1485,6 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                 </div>
               ` : ''
             }
-
-            <!-- Condiciones de suscripción (solo para correo de creación) -->
-            ${type === 'created' ? `
-              <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #bae6fd;">
-                <h3 style="margin-top: 0; color: #0369a1; font-size: 15px; font-weight: 600;">📋 Condiciones de tu suscripción</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #374151;">
-                  <tr>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; width: 50%;">Frecuencia de cobro</td>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600; color: #0369a1; text-transform: capitalize;">${frequencyText} (${frequencyLabel})</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe;">Monto por período</td>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600; color: #10b981;">$${data.amount.toFixed(2)} MXN</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe;">Renovación</td>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600;">Automática ${frequencyLabel}</td>
-                  </tr>
-                  ${data.next_payment_date ? `
-                  <tr>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe;">Próximo cargo</td>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #e0f2fe; text-align: right; font-weight: 600; color: #7AB8BF;">${typeof data.next_payment_date === 'string' && data.next_payment_date.includes('-') ? new Date(data.next_payment_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : data.next_payment_date}</td>
-                  </tr>
-                  ` : ''}
-                  <tr>
-                    <td style="padding: 8px 0;">Cancelación</td>
-                    <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #059669;">Gratuita · en cualquier momento</td>
-                  </tr>
-                </table>
-              </div>
-            ` : ''}
 
             <!-- Acciones -->
             <div style="text-align: center; margin: 30px 0;">
@@ -1459,6 +1507,7 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
             <div style="margin-bottom: 14px;">
               <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;"></a>
               <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;"></a>
+              <a href="https://www.tiktok.com/@petgourmet_cdmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;"></a>
               <a href="https://www.youtube.com/@PetGourmetMexico" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle"><img src="https://petgourmet.mx/iconos/youtube.png?v=2" width="34" height="34" alt="YouTube" style="display:inline-block;border:0;"></a>
             </div>
             <p style="margin: 0; color: #6b7280; font-size: 12px;">
