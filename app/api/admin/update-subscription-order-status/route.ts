@@ -140,6 +140,28 @@ export async function POST(request: NextRequest) {
           )
 
           console.log(`✉️ Email sent to ${customerEmail} for status: ${newStatus}`)
+
+          // Enviar notificación al admin
+          try {
+            const adminOrderData = {
+              ...orderDataForEmail,
+              customer_info: {
+                name: customerName,
+                email: customerEmail,
+                phone: subscription.customer_phone || subscription.customer_data?.phone || 'No proporcionado'
+              }
+            }
+
+            await sendOrderStatusEmail(
+              newStatus as 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled' | 'refunded',
+              'contacto@petgourmet.mx',
+              adminOrderData
+            )
+
+            console.log(`✉️ Admin email sent for subscription ${subscriptionId} status: ${newStatus}`)
+          } catch (adminEmailError) {
+            console.error('Error sending admin notification:', adminEmailError)
+          }
         }
       } catch (emailError) {
         console.error('Error sending subscription status email:', emailError)

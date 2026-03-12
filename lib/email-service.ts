@@ -22,6 +22,7 @@ export interface SubscriptionEmailData {
   admin_details?: any;
   days_until_payment?: number; // Para recordatorios de pago
   subscription_id?: number;
+  shipping_cost?: number; // Costo de envío (solo para email de creación)
 }
 
 export interface SubscriptionStatusChangeData {
@@ -1172,58 +1173,59 @@ function getAdminNewOrderTemplate(orderData: any) {
 }
 
 function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
+  const subIdLabel = data.subscription_id ? ` #${data.subscription_id}` : '';
   const typeMessages = {
     created: {
-      subject: '🎉 ¡Bienvenido a Pet Gourmet! Tu suscripción está activa',
+      subject: `🎉 ¡Bienvenido a Pet Gourmet! Tu suscripción${subIdLabel} está activa`,
       title: '🎉 ¡Suscripción Activada!',
       message: 'Gracias por suscribirte a Pet Gourmet. Tu suscripción ha sido activada exitosamente y recibirás tu primer envío pronto.',
       color: '#10b981',
       icon: '✅'
     },
     payment: {
-      subject: '💳 Pago de suscripción procesado - Pet Gourmet',
+      subject: `💳 Pago de suscripción${subIdLabel} procesado - Pet Gourmet`,
       title: '💳 Pago Procesado',
       message: 'Tu pago de suscripción ha sido procesado exitosamente. Tu próximo envío está en camino.',
       color: '#3b82f6',
       icon: '💳'
     },
     subscription_updated: {
-      subject: '🔄 Tu suscripción ha sido actualizada - Pet Gourmet',
+      subject: `🔄 Tu suscripción${subIdLabel} ha sido actualizada - Pet Gourmet`,
       title: '🔄 Suscripción Actualizada',
       message: 'Tu suscripción ha sido actualizada. A continuación encontrarás los detalles del nuevo período.',
       color: '#3b82f6',
       icon: '🔄'
     },
     cancelled: {
-      subject: '❌ Suscripción cancelada - Pet Gourmet',
+      subject: `❌ Suscripción${subIdLabel} cancelada - Pet Gourmet`,
       title: '❌ Suscripción Cancelada',
       message: 'Tu suscripción ha sido cancelada. Esperamos verte de nuevo pronto.',
       color: '#ef4444',
       icon: '❌'
     },
     paused: {
-      subject: '⏸️ Suscripción pausada - Pet Gourmet',
+      subject: `⏸️ Suscripción${subIdLabel} pausada - Pet Gourmet`,
       title: '⏸️ Suscripción Pausada',
       message: 'Tu suscripción ha sido pausada temporalmente. No se realizarán cobros hasta que la reactives.',
       color: '#f59e0b',
       icon: '⏸️'
     },
     resumed: {
-      subject: '▶️ Suscripción reactivada - Pet Gourmet',
+      subject: `▶️ Suscripción${subIdLabel} reactivada - Pet Gourmet`,
       title: '▶️ ¡Suscripción Reactivada!',
       message: 'Tu suscripción ha sido reactivada exitosamente. Los envíos se reanudarán según el calendario.',
       color: '#10b981',
       icon: '▶️'
     },
     payment_failed: {
-      subject: '⚠️ Error en el pago de tu suscripción - Pet Gourmet',
+      subject: `⚠️ Error en el pago de tu suscripción${subIdLabel} - Pet Gourmet`,
       title: '⚠️ Error en el Pago',
       message: 'No pudimos procesar el pago de tu suscripción. Por favor, actualiza tu método de pago para continuar.',
       color: '#dc2626',
       icon: '⚠️'
     },
     payment_reminder: {
-      subject: '🔔 Recordatorio: Próximo pago de suscripción - Pet Gourmet',
+      subject: `🔔 Recordatorio: Próximo pago de suscripción${subIdLabel} - Pet Gourmet`,
       title: '🔔 Próximo Pago',
       message: `Tu próximo pago está programado para dentro de ${data.days_until_payment || 3} días.Asegúrate de tener fondos suficientes en tu método de pago.`,
       color: '#8b5cf6',
@@ -1321,8 +1323,18 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
                       </tr>
                     ` : ''
                     }
+                  ${data.shipping_cost ? `
                   <tr>
-                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Monto por período:</td>
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Subtotal producto:</td>
+                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">$${(data.amount - data.shipping_cost).toFixed(2)} MXN</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">Envío:</td>
+                    <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #374151; border-top: 1px solid #e5e7eb;">$${data.shipping_cost.toFixed(2)} MXN</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">${data.shipping_cost ? 'Total por período:' : 'Monto por período:'}</td>
                     <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #10b981; font-size: 18px; border-top: 1px solid #e5e7eb;">$${data.amount.toFixed(2)} MXN</td>
                   </tr>
                     ${data.current_period_start ? `

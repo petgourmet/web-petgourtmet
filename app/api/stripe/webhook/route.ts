@@ -441,11 +441,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     try {
       const { sendSubscriptionEmail } = await import('@/lib/email-service')
       
+      const shippingCost = totalAmount - priceInMXN
+
       const subscriptionEmailData = {
         user_email: session.customer_email || session.customer_details?.email || '',
         user_name: customerName,
         subscription_type: subscriptionType,
         amount: totalAmount,
+        shipping_cost: shippingCost > 0 ? shippingCost : undefined,
         next_payment_date: new Date(currentPeriodEnd * 1000).toLocaleDateString('es-MX', {
           year: 'numeric',
           month: 'long',
@@ -461,13 +464,15 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         user_name: 'Admin Pet Gourmet',
         subscription_type: subscriptionType,
         amount: totalAmount,
+        shipping_cost: shippingCost > 0 ? shippingCost : undefined,
         next_payment_date: new Date(currentPeriodEnd * 1000).toLocaleDateString('es-MX', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         }),
         plan_description: `${customerName} - ${subscriptionLineItem.description || productFromDB?.name || 'Suscripción Pet Gourmet'} - $${totalAmount.toFixed(2)} MXN`,
-        external_reference: subscriptionId
+        external_reference: subscriptionId,
+        subscription_id: subs.id
       }
 
       // Enviar emails al cliente y admin en paralelo
@@ -612,7 +617,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
         amount: (invoice.amount_paid || 0) / 100,
         next_payment_date: paymentNextDate,
         plan_description: `${subscription.customer_name} - ${subscription.product_name} - $${((invoice.amount_paid || 0) / 100).toFixed(2)} MXN`,
-        external_reference: subscriptionId
+        external_reference: subscriptionId,
+        subscription_id: subscription.id
       })
     ])
 
@@ -715,7 +721,8 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
         subscription_type: subscription.subscription_type,
         amount: (invoice.amount_due || 0) / 100,
         plan_description: subscription.product_name,
-        external_reference: subscriptionId
+        external_reference: subscriptionId,
+        subscription_id: subscription.id
       }),
       sendSubscriptionEmail('payment_failed', {
         user_email: 'contacto@petgourmet.mx',
@@ -723,7 +730,8 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
         subscription_type: subscription.subscription_type,
         amount: (invoice.amount_due || 0) / 100,
         plan_description: `${subscription.customer_name} - ${subscription.product_name} - PAGO FALLIDO`,
-        external_reference: subscriptionId
+        external_reference: subscriptionId,
+        subscription_id: subscription.id
       })
     ])
 
@@ -814,12 +822,14 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
         plan_description: updatedSubscription.product_name || 'Suscripción Pet Gourmet',
         external_reference: updatedSubscription.external_reference,
         amount: updatedSubscription.amount || 0,
-        next_payment_date: currentPeriodEnd
+        next_payment_date: currentPeriodEnd,
+        subscription_id: updatedSubscription.id
       }
 
       const updateEmailPromises = [
         sendSubscriptionEmail('subscription_updated', {
           ...emailData,
+          subscription_id: updatedSubscription.id,
           user_email: 'contacto@petgourmet.mx',
           user_name: 'Admin Pet Gourmet',
           plan_description: `[ACTUALIZACIÓN] ${updatedSubscription.customer_name} - ${updatedSubscription.product_name}`,
@@ -899,7 +909,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
           subscription_type: existingSubscription.subscription_type,
           amount: existingSubscription.amount || 0,
           plan_description: existingSubscription.product_name,
-          external_reference: subscription.id
+          external_reference: subscription.id,
+          subscription_id: existingSubscription.id
         }),
         sendSubscriptionEmail('cancelled', {
           user_email: 'contacto@petgourmet.mx',
@@ -908,6 +919,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
           amount: existingSubscription.amount || 0,
           plan_description: `${existingSubscription.customer_name} - ${existingSubscription.product_name} - CANCELADA`,
           external_reference: subscription.id,
+          subscription_id: existingSubscription.id,
           admin_details: {
             user_id: existingSubscription.user_id,
             subscription_id: existingSubscription.id,
