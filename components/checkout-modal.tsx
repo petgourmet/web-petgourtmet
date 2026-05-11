@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { supabase } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
+import { useGoogleAnalytics } from "@/hooks/use-google-analytics"
 
 interface Profile {
   id: string
@@ -26,6 +27,7 @@ export function CheckoutModal() {
   const { cart, calculateCartTotal, setShowCheckout, clearCart, showCheckout } = useCart()
   const router = useRouter()
   const { user } = useClientAuth()
+  const { trackAddShippingInfo, trackAddPaymentInfo } = useGoogleAnalytics()
   const [isLoading, setIsLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -276,6 +278,22 @@ export function CheckoutModal() {
       if (sessionId) {
         localStorage.setItem(`stripe_session_id`, sessionId)
       }
+
+      // ===== GA4: add_shipping_info y add_payment_info =====
+      // Se disparan antes de redirigir a Stripe ya que el pago ocurre fuera del dominio
+      const gaItems = cart.map((item, index) => ({
+        item_id: item.id.toString(),
+        item_name: item.name,
+        item_brand: "PET GOURMET",
+        item_category: item.isSubscription ? "Suscripción" : "Compra única",
+        item_variant: item.size || undefined,
+        index,
+        price: item.price,
+        quantity: item.quantity,
+      }))
+      const shippingTier = subtotal >= 1000 ? "Free" : "Standard"
+      trackAddShippingInfo(total, gaItems, shippingTier)
+      trackAddPaymentInfo(total, gaItems, "Credit Card")
 
       clearCart()
       window.location.href = url

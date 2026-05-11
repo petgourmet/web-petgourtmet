@@ -36,8 +36,15 @@ export function useGoogleAnalytics() {
     }
   }, [])
 
-  // Función para trackear vista de productos
-  const trackViewItem = useCallback((itemId: string, itemName: string, category: string, value: number) => {
+  // view_item: se muestra la página de detalle de un producto
+  const trackViewItem = useCallback((
+    itemId: string,
+    itemName: string,
+    category: string,
+    value: number,
+    brand?: string,
+    variant?: string,
+  ) => {
     if (typeof window !== "undefined" && window.gtag) {
       window.gtag("event", "view_item", {
         currency: "MXN",
@@ -46,7 +53,9 @@ export function useGoogleAnalytics() {
           {
             item_id: itemId,
             item_name: itemName,
-            category: category,
+            item_brand: brand || "PET GOURMET",
+            item_category: category,
+            ...(variant ? { item_variant: variant } : {}),
             price: value,
             quantity: 1,
           },
@@ -55,8 +64,16 @@ export function useGoogleAnalytics() {
     }
   }, [])
 
-  // Función para trackear agregar al carrito
-  const trackAddToCart = useCallback((itemId: string, itemName: string, category: string, value: number, quantity: number = 1) => {
+  // add_to_cart: un artículo fue añadido al carrito
+  const trackAddToCart = useCallback((
+    itemId: string,
+    itemName: string,
+    category: string,
+    value: number,
+    quantity: number = 1,
+    brand?: string,
+    variant?: string,
+  ) => {
     if (typeof window !== "undefined" && window.gtag) {
       window.gtag("event", "add_to_cart", {
         currency: "MXN",
@@ -65,7 +82,9 @@ export function useGoogleAnalytics() {
           {
             item_id: itemId,
             item_name: itemName,
-            category: category,
+            item_brand: brand || "PET GOURMET",
+            item_category: category,
+            ...(variant ? { item_variant: variant } : {}),
             price: value,
             quantity: quantity,
           },
@@ -74,12 +93,47 @@ export function useGoogleAnalytics() {
     }
   }, [])
 
-  // Función para trackear inicio de checkout
+  // begin_checkout: el usuario inició el proceso de pago
   const trackBeginCheckout = useCallback((value: number, items: any[]) => {
     if (typeof window !== "undefined" && window.gtag) {
       window.gtag("event", "begin_checkout", {
         currency: "MXN",
         value: value,
+        items: items,
+      })
+    }
+  }, [])
+
+  // view_cart: el usuario abrió su carrito
+  const trackViewCart = useCallback((value: number, items: any[]) => {
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "view_cart", {
+        currency: "MXN",
+        value: value,
+        items: items,
+      })
+    }
+  }, [])
+
+  // add_shipping_info: el usuario proporcionó su información de envío
+  const trackAddShippingInfo = useCallback((value: number, items: any[], shippingTier: string = "Standard") => {
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "add_shipping_info", {
+        currency: "MXN",
+        value: value,
+        shipping_tier: shippingTier,
+        items: items,
+      })
+    }
+  }, [])
+
+  // add_payment_info: el usuario proporcionó sus datos de pago
+  const trackAddPaymentInfo = useCallback((value: number, items: any[], paymentType: string = "Credit Card") => {
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "add_payment_info", {
+        currency: "MXN",
+        value: value,
+        payment_type: paymentType,
         items: items,
       })
     }
@@ -101,6 +155,9 @@ export function useGoogleAnalytics() {
     trackViewItem,
     trackAddToCart,
     trackBeginCheckout,
+    trackViewCart,
+    trackAddShippingInfo,
+    trackAddPaymentInfo,
     trackSearch,
   }
 }

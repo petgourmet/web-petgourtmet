@@ -28,6 +28,7 @@ import { Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import { ProductStructuredData } from "@/components/product-structured-data"
 import { pushProductDataLayer } from "@/utils/analytics"
+import { useGoogleAnalytics } from "@/hooks/use-google-analytics"
 import type { ProductVariant } from "@/lib/supabase/types"
 
 export default function ProductDetailPage() {
@@ -57,6 +58,7 @@ export default function ProductDetailPage() {
   const { addToCart, setShowCart } = useCart()
   const router = useRouter()
   const imageContainerRef = useRef<HTMLDivElement>(null)
+  const { trackViewItem } = useGoogleAnalytics()
 
   useEffect(() => {
     async function loadProductDetails() {
@@ -205,6 +207,15 @@ export default function ProductDetailPage() {
           productSKUC: processedProduct.id.toString(),
           productos: 1 // Un producto visualizado
         })
+
+        // ===== GA4 view_item =====
+        trackViewItem(
+          processedProduct.id.toString(),
+          processedProduct.name,
+          processedProduct.category || 'Productos',
+          processedProduct.price,
+          'PET GOURMET',
+        )
 
         console.log('📊 Product data pushed to Data Layer:', processedProduct.name)
 

@@ -45,7 +45,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
-  const { trackAddToCart, trackBeginCheckout } = useGoogleAnalytics()
+  const { trackAddToCart, trackBeginCheckout, trackViewCart } = useGoogleAnalytics()
   const { trackAddToCart: fbTrackAddToCart, trackInitiateCheckout } = useFacebookPixel()
 
   // Cargar carrito del localStorage al iniciar
@@ -122,13 +122,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         description: `${item.name} ha sido añadido a tu carrito.`,
       })
       
-      // Track add to cart event
+      // Track add to cart event (GA4 spec: item_category via hook)
       trackAddToCart(
         item.id.toString(),
         item.name,
-        item.isSubscription ? "subscription" : "one-time",
+        item.isSubscription ? "Suscripción" : "Compra única",
         item.price,
-        item.quantity
+        item.quantity,
+        "PET GOURMET",
+        item.size || undefined,
       )
       
       // Track Facebook Pixel add to cart
@@ -174,16 +176,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }, 0)
   }
 
+  const handleSetShowCart = (show: boolean) => {
+    setShowCart(show)
+
+    // view_cart: el usuario abrió el carrito con artículos
+    if (show && cart.length > 0) {
+      const total = calculateCartTotal()
+      const items = cart.map((item, index) => ({
+        item_id: item.id.toString(),
+        item_name: item.name,
+        item_brand: "PET GOURMET",
+        item_category: item.isSubscription ? "Suscripción" : "Compra única",
+        item_variant: item.size || undefined,
+        index,
+        price: item.price,
+        quantity: item.quantity,
+      }))
+      trackViewCart(total, items)
+    }
+  }
+
   const handleSetShowCheckout = (show: boolean) => {
     setShowCheckout(show)
     
     // Track begin checkout when opening checkout
     if (show && cart.length > 0) {
       const total = calculateCartTotal()
-      const items = cart.map(item => ({
+      const items = cart.map((item, index) => ({
         item_id: item.id.toString(),
         item_name: item.name,
-        category: item.isSubscription ? "subscription" : "one-time",
+        item_brand: "PET GOURMET",
+        item_category: item.isSubscription ? "Suscripción" : "Compra única",
+        item_variant: item.size || undefined,
+        index,
         price: item.price,
         quantity: item.quantity,
       }))
@@ -206,7 +231,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         calculateCartTotal,
         showCart,
-        setShowCart,
+        setShowCart: handleSetShowCart,
         showCheckout,
         setShowCheckout: handleSetShowCheckout,
       }}
