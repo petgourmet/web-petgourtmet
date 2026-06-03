@@ -1,5 +1,8 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import { createProductionSafeConsole } from '@/lib/debug'
+
+const console = createProductionSafeConsole()
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

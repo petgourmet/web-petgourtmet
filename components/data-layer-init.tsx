@@ -2,6 +2,9 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { createProductionSafeConsole } from '@/lib/debug'
+
+const console = createProductionSafeConsole()
 
 /**
  * Componente para inicializar variables globales del Data Layer en todas las páginas

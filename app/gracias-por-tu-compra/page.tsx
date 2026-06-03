@@ -7,6 +7,9 @@ import Link from 'next/link'
 import { useClientAuth } from '@/hooks/use-client-auth'
 import Image from 'next/image'
 import { trackPurchase, pushProductDataLayer } from '@/utils/analytics'
+import { createProductionSafeConsole } from '@/lib/debug'
+
+const console = createProductionSafeConsole()
 
 interface OrderDetails {
   orderId: string

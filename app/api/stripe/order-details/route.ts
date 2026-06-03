@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createOrderFromSession } from '@/lib/stripe/create-order'
+import { createProductionSafeConsole } from '@/lib/debug'
+
+const console = createProductionSafeConsole()
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

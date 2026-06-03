@@ -14,6 +14,9 @@ import { useClientAuth } from "@/hooks/use-client-auth"
 import { supabase } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
+import { createProductionSafeConsole } from "@/lib/debug"
+
+const console = createProductionSafeConsole()
 
 interface Profile {
   id: string

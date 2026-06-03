@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Script from 'next/script'
 
 export const metadata: Metadata = {
   title: 'Gracias por tu Compra',
@@ -42,8 +41,6 @@ export default function ThankYouLayout({
               referrer: document.referrer || '',
               random: Math.floor(Math.random() * 1000000000)
             });
-            
-            console.log('✅ [GTM] Thank You variables pushed BEFORE GTM loads');
           `,
         }}
       />

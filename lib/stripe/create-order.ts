@@ -8,6 +8,9 @@
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe/config'
 import { createClient } from '@supabase/supabase-js'
+import { createProductionSafeConsole } from '@/lib/debug'
+
+const console = createProductionSafeConsole()
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

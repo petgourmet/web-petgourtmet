@@ -12,6 +12,9 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe/config'
 import { createClient } from '@supabase/supabase-js'
 import { createOrderFromSession } from '@/lib/stripe/create-order'
+import { createProductionSafeConsole } from '@/lib/debug'
+
+const console = createProductionSafeConsole()
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

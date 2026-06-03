@@ -3,6 +3,10 @@
  * Funciones helper para enviar eventos a Google Tag Manager y Facebook Pixel
  */
 
+import { createProductionSafeConsole } from '@/lib/debug'
+
+const console = createProductionSafeConsole()
+
 // Tipos para los datos de compra
 export interface PurchaseItem {
   id?: string | number
