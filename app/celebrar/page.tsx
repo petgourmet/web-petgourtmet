@@ -18,7 +18,6 @@ export default function CelebrarPage() {
 
   return (
     <div className="flex flex-col min-h-screen pt-0">
-      {/* Banner de categoría a ancho completo */}
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
           src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20celebrar-SjhsRPMm1PELsrFBBIw2vtSIK9AzeV.webp"
@@ -31,7 +30,6 @@ export default function CelebrarPage() {
             <div className="max-w-4xl mx-auto"></div>
           </div>
 
-          {/* Contenedor glass en la parte inferior */}
           <div className="absolute bottom-0 left-0 right-0 bg-black/20 backdrop-blur-md border-t border-white/20 p-6 md:p-8">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">
@@ -48,7 +46,6 @@ export default function CelebrarPage() {
 
       <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
         <div className="responsive-container">
-          {/* Tabs para categorías */}
           <Tabs value={activeCategory} onValueChange={(value) => setActiveCategory(value)} className="w-full mb-12">
             <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-transparent">
               <TabsTrigger
@@ -94,7 +91,6 @@ export default function CelebrarPage() {
             </TabsContent>
           </Tabs>
 
-          {/* Sección de beneficios */}
           <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
             <h2 className="text-2xl font-bold mb-6 text-primary font-display text-center">
               ¿Por qué elegir nuestros productos para celebrar?
@@ -102,7 +98,7 @@ export default function CelebrarPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="w-16 h-16 bg-pastel-yellow rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/frosted-cake-icon.png" alt="Ingredientes naturales" width={32} height={32} />
+                  <Image src="/pastel-carne-front.webp" alt="Ingredientes naturales" width={32} height={32} />
                 </div>
                 <h3 className="font-bold mb-2">Ingredientes naturales</h3>
                 <p className="text-gray-600 dark:text-white">
@@ -111,7 +107,7 @@ export default function CelebrarPage() {
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-pastel-blue rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/colorful-party-hat.png" alt="Diseño festivo" width={32} height={32} />
+                  <Image src="/happy-dog-treat.webp" alt="Diseño festivo" width={32} height={32} />
                 </div>
                 <h3 className="font-bold mb-2">Diseño festivo</h3>
                 <p className="text-gray-600 dark:text-white">
@@ -120,7 +116,12 @@ export default function CelebrarPage() {
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-pastel-green rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Image src="/simple-dog-paw.png" alt="Aprobado por veterinarios" width={32} height={32} />
+                  <Image
+                    src="/pet-gourmet-logo-transparent.webp"
+                    alt="Aprobado por veterinarios"
+                    width={32}
+                    height={32}
+                  />
                 </div>
                 <h3 className="font-bold mb-2">Aprobado por veterinarios</h3>
                 <p className="text-gray-600 dark:text-white">
@@ -136,4 +137,3 @@ export default function CelebrarPage() {
     </div>
   )
 }
-// UI/UX Update - Marzo 2026

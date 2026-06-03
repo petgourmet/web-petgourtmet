@@ -618,12 +618,13 @@ export default function ProductDetailPage() {
               {/* Tipo de compra */}
               <div>
                 <h3 className="font-bold mb-3 text-lg">Tipo de compra</h3>
-                <div className={`grid gap-3 ${product.subscription_available ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <div className="grid grid-cols-2 gap-2 rounded-[28px] border border-[#b9dfe4] bg-[#f4fbfc] p-1.5">
                   <Button
-                    variant={!isSubscription ? "default" : "outline"}
-                    className={`w-full rounded-full py-3 text-sm font-semibold ${!isSubscription
-                      ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                      : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                    type="button"
+                    variant="ghost"
+                    className={`w-full rounded-full py-3 text-sm font-semibold transition-all ${!isSubscription
+                      ? "bg-white text-[#16313b] shadow-[0_8px_20px_rgba(123,189,197,0.18)] ring-1 ring-[#7BBDC5]/45 hover:bg-white"
+                      : "bg-transparent text-[#5b7479] hover:bg-white/70 hover:text-[#16313b]"
                       }`}
                     onClick={() => {
                       setIsSubscription(false)
@@ -637,18 +638,24 @@ export default function ProductDetailPage() {
                   >
                     Comprar ahora
                   </Button>
-                  {product.subscription_available && (
-                    <Button
-                      variant={isSubscription ? "default" : "outline"}
-                      className={`w-full rounded-full py-3 text-sm font-semibold ${isSubscription
-                        ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                        : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                        }`}
-                      onClick={() => setIsSubscription(true)}
-                    >
-                      Suscríbete
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={!product.subscription_available}
+                    aria-disabled={!product.subscription_available}
+                    className={`w-full rounded-full py-3 text-sm font-semibold transition-all ${product.subscription_available
+                      ? isSubscription
+                        ? "bg-white text-[#16313b] shadow-[0_8px_20px_rgba(123,189,197,0.18)] ring-1 ring-[#7BBDC5]/45 hover:bg-white"
+                        : "bg-transparent text-[#5b7479] hover:bg-white/70 hover:text-[#16313b]"
+                      : "bg-transparent text-[#9ab2b6] opacity-55 ring-1 ring-transparent cursor-not-allowed hover:bg-transparent"
+                      }`}
+                    onClick={() => {
+                      if (!product.subscription_available) return
+                      setIsSubscription(true)
+                    }}
+                  >
+                    Suscríbete
+                  </Button>
                 </div>
                 {/* Opciones de suscripción */}
                 {isSubscription && product.subscription_available && (

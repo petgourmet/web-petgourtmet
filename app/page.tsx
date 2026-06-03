@@ -1,115 +1,150 @@
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Check } from "lucide-react"
+import { ArrowRight, BookOpen, Check, Gift, PawPrint } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
-import { VideoHero } from "@/components/video-hero"
+import { Suspense } from "react"
+
+import { HomeHero } from "@/components/home-hero"
+import { HomeProductsCarousel } from "@/components/home-products-carousel"
+import { Button } from "@/components/ui/button"
+
 import "../app/reset.css"
 
-// Se carga diferido — reduce el bundle crítico del primer render
 const HomeNewsletter = dynamic(() => import("@/components/home-newsletter"), {
   loading: () => <div className="h-12" />,
 })
 
+const HomeVideoShowcase = dynamic(
+  () => import("@/components/home-video-showcase").then((module) => module.HomeVideoShowcase),
+  {
+    loading: () => (
+      <section className="py-10 md:py-16">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto h-[280px] max-w-6xl rounded-[36px] border border-[#e6eeef] bg-[#f9fbfb] shadow-[0_24px_60px_rgba(25,63,70,0.08)] md:h-[360px]" />
+        </div>
+      </section>
+    ),
+  },
+)
+
+const categories = [
+  {
+    title: "Nuestras Recetas",
+    description: "Formulaciones exclusivas para una nutrición completa.",
+    image:
+      "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Nuestras%20recetas-hcHtwjxfVN0K9uRVXtR1trM0gOZRDf.webp",
+    href: "/productos",
+    accent: "bg-[#8f5f38]",
+  },
+  {
+    title: "Para Celebrar",
+    description: "Momentos especiales con productos pensados para consentir.",
+    image:
+      "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20celebrar-SjhsRPMm1PELsrFBBIw2vtSIK9AzeV.webp",
+    href: "/celebrar",
+    accent: "bg-[#9f7a2e]",
+  },
+  {
+    title: "Para Complementar",
+    description: "Apoyo diario para reforzar salud, energía y bienestar.",
+    image: "/complementar-dog-treat.webp",
+    href: "/complementar",
+    accent: "bg-[#356f63]",
+  },
+  {
+    title: "Para Premiar",
+    description: "Snacks nutritivos que elevan cada buena conducta.",
+    image:
+      "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20premiar-3zEy8fX4CSDDrmAnYIJpl2cV1t26l3.webp",
+    href: "/premiar",
+    accent: "bg-[#346f8a]",
+  },
+]
+
+const ingredientsFeatures = [
+  {
+    title: "100% Natural",
+    description: "Ingredientes frescos y nobles, sin procesos agresivos.",
+  },
+  {
+    title: "Sin Aditivos",
+    description: "Libre de conservantes y rellenos innecesarios.",
+  },
+  {
+    title: "Formulación Experta",
+    description: "Desarrollado con enfoque nutricional para su bienestar.",
+  },
+  {
+    title: "Beneficios Reales",
+    description: "Sabor, energía y una experiencia diaria más saludable.",
+  },
+]
+
+const communityBenefits = [
+  {
+    icon: PawPrint,
+    title: "Comunidad",
+    description: "Historias, consejos y experiencias de familias que cuidan mejor a sus mascotas.",
+  },
+  {
+    icon: Gift,
+    title: "Beneficios exclusivos",
+    description: "Acceso temprano a promociones, lanzamientos y descuentos especiales.",
+  },
+  {
+    icon: BookOpen,
+    title: "Contenido útil",
+    description: "Guías prácticas y recomendaciones para mejorar su rutina diaria.",
+  },
+]
+
 export default function Home() {
   return (
-    <div
-      className="flex flex-col min-h-screen bg-white overflow-x-hidden"
-      style={{ margin: 0, padding: 0, maxWidth: "100vw", width: "100vw" }}
-    >
-      {/* Hero Section */}
-      <VideoHero />
+    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[linear-gradient(180deg,_#ffffff_0%,_#f8fbfc_38%,_#f3f7f8_100%)]">
+      <HomeHero />
 
-      {/* Nutrition Categories Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 font-display">Nutrición Premium</h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Cada receta está cuidadosamente formulada por expertos veterinarios para satisfacer las necesidades
-              específicas de tu mascota.
+      <section id="nuestras-recetas" className="relative bg-[linear-gradient(180deg,_#ffffff_0%,_#f7fafb_100%)] py-20 md:py-24">
+        <div className="container relative z-10 mx-auto px-4">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="inline-flex rounded-full border border-[#dce8ea] bg-white px-4 py-2 text-sm font-semibold text-[#2a7880] shadow-[0_10px_24px_rgba(42,120,128,0.06)]">
+              Nutrición pensada con intención
+            </span>
+            <h2 className="mt-6 font-display text-4xl font-bold text-[#16313b] md:text-5xl">
+              Descubre la línea ideal para cada momento
+            </h2>
+            <p className="mt-5 text-lg leading-relaxed text-[#5d7276]">
+              Una navegación más limpia y clara para que cada categoría destaque por lo que ofrece, sin ruido visual
+              innecesario.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-            {[
-              {
-                title: "Nuestras Recetas",
-                description: "Formulaciones exclusivas para una nutrición completa",
-                gradientFrom: "from-orange-400",
-                gradientTo: "to-orange-600",
-                icon: "🍲",
-                image:
-                  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Nuestras%20recetas-hcHtwjxfVN0K9uRVXtR1trM0gOZRDf.webp",
-                href: "/productos",
-              },
-              {
-                title: "Para Celebrar",
-                description: "Productos especiales para momentos únicos",
-                gradientFrom: "from-amber-400",
-                gradientTo: "to-amber-600",
-                icon: "🎂",
-                image:
-                  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20celebrar-SjhsRPMm1PELsrFBBIw2vtSIK9AzeV.webp",
-                href: "/celebrar",
-              },
-              {
-                title: "Para Complementar",
-                description: "Refuerza la salud y bienestar diario",
-                gradientFrom: "from-emerald-400",
-                gradientTo: "to-emerald-600",
-                icon: "🌿",
-                image: "/complementar-dog-treat.webp",
-                href: "/complementar",
-              },
-              {
-                title: "Para Premiar",
-                description: "Golosinas saludables y nutritivas",
-                gradientFrom: "from-sky-400",
-                gradientTo: "to-sky-600",
-                icon: "🦴",
-                image:
-                  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20premiar-3zEy8fX4CSDDrmAnYIJpl2cV1t26l3.webp",
-                href: "/premiar",
-              },
-            ].map((category, index) => (
+          <div className="mt-14 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {categories.map((category) => (
               <Link
                 href={category.href}
-                key={index}
-                className="group relative overflow-hidden rounded-2xl shadow-xl transform transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:scale-105 hover:z-10 h-[400px] flex flex-col cursor-pointer"
+                key={category.title}
+                className="group relative flex min-h-[380px] overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_18px_50px_rgba(22,49,59,0.08)] transition-all duration-400 hover:-translate-y-1 hover:shadow-[0_24px_54px_rgba(22,49,59,0.12)]"
               >
-                <div className="absolute inset-0 w-full h-full">
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${category.gradientFrom} ${category.gradientTo} opacity-30 group-hover:opacity-50 group-hover:shadow-2xl transition-all duration-500`}
-                  ></div>
-
-                  {/* Capa para imágenes */}
-                  <div className="absolute inset-0 w-full h-full opacity-100 group-hover:brightness-110 group-hover:contrast-110 transition-all duration-500">
-                    <Image
-                      src={category.image || "/placeholder.svg"}
-                      alt={category.title}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    />
-                  </div>
-
-                  {/* Elementos decorativos */}
-                  <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full pointer-events-none"></div>
-                  <div className="absolute top-1/4 left-1/4 w-20 h-20 bg-white/10 rounded-full pointer-events-none"></div>
-                  <div className="absolute bottom-1/3 left-1/2 w-12 h-12 bg-white/10 rounded-full pointer-events-none"></div>
+                <div className="absolute inset-0">
+                  <Image
+                    src={category.image}
+                    alt={category.title}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+                  />
+                  <div className={`absolute inset-0 ${category.accent} opacity-78`} />
                 </div>
 
-                {/* Panel translúcido que se expande desde abajo */}
-                <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm rounded-b-2xl transition-all duration-500 ease-in-out h-16 group-hover:h-48 overflow-hidden">
-                  <div className="p-4 h-full flex flex-col justify-between">
-                    <h3 className="text-2xl font-bold text-white">{category.title}</h3>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                      <p className="text-white/90 mb-2">{category.description}</p>
-                      <span className="inline-flex items-center text-sm font-semibold text-white">
-                        Descubrir <ArrowRight className="ml-2 w-4 h-4 group-hover:ml-3 transition-all" />
-                      </span>
-                    </div>
+                <div className="relative z-10 mt-auto w-full p-5">
+                  <div className="rounded-[24px] border border-white bg-white px-5 py-6 shadow-[0_14px_30px_rgba(22,49,59,0.1)] transition-colors duration-300 group-hover:bg-[#fffdf9]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#16313b]">Pet Gourmet</p>
+                    <h3 className="mt-4 text-2xl font-bold text-[#16313b]">{category.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-[#53686d]">{category.description}</p>
+                    <span className="mt-5 inline-flex items-center text-sm font-semibold text-[#16313b]">
+                      Descubrir
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -118,53 +153,51 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Feature Section */}
-      <section className="py-24 relative overflow-hidden bg-white">
-        <div className="container relative z-10 mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-16 items-center">
-            <div className="lg:w-1/2 order-2 lg:order-1">
-              <div className="bg-white p-8 rounded-3xl shadow-xl relative overflow-hidden group transition-all duration-500 hover:shadow-2xl hover:bg-gray-50 hover:transform hover:scale-[1.02]">
-                {/* Decorative corner accent */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] transition-all duration-500 group-hover:bg-primary/10 group-hover:w-40 group-hover:h-40 group-hover:rounded-bl-[120px]"></div>
+      <Suspense
+        fallback={
+          <section className="bg-[linear-gradient(180deg,_#f7fafb_0%,_#f3f7f8_100%)] py-20 md:py-24">
+            <div className="container mx-auto px-4">
+              <div className="h-[420px] rounded-[36px] border border-[#e6eeef] bg-white shadow-[0_20px_50px_rgba(25,63,70,0.06)]" />
+            </div>
+          </section>
+        }
+      >
+        <HomeProductsCarousel />
+      </Suspense>
 
+      <HomeVideoShowcase />
+
+      <section className="relative bg-[linear-gradient(180deg,_#f7fafb_0%,_#f4f8f9_100%)] py-20 md:py-24">
+        <div className="container relative z-10 mx-auto px-4">
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
+            <div className="order-2 lg:order-1">
+              <div className="relative overflow-hidden rounded-[34px] border border-white bg-white p-7 shadow-[0_28px_70px_rgba(22,49,59,0.08)] sm:p-10">
                 <div className="relative z-10">
-                  <div className="inline-block bg-primary/10 rounded-full px-4 py-1 text-[#1d636b] text-sm font-medium mb-6">
+                  <span className="inline-flex rounded-full bg-[#eef7f8] px-4 py-2 text-sm font-semibold text-[#1d636b]">
                     Calidad Premium
-                  </div>
-                  <h2 className="text-4xl md:text-5xl font-bold mb-8 text-gray-900 font-display leading-tight">
-                    Ingredientes <span className="text-[#1d636b]">Premium</span> para tu Mejor Amigo
+                  </span>
+                  <h2 className="mt-6 font-display text-4xl font-bold leading-tight text-[#16313b] md:text-5xl">
+                    Ingredientes premium para su mejor versión diaria
                   </h2>
-                  <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                    Nos comprometemos a utilizar sólo los ingredientes más frescos y de mayor calidad en cada receta,
-                    garantizando la salud y felicidad de tu mascota en cada bocado.
+                  <p className="mt-6 text-lg leading-relaxed text-[#5d7276]">
+                    Cada receta busca equilibrio entre sabor, nutrición y una experiencia de compra más clara, moderna
+                    y agradable.
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                    {[
-                      {
-                        title: "100% Natural",
-                        description: "Ingredientes frescos y naturales sin procesamiento excesivo",
-                      },
-                      {
-                        title: "Sin Aditivos",
-                        description: "Libre de conservantes y aditivos artificiales dañinos",
-                      },
-                      {
-                        title: "Formulación Experta",
-                        description: "Desarrollado por veterinarios especialistas en nutrición",
-                      },
-                      {
-                        title: "Beneficios Comprobados",
-                        description: "Mejora visible en salud, energía y bienestar general",
-                      },
-                    ].map((feature, i) => (
-                      <div key={i} className="flex items-start">
-                        <div className="mr-4 bg-primary/10 rounded-full p-2 text-[#1d636b] mt-1">
-                          <Check className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900 mb-1">{feature.title}</h3>
-                          <p className="text-sm text-gray-600">{feature.description}</p>
+                  <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    {ingredientsFeatures.map((feature) => (
+                      <div
+                        key={feature.title}
+                        className="rounded-[22px] border border-[#e3ecee] bg-[#fbfdfd] p-5 shadow-[0_12px_28px_rgba(22,49,59,0.04)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(22,49,59,0.08)]"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 rounded-full bg-[#eef7f8] p-2 text-[#1d636b]">
+                            <Check className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <h3 className="font-semibold text-[#16313b]">{feature.title}</h3>
+                            <p className="mt-2 text-sm leading-relaxed text-[#607478]">{feature.description}</p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -172,113 +205,101 @@ export default function Home() {
 
                   <Button
                     asChild
-                    className="rounded-xl bg-[#2a7880] hover:bg-[#1d636b] text-white px-8 py-4 h-auto text-lg font-semibold transition-all duration-300 hover:shadow-lg"
+                    className="mt-10 rounded-full bg-[#2a7880] px-8 py-4 text-base font-semibold text-white transition-all duration-300 hover:bg-[#1d636b] hover:shadow-[0_18px_40px_rgba(29,99,107,0.18)]"
                   >
                     <Link href="/productos" className="flex items-center">
                       Ver Todos los Productos
-                      <ArrowRight className="ml-2 w-5 h-5" />
+                      <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </Button>
                 </div>
               </div>
             </div>
 
-            <div className="lg:w-1/2 order-1 lg:order-2">
-              <div className="relative">
-                {/* Main image with decorative elements */}
-                <div className="relative z-20 rounded-3xl overflow-hidden shadow-2xl transition-transform duration-500">
-                  <Image
-                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/HERO-vDqIBaCFtETXEYMwu8oZS3EIpZSIcU.webp"
-                    alt="Galletas naturales para perros con ingredientes premium"
-                    width={900}
-                    height={675}
-                    className="w-full h-auto"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
-                  <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-900">
-                    Ingredientes de primera calidad
+            <div className="order-1 lg:order-2">
+              <div className="relative mx-auto max-w-[660px]">
+                <div className="absolute -left-4 top-12 h-28 w-28 rounded-full bg-[#f3d8ad]/45 blur-2xl" />
+                <div className="absolute right-4 top-0 h-40 w-40 rounded-full bg-[#7AB8BF]/16 blur-3xl" />
+
+                <div className="relative overflow-hidden rounded-[34px] border border-white bg-white p-3 shadow-[0_30px_80px_rgba(22,49,59,0.1)]">
+                  <div className="relative overflow-hidden rounded-[28px]">
+                    <Image
+                      src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/HERO-vDqIBaCFtETXEYMwu8oZS3EIpZSIcU.webp"
+                      alt="Galletas naturales para perros con ingredientes premium"
+                      width={900}
+                      height={675}
+                      className="h-auto w-full object-cover transition-transform duration-700 hover:scale-[1.03]"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
                   </div>
                 </div>
 
-                {/* Background decorative circles */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full filter blur-md"></div>
-                <div className="absolute top-1/3 right-1/4 w-32 h-32 bg-amber-200/30 rounded-full filter blur-md"></div>
+                <div className="mt-5 rounded-[24px] border border-white bg-white px-5 py-4 shadow-[0_18px_40px_rgba(22,49,59,0.08)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7d8f92]">Ingredientes</p>
+                  <p className="mt-2 text-base font-bold text-[#16313b]">Calidad visible desde el primer vistazo.</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden bg-white">
+      <section className="relative bg-[linear-gradient(180deg,_#f4f8f9_0%,_#ffffff_100%)] py-20 md:py-24">
         <div className="container relative z-10 mx-auto px-4">
-          <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:scale-105">
-            <div className="flex flex-col md:flex-row">
-              <div className="md:w-2/5 relative overflow-hidden">
+          <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_30px_80px_rgba(22,49,59,0.08)]">
+            <div className="grid md:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.05fr)]">
+              <div className="relative min-h-[320px] overflow-hidden md:min-h-full">
                 <Image
                   src="/unete-familia.webp"
                   alt="Galletas premium para perros en tazón turquesa con bulldog francés esperando"
                   width={600}
                   height={800}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.04]"
                   sizes="(max-width: 768px) 100vw, 40vw"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent mix-blend-multiply group-hover:from-primary/60 transition-all duration-500"></div>
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(26,77,83,0.04),rgba(26,77,83,0.38))]" />
+                <div className="absolute bottom-6 left-6 right-6 rounded-[24px] border border-white bg-white px-5 py-4 shadow-[0_18px_40px_rgba(22,49,59,0.12)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7d8f92]">Comunidad Pet Gourmet</p>
+                  <p className="mt-3 text-xl font-bold leading-tight text-[#16313b]">
+                    Consejos, novedades y beneficios para consentirlo mejor.
+                  </p>
+                </div>
               </div>
 
-              <div className="md:w-3/5 p-8 md:p-12">
-                <div className="inline-block bg-amber-100 rounded-full px-4 py-1 text-amber-800 text-sm font-medium mb-6">
+              <div className="p-8 md:p-12">
+                <span className="inline-flex rounded-full bg-[#f4e0b6] px-4 py-2 text-sm font-semibold text-[#8a5d28]">
                   Comunidad Pet Gourmet
-                </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-6 text-gray-900 font-display">
-                  Únete a Nuestra Familia
-                </h2>
-                <p className="text-lg text-gray-600 mb-8">
-                  Suscríbete para recibir consejos de nutrición, ofertas exclusivas y ser el primero en conocer nuestros
-                  nuevos productos para tu mejor amigo.
+                </span>
+                <h2 className="mt-6 font-display text-3xl font-bold text-[#16313b] md:text-4xl">Únete a Nuestra Familia</h2>
+                <p className="mt-5 text-lg leading-relaxed text-[#5d7276]">
+                  Suscríbete para recibir ideas, lanzamientos y ofertas exclusivas con una experiencia más cuidada,
+                  cercana y útil para tu día a día.
                 </p>
 
-                <div className="space-y-4">
+                <div className="mt-8">
                   <HomeNewsletter />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            {[
-              {
-                icon: "🐾",
-                title: "Comunidad",
-                description: "Únete a miles de dueños de mascotas que comparten experiencias",
-              },
-              {
-                icon: "🎁",
-                title: "Beneficios exclusivos",
-                description: "Acceso a promociones y descuentos especiales para miembros",
-              },
-              {
-                icon: "📱",
-                title: "Contenido premium",
-                description: "Consejos de expertos y guías de nutrición para tu mascota",
-              },
-            ].map((feature, i) => (
-              <div
-                key={i}
-                className="group bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg transition-all duration-500 hover:shadow-2xl hover:bg-white hover:scale-105 cursor-pointer"
-              >
-                <div className="text-4xl mb-4 transition-transform duration-500 group-hover:scale-110 group-hover:transform">
-                  {feature.icon}
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {communityBenefits.map((benefit) => {
+              const Icon = benefit.icon
+
+              return (
+                <div
+                  key={benefit.title}
+                  className="rounded-[28px] border border-white bg-white p-6 shadow-[0_18px_44px_rgba(22,49,59,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_54px_rgba(22,49,59,0.1)]"
+                >
+                  <div className="inline-flex rounded-full bg-[#eef7f8] p-3 text-[#1d636b]">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-4 text-xl font-bold text-[#16313b]">{benefit.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#607478]">{benefit.description}</p>
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-gray-900 transition-colors duration-300 group-hover:text-primary">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 transition-colors duration-300 group-hover:text-gray-800">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>

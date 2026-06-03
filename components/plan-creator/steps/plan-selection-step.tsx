@@ -52,7 +52,7 @@ export default function PlanSelectionStep() {
       name: `Plan ${planType === "complete" ? "Completo" : "Complementario"} ${planFrequency === "biweekly" ? "Quincenal" : "Mensual"}`,
       price:
         planType === "complete" ? (planFrequency === "biweekly" ? 526 : 921) : planFrequency === "biweekly" ? 348 : 549,
-      image: "/pet-bowl-full.png",
+      image: "/full-nutritious-dog-bowl.webp",
       quantity: 1,
       petName: petName,
       planDetails: {

@@ -178,6 +178,127 @@ body {
   animation: fadeInSmall 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes heroFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes heroDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(18px, -12px, 0) scale(1.04);
+  }
+}
+
+@keyframes heroPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
+.animate-hero-float {
+  animation: heroFloat 6s ease-in-out infinite;
+}
+
+.animate-hero-drift {
+  animation: heroDrift 16s ease-in-out infinite;
+}
+
+.animate-hero-pulse {
+  animation: heroPulse 9s ease-in-out infinite;
+}
+
+@keyframes heroBob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  50% {
+    transform: translate3d(0, -8px, 0) rotate(-2deg);
+  }
+}
+
+@keyframes heroOrbit {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes heroOrbitReverse {
+  from {
+    transform: rotate(360deg);
+  }
+
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes heroSheen {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    opacity: 0.95;
+    transform: translate3d(10px, 0, 0);
+  }
+}
+
+.animate-hero-bob {
+  animation: heroBob 5.5s ease-in-out infinite;
+}
+
+.animate-hero-orbit {
+  animation: heroOrbit 18s linear infinite;
+}
+
+.animate-hero-orbit-reverse {
+  animation: heroOrbitReverse 22s linear infinite;
+}
+
+.animate-hero-sheen {
+  animation: heroSheen 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-in-small,
+  .animate-hero-float,
+  .animate-hero-drift,
+  .animate-hero-pulse,
+  .animate-hero-bob,
+  .animate-hero-orbit,
+  .animate-hero-orbit-reverse,
+  .animate-hero-sheen {
+    animation: none !important;
+  }
+}
+
 /* --- Animación Premium CTA Botón de Compra (Shimmer/Brillo) --- */
 @keyframes buyShimmer {
   0% {

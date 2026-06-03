@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { CheckCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -11,13 +11,12 @@ export default function HomeNewsletter() {
   const [formLoadTime, setFormLoadTime] = useState<number>(0)
 
   useEffect(() => {
-    // Guardar timestamp de cuando se cargó el formulario
     setFormLoadTime(Date.now())
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!email.trim()) {
       toast.error('Ingresa tu email para continuar')
       return
@@ -31,10 +30,10 @@ export default function HomeNewsletter() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           email,
-          honeypot: '', // Campo honeypot vacío (para detectar bots)
-          submissionTime: formLoadTime // Tiempo de carga para validar velocidad
+          honeypot: '',
+          submissionTime: formLoadTime,
         }),
       })
 
@@ -67,21 +66,20 @@ export default function HomeNewsletter() {
   if (isSuccess) {
     return (
       <div className="space-y-4">
-        <div className="text-center p-8 bg-green-50 rounded-xl border border-green-200">
-          <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-green-800 mb-2">
-            ¡Bienvenido a la familia Pet Gourmet!
-          </h3>
-          <p className="text-green-700">
-            Tu suscripción ha sido confirmada. Revisa tu email para más información.
+        <div className="rounded-[24px] border border-green-200 bg-[linear-gradient(145deg,_#f0fdf4,_#ecfdf3)] p-8 text-center shadow-[0_18px_44px_rgba(34,197,94,0.08)]">
+          <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-600" />
+          <h3 className="text-xl font-semibold text-green-800">¡Bienvenido a la familia Pet Gourmet!</h3>
+          <p className="mt-3 text-green-700">
+            Tu suscripción fue registrada. Revisa tu correo para conocer lo que preparamos para ti.
           </p>
         </div>
-        <button 
+
+        <button
           onClick={() => {
             setIsSuccess(false)
             setEmail('')
           }}
-          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
+          className="inline-flex h-11 w-full items-center justify-center rounded-full border border-[#d8e6e8] bg-white text-sm font-semibold text-[#35545a] transition-all duration-300 hover:border-[#7AB8BF]/35 hover:bg-[#f8fbfb]"
         >
           Suscribir otro email
         </button>
@@ -91,7 +89,7 @@ export default function HomeNewsletter() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="relative">
+      <div className="rounded-[22px] border border-[#dfeaec] bg-white/92 p-2 shadow-[0_12px_28px_rgba(22,49,59,0.05)]">
         <input
           type="email"
           placeholder="Tu correo electrónico"
@@ -99,27 +97,29 @@ export default function HomeNewsletter() {
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={isLoading}
-          className="w-full px-6 py-4 rounded-xl border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent disabled:opacity-50"
+          className="w-full rounded-[16px] border-0 bg-transparent px-4 py-4 text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-50"
         />
       </div>
-      <button 
+
+      <button
         type="submit"
         disabled={isLoading || !email.trim()}
-        className="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 w-full bg-primary hover:bg-primary/90 text-white rounded-xl px-8 py-4 h-auto text-lg font-semibold transition-all duration-300 hover:shadow-lg"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#2a7880] px-8 py-4 text-base font-semibold text-white transition-all duration-300 hover:bg-[#1d636b] hover:shadow-[0_18px_36px_rgba(29,99,107,0.18)] disabled:pointer-events-none disabled:opacity-50"
       >
         {isLoading ? (
           <>
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-b-white" />
             Uniéndote...
           </>
         ) : (
           <>
-            <Send className="mr-2 h-5 w-5" />
+            <Send className="h-5 w-5" />
             Unirme a la comunidad
           </>
         )}
       </button>
-      <p className="text-sm text-gray-500 text-center">
+
+      <p className="text-sm leading-relaxed text-[#6b7f83]">
         Al suscribirte, aceptas recibir correos electrónicos de Pet Gourmet.
         <br />
         Puedes darte de baja en cualquier momento.

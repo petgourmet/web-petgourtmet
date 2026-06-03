@@ -203,12 +203,13 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
             {/* Tipo de compra */}
             <div>
               <h3 className="font-bold mb-3 text-lg">Tipo de compra</h3>
-              <div className="flex gap-3 mb-4">
+              <div className="mb-4 flex gap-2 rounded-[28px] border border-[#b9dfe4] bg-[#f4fbfc] p-1.5">
                 <Button
-                  variant={purchaseType === 'single' ? "default" : "outline"}
-                  className={`rounded-full px-6 py-3 ${purchaseType === 'single'
-                    ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                    : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
+                  type="button"
+                  variant="ghost"
+                  className={`flex-1 rounded-full px-6 py-3 font-semibold transition-all ${purchaseType === 'single'
+                    ? "bg-white text-[#16313b] shadow-[0_8px_20px_rgba(123,189,197,0.18)] ring-1 ring-[#7BBDC5]/45 hover:bg-white"
+                    : "bg-transparent text-[#5b7479] hover:bg-white/70 hover:text-[#16313b]"
                     }`}
                   onClick={() => {
                     setPurchaseType('single')
@@ -217,23 +218,27 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToCart }: Pr
                 >
                   Comprar ahora
                 </Button>
-                {hasSubscriptionOptions && (
-                  <Button
-                    variant={purchaseType === 'subscription' ? "default" : "outline"}
-                    className={`rounded-full px-6 py-3 ${purchaseType === 'subscription'
-                      ? "bg-[#7BBDC5] text-white hover:bg-[#7BBDC5]/90"
-                      : "border-[#7BBDC5] text-[#7BBDC5] hover:bg-[#7BBDC5]/10"
-                      }`}
-                    onClick={() => {
-                      setPurchaseType('subscription')
-                      if (availableSubscriptionTypes.length > 0) {
-                        setSelectedSubscriptionType(availableSubscriptionTypes[0])
-                      }
-                    }}
-                  >
-                    Suscríbete
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={!hasSubscriptionOptions}
+                  aria-disabled={!hasSubscriptionOptions}
+                  className={`flex-1 rounded-full px-6 py-3 font-semibold transition-all ${hasSubscriptionOptions
+                    ? purchaseType === 'subscription'
+                      ? "bg-white text-[#16313b] shadow-[0_8px_20px_rgba(123,189,197,0.18)] ring-1 ring-[#7BBDC5]/45 hover:bg-white"
+                      : "bg-transparent text-[#5b7479] hover:bg-white/70 hover:text-[#16313b]"
+                    : "bg-transparent text-[#9ab2b6] opacity-55 ring-1 ring-transparent cursor-not-allowed hover:bg-transparent"
+                    }`}
+                  onClick={() => {
+                    if (!hasSubscriptionOptions) return
+                    setPurchaseType('subscription')
+                    if (availableSubscriptionTypes.length > 0) {
+                      setSelectedSubscriptionType(availableSubscriptionTypes[0])
+                    }
+                  }}
+                >
+                  Suscríbete
+                </Button>
               </div>
 
               {/* Opciones de suscripción */}

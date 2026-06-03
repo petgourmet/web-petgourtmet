@@ -134,13 +134,6 @@ export default function RootLayout({
         {/* DNS prefetch para dominios secundarios */}
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
-        {/* Preload LCP image — poster estático local (sin latencia CDN externa) */}
-        <link
-          rel="preload"
-          as="image"
-          href="/hero-poster.webp"
-          fetchPriority="high"
-        />
       </head>
       <body className={`${montserrat.variable} ${baloo.variable} font-sans m-0 p-0 overflow-x-hidden`}>
         <GoogleTagManagerNoScript />

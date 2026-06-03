@@ -9,7 +9,7 @@ const categories = [
     id: 1,
     title: "Para Celebrar",
     description: "Snacks y premios especiales para esos momentos especiales con tu amigo peludo.",
-    image: "/happy-dog-birthday.png",
+    image: "/pastel-carne-front.webp",
     productId: 3, // ID del producto "Snacks Naturales para Celebraciones"
     color: "pastel-yellow",
     spotlightColor: "rgba(255, 236, 179, 0.3)",
@@ -19,7 +19,7 @@ const categories = [
     id: 2,
     title: "Para Complementar",
     description: "Suplementos nutricionales y aditivos para mejorar la dieta diaria de tu perro.",
-    image: "/dog-supplement-display.png",
+    image: "/complementar-dog-treat.webp",
     productId: 4, // ID del producto "Suplemento Vitamínico Canino"
     color: "pastel-green",
     spotlightColor: "rgba(217, 245, 232, 0.3)",
@@ -29,7 +29,7 @@ const categories = [
     id: 3,
     title: "Para Premiar",
     description: "Galletas y golosinas saludables perfectas para el entrenamiento y premiar el buen comportamiento.",
-    image: "/healthy-dog-training-treats.png",
+    image: "/happy-dog-treat.webp",
     productId: 5, // ID del producto "Premios de Entrenamiento"
     color: "pastel-blue",
     spotlightColor: "rgba(122, 184, 191, 0.2)",
@@ -39,7 +39,7 @@ const categories = [
     id: 4,
     title: "Nuestras Recetas",
     description: "Comidas principales con ingredientes naturales para la nutrición y el bienestar diarios.",
-    image: "/natural-dog-food-ingredients.png",
+    image: "/natural-dog-food-ingredients.webp",
     productId: 1, // ID del producto "Pastel por porción de Carne"
     color: "pastel-pink",
     spotlightColor: "rgba(249, 215, 232, 0.3)",

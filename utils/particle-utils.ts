@@ -117,17 +117,17 @@ export function getBaseSize(type: IngredientType, minSize: number, maxSize: numb
 export function getIngredientImage(type: IngredientType): string {
   switch (type) {
     case "bone":
-      return "/treat-bone-new.png"
+      return "/pastel-carne-treats.webp"
     case "donut":
-      return "/treat-donut-new.png"
+      return "/happy-dog-treat.webp"
     case "ball":
-      return "/treat-ball-new.png"
+      return "/full-nutritious-dog-bowl.webp"
     case "heart":
-      return "/treat-heart-cake.png"
+      return "/pastel-carne-front.webp"
     case "paw-cake":
-      return "/treat-paw-cake.png"
+      return "/pastel-carne-package.webp"
     default:
-      return "/treat-ball-new.png"
+      return "/pastel-carne-treats.webp"
   }
 }
 

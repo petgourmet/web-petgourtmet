@@ -37,7 +37,7 @@ export const Particle = memo(function Particle({
   const imageSrc = getIngredientImage(type)
 
   // Si hay un error, usar una imagen de fallback
-  const finalSrc = hasError ? "/treat-ball-new.png" : imageSrc
+  const finalSrc = hasError ? "/pastel-carne-treats.webp" : imageSrc
 
   const handleError = () => {
     setHasError(true)

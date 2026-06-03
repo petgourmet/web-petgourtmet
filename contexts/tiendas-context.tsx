@@ -38,7 +38,7 @@ const tiendasData: Tienda[] = [
       lng: -99.1834808
     },
     googleMapsUrl: "https://www.google.com.mx/maps/place/Pets+Excellence+Boutique+%26+Grooming/@19.4053988,-99.1860557,17z/data=!3m1!4b1!4m6!3m5!1s0x85d1ff0ee99458a3:0x406419b4b48bc6e!8m2!3d19.4053988!4d-99.1834808!16s%2Fg%2F11qg0dwcqk?hl=es&entry=ttu&g_ep=EgoyMDI1MDcwOS4wIKXMDSoASAFQAw%3D%3D",
-    logo: "/tiendas/pets-excellence-logo.png",
+    logo: "/pet-gourmet-logo-full.webp",
     descripcion: "Boutique & Grooming especializada en el cuidado integral de mascotas.",
     horarios: "Lun - Vie: 9:00 - 19:00, Sab: 9:00 - 18:00",
     telefono: "+52 55 2345 6789"
@@ -53,7 +53,7 @@ const tiendasData: Tienda[] = [
       lng: -99.1760746
     },
     googleMapsUrl: "https://www.google.com.mx/maps/place/Llaos+Pet+Condesa+Est%C3%A9tica+Canina+Spa+de+Perritos+y+Gatitos/@19.4156189,-99.1786495,17z/data=!3m1!4b1!4m6!3m5!1s0x85d1ff377e85dce1:0xf1b8ae13915a810e!8m2!3d19.4156189!4d-99.1760746!16s%2Fg%2F11fm5wz5y6?hl=es&entry=ttu&g_ep=EgoyMDI1MDcwOS4wIKXMDSoASAFQAw%3D%3D",
-    logo: "/tiendas/llaos-pet-logo.png",
+    logo: "/pet-gourmet-logo-full.webp",
     descripcion: "Estética Canina & Spa especializado en el cuidado y bienestar de perritos y gatitos.",
     horarios: "Lun - Dom: 10:00 - 19:00",
     telefono: "+52 55 3456 7890"

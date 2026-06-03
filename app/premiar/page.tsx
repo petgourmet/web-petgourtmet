@@ -22,7 +22,7 @@ export default function PremiarPage() {
       {/* Banner de categoría a ancho completo */}
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
-          src="/happy-dog-treat.png"
+          src="/happy-dog-treat.webp"
           alt="Productos para premiar"
           fill
           className="object-cover saturate-90 brightness-60"

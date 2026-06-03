@@ -1,23 +1,31 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { ProductFilters, type Filters } from "@/components/product-filters"
 import { Filter, Loader2 } from "lucide-react"
 import { ProductCard } from "@/components/product-card"
 import { ProductGridSkeleton } from "@/components/product-card-skeleton"
-import { useCart } from "@/components/cart-context"
 import { supabase } from "@/lib/supabase/client"
 import { getOptimizedImageUrl, preloadCriticalImages } from "@/lib/image-optimization"
 import type { ProductFeature } from "@/components/product-card"
-import { useRouter } from "next/navigation"
+import { enhancedCacheService } from "@/lib/cache-service-enhanced"
 
-// Configuración de paginación
-const PRODUCTS_PER_PAGE = 12 // Cargar 12 productos por página
-const INITIAL_LOAD = 6 // Cargar solo 6 productos inicialmente para mejorar el tiempo de carga
+const PRODUCTS_PER_PAGE = 12
+const INITIAL_LOAD = 6
+const QUERY_TIMEOUT_MS = 3500
+const MAX_RETRIES = 3
+const RETRY_BASE_DELAY_MS = 700
+const AUTO_LOAD_ROOT_MARGIN = "700px 0px"
 
-// Configuración de timeouts
-const QUERY_TIMEOUT_MS = 6000 // 6 segundos timeout para consultas
+const CATEGORY_ID_MAP: Record<string, number> = {
+  celebrar: 2,
+  complementar: 3,
+  premiar: 1,
+  recetas: 4,
+}
+
+const inFlightCategoryRequests = new Map<string, Promise<Product[]>>()
 
 // Tipo para los productos desde la base de datos
 export type Product = {
@@ -61,23 +69,248 @@ export type Product = {
   variant_max_price?: number
 }
 
-// Datos de fallback por categoría
-// Productos de fallback deshabilitados - solo mostrar productos reales de la base de datos
-const FALLBACK_PRODUCTS: Record<string, Product[]> = {
-  all: [],
-  celebrar: [],
-  complementar: [],
-  premiar: [],
-  recetas: [],
+type ProductRow = {
+  id: number
+  name: string
+  slug?: string | null
+  description: string
+  price: number
+  image: string
+  stock: number
+  created_at: string
+  category_id?: number | null
+  rating?: number | null
+  subscription_available?: boolean | null
+  subscription_types?: Product["subscription_types"] | string | null
+  weekly_discount?: number | null
+  biweekly_discount?: number | null
+  monthly_discount?: number | null
+  quarterly_discount?: number | null
+  annual_discount?: number | null
+  product_type?: "simple" | "variable" | null
 }
 
-// Mapeo de categorías para la consulta a la base de datos
-const CATEGORY_MAPPING: Record<string, { name: string; displayName: string; searchPattern: string }> = {
-  all: { name: "all", displayName: "Todos los Productos", searchPattern: "%" },
-  celebrar: { name: "celebrar", displayName: "Para Celebrar", searchPattern: "Para Celebrar" },
-  complementar: { name: "complementar", displayName: "Para Complementar", searchPattern: "Para Complementar" },
-  premiar: { name: "premiar", displayName: "Para Premiar", searchPattern: "Para Premiar" },
-  recetas: { name: "recetas", displayName: "Nuestras Recetas", searchPattern: "%receta%" },
+type VariantRow = {
+  product_id: number
+  price: number
+  is_active: boolean
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(message)), timeoutMs)
+    }),
+  ])
+}
+
+function parseSubscriptionTypes(rawValue: ProductRow["subscription_types"]): Product["subscription_types"] {
+  if (Array.isArray(rawValue)) {
+    return rawValue
+  }
+
+  if (typeof rawValue === "string") {
+    try {
+      const parsedValue = JSON.parse(rawValue)
+      return Array.isArray(parsedValue) ? parsedValue : []
+    } catch {
+      return []
+    }
+  }
+
+  return []
+}
+
+function mapProducts(productsData: ProductRow[], variantRows: VariantRow[]): Product[] {
+  const variantRangeMap = new Map<number, { min: number; max: number }>()
+
+  for (const row of variantRows) {
+    if (!row.is_active) {
+      continue
+    }
+
+    const variantPrice = Number(row.price) || 0
+    if (variantPrice <= 0) {
+      continue
+    }
+
+    const currentRange = variantRangeMap.get(row.product_id)
+    if (!currentRange) {
+      variantRangeMap.set(row.product_id, { min: variantPrice, max: variantPrice })
+      continue
+    }
+
+    if (variantPrice < currentRange.min) {
+      currentRange.min = variantPrice
+    }
+
+    if (variantPrice > currentRange.max) {
+      currentRange.max = variantPrice
+    }
+  }
+
+  return productsData.map((product) => {
+    const variantRange = variantRangeMap.get(product.id)
+
+    return {
+      id: product.id,
+      name: product.name,
+      slug: product.slug || undefined,
+      description: product.description,
+      price: product.price,
+      image: getOptimizedImageUrl(product.image, 400, 85),
+      stock: product.stock,
+      category_id: product.category_id || undefined,
+      created_at: product.created_at,
+      rating: product.rating || 4.5,
+      reviews: 0,
+      features: [],
+      sizes: [
+        { weight: "200g", price: product.price },
+        { weight: "500g", price: product.price * 2.2 },
+      ],
+      gallery: [],
+      subscription_available: Boolean(product.subscription_available),
+      subscription_types: parseSubscriptionTypes(product.subscription_types),
+      biweekly_discount: product.biweekly_discount || undefined,
+      monthly_discount: product.monthly_discount || undefined,
+      quarterly_discount: product.quarterly_discount || undefined,
+      annual_discount: product.annual_discount || undefined,
+      weekly_discount: product.weekly_discount || undefined,
+      product_type: product.product_type || undefined,
+      variant_min_price: variantRange?.min,
+      variant_max_price: variantRange?.max,
+    }
+  })
+}
+
+function applyProductFilters(sourceProducts: Product[], activeFilters: Filters) {
+  let result = [...sourceProducts]
+
+  result = result.filter((product) => {
+    return product.price >= activeFilters.priceRange[0] && product.price <= activeFilters.priceRange[1]
+  })
+
+  if (activeFilters.features.length > 0) {
+    result = result.filter((product) => {
+      return activeFilters.features.some((feature) =>
+        product.features?.some((productFeature) => productFeature.name?.toLowerCase() === feature?.toLowerCase()),
+      )
+    })
+  }
+
+  if (activeFilters.sortBy === "price-asc") {
+    result.sort((a, b) => a.price - b.price)
+  } else if (activeFilters.sortBy === "price-desc") {
+    result.sort((a, b) => b.price - a.price)
+  } else if (activeFilters.sortBy === "rating") {
+    result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+  } else if (activeFilters.sortBy === "popularity") {
+    result.sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
+  }
+
+  return result
+}
+
+async function fetchProductsFromDatabase(categorySlug: string): Promise<Product[]> {
+  let productsQuery = supabase
+    .from("products")
+    .select(`
+      id, name, slug, description, price, image, stock, category_id, created_at,
+      rating, subscription_available, subscription_types,
+      biweekly_discount, monthly_discount, quarterly_discount,
+      annual_discount, weekly_discount, product_type
+    `)
+    .gt("stock", 0)
+    .order("featured", { ascending: false })
+    .order("created_at", { ascending: false })
+
+  if (categorySlug !== "all") {
+    const categoryId = CATEGORY_ID_MAP[categorySlug]
+    if (categoryId) {
+      productsQuery = productsQuery.eq("category_id", categoryId)
+    }
+  }
+
+  const productsResponse = (await withTimeout(
+    productsQuery,
+    QUERY_TIMEOUT_MS,
+    "La consulta de productos tardó demasiado.",
+  )) as { data: ProductRow[] | null; error: { message?: string } | null }
+
+  if (productsResponse.error) {
+    throw new Error(productsResponse.error.message || "No se pudieron cargar los productos.")
+  }
+
+  const productsData = Array.isArray(productsResponse.data) ? productsResponse.data : []
+  if (productsData.length === 0) {
+    return []
+  }
+
+  const variableProductIds = productsData.filter((product) => product.product_type === "variable").map((product) => product.id)
+  let variantRows: VariantRow[] = []
+
+  if (variableProductIds.length > 0) {
+    const variantsResponse = (await withTimeout(
+      supabase
+        .from("product_variants")
+        .select("product_id, price, is_active")
+        .in("product_id", variableProductIds)
+        .eq("is_active", true),
+      QUERY_TIMEOUT_MS,
+      "La consulta de variantes tardó demasiado.",
+    )) as { data: VariantRow[] | null; error: { message?: string } | null }
+
+    if (!variantsResponse.error && Array.isArray(variantsResponse.data)) {
+      variantRows = variantsResponse.data
+    }
+  }
+
+  return mapProducts(productsData, variantRows)
+}
+
+async function fetchProductsWithRetry(categorySlug: string): Promise<Product[]> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+    try {
+      return await fetchProductsFromDatabase(categorySlug)
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("No se pudieron cargar los productos.")
+
+      if (attempt === MAX_RETRIES - 1) {
+        break
+      }
+
+      await sleep(RETRY_BASE_DELAY_MS * (attempt + 1))
+    }
+  }
+
+  throw lastError || new Error("No se pudieron cargar los productos.")
+}
+
+async function getCategoryProducts(categorySlug: string): Promise<Product[]> {
+  const existingRequest = inFlightCategoryRequests.get(categorySlug)
+  if (existingRequest) {
+    return existingRequest
+  }
+
+  const request = fetchProductsWithRetry(categorySlug)
+    .then((products) => {
+      enhancedCacheService.setProducts(products, categorySlug)
+      return products
+    })
+    .finally(() => {
+      inFlightCategoryRequests.delete(categorySlug)
+    })
+
+  inFlightCategoryRequests.set(categorySlug, request)
+  return request
 }
 
 interface ProductCategoryLoaderProps {
@@ -89,183 +322,79 @@ interface ProductCategoryLoaderProps {
 
 export function ProductCategoryLoader({
   categorySlug,
-  title,
-  description,
-  showAllCategories = false,
 }: ProductCategoryLoaderProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]) // Para paginación
-  const [currentPage, setCurrentPage] = useState(1)
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([])
   const [hasMoreProducts, setHasMoreProducts] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { addToCart } = useCart()
+  const [retryToken, setRetryToken] = useState(0)
   const [filters, setFilters] = useState<Filters>({
     priceRange: [0, 1000],
     features: [],
     sortBy: "relevance",
   })
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  const filtersRef = useRef(filters)
 
-  // Función para actualizar productos mostrados con paginación
-  const updateDisplayedProducts = (allProducts: Product[], page: number = 1) => {
-    const startIndex = 0
-    const endIndex = page * PRODUCTS_PER_PAGE
-    const productsToShow = allProducts.slice(startIndex, endIndex)
-    
-    setDisplayedProducts(productsToShow)
-    setHasMoreProducts(endIndex < allProducts.length)
-    setCurrentPage(page)
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
+
+  const syncDisplayedProducts = (allProducts: Product[], initialCount: number = INITIAL_LOAD) => {
+    const visibleCount = Math.min(initialCount, allProducts.length)
+
+    setDisplayedProducts(allProducts.slice(0, visibleCount))
+    setHasMoreProducts(visibleCount < allProducts.length)
   }
 
-  // Función para cargar más productos
-  const loadMoreProducts = () => {
-    if (loadingMore || !hasMoreProducts) return
-    
-    setLoadingMore(true)
-    setTimeout(() => {
-      updateDisplayedProducts(filteredProducts, currentPage + 1)
-      setLoadingMore(false)
-    }, 300) // Pequeño delay para mejor UX
-  }
-
-  // Timeout handling is now managed by CacheService
-
-  // Obtener la información de la categoría
-  const categoryInfo = CATEGORY_MAPPING[categorySlug] || CATEGORY_MAPPING.all
-
-  // Cargar productos por categoría
   useEffect(() => {
     let isMounted = true
-    
+
     async function loadProductsByCategory() {
       if (!isMounted) return
-      setLoading(true)
-      
-      try {
-        // Cargar DIRECTAMENTE desde base de datos - SIN CACHÉ
-        let productsQuery = supabase.from("products").select(`
-          id, name, slug, description, price, image, stock, category_id,
-          rating, subscription_available, subscription_types,
-          biweekly_discount, monthly_discount, quarterly_discount,
-          annual_discount, weekly_discount, product_type
-        `)
 
-        // Filtrar por categoría si no es "all"
-        if (categorySlug !== "all") {
-          const categoryIdMap: Record<string, number> = {
-            'celebrar': 2, 'complementar': 3, 'premiar': 1, 'recetas': 4
-          }
-          const categoryId = categoryIdMap[categorySlug]
-          if (categoryId) {
-            productsQuery = productsQuery.eq("category_id", categoryId)
-          }
-        }
+      const cachedProducts = enhancedCacheService.getProducts(categorySlug) as Product[] | null
+      if (cachedProducts && cachedProducts.length > 0) {
+        const cachedFilteredProducts = applyProductFilters(cachedProducts, filtersRef.current)
+        setProducts(cachedProducts)
+        setFilteredProducts(cachedFilteredProducts)
+        syncDisplayedProducts(cachedFilteredProducts)
+        setLoading(false)
+        setError(null)
 
-        productsQuery = productsQuery.gt('stock', 0).order("created_at", { ascending: false })
-
-        const { data: productsData, error: productsError } = await productsQuery
-
-        if (!isMounted) return
-        
-        if (productsError || !productsData || productsData.length === 0) {
-          setProducts([])
-          setFilteredProducts([])
-          setLoading(false)
-          return
-        }
-
-        // Procesar productos
-        const processedProducts = (productsData as any[]).map((product: any) => {
-          let parsedSubscriptionTypes = product.subscription_types || []
-          if (typeof product.subscription_types === 'string') {
-            try {
-              parsedSubscriptionTypes = JSON.parse(product.subscription_types)
-            } catch { parsedSubscriptionTypes = [] }
-          }
-
-          const imageUrl = getOptimizedImageUrl(product.image, 400, 85)
-
-          return {
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-            description: product.description,
-            price: product.price,
-            image: imageUrl,
-            stock: product.stock,
-            category_id: product.category_id,
-            created_at: product.created_at,
-            rating: product.rating || 4.5,
-            reviews: 0,
-            features: [],
-            sizes: [
-              { weight: "200g", price: product.price },
-              { weight: "500g", price: product.price * 2.2 },
-            ],
-            gallery: [],
-            subscription_available: product.subscription_available,
-            subscription_types: parsedSubscriptionTypes,
-            biweekly_discount: product.biweekly_discount,
-            monthly_discount: product.monthly_discount,
-            quarterly_discount: product.quarterly_discount,
-            annual_discount: product.annual_discount,
-            weekly_discount: product.weekly_discount,
-            product_type: product.product_type,
-          } as Product
-        })
-
-        // Si hay productos variables, obtener rango de precios de variantes
-        const variableProductIds = processedProducts.filter(p => p.product_type === 'variable').map(p => p.id)
-        if (variableProductIds.length > 0) {
-          const { data: variantRows, error: variantsError } = await supabase
-            .from('product_variants')
-            .select('product_id, price, is_active')
-            .in('product_id', variableProductIds)
-            .eq('is_active', true)
-
-          if (!variantsError && Array.isArray(variantRows)) {
-            const rangeMap = new Map<number, { min: number; max: number }>()
-            for (const row of variantRows as any[]) {
-              const pid = row.product_id as number
-              const vPrice = Number(row.price) || 0
-              if (vPrice <= 0) continue
-              const existing = rangeMap.get(pid)
-              if (!existing) {
-                rangeMap.set(pid, { min: vPrice, max: vPrice })
-              } else {
-                if (vPrice < existing.min) existing.min = vPrice
-                if (vPrice > existing.max) existing.max = vPrice
-              }
-            }
-            for (const p of processedProducts) {
-              const range = rangeMap.get(p.id)
-              if (range) {
-                p.variant_min_price = range.min
-                p.variant_max_price = range.max
-              }
-            }
-          }
-        }
-
-        if (!isMounted) return
-        
-        setProducts(processedProducts)
-        setFilteredProducts(processedProducts)
-        
-        // Precargar imágenes críticas
-        const criticalImages = processedProducts.slice(0, 6).map(p => p.image).filter(Boolean)
+        const criticalImages = cachedFilteredProducts.slice(0, INITIAL_LOAD).map((product) => product.image).filter(Boolean)
         preloadCriticalImages(criticalImages)
-        
-      } catch (error) {
-        console.error('Error cargando productos:', error)
+      } else {
+        setLoading(true)
+      }
+
+      try {
+        if (!isMounted) return
+        const freshProducts = await getCategoryProducts(categorySlug)
+        const freshFilteredProducts = applyProductFilters(freshProducts, filtersRef.current)
+
+        setProducts(freshProducts)
+        setFilteredProducts(freshFilteredProducts)
+        syncDisplayedProducts(freshFilteredProducts)
+        setError(null)
+
+        const criticalImages = freshFilteredProducts.slice(0, INITIAL_LOAD).map((product) => product.image).filter(Boolean)
+        preloadCriticalImages(criticalImages)
+
+      } catch (loadError) {
+        console.error("Error cargando productos:", loadError)
         if (isMounted) {
-          setProducts([])
-          setFilteredProducts([])
-          setLoading(false)
+          if (!cachedProducts || cachedProducts.length === 0) {
+            setProducts([])
+            setFilteredProducts([])
+            setDisplayedProducts([])
+            setHasMoreProducts(false)
+            setError("No pudimos cargar los productos en este momento. Reintentamos automáticamente, pero aún falló.")
+          }
         }
       } finally {
         if (isMounted) {
@@ -275,58 +404,50 @@ export function ProductCategoryLoader({
     }
 
     loadProductsByCategory()
-    
+
     return () => {
       isMounted = false
     }
-  }, [categorySlug])
+  }, [categorySlug, retryToken])
 
-  const router = useRouter()
+  useEffect(() => {
+    if (loading || loadingMore || !hasMoreProducts || !loadMoreRef.current) {
+      return
+    }
+
+    const currentTarget = loadMoreRef.current
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setLoadingMore(true)
+          const nextVisibleCount = Math.min(displayedProducts.length + PRODUCTS_PER_PAGE, filteredProducts.length)
+          setDisplayedProducts(filteredProducts.slice(0, nextVisibleCount))
+          setHasMoreProducts(nextVisibleCount < filteredProducts.length)
+          setLoadingMore(false)
+        }
+      },
+      {
+        rootMargin: AUTO_LOAD_ROOT_MARGIN,
+        threshold: 0.01,
+      },
+    )
+
+    observer.observe(currentTarget)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [displayedProducts.length, filteredProducts, hasMoreProducts, loading, loadingMore])
 
   const applyFilters = () => {
-    let result = [...products]
-
-    // Filtrar por rango de precio
-    result = result.filter((product) => {
-      return product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
-    })
-
-    // Filtrar por características
-    if (filters.features.length > 0) {
-      result = result.filter((product) => {
-        return filters.features.some((feature) =>
-          product.features?.some((f) => f.name?.toLowerCase() === feature?.toLowerCase()),
-        )
-      })
-    }
-
-    // Ordenar productos
-    if (filters.sortBy === "price-asc") {
-      result.sort((a, b) => a.price - b.price)
-    } else if (filters.sortBy === "price-desc") {
-      result.sort((a, b) => b.price - a.price)
-    } else if (filters.sortBy === "rating") {
-      result.sort((a, b) => (b.rating || 0) - (a.rating || 0))
-    } else if (filters.sortBy === "popularity") {
-      result.sort((a, b) => (b.reviews || 0) - (a.reviews || 0))
-    }
-
+    const result = applyProductFilters(products, filters)
     setFilteredProducts(result)
+    syncDisplayedProducts(result)
     setShowFilters(false)
   }
 
-  // Extraer características únicas de todos los productos
   const allFeatures = Array.from(new Set(products.flatMap((product) => product.features?.map((f) => f.name) || [])))
-
-  // Encontrar el precio máximo para el filtro
   const maxPrice = Math.max(...products.map((product) => product.price), 100)
-
-  // Log de debugging para el render
-  console.log('🎨 RENDER - Estado:', {
-    loading,
-    productsCount: products.length,
-    filteredProductsCount: filteredProducts.length
-  })
 
   return (
     <>
@@ -340,8 +461,16 @@ export function ProductCategoryLoader({
       {/* Grid de productos */}
       {loading ? (
         <ProductGridSkeleton />
+      ) : error && displayedProducts.length === 0 ? (
+        <div className="rounded-xl border border-[#d9e7ea] bg-white/80 p-8 text-center shadow-sm">
+          <p className="text-base text-[#486266]">{error}</p>
+          <Button className="mt-4 rounded-full bg-[#7BBDC5] text-white hover:bg-[#69aeb8]" onClick={() => setRetryToken((current) => current + 1)}>
+            Reintentar carga
+          </Button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4 rounded-xl bg-white/75 dark:bg-[rgba(0,0,0,0.2)] backdrop-blur-sm">
+        <>
+          <div className="grid grid-cols-1 gap-6 rounded-xl bg-white/75 p-4 backdrop-blur-sm sm:grid-cols-2 md:grid-cols-3 dark:bg-[rgba(0,0,0,0.2)]">
           {filteredProducts.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <p className="text-gray-500 dark:text-white">
@@ -357,13 +486,14 @@ export function ProductCategoryLoader({
                     sortBy: "relevance",
                   })
                   setFilteredProducts(products)
+                  syncDisplayedProducts(products)
                 }}
               >
                 Restablecer Filtros
               </Button>
             </div>
           ) : (
-            filteredProducts.map((product) => (
+            displayedProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 id={product.id}
@@ -383,7 +513,21 @@ export function ProductCategoryLoader({
               />
             ))
           )}
-        </div>
+          </div>
+
+          {(hasMoreProducts || loadingMore) && filteredProducts.length > 0 && (
+            <div ref={loadMoreRef} className="flex justify-center py-6">
+              {loadingMore ? (
+                <div className="inline-flex items-center gap-2 text-sm text-[#486266]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando más productos...
+                </div>
+              ) : (
+                <span className="text-xs text-[#789195]">Desplázate para cargar más productos</span>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal de filtros */}

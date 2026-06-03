@@ -1,10 +1,10 @@
 "use client"
-import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import type { ProductSize } from "@/lib/supabase/types"
 import { LazyImage } from "@/components/lazy-image"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 export type ProductFeature = {
   name: string
@@ -14,6 +14,20 @@ export type ProductFeature = {
 export type ProductGalleryItem = {
   src: string
   alt: string
+}
+
+export type ProductCardDetailPayload = {
+  id: number
+  name: string
+  description: string
+  image: string
+  rating?: number
+  reviews?: number
+  price?: number
+  sizes?: ProductSize[]
+  features?: ProductFeature[]
+  category?: string
+  gallery?: ProductGalleryItem[]
 }
 
 export type SubscriptionType = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual'
@@ -44,10 +58,12 @@ export type ProductCardProps = {
   quarterly_discount?: number
   annual_discount?: number
   purchase_types?: string[]
-  onShowDetail?: (product: any) => void
+  onShowDetail?: (product: ProductCardDetailPayload) => void
   product_type?: 'simple' | 'variable'
   variantMinPrice?: number
   variantMaxPrice?: number
+  className?: string
+  useShadow?: boolean
 }
 
 export function ProductCard({
@@ -68,6 +84,8 @@ export function ProductCard({
   product_type,
   variantMinPrice,
   variantMaxPrice,
+  className,
+  useShadow = true,
 }: ProductCardProps) {
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
@@ -75,8 +93,11 @@ export function ProductCard({
   const handleNavigate = () => {
     if (slug) {
       router.push(`/producto/${slug}`)
-    } else {
-      onShowDetail && onShowDetail({ id, name, description, image, rating, reviews, price, sizes, features, category, gallery })
+      return
+    }
+
+    if (onShowDetail) {
+      onShowDetail({ id, name, description, image, rating, reviews, price, sizes, features, category, gallery })
     }
   }
 
@@ -119,10 +140,12 @@ export function ProductCard({
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 h-full flex flex-col bg-white dark:bg-gray-800 cursor-pointer"
-      style={{
-        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07)",
-      }}
+      className={cn(
+        "relative rounded-xl overflow-hidden transition-all duration-300 h-full flex flex-col bg-white dark:bg-gray-800 cursor-pointer",
+        useShadow && "shadow-xl hover:shadow-2xl",
+        className,
+      )}
+      style={useShadow ? { boxShadow: "0 10px 30px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07)" } : undefined}
       onClick={handleNavigate}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

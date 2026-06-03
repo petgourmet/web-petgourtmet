@@ -10,7 +10,7 @@ const testimonials = [
   {
     id: 1,
     name: "Sara y Max",
-    image: "/joyful-dog-owner.png",
+    image: "/woman-and-golden-retriever-park.webp",
     rating: 5,
     text: "Desde que cambiamos a esta comida, el pelaje de Max está más brillante y tiene mucha más energía. ¡Ahora adora la hora de comer!",
     color: "primary",
@@ -19,7 +19,7 @@ const testimonials = [
   {
     id: 2,
     name: "Juan y Bella",
-    image: "/happy-labrador-walk.png",
+    image: "/happy-labrador-walk.webp",
     rating: 5,
     text: "Bella solía tener problemas digestivos con otras marcas, pero ha prosperado con esta comida. No más malestar estomacal y está en un peso saludable.",
     color: "pastel-blue",
@@ -28,7 +28,7 @@ const testimonials = [
   {
     id: 3,
     name: "Elena y Cooper",
-    image: "/woman-and-golden-retriever-park.png",
+    image: "/woman-and-golden-retriever-park.webp",
     rating: 4,
     text: "Cooper es un comedor exigente, pero devora esta comida cada vez. Me encanta poder ver ingredientes reales y saber que está recibiendo una nutrición adecuada.",
     color: "pastel-green",
@@ -37,7 +37,7 @@ const testimonials = [
   {
     id: 4,
     name: "Miguel y Luna",
-    image: "/man-and-small-dog-park.png",
+    image: "/man-and-small-dog-park.webp",
     rating: 5,
     text: "Como perro mayor, Luna necesita una nutrición especial. Esta comida ha ayudado a mantener su movilidad y niveles de energía. ¡Nuestro veterinario está impresionado con su salud!",
     color: "secondary",
@@ -46,7 +46,7 @@ const testimonials = [
 ]
 
 export function Testimonials() {
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentIndex] = useState(0)
 
   // Calculate visible testimonials based on screen size
   const visibleCount = 3
@@ -102,7 +102,9 @@ export function Testimonials() {
                       </div>
                     </div>
                   </div>
-                  <p className="italic relative z-10 text-gray-700">"{testimonial.text}"</p>
+                  <p className="italic relative z-10 text-gray-700">
+                    &ldquo;{testimonial.text}&rdquo;
+                  </p>
                 </CardContent>
               </SpotlightCard>
             ))}

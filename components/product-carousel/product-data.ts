@@ -27,12 +27,12 @@ export const products: Product[] = [
     subtitle: "a base de res",
     description:
       "Llena de nutrientes y aminoácidos esenciales para un bienestar integral, con un aporte extra de zinc y hierro. Fortalece el sistema inmunológico y aporta más energía.",
-    image: "/pastel-carne-package.png",
+    image: "/pastel-carne-package.webp",
     variant: "res",
     ingredients: [
-      { icon: "/juicy-steak-icon.png", name: "Res" },
-      { icon: "/golden-grain-icon.png", name: "Cereales" },
-      { icon: "/assorted-vegetables-icon.png", name: "Vegetales" },
+      { icon: "/placeholder.svg", name: "Res" },
+      { icon: "/placeholder.svg", name: "Cereales" },
+      { icon: "/placeholder.svg", name: "Vegetales" },
     ],
     nutritionData: {
       protein: 60.0,
@@ -50,10 +50,10 @@ export const products: Product[] = [
     subtitle: "a base de pollo",
     description:
       "Con bajo índice glucémico y alto contenido de proteínas, fortalece los músculos, promueve la salud intestinal y es suave para el estómago de tu peludo.",
-    image: "/savory-chicken-bites.png",
+    image: "/full-nutritious-dog-bowl.webp",
     variant: "pollo",
     ingredients: [
-      { icon: "/stylized-chicken-icon.png", name: "Pollo" },
+      { icon: "/placeholder.svg", name: "Pollo" },
       { icon: "/placeholder.svg?height=32&width=32&query=rice icon", name: "Arroz" },
       { icon: "/placeholder.svg?height=32&width=32&query=carrot icon", name: "Zanahoria" },
     ],
@@ -96,7 +96,7 @@ export const products: Product[] = [
     subtitle: "para celebraciones",
     description:
       "Especialmente formulado para celebrar momentos especiales con tu mascota. Delicioso y nutritivo, hará que cualquier ocasión sea inolvidable.",
-    image: "/happy-dog-birthday.png",
+    image: "/pastel-carne-front.webp",
     ingredients: [
       { icon: "/placeholder.svg?height=32&width=32&query=cake icon", name: "Pastel" },
       { icon: "/placeholder.svg?height=32&width=32&query=yogurt icon", name: "Yogur" },
@@ -118,7 +118,7 @@ export const products: Product[] = [
     subtitle: "suplemento diario",
     description:
       "Complemento nutricional rico en vitaminas y minerales esenciales para fortalecer el sistema inmunológico y mejorar la salud general de tu mascota.",
-    image: "/dog-supplement-display.png",
+    image: "/complementar-dog-treat.webp",
     ingredients: [
       { icon: "/placeholder.svg?height=32&width=32&query=vitamin icon", name: "Vitaminas" },
       { icon: "/placeholder.svg?height=32&width=32&query=mineral icon", name: "Minerales" },
@@ -140,9 +140,9 @@ export const products: Product[] = [
     subtitle: "premios de entrenamiento",
     description:
       "Pequeños bocados perfectos para el entrenamiento y refuerzo positivo. Bajos en calorías pero irresistibles para tu mascota.",
-    image: "/healthy-dog-training-treats.png",
+    image: "/happy-dog-treat.webp",
     ingredients: [
-      { icon: "/stylized-chicken-icon.png", name: "Pollo" },
+      { icon: "/placeholder.svg", name: "Pollo" },
       { icon: "/placeholder.svg?height=32&width=32&query=liver icon", name: "Hígado" },
       { icon: "/placeholder.svg?height=32&width=32&query=pumpkin icon", name: "Calabaza" },
     ],

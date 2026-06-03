@@ -183,21 +183,21 @@ export const testimonials: Testimonial[] = [
     pet: "Dueña de Max, Labrador",
     comment:
       "Desde que empecé a darle Pet Gourmet a Max, su energía ha aumentado y su pelaje luce increíble. ¡Ya no quiere comer otra cosa!",
-    avatar: "/woman-and-golden-retriever-park.png",
+    avatar: "/woman-and-golden-retriever-park.webp",
   },
   {
     name: "Carlos Rodríguez",
     pet: "Dueño de Luna, Bulldog Francés",
     comment:
       "Luna siempre tuvo problemas digestivos hasta que descubrimos Pet Gourmet. Ahora está mucho mejor y disfruta cada comida.",
-    avatar: "/man-and-small-dog-park.png",
+    avatar: "/man-and-small-dog-park.webp",
   },
   {
     name: "Ana Martínez",
     pet: "Dueña de Coco, Border Collie",
     comment:
       "La diferencia en la salud de Coco es notable. Tiene más energía para jugar y su pelaje nunca había lucido tan brillante.",
-    avatar: "/joyful-dog-owner.png",
+    avatar: "/woman-and-golden-retriever-park.webp",
   },
 ]
 
