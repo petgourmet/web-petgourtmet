@@ -37,7 +37,7 @@ export const SpotlightCard = React.forwardRef<HTMLDivElement, SpotlightCardProps
           className,
         )}
         style={{
-          boxShadow: "0 5px 15px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07)",
+          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.03)",
         }}
         onMouseLeave={handleMouseLeave}
         {...props}

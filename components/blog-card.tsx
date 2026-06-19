@@ -40,7 +40,7 @@ export default function BlogCard({ post }: BlogCardProps) {
   }
 
   return (
-    <div className="bg-white shadow-md dark:bg-[#7BBDC5] rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col group h-full">
+    <div className="bg-white shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:bg-[#7BBDC5] rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] hover:-translate-y-1 flex flex-col group h-full">
       <Link href={`/blog/${post.slug}`} className="relative h-48 block overflow-hidden">
         <Image
           src={imageSrc || "/placeholder.svg"}

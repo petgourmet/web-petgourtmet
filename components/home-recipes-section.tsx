@@ -11,11 +11,8 @@ export function HomeRecipesSection() {
     <section id="nuestras-recetas" className="relative bg-white dark:bg-gray-900 py-20 md:py-24">
       <div className="container relative z-10 mx-auto px-4">
         <div className="mx-auto max-w-3xl text-center mb-12">
-          <span className="inline-flex rounded-full border border-[#dce8ea] bg-white px-4 py-2 text-sm font-semibold text-[#2a7880] shadow-[0_10px_24px_rgba(42,120,128,0.06)]">
+          <h2 className="font-display text-4xl font-bold text-[#16313b] md:text-5xl">
             Nuestros Productos
-          </span>
-          <h2 className="mt-6 font-display text-4xl font-bold text-[#16313b] md:text-5xl">
-            Descubre la línea ideal para tu mascota
           </h2>
           <p className="mt-5 text-lg leading-relaxed text-[#5d7276]">
             Explora por categorías y encuentra la alimentación diaria, snacks nutritivos y pasteles especiales para tu compañero.

@@ -142,10 +142,9 @@ export function ProductCard({
     <div
       className={cn(
         "relative rounded-xl overflow-hidden transition-all duration-300 h-full flex flex-col bg-white dark:bg-gray-800 cursor-pointer",
-        useShadow && "shadow-xl hover:shadow-2xl",
+        useShadow && "shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] hover:-translate-y-1",
         className,
       )}
-      style={useShadow ? { boxShadow: "0 10px 30px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07)" } : undefined}
       onClick={handleNavigate}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
