@@ -187,9 +187,9 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 8. Cluster de ingredientes principal (debajo del cuello/pecho del perro, cruzando la línea) */}
+          {/* 8. Cluster de ingredientes principal (debajo del cuello/pecho del perro, cruzando la línea - oculto en móvil) */}
           <div
-            className="absolute left-[8%] md:left-[12%] bottom-[-28%] md:bottom-[-36%] z-30 pointer-events-none animate-hero-float w-[240px] md:w-[340px] lg:w-[380px]"
+            className="absolute hidden md:block md:left-[12%] md:bottom-[-36%] z-30 pointer-events-none animate-hero-float md:w-[340px] lg:w-[380px]"
             style={{ animationDelay: "0.6s", animationDuration: "6.0s" }}
           >
             <TransparentImage
@@ -214,9 +214,9 @@ export function HomeHero() {
             />
           </div>
 
-          {/* Circle 2: Beef chunk (abajo-derecha del cluster) */}
+          {/* Circle 2: Beef chunk (abajo-derecha del cluster - oculto en móvil) */}
           <div
-            className="absolute left-[30%] md:left-[36%] bottom-[-22%] md:bottom-[-29%] z-25 pointer-events-none animate-hero-float w-[45px] md:w-[60px]"
+            className="absolute hidden md:block md:left-[36%] md:bottom-[-29%] z-25 pointer-events-none animate-hero-float md:w-[60px]"
             style={{ animationDelay: "2.1s", animationDuration: "6.3s" }}
           >
             <TransparentImage
@@ -228,9 +228,9 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 9. Rodaja de Manzana (superpuesta abajo del cluster) */}
+          {/* 9. Rodaja de Manzana (superpuesta abajo del cluster - oculto en móvil) */}
           <div
-            className="absolute left-[36%] md:left-[44%] bottom-[-28%] md:bottom-[-36%] z-45 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            className="absolute hidden md:block md:left-[44%] md:bottom-[-36%] z-45 pointer-events-none animate-hero-float md:w-[75px]"
             style={{ animationDelay: "1.2s", animationDuration: "5.8s" }}
           >
             <TransparentImage
