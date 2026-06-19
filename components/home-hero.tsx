@@ -200,10 +200,9 @@ export function HomeHero() {
               className="w-full h-auto object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.15)]"
             />
           </div>
-
-          {/* Circle 1: Spinach leaf (abajo-izquierda del cluster) */}
+          {/* Circle 1: Spinach leaf (abajo-izquierda del cluster, oculto en móvil) */}
           <div
-            className="absolute left-[2%] md:left-[4%] bottom-[-24%] md:bottom-[-31%] z-25 pointer-events-none animate-hero-float w-[50px] md:w-[70px]"
+            className="absolute hidden md:block left-[4%] bottom-[-31%] z-25 pointer-events-none animate-hero-float w-[70px]"
             style={{ animationDelay: "1.5s", animationDuration: "5.9s" }}
           >
             <TransparentImage
