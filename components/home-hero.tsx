@@ -131,9 +131,9 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 6. Blueberry (bajo el cachete izquierdo) */}
+          {/* 6. Blueberry (bajo el cachete izquierdo - oculto en móvil) */}
           <div
-            className="absolute left-[18%] bottom-[16%] md:bottom-[20%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
+            className="absolute hidden md:block md:left-[18%] md:bottom-[20%] z-20 pointer-events-none animate-hero-float md:w-[32px]"
             style={{ animationDelay: "2.0s", animationDuration: "5.0s" }}
           >
             <TransparentImage
