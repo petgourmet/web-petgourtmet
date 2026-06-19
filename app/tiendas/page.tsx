@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     description: "Encuentra nuestras boutiques aliadas en CDMX. Ubicaciones en Polanco, Escandón, Condesa y Roma Norte.",
     images: [
       {
-        url: "/petgourmet-logo.png",
+        url: "/og-tiendas.png",
         width: 1200,
         height: 630,
         alt: "Pet Gourmet - Tiendas Aliadas",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Tiendas Aliadas | Pet Gourmet",
     description: "Encuentra nuestras boutiques aliadas en CDMX.",
-    images: ["/petgourmet-logo.png"],
+    images: ["/og-tiendas.png"],
   },
 }
 

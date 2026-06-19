@@ -12,6 +12,20 @@ export const metadata: Metadata = {
     description: "Consejos, recetas y guías sobre nutrición y salud canina en el blog de Pet Gourmet.",
     url: "/blog",
     type: "website",
+    images: [
+      {
+        url: "/og-blog.png",
+        width: 1200,
+        height: 630,
+        alt: "Blog Pet Gourmet",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Blog | Pet Gourmet",
+    description: "Consejos, recetas y guías sobre nutrición y salud canina en el blog de Pet Gourmet.",
+    images: ["/og-blog.png"],
   },
   alternates: {
     canonical: "/blog",

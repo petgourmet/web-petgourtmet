@@ -74,10 +74,10 @@ export const metadata: Metadata = {
     siteName: "Pet Gourmet",
     images: [
       {
-        url: "/petgourmet-logo.png",
+        url: "/og-home.png",
         width: 1200,
         height: 630,
-        alt: "Pet Gourmet Logo",
+        alt: "Pet Gourmet",
       },
     ],
     locale: "es_MX",
@@ -88,7 +88,7 @@ export const metadata: Metadata = {
     title: "Pet Gourmet - Alimento Premium para Perros Felices",
     description:
       "Descubre nuestra gama de alimentos naturales y nutritivos para perros, elaborados con ingredientes de alta calidad para la salud y felicidad de tu mascota.",
-    images: ["/petgourmet-logo.png"],
+    images: ["/og-home.png"],
     creator: "@petgourmet",
   },
   robots: {

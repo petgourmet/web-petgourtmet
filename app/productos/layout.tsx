@@ -20,11 +20,20 @@ export const metadata: Metadata = {
     description: 'Explora nuestra amplia gama de alimentos premium para perros. Comida natural, snacks saludables y premios nutritivos.',
     type: 'website',
     url: '/productos',
+    images: [
+      {
+        url: '/og-default.png',
+        width: 1200,
+        height: 630,
+        alt: 'Productos Pet Gourmet',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Productos Pet Gourmet - Alimentos Premium para Perros',
     description: 'Explora nuestra amplia gama de alimentos premium para perros. Comida natural, snacks saludables y premios nutritivos.',
+    images: ['/og-default.png'],
   },
   alternates: {
     canonical: '/productos',

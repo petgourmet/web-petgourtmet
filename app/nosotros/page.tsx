@@ -12,6 +12,20 @@ export const metadata: Metadata = {
     description: "Conoce la historia de Pet Gourmet. Alimentos y premios 100% naturales creados con amor.",
     url: "/nosotros",
     type: "website",
+    images: [
+      {
+        url: "/og-nosotros.png",
+        width: 1200,
+        height: 630,
+        alt: "Nosotros Pet Gourmet",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nosotros | Pet Gourmet",
+    description: "Conoce la historia de Pet Gourmet. Alimentos y premios 100% naturales creados con amor.",
+    images: ["/og-nosotros.png"],
   },
   alternates: {
     canonical: "/nosotros",
