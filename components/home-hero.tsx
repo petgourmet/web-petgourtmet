@@ -8,7 +8,7 @@ import { TransparentImage } from "./transparent-image"
 
 export function HomeHero() {
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(122,184,191,0.18),_transparent_32%),radial-gradient(circle_at_84%_14%,_rgba(243,216,173,0.56),_transparent_28%),linear-gradient(135deg,_#fffcf5_0%,_#fff6ea_46%,_#eff9f9_100%)]">
+    <section className="relative z-20 overflow-visible bg-[radial-gradient(circle_at_top_left,_rgba(122,184,191,0.18),_transparent_32%),radial-gradient(circle_at_84%_14%,_rgba(243,216,173,0.56),_transparent_28%),linear-gradient(135deg,_#fffcf5_0%,_#fff6ea_46%,_#eff9f9_100%)]">
       <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#7AB8BF]/12 to-transparent" />
       <div className="animate-hero-drift absolute -left-16 top-24 h-56 w-56 rounded-full bg-[#7AB8BF]/16 blur-3xl" />
       <div className="animate-hero-pulse absolute right-[-5rem] top-12 h-80 w-80 rounded-full bg-[#f3d8ad]/36 blur-3xl" />
@@ -103,6 +103,48 @@ export function HomeHero() {
             />
           </div>
 
+          {/* Carrot slice extra A (alto izquierda, entre texto y perro) */}
+          <div
+            className="absolute left-[-8%] top-[10%] z-20 pointer-events-none animate-hero-float w-[45px] md:w-[60px]"
+            style={{ animationDelay: "0.5s", animationDuration: "5.5s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/carrot-slice.png"
+              alt="Rodaja de zanahoria fresca"
+              width={60}
+              height={60}
+              className="rotate-[35deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* Carrot slice extra B (abajo izquierda, entre texto y perro) */}
+          <div
+            className="absolute left-[-18%] top-[58%] z-20 pointer-events-none animate-hero-float w-[50px] md:w-[70px]"
+            style={{ animationDelay: "1.8s", animationDuration: "6.4s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/carrot-slice.png"
+              alt="Rodaja de zanahoria fresca"
+              width={70}
+              height={70}
+              className="rotate-[-20deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* Carrot slice extra C (arriba cabeza) */}
+          <div
+            className="absolute left-[8%] top-[2%] z-20 pointer-events-none animate-hero-float w-[40px] md:w-[55px]"
+            style={{ animationDelay: "1.1s", animationDuration: "5.7s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/carrot-slice.png"
+              alt="Rodaja de zanahoria fresca"
+              width={55}
+              height={55}
+              className="rotate-[-15deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
           {/* 4. Blueberry (abajo del cachete izquierdo) */}
           <div
             className="absolute left-[18%] bottom-[16%] md:bottom-[20%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
@@ -159,9 +201,9 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 8. Cluster de ingredientes principal (debajo del cuello/pecho del perro) */}
+          {/* 8. Cluster de ingredientes principal (debajo del cuello/pecho del perro, cruzando la línea) */}
           <div
-            className="absolute left-[8%] md:left-[12%] bottom-[-12%] md:bottom-[-16%] z-30 pointer-events-none animate-hero-float w-[240px] md:w-[340px] lg:w-[380px]"
+            className="absolute left-[8%] md:left-[12%] bottom-[-28%] md:bottom-[-36%] z-30 pointer-events-none animate-hero-float w-[240px] md:w-[340px] lg:w-[380px]"
             style={{ animationDelay: "0.6s", animationDuration: "6.0s" }}
           >
             <TransparentImage
@@ -175,7 +217,7 @@ export function HomeHero() {
 
           {/* 9. Rodaja de Manzana (superpuesta abajo del cluster) */}
           <div
-            className="absolute left-[38%] md:left-[46%] bottom-[-14%] md:bottom-[-19%] z-40 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            className="absolute left-[38%] md:left-[46%] bottom-[-30%] md:bottom-[-39%] z-40 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
             style={{ animationDelay: "1.2s", animationDuration: "5.8s" }}
           >
             <TransparentImage
