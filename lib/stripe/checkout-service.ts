@@ -28,18 +28,18 @@ export interface CustomerInfo {
 }
 
 export interface ShippingInfo {
-  address: string
+  address?: string
   address2?: string
-  city: string
-  state: string
-  postalCode: string
+  city?: string
+  state?: string
+  postalCode?: string
   country?: string
 }
 
 export interface CreateCheckoutSessionParams {
   items: CartItem[]
   customer: CustomerInfo
-  shipping: ShippingInfo
+  shipping?: ShippingInfo
   successUrl?: string
   cancelUrl?: string
   metadata?: Record<string, string>
@@ -89,7 +89,7 @@ export async function createOneTimeCheckoutSession(
           size: item.size || 'Standard',
         },
       },
-      unit_amount: Math.round(item.price * 100), // Convertir a centavos
+      unit_amount: Math.round(item.price * 100),
     },
     quantity: item.quantity,
   }))
@@ -117,7 +117,6 @@ export async function createOneTimeCheckoutSession(
   let stripeCustomerId: string | undefined
 
   try {
-    // Buscar si ya existe un cliente con este email
     const existingCustomers = await stripe.customers.list({
       email: customer.email,
       limit: 1,
@@ -126,10 +125,9 @@ export async function createOneTimeCheckoutSession(
     if (existingCustomers.data.length > 0) {
       stripeCustomerId = existingCustomers.data[0].id
     } else {
-      // Crear nuevo cliente
       const newCustomer = await stripe.customers.create({
         email: customer.email,
-        name: `${customer.firstName} ${customer.lastName}`,
+        name: customer.firstName ? `${customer.firstName} ${customer.lastName}` : undefined,
         phone: customer.phone,
         metadata: {
           user_id: customer.userId || '',
@@ -139,38 +137,41 @@ export async function createOneTimeCheckoutSession(
     }
   } catch (error) {
     console.error('Error al crear/buscar cliente:', error)
-    // Continuar sin customer_id, Stripe lo creará automáticamente
   }
 
-  // Crear sesión de Checkout
+  // Crear sesión de Checkout — shipping es recolectado directamente por Stripe
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: lineItems,
+    // Si tenemos customer guardado en Stripe, pre-rellena sus datos (incl. Apple Pay)
     customer: stripeCustomerId,
+    // Si no hay customer, pre-rellenamos el email para evitar que lo escriba
     customer_email: stripeCustomerId ? undefined : customer.email,
     success_url: successUrl || `${stripeConfig.successUrl.oneTime}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: cancelUrl || stripeConfig.cancelUrl,
+    // Stripe recolecta la dirección de envío nativamente — UNA sola vez
     shipping_address_collection: {
-      allowed_countries: ['MX'], // México
+      allowed_countries: ['MX'],
     },
     phone_number_collection: {
       enabled: true,
     },
-    billing_address_collection: 'auto', // Cambiar de 'required' a 'auto' para OXXO
+    billing_address_collection: 'auto',
     metadata: {
       ...metadata,
       user_id: customer.userId || '',
-      customer_name: `${customer.firstName} ${customer.lastName}`,
-      shipping_address: JSON.stringify(shipping),
+      // shipping_address solo si fue pre-proporcionado (compatibilidad hacia atrás)
+      ...(shipping?.address ? { shipping_address: JSON.stringify(shipping) } : {}),
     },
-    payment_method_types: ['card', 'oxxo'], // Habilitar tarjetas y OXXO
-    locale: 'es',
-    // Configuración adicional para OXXO
+    // Métodos de pago: tarjeta + OXXO + Apple Pay/Google Pay (wallet)
+    // Apple Pay y Google Pay se activan automáticamente via 'link' y wallets nativas
+    payment_method_types: ['card', 'oxxo'],
     payment_method_options: {
       oxxo: {
-        expires_after_days: 3, // Voucher válido por 3 días
+        expires_after_days: 3,
       },
     },
+    locale: 'es',
   })
 
   return session
@@ -191,20 +192,16 @@ export async function createSubscriptionCheckoutSession(
     throw new Error('No se encontraron items de suscripción')
   }
 
-  // Nota: Stripe solo permite crear una suscripción a la vez en Checkout
-  // Si hay múltiples items, se procesará solo el primero
   const subscriptionItem = subscriptionItems[0]
   
   if (subscriptionItems.length > 1) {
-    console.warn('⚠️ Múltiples suscripciones detectadas. Stripe Checkout solo permite una suscripción por sesión. Procesando solo la primera.')
+    console.warn('⚠️ Múltiples suscripciones detectadas. Solo se procesará la primera.')
   }
 
-  // Obtener intervalo de facturación
   const { interval, interval_count } = getSubscriptionInterval(
     subscriptionItem.subscriptionType || 'monthly'
   )
 
-  // Calcular subtotal para determinar costo de envío
   const subtotal = subscriptionItem.price * subscriptionItem.quantity
   const shippingCost = subtotal >= 1000 ? 0 : 100
 
@@ -212,7 +209,6 @@ export async function createSubscriptionCheckoutSession(
   let stripeCustomerId: string
 
   try {
-    // Buscar si ya existe un cliente con este email
     const existingCustomers = await stripe.customers.list({
       email: customer.email,
       limit: 1,
@@ -221,10 +217,9 @@ export async function createSubscriptionCheckoutSession(
     if (existingCustomers.data.length > 0) {
       stripeCustomerId = existingCustomers.data[0].id
     } else {
-      // Crear nuevo cliente
       const newCustomer = await stripe.customers.create({
         email: customer.email,
-        name: `${customer.firstName} ${customer.lastName}`,
+        name: customer.firstName ? `${customer.firstName} ${customer.lastName}` : undefined,
         phone: customer.phone,
         metadata: {
           user_id: customer.userId || '',
@@ -237,7 +232,6 @@ export async function createSubscriptionCheckoutSession(
     throw new Error('No se pudo crear el cliente para la suscripción')
   }
 
-  // Crear line item para suscripción
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
     {
       price_data: {
@@ -253,16 +247,12 @@ export async function createSubscriptionCheckoutSession(
           },
         },
         unit_amount: Math.round(subscriptionItem.price * 100),
-        recurring: {
-          interval,
-          interval_count,
-        },
+        recurring: { interval, interval_count },
       },
       quantity: subscriptionItem.quantity,
     },
   ]
 
-  // Agregar envío como line item recurrente si no es gratis
   if (shippingCost > 0) {
     lineItems.push({
       price_data: {
@@ -272,16 +262,13 @@ export async function createSubscriptionCheckoutSession(
           description: 'Costo de envío a domicilio (recurrente)',
         },
         unit_amount: Math.round(shippingCost * 100),
-        recurring: {
-          interval,
-          interval_count,
-        },
+        recurring: { interval, interval_count },
       },
       quantity: 1,
     })
   }
 
-  // Crear sesión de Checkout para suscripción
+  // Crear sesión de suscripción — Stripe recolecta dirección nativamente
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     line_items: lineItems,
@@ -298,12 +285,13 @@ export async function createSubscriptionCheckoutSession(
     metadata: {
       ...metadata,
       user_id: customer.userId || '',
-      customer_name: `${customer.firstName} ${customer.lastName}`,
-      shipping_address: JSON.stringify(shipping),
+      // shipping_address solo si fue pre-proporcionado (compatibilidad hacia atrás)
+      ...(shipping?.address ? { shipping_address: JSON.stringify(shipping) } : {}),
       subscription_type: subscriptionItem.subscriptionType || 'monthly',
       product_id: subscriptionItem.id.toString(),
     },
-    payment_method_types: ['card'], // OXXO no está disponible para suscripciones recurrentes
+    // Solo tarjeta para suscripciones (OXXO y Apple Pay no aplican a recurrentes)
+    payment_method_types: ['card'],
     locale: 'es',
     subscription_data: {
       metadata: {

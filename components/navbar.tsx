@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import dynamic from "next/dynamic"
-import { Menu, X, ChevronDown, User, ShoppingBag, Home, Info, Apple, BookOpen, Heart } from "lucide-react"
+import { Menu, X, ChevronDown, User, ShoppingBag, Home, Info, Apple, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartButton } from "@/components/cart-button"
 import { useCart } from "@/components/cart-context"
@@ -98,28 +98,22 @@ export function Navbar() {
               <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 overflow-hidden">
                 <div className="py-2">
                   <Link
-                    href="/productos"
-                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
-                  >
-                    Nuestras Recetas
-                  </Link>
-                  <Link
                     href="/celebrar"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
                   >
-                    Para Celebrar
+                    Pasteles de cumpleaños
                   </Link>
                   <Link
                     href="/complementar"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
                   >
-                    Para Complementar
+                    Alimentación diaria
                   </Link>
                   <Link
                     href="/premiar"
                     className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary hover:text-white dark:hover:bg-primary"
                   >
-                    Para Premiar
+                    Snacks
                   </Link>
                 </div>
               </div>
@@ -324,32 +318,25 @@ export function Navbar() {
                 {activeSubmenu === "products" && (
                   <div className="ml-10 mt-1 space-y-1 border-l-2 border-primary/20 pl-4">
                     <Link
-                      href="/productos"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
-                    >
-                      Nuestras Recetas
-                    </Link>
-                    <Link
                       href="/celebrar"
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
                     >
-                      Para Celebrar
+                      Pasteles de cumpleaños
                     </Link>
                     <Link
                       href="/complementar"
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
                     >
-                      Para Complementar
+                      Alimentación diaria
                     </Link>
                     <Link
                       href="/premiar"
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center py-2 text-gray-700 dark:text-gray-300 hover:text-primary"
                     >
-                      Para Premiar
+                      Snacks
                     </Link>
                   </div>
                 )}

@@ -1,40 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { Toaster } from "@/components/toaster"
-import { useSearchParams } from "next/navigation"
 import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-const TITLES: Record<string, string> = {
-  celebrar: "Pasteles de Cumpleaños",
-  premiar: "Snacks",
-  complementar: "Alimentación Diaria",
-}
-
-export default function ProductosPage() {
-  const searchParams = useSearchParams()
-  const categoriaParam = searchParams.get("categoria")
-
-  // Determinar la categoría a mostrar basada en el parámetro de URL (por defecto celebrar)
-  const categorySlug = (categoriaParam && ["celebrar", "premiar", "complementar"].includes(categoriaParam)) 
-    ? categoriaParam 
-    : "celebrar"
-  const [activeTab, setActiveTab] = useState(categorySlug)
+export function HomeRecipesSection() {
+  const [activeTab, setActiveTab] = useState("celebrar")
 
   return (
-    <div className="flex flex-col min-h-screen pt-20">
-      <div className="responsive-container py-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-6 title-reflection text-center">
-          {TITLES[activeTab] ?? "Pasteles de Cumpleaños"}
-        </h1>
-        <p className="text-lg text-gray-600 dark:text-white max-w-3xl mx-auto text-center mb-12">
-          Descubre nuestra selección de productos premium para mascotas, elaborados con ingredientes de la más alta
-          calidad y diseñados para el bienestar de tu amigo peludo.
-        </p>
+    <section id="nuestras-recetas" className="relative bg-[linear-gradient(180deg,_#ffffff_0%,_#f7fafb_100%)] py-20 md:py-24">
+      <div className="container relative z-10 mx-auto px-4">
+        <div className="mx-auto max-w-3xl text-center mb-12">
+          <span className="inline-flex rounded-full border border-[#dce8ea] bg-white px-4 py-2 text-sm font-semibold text-[#2a7880] shadow-[0_10px_24px_rgba(42,120,128,0.06)]">
+            Nuestros Productos
+          </span>
+          <h2 className="mt-6 font-display text-4xl font-bold text-[#16313b] md:text-5xl">
+            Descubre la línea ideal para tu mascota
+          </h2>
+          <p className="mt-5 text-lg leading-relaxed text-[#5d7276]">
+            Explora por categorías y encuentra la alimentación diaria, snacks nutritivos y pasteles especiales para tu compañero.
+          </p>
+        </div>
 
-        {/* Tabs para categorías */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-12">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex flex-wrap justify-center gap-3 bg-transparent w-full mb-10 h-auto">
             <TabsTrigger
               value="celebrar"
@@ -56,21 +44,17 @@ export default function ProductosPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="celebrar" className="mt-8">
+          <TabsContent value="celebrar" className="mt-6">
             <ProductCategoryLoader categorySlug="celebrar" />
           </TabsContent>
-
-          <TabsContent value="complementar" className="mt-8">
+          <TabsContent value="complementar" className="mt-6">
             <ProductCategoryLoader categorySlug="complementar" />
           </TabsContent>
-
-          <TabsContent value="premiar" className="mt-8">
+          <TabsContent value="premiar" className="mt-6">
             <ProductCategoryLoader categorySlug="premiar" />
           </TabsContent>
         </Tabs>
       </div>
-
-      <Toaster />
-    </div>
+    </section>
   )
 }

@@ -3,7 +3,8 @@ import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 
-import heroImagePrimary from "../public/iconos/image/hero (2).webp"
+import heroImagePrimary from "../public/iconos/image/home-hero.webp"
+import { TransparentImage } from "./transparent-image"
 
 export function HomeHero() {
   return (
@@ -37,53 +38,164 @@ export function HomeHero() {
               <Link href="#nuestras-recetas">Descubre Nuestras Recetas</Link>
             </Button>
           </div>
-
-          <div className="animate-fade-in-small mt-8 flex flex-col items-start gap-3 text-sm font-medium text-[#486266] sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#7AB8BF]" />
-              Ingredientes frescos y reales
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#f3d8ad]" />
-              Horneado premium
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#16313b]" />
-              Nutricion pensada para su bienestar
-            </span>
-          </div>
         </div>
 
         <div className="relative mx-auto w-full max-w-[620px]">
-          <div className="animate-hero-pulse absolute inset-x-6 inset-y-8 rounded-[36px] bg-[#7AB8BF]/14 blur-3xl sm:inset-x-12 sm:inset-y-12 sm:rounded-[52px]" />
-
-          <div className="relative rounded-[26px] border border-white/80 bg-white/44 p-2.5 shadow-[0_24px_60px_rgba(30,68,74,0.12)] backdrop-blur sm:rounded-[40px] sm:p-3 sm:shadow-[0_36px_90px_rgba(30,68,74,0.14)]">
-            <div className="absolute -right-3 top-10 hidden h-24 w-24 rounded-[28px] bg-[#16313b] lg:block" />
-            <div className="absolute -left-3 bottom-16 hidden h-16 w-16 rounded-full bg-[#f3d8ad] lg:block" />
-            <div className="animate-hero-sheen absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent sm:inset-x-10" />
-
-            <div className="relative overflow-hidden rounded-[22px] rounded-tr-[48px] rounded-bl-[48px] bg-[linear-gradient(145deg,_#f8efe2,_#ffffff)] p-3 sm:rounded-[34px] sm:rounded-tr-[112px] sm:rounded-bl-[112px] sm:p-5">
-              <div className="relative overflow-hidden rounded-[20px] bg-[#f3eadc] sm:rounded-[30px]">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.7),_transparent_34%),linear-gradient(180deg,rgba(13,25,27,0.02),rgba(13,25,27,0.12))]" />
-                <div className="animate-hero-sheen absolute left-8 top-0 h-full w-px bg-gradient-to-b from-transparent via-white/70 to-transparent" />
-
-                <Image
-                  src={heroImagePrimary}
-                  alt="Perro disfrutando una galleta natural de Pet Gourmet"
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="animate-hero-bob h-auto w-full object-cover"
-                />
-
-                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white/20 to-transparent sm:h-24" />
-              </div>
-            </div>
-          </div>
-
-          <div className="animate-fade-in-small mt-5 rounded-[20px] border border-white/80 bg-white/76 px-4 py-4 text-sm leading-relaxed text-[#486266] shadow-[0_12px_28px_rgba(22,49,59,0.08)] backdrop-blur sm:mt-6 sm:rounded-[24px] sm:px-5">
-            Nutricion premium hecha para elevar sus dias con ingredientes reales, horneado cuidadoso y un sabor que si emociona.
+          <div className="relative w-full overflow-hidden">
+            <Image
+              src={heroImagePrimary}
+              alt="Comida real para amigos reales - Pet Gourmet"
+              priority
+              sizes="(max-width: 1024px) 100vw, 620px"
+              className="animate-hero-bob h-auto w-full object-cover"
+              style={{
+                maskImage: "linear-gradient(to bottom, rgba(0, 0, 0, 1) 75%, rgba(0, 0, 0, 0) 100%)",
+                WebkitMaskImage: "linear-gradient(to bottom, rgba(0, 0, 0, 1) 75%, rgba(0, 0, 0, 0) 100%)",
+              }}
+            />
           </div>
         </div>
+      </div>
+
+      {/* Floating Ingredients dispersed along the bottom of the entire section */}
+      {/* Spinach Leaf 1 (Top Left - Background) */}
+      <div 
+        className="absolute left-[4%] top-[18%] z-10 pointer-events-none animate-hero-float hidden md:block opacity-70"
+        style={{ animationDelay: "0.5s", animationDuration: "4.8s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/spinach-leaf.png"
+          alt="Hoja de espinaca fresca"
+          width={90}
+          height={90}
+          className="rotate-[30deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.08)]"
+        />
+      </div>
+
+      {/* Carrot Slice 1 (Foreground Left) */}
+      <div 
+        className="absolute left-[-30px] bottom-[18%] z-30 pointer-events-none animate-hero-float hidden md:block"
+        style={{ animationDelay: "0s", animationDuration: "5.2s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/carrot-slice.png"
+          alt="Rodaja de zanahoria fresca"
+          width={180}
+          height={180}
+          className="rotate-12 filter drop-shadow-[0_16px_32px_rgba(0,0,0,0.18)] blur-[0.5px]"
+        />
+      </div>
+
+      {/* Spinach Leaf 2 (Mid Left) */}
+      <div 
+        className="absolute left-[14%] bottom-[4%] z-20 pointer-events-none animate-hero-float hidden lg:block"
+        style={{ animationDelay: "2.5s", animationDuration: "5.5s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/spinach-leaf.png"
+          alt="Hoja de espinaca fresca"
+          width={110}
+          height={110}
+          className="rotate-[45deg] filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.12)]"
+        />
+      </div>
+
+      {/* Beef Chunk 1 (Middle-Left) */}
+      <div 
+        className="absolute left-[28%] bottom-[8%] z-20 pointer-events-none animate-hero-float hidden sm:block"
+        style={{ animationDelay: "1.5s", animationDuration: "6.5s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/beef-chunk.png"
+          alt="Carne de res fresca"
+          width={150}
+          height={150}
+          className="-rotate-12 filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.14)]"
+        />
+      </div>
+
+      {/* Blueberry 1 (Center-Bottom) */}
+      <div 
+        className="absolute left-[44%] bottom-[12%] z-20 pointer-events-none animate-hero-float hidden sm:block"
+        style={{ animationDelay: "3.2s", animationDuration: "7.2s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/blueberry.png"
+          alt="Arándano fresco"
+          width={70}
+          height={70}
+          className="rotate-[15deg] filter drop-shadow-[0_8px_14px_rgba(0,0,0,0.12)]"
+        />
+      </div>
+
+      {/* Broccoli Floret 1 (Under Dog Left) */}
+      <div 
+        className="absolute right-[32%] md:left-[54%] bottom-[2%] z-20 pointer-events-none animate-hero-float"
+        style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/broccoli-floret.png"
+          alt="Brócoli fresco"
+          width={180}
+          height={180}
+          className="rotate-[40deg] filter drop-shadow-[0_12px_26px_rgba(0,0,0,0.15)]"
+        />
+      </div>
+
+      {/* Beef Chunk 2 (Under Dog Right) */}
+      <div 
+        className="absolute right-[20%] md:left-[68%] -bottom-6 z-20 pointer-events-none animate-hero-float"
+        style={{ animationDelay: "1.8s", animationDuration: "5.5s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/beef-chunk.png"
+          alt="Carne de res fresca"
+          width={180}
+          height={180}
+          className="rotate-[20deg] filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.15)]"
+        />
+      </div>
+
+      {/* Carrot Slice 2 (Mid-Right Floating) */}
+      <div 
+        className="absolute right-[10%] md:right-[12%] bottom-[28%] z-20 pointer-events-none animate-hero-float hidden sm:block"
+        style={{ animationDelay: "2.8s", animationDuration: "6.2s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/carrot-slice.png"
+          alt="Rodaja de zanahoria fresca"
+          width={110}
+          height={110}
+          className="-rotate-[45deg] filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.12)]"
+        />
+      </div>
+
+      {/* Apple Slice 1 (Foreground Right) */}
+      <div 
+        className="absolute right-[-20px] bottom-[4%] z-30 pointer-events-none animate-hero-float hidden md:block"
+        style={{ animationDelay: "2.2s", animationDuration: "6.8s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/apple-slice.png"
+          alt="Rodaja de manzana fresca"
+          width={150}
+          height={150}
+          className="-rotate-[25deg] filter drop-shadow-[0_14px_28px_rgba(0,0,0,0.16)] blur-[0.5px]"
+        />
+      </div>
+
+      {/* Carrot Slice 3 (Top Right) */}
+      <div 
+        className="absolute right-[5%] top-[15%] z-20 pointer-events-none animate-hero-float hidden md:block"
+        style={{ animationDelay: "1.2s", animationDuration: "5.2s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/carrot-slice.png"
+          alt="Rodaja de zanahoria fresca"
+          width={120}
+          height={120}
+          className="rotate-[45deg] filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.15)]"
+        />
       </div>
     </section>
   )

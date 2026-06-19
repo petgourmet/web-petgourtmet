@@ -40,12 +40,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!body.shipping || !body.shipping.address) {
-      return NextResponse.json(
-        { error: 'Información de envío inválida' },
-        { status: 400 }
-      )
-    }
+    // shipping es ahora opcional — Stripe lo recolecta directamente en Hosted Checkout
 
     // Validar que los items tengan precio válido
     const invalidItems = body.items.filter(item => !item.price || item.price <= 0)

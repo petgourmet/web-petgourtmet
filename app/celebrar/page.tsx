@@ -7,10 +7,9 @@ import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const TITLES: Record<string, string> = {
-  all: "Nuestras Recetas",
-  celebrar: "Para Celebrar",
-  premiar: "Para Premiar",
-  complementar: "Para Complementar",
+  celebrar: "Pasteles de Cumpleaños",
+  premiar: "Snacks",
+  complementar: "Alimentación Diaria",
 }
 
 export default function CelebrarPage() {
@@ -21,7 +20,7 @@ export default function CelebrarPage() {
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
           src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Para%20celebrar-SjhsRPMm1PELsrFBBIw2vtSIK9AzeV.webp"
-          alt="Productos para celebrar"
+          alt="Pasteles de cumpleaños"
           fill
           className="object-cover saturate-90 brightness-60"
         />
@@ -33,7 +32,7 @@ export default function CelebrarPage() {
           <div className="absolute bottom-0 left-0 right-0 bg-black/20 backdrop-blur-md border-t border-white/20 p-6 md:p-8">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">
-                {TITLES[activeCategory] ?? "Para Celebrar"}
+                {TITLES[activeCategory] ?? "Pasteles de Cumpleaños"}
               </h1>
               <p className="text-white/90 text-lg">
                 Snacks y premios especiales para esos momentos especiales con tu amigo peludo. Haz que cada celebración
@@ -47,53 +46,43 @@ export default function CelebrarPage() {
       <div className="responsive-section bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
         <div className="responsive-container">
           <Tabs value={activeCategory} onValueChange={(value) => setActiveCategory(value)} className="w-full mb-12">
-            <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-transparent">
-              <TabsTrigger
-                value="all"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
-              >
-                Todos
-              </TabsTrigger>
+            <TabsList className="flex flex-wrap justify-center gap-3 bg-transparent w-full mb-10 h-auto">
               <TabsTrigger
                 value="celebrar"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
+                className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
               >
-                Para Celebrar
-              </TabsTrigger>
-              <TabsTrigger
-                value="premiar"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
-              >
-                Para Premiar
+                Pasteles de cumpleaños
               </TabsTrigger>
               <TabsTrigger
                 value="complementar"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
+                className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
               >
-                Para Complementar
+                Alimentación diaria
+              </TabsTrigger>
+              <TabsTrigger
+                value="premiar"
+                className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
+              >
+                Snacks
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="all" className="mt-8">
-              <ProductCategoryLoader categorySlug="all" showAllCategories={true} />
-            </TabsContent>
 
             <TabsContent value="celebrar" className="mt-8">
               <ProductCategoryLoader categorySlug="celebrar" />
             </TabsContent>
 
-            <TabsContent value="premiar" className="mt-8">
-              <ProductCategoryLoader categorySlug="premiar" />
-            </TabsContent>
-
             <TabsContent value="complementar" className="mt-8">
               <ProductCategoryLoader categorySlug="complementar" />
+            </TabsContent>
+
+            <TabsContent value="premiar" className="mt-8">
+              <ProductCategoryLoader categorySlug="premiar" />
             </TabsContent>
           </Tabs>
 
           <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
             <h2 className="text-2xl font-bold mb-6 text-primary font-display text-center">
-              ¿Por qué elegir nuestros productos para celebrar?
+              ¿Por qué elegir nuestros pasteles de cumpleaños?
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">

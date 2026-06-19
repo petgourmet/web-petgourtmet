@@ -122,23 +122,18 @@ export function Footer() {
             </h3>
             <ul className="space-y-0">
               <li>
-                <Link href="/productos" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
-                  Todos los Productos
-                </Link>
-              </li>
-              <li>
                 <Link href="/celebrar" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
-                  Para Celebrar
+                  Pasteles de cumpleaños
                 </Link>
               </li>
               <li>
                 <Link href="/complementar" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
-                  Para Complementar
+                  Alimentación diaria
                 </Link>
               </li>
               <li>
                 <Link href="/premiar" className="text-white/80 hover:text-white transition-colors duration-300 hover:translate-x-1 block py-2.5 min-h-[48px] flex items-center text-sm">
-                  Para Premiar
+                  Snacks
                 </Link>
               </li>
             </ul>
@@ -189,8 +184,8 @@ export function Footer() {
 
         </div>
 
-        <div className="border-t border-white/20 mt-10 pt-6 text-center text-white text-sm">
-          <div className="flex items-center justify-center gap-2">
+        <div className="border-t border-white/20 mt-10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-white text-sm">
+          <div className="flex items-center justify-center gap-2 order-2 md:order-1">
             <p>&copy; {new Date().getFullYear()} Pet Gourmet. Todos los derechos reservados.</p>
             <Link
               href="https://www.v1tr0.com/"
@@ -201,6 +196,32 @@ export function Footer() {
             >
               <Heart className="h-4 w-4 fill-current" aria-hidden="true" />
             </Link>
+          </div>
+          <div className="flex items-center gap-3 order-1 md:order-2">
+            <span className="text-white/80 text-sm md:text-base font-semibold">Métodos de pago:</span>
+            <div className="flex items-center gap-3.5 bg-[#16313b]/85 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+              <Image
+                src="/iconos/footer/visa.png"
+                alt="Visa"
+                width={38}
+                height={24}
+                className="h-5 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
+              />
+              <Image
+                src="/iconos/footer/mastercard.png"
+                alt="Mastercard"
+                width={38}
+                height={24}
+                className="h-5 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
+              />
+              <Image
+                src="/iconos/footer/Maestro.png"
+                alt="Maestro"
+                width={38}
+                height={24}
+                className="h-5 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
+              />
+            </div>
           </div>
         </div>
       </div>

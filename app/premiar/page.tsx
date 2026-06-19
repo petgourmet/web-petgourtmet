@@ -8,10 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Heart, Shield, Star } from "lucide-react"
 
 const TITLES: Record<string, string> = {
-  all: "Nuestras Recetas",
-  celebrar: "Para Celebrar",
-  premiar: "Para Premiar",
-  complementar: "Para Complementar",
+  celebrar: "Pasteles de Cumpleaños",
+  premiar: "Snacks",
+  complementar: "Alimentación Diaria",
 }
 
 export default function PremiarPage() {
@@ -23,7 +22,7 @@ export default function PremiarPage() {
       <div className="relative w-full h-64 md:h-80 overflow-hidden">
         <Image
           src="/happy-dog-treat.webp"
-          alt="Productos para premiar"
+          alt="Snacks"
           fill
           className="object-cover saturate-90 brightness-60"
           priority
@@ -37,7 +36,7 @@ export default function PremiarPage() {
           <div className="absolute bottom-0 left-0 right-0 bg-black/20 backdrop-blur-md border-t border-white/20 p-6 md:p-8">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 title-reflection">
-                {TITLES[activeCategory] ?? "Para Premiar"}
+                {TITLES[activeCategory] ?? "Snacks"}
               </h1>
               <p className="text-white/90 text-lg">
                 Deliciosos premios y snacks que harán feliz a tu mascota. Perfectos para entrenamientos
@@ -52,53 +51,43 @@ export default function PremiarPage() {
         <div className="responsive-container">
           {/* Tabs para categorías */}
           <Tabs value={activeCategory} onValueChange={(value) => setActiveCategory(value)} className="w-full mb-12">
-            <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-transparent">
-              <TabsTrigger
-                value="all"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
-              >
-                Todos
-              </TabsTrigger>
+            <TabsList className="flex flex-wrap justify-center gap-3 bg-transparent w-full mb-10 h-auto">
               <TabsTrigger
                 value="celebrar"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
+                className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
               >
-                Para Celebrar
-              </TabsTrigger>
-              <TabsTrigger
-                value="premiar"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
-              >
-                Para Premiar
+                Pasteles de cumpleaños
               </TabsTrigger>
               <TabsTrigger
                 value="complementar"
-                className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-full"
+                className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
               >
-                Para Complementar
+                Alimentación diaria
+              </TabsTrigger>
+              <TabsTrigger
+                value="premiar"
+                className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
+              >
+                Snacks
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="all" className="mt-8">
-              <ProductCategoryLoader categorySlug="all" showAllCategories={true} />
-            </TabsContent>
 
             <TabsContent value="celebrar" className="mt-8">
               <ProductCategoryLoader categorySlug="celebrar" />
             </TabsContent>
 
-            <TabsContent value="premiar" className="mt-8">
-              <ProductCategoryLoader categorySlug="premiar" />
-            </TabsContent>
-
             <TabsContent value="complementar" className="mt-8">
               <ProductCategoryLoader categorySlug="complementar" />
+            </TabsContent>
+
+            <TabsContent value="premiar" className="mt-8">
+              <ProductCategoryLoader categorySlug="premiar" />
             </TabsContent>
           </Tabs>
 
           {/* Sección de Beneficios */}
           <div className="bg-white/85 backdrop-blur-sm dark:bg-[rgba(231,174,132,0.85)] dark:backdrop-blur-sm rounded-2xl p-8 shadow-md mb-16">
-            <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">¿Por qué elegir nuestros premios?</h2>
+            <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">¿Por qué elegir nuestros snacks?</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -136,4 +125,3 @@ export default function PremiarPage() {
     </div>
   )
 }
-// UI/UX Update - Marzo 2026

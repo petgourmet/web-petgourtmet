@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
-import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail, Clock, Calendar, CreditCard, Pause, Play, Square, Users, AlertTriangle } from "lucide-react"
+import { Loader2, ArrowLeft, Package, Truck, CheckCircle, XCircle, Mail, Clock, Calendar, CreditCard, Pause, Play, Square, Users, AlertTriangle, Copy, Check } from "lucide-react"
 import { AuthGuard } from "@/components/admin/auth-guard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
@@ -592,60 +592,116 @@ export default function OrderDetailPage() {
                 </div>
               </div>
 
-              {/* Tarjeta de dirección de envío */}
-              <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
-                <h3 className="mb-3 font-bold text-gray-800 text-sm flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-[#5a898f]" /> Destino de Envío
-                </h3>
-                <div className="text-sm text-gray-700 leading-relaxed">
-                  {(() => {
-                    try {
-                      let shippingData = null
-                      if (order.shipping_address) {
-                        if (typeof order.shipping_address === 'string') {
-                          const parsed = JSON.parse(order.shipping_address)
-                          shippingData = parsed.shipping || parsed
-                        } else {
-                          shippingData = order.shipping_address.shipping || order.shipping_address
-                        }
-                      }
+              {/* Tarjeta de direccion de envio */}
+              {(() => {
+                try {
+                  let shippingData: any = null
+                  let customerData: any = null
 
-                      if (shippingData && (shippingData.address || shippingData.street)) {
-                        return (
-                          <div className="grid grid-cols-1 gap-1.5">
-                            <p className="flex gap-2 items-start">
-                              <span className="shrink-0">📍</span>
-                              <span className="font-medium">{shippingData.address || `${shippingData.street} ${shippingData.number || ''}`}</span>
-                            </p>
-                            {shippingData.city && (
-                              <p className="flex gap-2 items-start">
-                                <span className="shrink-0">🏙️</span>
-                                <span>{shippingData.city}{shippingData.state ? `, ${shippingData.state}` : ''}</span>
-                              </p>
-                            )}
-                            {shippingData.postalCode && (
-                              <p className="flex gap-2 items-center text-gray-500 font-mono text-xs mt-1">
-                                <span>🔢</span> CP: {shippingData.postalCode}
-                              </p>
-                            )}
-                            {shippingData.country && (
-                              <p className="text-gray-400 text-xs font-bold tracking-widest uppercase mt-1">{shippingData.country}</p>
-                            )}
-                          </div>
-                        )
-                      }
-                      return (
-                        <p className="text-muted-foreground italic flex items-center gap-2 text-xs">
-                          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
-                          Dirección no proporcionada
-                        </p>
-                      )
-                    } catch (e) {
-                      return <p className="text-red-500 bg-red-50 p-2 rounded text-xs">Error decodificando dirección</p>
-                    }
-                  })()}
-                </div>
-              </div>
+                  if (order.shipping_address) {
+                    const raw = typeof order.shipping_address === 'string'
+                      ? JSON.parse(order.shipping_address)
+                      : order.shipping_address
+
+                    // Estructura del webhook: { customer: {...}, shipping: {...}, items: [...] }
+                    // Estructura directa: { address, city, state, postalCode, country, name }
+                    shippingData = raw.shipping || raw
+                    customerData = raw.customer || null
+                  }
+
+                  // ── Nombre del destinatario ──────────────────────────────────
+                  // Stripe guarda el nombre en shipping_details.name → se almacena en shippingData.name
+                  const recipientName =
+                    shippingData?.name ||
+                    customerData?.name ||
+                    order.customer_name ||
+                    null
+
+                  // ── Teléfono ─────────────────────────────────────────────────
+                  // Stripe lo guarda en customer_details.phone → columna customer_phone
+                  const recipientPhone =
+                    order.customer_phone ||
+                    customerData?.phone ||
+                    null
+
+                  // ── Email ─────────────────────────────────────────────────────
+                  const recipientEmail =
+                    order.customer_email ||
+                    customerData?.email ||
+                    null
+
+                  // ── Dirección línea 1 ─────────────────────────────────────────
+                  // Stripe usa line1; nuestro mapper lo guarda como address
+                  const address1 =
+                    shippingData?.address ||
+                    shippingData?.line1 ||
+                    shippingData?.street ||
+                    null
+
+                  // ── Dirección línea 2 / Barrio ────────────────────────────────
+                  // Stripe usa line2 (el campo "Barrio"); nuestro mapper: address2
+                  const address2 =
+                    shippingData?.address2 ||
+                    shippingData?.line2 ||
+                    shippingData?.address_line_2 ||
+                    null
+
+                  // ── Ciudad ────────────────────────────────────────────────────
+                  const city = shippingData?.city || null
+
+                  // ── Estado ────────────────────────────────────────────────────
+                  const state = shippingData?.state || null
+
+                  // ── Código Postal ─────────────────────────────────────────────
+                  const postalCode =
+                    shippingData?.postalCode ||
+                    shippingData?.postal_code ||
+                    shippingData?.zip_code ||
+                    shippingData?.zipCode ||
+                    null
+
+                  // ── País ──────────────────────────────────────────────────────
+                  const country = shippingData?.country || null
+
+                  // ── Texto completo para copiar ────────────────────────────────
+                  const fullAddressText = [
+                    recipientName,
+                    recipientPhone,
+                    recipientEmail,
+                    '---',
+                    address1,
+                    address2,
+                    [city, state].filter(Boolean).join(', '),
+                    postalCode ? `CP: ${postalCode}` : null,
+                    country === 'MX' ? 'México' : country,
+                  ].filter(v => v && v !== '---' || (v === '---' && (address1 || city))).join('\n')
+
+                  const hasData = !!(address1 || city || postalCode || recipientName || recipientPhone)
+
+                  return (
+                    <ShippingAddressCard
+                      recipientName={recipientName}
+                      recipientPhone={recipientPhone}
+                      recipientEmail={recipientEmail}
+                      address1={address1}
+                      address2={address2}
+                      city={city}
+                      state={state}
+                      postalCode={postalCode}
+                      country={country}
+                      fullAddressText={fullAddressText}
+                      hasData={hasData}
+                    />
+                  )
+                } catch (e) {
+                  return (
+                    <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                      <p className="text-red-500 bg-red-50 p-2 rounded text-xs">Error decodificando dirección</p>
+                    </div>
+                  )
+                }
+              })()}
+
 
               {/* Metadatos Avanzados */}
               {(() => {
@@ -1074,3 +1130,176 @@ function SubscriptionInfo({ orderId, frequency, orderNumber }: { orderId: number
     </div>
   )
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Componente: Tarjeta de dirección de envío con botón de copiar
+// ─────────────────────────────────────────────────────────────────────────────
+function ShippingAddressCard({
+  recipientName,
+  recipientPhone,
+  recipientEmail,
+  address1,
+  address2,
+  city,
+  state,
+  postalCode,
+  country,
+  fullAddressText,
+  hasData,
+}: {
+  recipientName: string | null
+  recipientPhone: string | null
+  recipientEmail: string | null
+  address1: string | null
+  address2: string | null
+  city: string | null
+  state: string | null
+  postalCode: string | null
+  country: string | null
+  fullAddressText: string
+  hasData: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(fullAddressText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      const el = document.createElement('textarea')
+      el.value = fullAddressText
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }, [fullAddressText])
+
+  return (
+    <div className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+          <Truck className="h-4 w-4 text-[#5a898f]" /> Destino de Envío
+        </h3>
+        {hasData && (
+          <button
+            onClick={handleCopy}
+            title="Copiar dirección completa"
+            className={`
+              flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-all duration-200
+              ${copied
+                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-[#e8f4f5] hover:text-[#2a7880] border border-gray-200'
+              }
+            `}
+          >
+            {copied ? (
+              <><Check className="h-3.5 w-3.5" /> ¡Copiado!</>
+            ) : (
+              <><Copy className="h-3.5 w-3.5" /> Copiar todo</>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Contenido */}
+      {hasData ? (
+        <div className="space-y-2 text-sm text-gray-700">
+
+          {/* Nombre del destinatario */}
+          {recipientName && (
+            <div className="flex gap-2 items-center">
+              <span className="text-base shrink-0">👤</span>
+              <span className="font-semibold text-gray-900">{recipientName}</span>
+            </div>
+          )}
+
+          {/* Teléfono */}
+          {recipientPhone && (
+            <div className="flex gap-2 items-center">
+              <span className="text-base shrink-0">📞</span>
+              <a
+                href={`tel:${recipientPhone}`}
+                className="text-[#2a7880] hover:underline font-medium"
+              >
+                {recipientPhone}
+              </a>
+            </div>
+          )}
+
+          {/* Email */}
+          {recipientEmail && (
+            <div className="flex gap-2 items-center">
+              <span className="text-base shrink-0">✉️</span>
+              <a
+                href={`mailto:${recipientEmail}`}
+                className="text-[#2a7880] hover:underline text-xs truncate"
+              >
+                {recipientEmail}
+              </a>
+            </div>
+          )}
+
+          {/* Separador */}
+          {(recipientName || recipientPhone || recipientEmail) && (
+            <div className="border-t border-dashed border-gray-100 pt-2" />
+          )}
+
+          {/* Dirección línea 1 */}
+          {address1 && (
+            <div className="flex gap-2 items-start">
+              <span className="text-base shrink-0">📍</span>
+              <span className="font-medium leading-snug">{address1}</span>
+            </div>
+          )}
+
+          {/* Dirección línea 2 / Barrio */}
+          {address2 && (
+            <div className="flex gap-2 items-start pl-7">
+              <span className="text-gray-500 text-xs italic">{address2}</span>
+            </div>
+          )}
+
+          {/* Ciudad + Estado */}
+          {(city || state) && (
+            <div className="flex gap-2 items-start">
+              <span className="text-base shrink-0">🏙️</span>
+              <span>{[city, state].filter(Boolean).join(', ')}</span>
+            </div>
+          )}
+
+          {/* CP */}
+          {postalCode && (
+            <div className="flex gap-2 items-center">
+              <span className="text-base shrink-0">🔢</span>
+              <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">
+                CP: {postalCode}
+              </span>
+            </div>
+          )}
+
+          {/* País */}
+          {country && (
+            <div className="flex gap-2 items-center pt-1">
+              <span className="text-base shrink-0">🌎</span>
+              <span className="text-xs font-bold tracking-widest uppercase text-gray-400">
+                {country === 'MX' || country === 'México' || country === 'Mexico' ? '🇲🇽 México' : country}
+              </span>
+            </div>
+          )}
+
+        </div>
+      ) : (
+        <p className="text-muted-foreground italic flex items-center gap-2 text-xs">
+          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+          Dirección no proporcionada en esta orden
+        </p>
+      )}
+    </div>
+  )
+}
+
