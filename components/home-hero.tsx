@@ -75,7 +75,21 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 2. Carrot slice (arriba-izquierda, entre texto y perro) */}
+          {/* 2. Beef chunk (alto-izquierda, entre texto y perro) */}
+          <div
+            className="absolute left-[-8%] top-[10%] z-20 pointer-events-none animate-hero-float w-[45px] md:w-[60px]"
+            style={{ animationDelay: "0.5s", animationDuration: "5.5s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/beef-chunk.png"
+              alt="Trozos de carne fresca"
+              width={60}
+              height={60}
+              className="rotate-[15deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* 3. Carrot slice (arriba-izquierda, entre texto y perro) */}
           <div
             className="absolute left-[-12%] top-[24%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
             style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
@@ -89,63 +103,35 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 3. Carrot slice (abajo-izquierda, entre texto y perro) */}
+          {/* 4. Blueberry (centro-izquierda, entre texto y perro) */}
           <div
-            className="absolute left-[-22%] top-[42%] z-20 pointer-events-none animate-hero-float w-[65px] md:w-[90px]"
-            style={{ animationDelay: "1.4s", animationDuration: "6.2s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/carrot-slice.png"
-              alt="Rodaja de zanahoria fresca"
-              width={90}
-              height={90}
-              className="rotate-[15deg] filter drop-shadow-[0_10px_22px_rgba(0,0,0,0.14)]"
-            />
-          </div>
-
-          {/* Carrot slice extra A (alto izquierda, entre texto y perro) */}
-          <div
-            className="absolute left-[-8%] top-[10%] z-20 pointer-events-none animate-hero-float w-[45px] md:w-[60px]"
-            style={{ animationDelay: "0.5s", animationDuration: "5.5s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/carrot-slice.png"
-              alt="Rodaja de zanahoria fresca"
-              width={60}
-              height={60}
-              className="rotate-[35deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
-            />
-          </div>
-
-          {/* Carrot slice extra B (abajo izquierda, entre texto y perro) */}
-          <div
-            className="absolute left-[-18%] top-[58%] z-20 pointer-events-none animate-hero-float w-[50px] md:w-[70px]"
-            style={{ animationDelay: "1.8s", animationDuration: "6.4s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/carrot-slice.png"
-              alt="Rodaja de zanahoria fresca"
-              width={70}
-              height={70}
-              className="rotate-[-20deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
-            />
-          </div>
-
-          {/* Carrot slice extra C (arriba cabeza) */}
-          <div
-            className="absolute left-[8%] top-[2%] z-20 pointer-events-none animate-hero-float w-[40px] md:w-[55px]"
+            className="absolute left-[-6%] top-[38%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
             style={{ animationDelay: "1.1s", animationDuration: "5.7s" }}
           >
             <TransparentImage
-              src="/iconos/image/carrot-slice.png"
-              alt="Rodaja de zanahoria fresca"
-              width={55}
-              height={55}
-              className="rotate-[-15deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+              src="/iconos/image/blueberry.png"
+              alt="Arándano fresco"
+              width={32}
+              height={32}
+              className="rotate-[25deg] filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.12)]"
             />
           </div>
 
-          {/* 4. Blueberry (abajo del cachete izquierdo) */}
+          {/* 5. Spinach leaf (abajo-izquierda, entre texto y perro) */}
+          <div
+            className="absolute left-[-22%] top-[50%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            style={{ animationDelay: "1.4s", animationDuration: "6.2s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/spinach-leaf.png"
+              alt="Hoja de espinaca fresca"
+              width={75}
+              height={75}
+              className="-rotate-[35deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* 6. Blueberry (bajo el cachete izquierdo) */}
           <div
             className="absolute left-[18%] bottom-[16%] md:bottom-[20%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
             style={{ animationDelay: "2.0s", animationDuration: "5.0s" }}
@@ -159,7 +145,7 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 5. Carrot slice (abajo centro-izquierda) */}
+          {/* 7. Carrot slice (abajo centro-izquierda) */}
           <div
             className="absolute left-[-15%] bottom-[0%] md:bottom-[-2%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
             style={{ animationDelay: "0.4s", animationDuration: "5.6s" }}
@@ -187,17 +173,17 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 7. Blueberry (esquina inferior derecha - arriba del cluster) */}
+          {/* 7. Circle 3: Blueberry group (arriba-derecha del cluster) */}
           <div
-            className="absolute right-[-6%] bottom-[20%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
-            style={{ animationDelay: "2.2s", animationDuration: "6.0s" }}
+            className="absolute right-[0%] md:right-[2%] bottom-[8%] md:bottom-[10%] z-25 pointer-events-none animate-hero-float w-[65px] md:w-[90px]"
+            style={{ animationDelay: "0.9s", animationDuration: "6.1s" }}
           >
             <TransparentImage
-              src="/iconos/image/blueberry.png"
-              alt="Arándano fresco"
-              width={32}
-              height={32}
-              className="rotate-[-15deg] filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.12)]"
+              src="/iconos/image/group-blueberries.png"
+              alt="Grupo de arándanos frescos"
+              width={90}
+              height={90}
+              className="rotate-[10deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
             />
           </div>
 
@@ -215,9 +201,37 @@ export function HomeHero() {
             />
           </div>
 
+          {/* Circle 1: Spinach leaf (abajo-izquierda del cluster) */}
+          <div
+            className="absolute left-[2%] md:left-[4%] bottom-[-24%] md:bottom-[-31%] z-25 pointer-events-none animate-hero-float w-[50px] md:w-[70px]"
+            style={{ animationDelay: "1.5s", animationDuration: "5.9s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/spinach-leaf.png"
+              alt="Hoja de espinaca fresca"
+              width={70}
+              height={70}
+              className="rotate-[-25deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* Circle 2: Beef chunk (abajo-derecha del cluster) */}
+          <div
+            className="absolute left-[30%] md:left-[36%] bottom-[-22%] md:bottom-[-29%] z-25 pointer-events-none animate-hero-float w-[45px] md:w-[60px]"
+            style={{ animationDelay: "2.1s", animationDuration: "6.3s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/beef-chunk.png"
+              alt="Trozo de carne fresca"
+              width={60}
+              height={60}
+              className="rotate-[15deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
           {/* 9. Rodaja de Manzana (superpuesta abajo del cluster) */}
           <div
-            className="absolute left-[38%] md:left-[46%] bottom-[-30%] md:bottom-[-39%] z-40 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            className="absolute left-[36%] md:left-[44%] bottom-[-28%] md:bottom-[-36%] z-45 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
             style={{ animationDelay: "1.2s", animationDuration: "5.8s" }}
           >
             <TransparentImage
