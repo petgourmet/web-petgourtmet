@@ -82,12 +82,12 @@ const communityBenefits = [
 
 export default function Home() {
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[linear-gradient(180deg,_#ffffff_0%,_#f8fbfc_38%,_#f3f7f8_100%)]">
+    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-white dark:bg-gray-900">
       <HomeHero />
 
       <Suspense
         fallback={
-          <section className="bg-[linear-gradient(180deg,_#f7fafb_0%,_#f3f7f8_100%)] py-20 md:py-24">
+          <section className="bg-white dark:bg-gray-900 py-20 md:py-24">
             <div className="container mx-auto px-4">
               <div className="h-[500px] rounded-[36px] border border-[#e6eeef] bg-white shadow-[0_20px_50px_rgba(25,63,70,0.06)] animate-pulse" />
             </div>
@@ -97,7 +97,7 @@ export default function Home() {
         <HomeRecipesSection />
       </Suspense>
 
-      <section id="categorias-menu" className="relative bg-[linear-gradient(180deg,_#f7fafb_0%,_#f3f7f8_100%)] py-20 md:py-24">
+      <section id="categorias-menu" className="relative bg-white dark:bg-gray-900 py-20 md:py-24">
         <div className="container relative z-10 mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center">
             <span className="inline-flex rounded-full border border-[#dce8ea] bg-white px-4 py-2 text-sm font-semibold text-[#2a7880] shadow-[0_10px_24px_rgba(42,120,128,0.06)]">
@@ -158,7 +158,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="relative bg-[linear-gradient(180deg,_#f7fafb_0%,_#f4f8f9_100%)] py-20 md:py-24">
+      <section className="relative bg-white dark:bg-gray-900 py-20 md:py-24">
         <div className="container relative z-10 mx-auto px-4">
           <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
             <div className="order-2 lg:order-1">
@@ -246,7 +246,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="relative bg-[linear-gradient(180deg,_#f4f8f9_0%,_#ffffff_100%)] py-20 md:py-24">
+      <section className="relative bg-white dark:bg-gray-900 py-20 md:py-24">
         <div className="container relative z-10 mx-auto px-4">
           <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_30px_80px_rgba(22,49,59,0.08)]">
             <div className="grid md:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.05fr)]">

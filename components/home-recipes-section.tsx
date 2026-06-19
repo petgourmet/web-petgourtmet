@@ -8,7 +8,7 @@ export function HomeRecipesSection() {
   const [activeTab, setActiveTab] = useState("celebrar")
 
   return (
-    <section id="nuestras-recetas" className="relative bg-[linear-gradient(180deg,_#ffffff_0%,_#f7fafb_100%)] py-20 md:py-24">
+    <section id="nuestras-recetas" className="relative bg-white dark:bg-gray-900 py-20 md:py-24">
       <div className="container relative z-10 mx-auto px-4">
         <div className="mx-auto max-w-3xl text-center mb-12">
           <span className="inline-flex rounded-full border border-[#dce8ea] bg-white px-4 py-2 text-sm font-semibold text-[#2a7880] shadow-[0_10px_24px_rgba(42,120,128,0.06)]">
