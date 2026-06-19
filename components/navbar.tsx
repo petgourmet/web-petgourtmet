@@ -220,7 +220,7 @@ export function Navbar() {
       </header>
 
       {/* ── Barra promocional: fuera del header, dentro del wrapper sticky ── */}
-      <div className="relative overflow-hidden bg-primary border-t border-white/10">
+      <div className="relative overflow-hidden bg-[#2a7880] border-t border-white/10">
         {/* Shimmer */}
         <div
           aria-hidden="true"
