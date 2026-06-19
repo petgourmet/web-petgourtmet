@@ -20,7 +20,7 @@ export function HomeHero() {
             Nutrición premium para cada día
           </div>
 
-          <h1 className="animate-fade-in mt-6 max-w-[10ch] font-display text-4xl font-bold leading-[0.94] text-[#16313b] sm:max-w-[11ch] sm:text-5xl md:text-6xl lg:text-7xl">
+          <h1 className="animate-fade-in mt-6 max-w-[10ch] font-display text-4xl font-bold leading-[0.94] text-[#16313b] sm:max-w-[11ch] sm:text-5xl md:text-5xl lg:text-5xl xl:text-7xl">
             ¡Comida real para amigos reales!
           </h1>
 
@@ -75,34 +75,6 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 2. Beef chunk (alto-izquierda, entre texto y perro) */}
-          <div
-            className="absolute left-[-8%] top-[10%] z-20 pointer-events-none animate-hero-float w-[45px] md:w-[60px]"
-            style={{ animationDelay: "0.5s", animationDuration: "5.5s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/beef-chunk.png"
-              alt="Trozos de carne fresca"
-              width={60}
-              height={60}
-              className="rotate-[15deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
-            />
-          </div>
-
-          {/* 3. Carrot slice (arriba-izquierda, entre texto y perro) */}
-          <div
-            className="absolute left-[-12%] top-[24%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
-            style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/carrot-slice.png"
-              alt="Rodaja de zanahoria fresca"
-              width={75}
-              height={75}
-              className="rotate-[10deg] filter drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
-            />
-          </div>
-
           {/* 4. Blueberry (centro-izquierda, entre texto y perro) */}
           <div
             className="absolute left-[-6%] top-[38%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
@@ -117,37 +89,23 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 5. Spinach leaf (abajo-izquierda, entre texto y perro) */}
+          {/* 6. Blueberry (bajo el cachete izquierdo - movido abajo-derecha y ampliado) */}
           <div
-            className="absolute left-[-22%] top-[50%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
-            style={{ animationDelay: "1.4s", animationDuration: "6.2s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/spinach-leaf.png"
-              alt="Hoja de espinaca fresca"
-              width={75}
-              height={75}
-              className="-rotate-[35deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
-            />
-          </div>
-
-          {/* 6. Blueberry (bajo el cachete izquierdo - oculto en móvil) */}
-          <div
-            className="absolute hidden md:block md:left-[18%] md:bottom-[20%] z-20 pointer-events-none animate-hero-float md:w-[32px]"
+            className="absolute hidden md:block md:left-[38%] md:bottom-[-22%] z-20 pointer-events-none animate-hero-float md:w-[48px]"
             style={{ animationDelay: "2.0s", animationDuration: "5.0s" }}
           >
             <TransparentImage
               src="/iconos/image/blueberry.png"
               alt="Arándano fresco"
-              width={32}
-              height={32}
+              width={48}
+              height={48}
               className="rotate-[20deg] filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.12)]"
             />
           </div>
 
-          {/* 7. Carrot slice (abajo centro-izquierda) */}
+          {/* 7. Carrot slice (abajo centro-izquierda) - desplazado a la izquierda */}
           <div
-            className="absolute left-[-15%] bottom-[0%] md:bottom-[-2%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            className="absolute left-[-25%] bottom-[2%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
             style={{ animationDelay: "0.4s", animationDuration: "5.6s" }}
           >
             <TransparentImage
@@ -159,23 +117,51 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 6. Beef chunk (esquina superior derecha) */}
+          {/* 6. Beef chunk (movido al centro-abajo entre las manzanas - ampliado) */}
           <div
-            className="absolute right-[-8%] top-[10%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            className="absolute hidden md:block md:left-[47%] md:bottom-[-19%] z-20 pointer-events-none animate-hero-float w-[80px] md:w-[105px]"
             style={{ animationDelay: "1.0s", animationDuration: "5.5s" }}
           >
             <TransparentImage
               src="/iconos/image/beef-chunk.png"
               alt="Trozos de carne fresca"
-              width={75}
-              height={75}
+              width={105}
+              height={105}
               className="rotate-[15deg] filter drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
             />
           </div>
 
-          {/* 7. Circle 3: Blueberry group (arriba-derecha del cluster) */}
+          {/* Carrot slice (lado derecho del perro - movido abajo-izquierda) */}
           <div
-            className="absolute right-[0%] md:right-[2%] bottom-[8%] md:bottom-[10%] z-25 pointer-events-none animate-hero-float w-[65px] md:w-[90px]"
+            className="absolute hidden md:block right-[0%] md:right-[2%] top-[40%] md:top-[48%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            style={{ animationDelay: "1.6s", animationDuration: "6.0s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/carrot-slice.png"
+              alt="Rodaja de zanahoria fresca"
+              width={75}
+              height={75}
+              className="rotate-[15deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* Spinach leaf (lado derecho del perro - movido abajo-izquierda) */}
+          <div
+            className="absolute hidden md:block right-[2%] md:right-[5%] bottom-[16%] md:bottom-[20%] z-20 pointer-events-none animate-hero-float w-[50px] md:w-[70px]"
+            style={{ animationDelay: "2.3s", animationDuration: "6.5s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/spinach-leaf.png"
+              alt="Hoja de espinaca fresca"
+              width={70}
+              height={70}
+              className="-rotate-[20deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* 7. Circle 3: Blueberry group (arriba-derecha del cluster - movido abajo-izquierda) */}
+          <div
+            className="absolute right-[12%] md:right-[16%] bottom-[-4%] md:bottom-[-8%] z-25 pointer-events-none animate-hero-float w-[65px] md:w-[90px]"
             style={{ animationDelay: "0.9s", animationDuration: "6.1s" }}
           >
             <TransparentImage
@@ -187,9 +173,9 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 8. Cluster de ingredientes principal (debajo del cuello/pecho del perro, cruzando la línea - oculto en móvil) */}
+          {/* 8. Cluster de ingredientes principal (debajo del cuello/pecho del perro, cruzando la línea - desplazado arriba-izquierda al CÍRCULO) */}
           <div
-            className="absolute hidden md:block md:left-[12%] md:bottom-[-36%] z-30 pointer-events-none animate-hero-float md:w-[340px] lg:w-[380px]"
+            className="absolute hidden md:block md:left-[-28%] md:bottom-[-28%] z-30 pointer-events-none animate-hero-float md:w-[290px] lg:w-[330px]"
             style={{ animationDelay: "0.6s", animationDuration: "6.0s" }}
           >
             <TransparentImage
@@ -200,45 +186,32 @@ export function HomeHero() {
               className="w-full h-auto object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.15)]"
             />
           </div>
-          {/* Circle 1: Spinach leaf (abajo-izquierda del cluster, oculto en móvil) */}
-          <div
-            className="absolute hidden md:block left-[4%] bottom-[-31%] z-25 pointer-events-none animate-hero-float w-[70px]"
-            style={{ animationDelay: "1.5s", animationDuration: "5.9s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/spinach-leaf.png"
-              alt="Hoja de espinaca fresca"
-              width={70}
-              height={70}
-              className="rotate-[-25deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
-            />
-          </div>
 
-          {/* Circle 2: Beef chunk (abajo-derecha del cluster - oculto en móvil) */}
+          {/* 9. Rodaja de Manzana (superpuesta abajo del cluster desplazado - movida arriba-derecha) */}
           <div
-            className="absolute hidden md:block md:left-[36%] md:bottom-[-29%] z-25 pointer-events-none animate-hero-float md:w-[60px]"
-            style={{ animationDelay: "2.1s", animationDuration: "6.3s" }}
-          >
-            <TransparentImage
-              src="/iconos/image/beef-chunk.png"
-              alt="Trozo de carne fresca"
-              width={60}
-              height={60}
-              className="rotate-[15deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
-            />
-          </div>
-
-          {/* 9. Rodaja de Manzana (superpuesta abajo del cluster - oculto en móvil) */}
-          <div
-            className="absolute hidden md:block md:left-[44%] md:bottom-[-36%] z-45 pointer-events-none animate-hero-float md:w-[75px]"
+            className="absolute hidden md:block md:left-[22%] md:bottom-[-22%] z-45 pointer-events-none animate-hero-float w-[65px] md:w-[85px]"
             style={{ animationDelay: "1.2s", animationDuration: "5.8s" }}
           >
             <TransparentImage
               src="/iconos/image/apple-slice.png"
               alt="Rodaja de manzana fresca"
-              width={75}
-              height={75}
-              className="rotate-[-15deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.15)]"
+              width={85}
+              height={85}
+              className="rotate-[15deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.15)]"
+            />
+          </div>
+
+          {/* Individual: Apple slice (debajo del perro - movida arriba-izquierda) */}
+          <div
+            className="absolute hidden md:block right-[32%] bottom-[-22%] z-45 pointer-events-none animate-hero-float w-[45px] md:w-[60px]"
+            style={{ animationDelay: "2.5s", animationDuration: "6.0s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/apple-slice.png"
+              alt="Rodaja de manzana fresca"
+              width={60}
+              height={60}
+              className="rotate-[-10deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.15)]"
             />
           </div>
         </div>
