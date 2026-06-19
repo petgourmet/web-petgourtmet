@@ -84,7 +84,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Obtener posts de blog dinámicos
     const { data: blogPosts } = await supabase
-      .from('blog_posts')
+      .from('blogs')
       .select('slug, updated_at')
       .eq('published', true)
 

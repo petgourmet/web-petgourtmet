@@ -1,7 +1,22 @@
+import type { Metadata } from "next"
 import { supabase } from "@/lib/supabase/client"
 import BlogCard from "@/components/blog-card"
 
 export const revalidate = 3600 // Revalidar cada hora
+
+export const metadata: Metadata = {
+  title: "Blog | Pet Gourmet",
+  description: "Lee los últimos artículos sobre nutrición canina, salud, recetas saludables y guías de alimentación natural para perros en el blog de Pet Gourmet.",
+  openGraph: {
+    title: "Blog | Pet Gourmet",
+    description: "Consejos, recetas y guías sobre nutrición y salud canina en el blog de Pet Gourmet.",
+    url: "/blog",
+    type: "website",
+  },
+  alternates: {
+    canonical: "/blog",
+  },
+}
 
 // Datos de ejemplo para cuando no hay conexión a Supabase
 const fallbackBlogPosts = [

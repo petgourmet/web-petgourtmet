@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Pet Gourmet" }],
   creator: "Pet Gourmet",
   publisher: "Pet Gourmet",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://www.petgourmet.mx"),
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

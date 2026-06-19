@@ -10,18 +10,45 @@ import ReactMarkdown from "react-markdown"
 import { ProductCard } from "@/components/product-card"
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const { data: blog } = await supabase.from("blogs").select("title, excerpt").eq("slug", params.slug).single()
+  const { data: blog } = await supabase.from("blogs").select("title, excerpt, cover_image").eq("slug", params.slug).single()
 
   if (!blog) {
     return {
-      title: "Blog no encontrado",
+      title: "Blog no encontrado | Pet Gourmet",
       description: "El artículo que buscas no existe",
     }
   }
 
+  const title = `${blog.title} | Pet Gourmet Blog`
+  const description = blog.excerpt
+  const imageUrl = blog.cover_image || "/petgourmet-logo.png"
+
   return {
-    title: `${blog.title} | Pet Gourmet Blog`,
-    description: blog.excerpt,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url: `/blog/${params.slug}`,
+      siteName: "Pet Gourmet",
+      images: [
+        {
+          url: imageUrl,
+          alt: blog.title,
+        },
+      ],
+      locale: "es_MX",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+    alternates: {
+      canonical: `/blog/${params.slug}`,
+    },
   }
 }
 

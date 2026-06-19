@@ -1,7 +1,22 @@
+import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Nosotros | Pet Gourmet",
+  description: "Conoce la historia de Pet Gourmet. Naciendo del amor por nuestras propias mascotas, creamos alimentos y premios 100% naturales para su salud y bienestar.",
+  openGraph: {
+    title: "Nosotros | Pet Gourmet",
+    description: "Conoce la historia de Pet Gourmet. Alimentos y premios 100% naturales creados con amor.",
+    url: "/nosotros",
+    type: "website",
+  },
+  alternates: {
+    canonical: "/nosotros",
+  },
+}
 
 export default function NosotrosPage() {
   return (
