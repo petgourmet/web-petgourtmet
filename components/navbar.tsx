@@ -74,7 +74,7 @@ export function Navbar() {
       {/* Wrapper sticky — header + barra promo se mueven juntos */}
       <div className="sticky top-0 z-50">
       <header
-        className={`w-full transition-all duration-500 backdrop-blur-sm ${isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
+        className={`relative z-20 w-full transition-all duration-500 backdrop-blur-sm ${isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
           }`}
       >
         <div className="container mx-auto px-4 flex items-center justify-between">
