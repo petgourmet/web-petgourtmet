@@ -105,7 +105,7 @@ export function HomeHero() {
 
           {/* 4. Blueberry (abajo del cachete izquierdo) */}
           <div
-            className="absolute left-[18%] bottom-[12%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
+            className="absolute left-[18%] bottom-[16%] md:bottom-[20%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
             style={{ animationDelay: "2.0s", animationDuration: "5.0s" }}
           >
             <TransparentImage
@@ -159,9 +159,9 @@ export function HomeHero() {
             />
           </div>
 
-          {/* 8. Cluster de ingredientes principal (abajo-derecha del perro) */}
+          {/* 8. Cluster de ingredientes principal (debajo del cuello/pecho del perro) */}
           <div
-            className="absolute right-[-10%] bottom-[-8%] z-30 pointer-events-none animate-hero-float w-[240px] md:w-[340px] lg:w-[380px]"
+            className="absolute left-[8%] md:left-[12%] bottom-[-12%] md:bottom-[-16%] z-30 pointer-events-none animate-hero-float w-[240px] md:w-[340px] lg:w-[380px]"
             style={{ animationDelay: "0.6s", animationDuration: "6.0s" }}
           >
             <TransparentImage
@@ -175,7 +175,7 @@ export function HomeHero() {
 
           {/* 9. Rodaja de Manzana (superpuesta abajo del cluster) */}
           <div
-            className="absolute right-[12%] bottom-[-11%] z-40 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            className="absolute left-[38%] md:left-[46%] bottom-[-14%] md:bottom-[-19%] z-40 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
             style={{ animationDelay: "1.2s", animationDuration: "5.8s" }}
           >
             <TransparentImage
