@@ -100,7 +100,16 @@ export function TransparentImage({
 
     const img = new window.Image()
     img.crossOrigin = "anonymous"
-    img.src = src
+
+    const isProd = process.env.NODE_ENV === "production"
+    // Si estamos en producción, usamos el optimizador nativo de Next.js para reducir
+    // drásticamente el peso de la imagen antes de dibujarla en el canvas.
+    const targetWidth = width > 200 ? 640 : 256
+    const optimizedSrc = isProd
+      ? `/_next/image?url=${encodeURIComponent(src)}&w=${targetWidth}&q=75`
+      : src
+
+    img.src = optimizedSrc
 
     img.onload = () => {
       const canvas = document.createElement("canvas")
