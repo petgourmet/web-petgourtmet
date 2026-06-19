@@ -64,17 +64,17 @@ export function HomeHero() {
 
       {/* ── SOLO MOBILE ─────────────────────────────────────────────────── */}
 
-      {/* Mobile: Brócoli – esquina superior izquierda */}
+      {/* Mobile: Brócoli – esquina superior izquierda, pegado al borde para no tapar texto */}
       <div
-        className="absolute left-[3%] top-[8%] z-20 pointer-events-none animate-hero-float md:hidden"
+        className="absolute left-0 top-0 z-10 pointer-events-none animate-hero-float md:hidden"
         style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
       >
         <TransparentImage
           src="/iconos/image/broccoli-floret.png"
           alt="Brócoli fresco"
-          width={80}
-          height={80}
-          className="rotate-[40deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
+          width={65}
+          height={65}
+          className="rotate-[40deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)] opacity-80"
         />
       </div>
 

@@ -71,8 +71,10 @@ export function Navbar() {
 
   return (
     <>
+      {/* Wrapper sticky — header + barra promo se mueven juntos */}
+      <div className="sticky top-0 z-50">
       <header
-        className={`w-full sticky top-0 z-50 transition-all duration-500 backdrop-blur-sm ${isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
+        className={`w-full transition-all duration-500 backdrop-blur-sm ${isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
           }`}
       >
         <div className="container mx-auto px-4 flex items-center justify-between">
@@ -215,45 +217,46 @@ export function Navbar() {
             </button>
           </div>
         </div>
-
-        {/* ── Barra promocional: envio gratis ─────────────────────────────── */}
-        <div className="relative overflow-hidden border-t border-white/10">
-          {/* Shimmer */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 40%, rgba(255,255,255,0.11) 50%, rgba(255,255,255,0.06) 60%, transparent 100%)',
-              backgroundSize: '200% 100%',
-              animation: 'promoShimmer 3.5s ease-in-out infinite',
-            }}
-          />
-          <style>{`
-            @keyframes promoShimmer {
-              0%   { background-position: 200% center; }
-              100% { background-position: -200% center; }
-            }
-          `}</style>
-
-          <div className="flex items-center justify-center gap-2 py-1 text-[11px] md:text-xs whitespace-nowrap">
-            <Truck className="h-3 w-3 text-white/60 shrink-0" strokeWidth={2.2} />
-            {/* Mobile: texto corto en una línea */}
-            <span className="sm:hidden text-white/80">
-              Envío <span className="font-bold text-white">GRATIS</span> en compras <span className="font-semibold text-white">+$1,000 MXN</span>
-            </span>
-            {/* Desktop: texto completo */}
-            <span className="hidden sm:inline text-white/70">Envío</span>
-            <span className="hidden sm:inline font-bold text-white">GRATIS</span>
-            <span className="hidden sm:inline text-white/70">en pedidos mayores a</span>
-            <span className="hidden sm:inline-flex items-center gap-1 bg-white/20 text-white font-bold px-2 py-0.5 rounded-full text-[10px] tracking-wide">
-              <Tag className="h-2.5 w-2.5" />
-              $1,000 MXN
-            </span>
-            <Sparkles className="h-3 w-3 text-white/50 shrink-0" strokeWidth={2} />
-          </div>
-        </div>
       </header>
+
+      {/* ── Barra promocional: fuera del header, dentro del wrapper sticky ── */}
+      <div className="relative overflow-hidden bg-primary border-t border-white/10">
+        {/* Shimmer */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 40%, rgba(255,255,255,0.11) 50%, rgba(255,255,255,0.06) 60%, transparent 100%)',
+            backgroundSize: '200% 100%',
+            animation: 'promoShimmer 3.5s ease-in-out infinite',
+          }}
+        />
+        <style>{`
+          @keyframes promoShimmer {
+            0%   { background-position: 200% center; }
+            100% { background-position: -200% center; }
+          }
+        `}</style>
+
+        <div className="flex items-center justify-center gap-2 py-1 text-[11px] md:text-xs whitespace-nowrap">
+          <Truck className="h-3 w-3 text-white/60 shrink-0" strokeWidth={2.2} />
+          {/* Mobile: texto corto en una línea */}
+          <span className="sm:hidden text-white/80">
+            Envío <span className="font-bold text-white">GRATIS</span> en compras <span className="font-semibold text-white">+$1,000 MXN</span>
+          </span>
+          {/* Desktop: texto completo */}
+          <span className="hidden sm:inline text-white/70">Envío</span>
+          <span className="hidden sm:inline font-bold text-white">GRATIS</span>
+          <span className="hidden sm:inline text-white/70">en pedidos mayores a</span>
+          <span className="hidden sm:inline-flex items-center gap-1 bg-white/20 text-white font-bold px-2 py-0.5 rounded-full text-[10px] tracking-wide">
+            <Tag className="h-2.5 w-2.5" />
+            $1,000 MXN
+          </span>
+          <Sparkles className="h-3 w-3 text-white/50 shrink-0" strokeWidth={2} />
+        </div>
+      </div>
+      </div>{/* /wrapper sticky */}
 
       {isMenuOpen && (
         <div
