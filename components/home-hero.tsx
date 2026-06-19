@@ -216,76 +216,35 @@ export function HomeHero() {
         />
       </div>
 
-      {/* ── C) CLUSTER INFERIOR DERECHO ─────────────────────────────────── */}
-      {/* Los elementos se solapan entre sí para el efecto de grupo natural   */}
-
-      {/* Carne – extremo izquierdo del cluster */}
+      {/* ── C) CLUSTER INFERIOR DERECHO — imagen de grupo responsiva ─────── */}
+      {/*
+          Una sola imagen escala con w-[%] → se adapta a cualquier ancho.
+          mix-blend-mode: multiply elimina el fondo blanco sobre el crema del hero.
+      */}
       <div
-        className="absolute right-[38%] bottom-[2%] z-20 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "1.5s", animationDuration: "6.5s" }}
+        className="absolute bottom-0 right-[3%] z-20 pointer-events-none hidden lg:block animate-hero-float w-[30%] max-w-[420px] min-w-[260px]"
+        style={{ animationDelay: "0.8s", animationDuration: "6.0s" }}
       >
-        <TransparentImage
-          src="/iconos/image/beef-chunk.png"
-          alt="Carne de res fresca"
-          width={115}
-          height={115}
-          className="-rotate-[8deg] filter drop-shadow-[0_10px_22px_rgba(0,0,0,0.14)]"
+        <Image
+          src="/iconos/image/group-beef-broccoli-carrot.png"
+          alt="Grupo de ingredientes frescos: carne, brócoli y zanahoria"
+          width={420}
+          height={320}
+          className="w-full h-auto object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.14)]"
         />
       </div>
 
-      {/* Brócoli – centro del cluster, elemento principal */}
+      {/* Grupo arándanos – acento flotante izquierdo del cluster */}
       <div
-        className="absolute right-[22%] bottom-[0%] z-20 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
+        className="absolute bottom-[4%] right-[34%] z-20 pointer-events-none hidden lg:block animate-hero-float w-[8%] max-w-[100px] min-w-[60px]"
+        style={{ animationDelay: "2.4s", animationDuration: "7.2s" }}
       >
-        <TransparentImage
-          src="/iconos/image/broccoli-floret.png"
-          alt="Brócoli fresco"
-          width={178}
-          height={178}
-          className="rotate-[32deg] filter drop-shadow-[0_12px_28px_rgba(0,0,0,0.15)]"
-        />
-      </div>
-
-      {/* Zanahoria – dentro del cluster junto al brócoli */}
-      <div
-        className="absolute right-[13%] bottom-[3%] z-20 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "2.8s", animationDuration: "6.0s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/carrot-slice.png"
-          alt="Rodaja de zanahoria fresca"
-          width={98}
-          height={98}
-          className="rotate-[25deg] filter drop-shadow-[0_8px_18px_rgba(0,0,0,0.12)]"
-        />
-      </div>
-
-      {/* Espinaca – extremo derecho del cluster */}
-      <div
-        className="absolute right-[6%] bottom-[5%] z-20 pointer-events-none animate-hero-float hidden lg:block opacity-90"
-        style={{ animationDelay: "1.2s", animationDuration: "5.2s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/spinach-leaf.png"
-          alt="Hoja de espinaca fresca"
-          width={108}
-          height={108}
-          className="-rotate-[20deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.10)]"
-        />
-      </div>
-
-      {/* Manzana – borde derecho, primer plano, cierra el cluster */}
-      <div
-        className="absolute right-[-18px] bottom-[2%] z-30 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "2.4s", animationDuration: "6.8s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/apple-slice.png"
-          alt="Rodaja de manzana fresca"
-          width={148}
-          height={148}
-          className="-rotate-[22deg] filter drop-shadow-[0_14px_28px_rgba(0,0,0,0.16)] blur-[0.5px]"
+        <Image
+          src="/iconos/image/group-blueberries.png"
+          alt="Grupo de arándanos frescos"
+          width={100}
+          height={100}
+          className="w-full h-auto object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
         />
       </div>
 
