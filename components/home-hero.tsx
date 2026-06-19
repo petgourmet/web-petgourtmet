@@ -40,6 +40,7 @@ export function HomeHero() {
               priority
               width={620}
               height={620}
+              sizes="(max-width: 768px) 100vw, 620px"
               className="animate-hero-bob h-auto w-full object-contain translate-y-[12%] md:translate-y-[15%] scale-[1.02]"
             />
           </div>

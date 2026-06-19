@@ -1,4 +1,4 @@
-import heroPoster from "../public/hero-poster.webp"
+import { LazyVideo } from "./lazy-video"
 
 export function HomeVideoShowcase() {
   return (
@@ -29,19 +29,13 @@ export function HomeVideoShowcase() {
               </p>
             </div>
 
-            <div className="order-1 overflow-hidden rounded-[28px] bg-[#11333a] lg:order-2">
-              <div className="relative aspect-[16/9]">
-                <video className="h-full w-full object-cover" controls playsInline preload="none" poster={heroPoster.src}>
-                  <source
-                    src="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto,vc_vp9/v1772482021/video_ev8mjp.webm"
-                    type="video/webm"
-                  />
-                  <source
-                    src="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto/v1772482021/video_ev8mjp.mp4"
-                    type="video/mp4"
-                  />
-                </video>
-              </div>
+            <div className="order-1 lg:order-2">
+              <LazyVideo
+                poster="/hero-poster.webp"
+                srcWebm="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto,vc_vp9/v1772482021/video_ev8mjp.webm"
+                srcMp4="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto/v1772482021/video_ev8mjp.mp4"
+                alt="Conoce Pet Gourmet Video"
+              />
             </div>
           </div>
         </div>

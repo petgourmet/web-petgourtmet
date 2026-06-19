@@ -7,6 +7,7 @@ import { Suspense } from "react"
 import { HomeHero } from "@/components/home-hero"
 import { HomeRecipesSection } from "@/components/home-recipes-section"
 import { Button } from "@/components/ui/button"
+import { LazyVideo } from "@/components/lazy-video"
 
 import "../app/reset.css"
 
@@ -213,27 +214,12 @@ export default function Home() {
                 <div className="absolute right-4 top-0 h-40 w-40 rounded-full bg-[#7AB8BF]/16 blur-3xl" />
 
                 <div className="relative overflow-hidden rounded-[34px] border border-white bg-white p-3 shadow-custom-card">
-                  <div className="relative overflow-hidden rounded-[28px] aspect-[16/9] bg-[#11333a]">
-                    <video
-                      className="h-full w-full object-cover"
-                      controls
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      preload="auto"
-                      poster="/hero-poster.webp"
-                    >
-                      <source
-                        src="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto,vc_vp9/v1772482021/video_ev8mjp.webm"
-                        type="video/webm"
-                      />
-                      <source
-                        src="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto/v1772482021/video_ev8mjp.mp4"
-                        type="video/mp4"
-                      />
-                    </video>
-                  </div>
+                  <LazyVideo
+                    poster="/hero-poster.webp"
+                    srcWebm="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto,vc_vp9/v1772482021/video_ev8mjp.webm"
+                    srcMp4="https://res.cloudinary.com/dn7unepxa/video/upload/q_auto/v1772482021/video_ev8mjp.mp4"
+                    alt="Pet Gourmet Video"
+                  />
                 </div>
 
                 <div className="mt-5 rounded-[24px] border border-white bg-white px-5 py-4 shadow-sm">
