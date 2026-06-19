@@ -57,9 +57,101 @@ export function HomeHero() {
         </div>
       </div>
 
-      {/* Floating Ingredients dispersed along the bottom of the entire section */}
-      {/* Spinach Leaf 1 (Top Left - Background) */}
-      <div 
+      {/* ═══════════════════════════════════════════════════════════════
+           INGREDIENTES FLOTANTES
+           Mobile: 4 esq + 2 centro  |  Desktop: layout completo
+      ═══════════════════════════════════════════════════════════════ */}
+
+      {/* ── SOLO MOBILE ─────────────────────────────────────────────────── */}
+
+      {/* Mobile: Brócoli – esquina superior izquierda */}
+      <div
+        className="absolute left-[3%] top-[8%] z-20 pointer-events-none animate-hero-float md:hidden"
+        style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/broccoli-floret.png"
+          alt="Brócoli fresco"
+          width={80}
+          height={80}
+          className="rotate-[40deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
+        />
+      </div>
+
+      {/* Mobile: Zanahoria – esquina superior derecha */}
+      <div
+        className="absolute right-[4%] top-[6%] z-20 pointer-events-none animate-hero-float md:hidden"
+        style={{ animationDelay: "1.2s", animationDuration: "5.2s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/carrot-slice.png"
+          alt="Zanahoria fresca"
+          width={75}
+          height={75}
+          className="rotate-[45deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
+        />
+      </div>
+
+      {/* Mobile: Manzana – esquina inferior izquierda */}
+      <div
+        className="absolute left-[2%] bottom-[6%] z-20 pointer-events-none animate-hero-float md:hidden"
+        style={{ animationDelay: "2.2s", animationDuration: "6.8s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/apple-slice.png"
+          alt="Rodaja de manzana fresca"
+          width={85}
+          height={85}
+          className="-rotate-[20deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
+        />
+      </div>
+
+      {/* Mobile: Carne – esquina inferior derecha */}
+      <div
+        className="absolute right-[3%] bottom-[5%] z-20 pointer-events-none animate-hero-float md:hidden"
+        style={{ animationDelay: "1.8s", animationDuration: "5.5s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/beef-chunk.png"
+          alt="Carne de res fresca"
+          width={85}
+          height={85}
+          className="rotate-[20deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
+        />
+      </div>
+
+      {/* Mobile: Arándano – centro izquierda (medio) */}
+      <div
+        className="absolute left-[5%] top-[48%] z-20 pointer-events-none animate-hero-float md:hidden"
+        style={{ animationDelay: "3.2s", animationDuration: "7.2s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/blueberry.png"
+          alt="Arándano fresco"
+          width={52}
+          height={52}
+          className="rotate-[15deg] filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.12)]"
+        />
+      </div>
+
+      {/* Mobile: Espinaca – centro derecha (medio) */}
+      <div
+        className="absolute right-[4%] top-[44%] z-20 pointer-events-none animate-hero-float md:hidden"
+        style={{ animationDelay: "0.5s", animationDuration: "4.8s" }}
+      >
+        <TransparentImage
+          src="/iconos/image/spinach-leaf.png"
+          alt="Hoja de espinaca fresca"
+          width={58}
+          height={58}
+          className="rotate-[30deg] filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.08)]"
+        />
+      </div>
+
+      {/* ── SOLO DESKTOP (md+) ─────────────────────────────────────────── */}
+
+      {/* Spinach Leaf 1 – Top Left Background */}
+      <div
         className="absolute left-[4%] top-[18%] z-10 pointer-events-none animate-hero-float hidden md:block opacity-70"
         style={{ animationDelay: "0.5s", animationDuration: "4.8s" }}
       >
@@ -72,8 +164,8 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Carrot Slice 1 (Foreground Left) */}
-      <div 
+      {/* Carrot Slice 1 – Foreground Left */}
+      <div
         className="absolute left-[-30px] bottom-[18%] z-30 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "0s", animationDuration: "5.2s" }}
       >
@@ -86,8 +178,8 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Spinach Leaf 2 (Mid Left) */}
-      <div 
+      {/* Spinach Leaf 2 – Mid Left */}
+      <div
         className="absolute left-[14%] bottom-[4%] z-20 pointer-events-none animate-hero-float hidden lg:block"
         style={{ animationDelay: "2.5s", animationDuration: "5.5s" }}
       >
@@ -100,9 +192,9 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Beef Chunk 1 (Middle-Left) */}
-      <div 
-        className="absolute left-[28%] bottom-[8%] z-20 pointer-events-none animate-hero-float hidden sm:block"
+      {/* Beef Chunk 1 – Middle-Left */}
+      <div
+        className="absolute left-[28%] bottom-[8%] z-20 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "1.5s", animationDuration: "6.5s" }}
       >
         <TransparentImage
@@ -114,9 +206,9 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Blueberry 1 (Center-Bottom) */}
-      <div 
-        className="absolute left-[44%] bottom-[12%] z-20 pointer-events-none animate-hero-float hidden sm:block"
+      {/* Blueberry – Center-Bottom */}
+      <div
+        className="absolute left-[44%] bottom-[12%] z-20 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "3.2s", animationDuration: "7.2s" }}
       >
         <TransparentImage
@@ -128,9 +220,9 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Broccoli Floret 1 (Under Dog Left) */}
-      <div 
-        className="absolute right-[32%] md:left-[54%] bottom-[2%] z-20 pointer-events-none animate-hero-float"
+      {/* Broccoli Floret – Under Dog Left */}
+      <div
+        className="absolute left-[54%] bottom-[2%] z-20 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
       >
         <TransparentImage
@@ -142,9 +234,9 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Beef Chunk 2 (Under Dog Right) */}
-      <div 
-        className="absolute right-[20%] md:left-[68%] -bottom-6 z-20 pointer-events-none animate-hero-float"
+      {/* Beef Chunk 2 – Under Dog Right */}
+      <div
+        className="absolute left-[68%] -bottom-6 z-20 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "1.8s", animationDuration: "5.5s" }}
       >
         <TransparentImage
@@ -156,9 +248,9 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Carrot Slice 2 (Mid-Right Floating) */}
-      <div 
-        className="absolute right-[10%] md:right-[12%] bottom-[28%] z-20 pointer-events-none animate-hero-float hidden sm:block"
+      {/* Carrot Slice 2 – Mid-Right Floating */}
+      <div
+        className="absolute right-[10%] bottom-[28%] z-20 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "2.8s", animationDuration: "6.2s" }}
       >
         <TransparentImage
@@ -170,8 +262,8 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Apple Slice 1 (Foreground Right) */}
-      <div 
+      {/* Apple Slice – Foreground Right */}
+      <div
         className="absolute right-[-20px] bottom-[4%] z-30 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "2.2s", animationDuration: "6.8s" }}
       >
@@ -184,8 +276,8 @@ export function HomeHero() {
         />
       </div>
 
-      {/* Carrot Slice 3 (Top Right) */}
-      <div 
+      {/* Carrot Slice 3 – Top Right */}
+      <div
         className="absolute right-[5%] top-[15%] z-20 pointer-events-none animate-hero-float hidden md:block"
         style={{ animationDelay: "1.2s", animationDuration: "5.2s" }}
       >
@@ -198,5 +290,6 @@ export function HomeHero() {
         />
       </div>
     </section>
+
   )
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import dynamic from "next/dynamic"
-import { Menu, X, ChevronDown, User, ShoppingBag, Home, Info, Apple, BookOpen } from "lucide-react"
+import { Menu, X, ChevronDown, User, ShoppingBag, Home, Info, Apple, BookOpen, Truck, Sparkles, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartButton } from "@/components/cart-button"
 import { useCart } from "@/components/cart-context"
@@ -218,7 +218,40 @@ export function Navbar() {
         </div>
       </header>
 
-      {/* Enhanced Mobile Menu */}
+      {/* Barra promocional de envio gratis */}
+      <div className="w-full sticky top-[60px] z-40 bg-[#16313b] border-b border-[#2a7880]/40 overflow-hidden">
+        {/* Shimmer animado de fondo */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(122,184,191,0.08) 40%, rgba(122,184,191,0.15) 50%, rgba(122,184,191,0.08) 60%, transparent 100%)',
+            backgroundSize: '200% 100%',
+            animation: 'promoShimmer 3.5s ease-in-out infinite',
+          }}
+        />
+        <style>{`
+          @keyframes promoShimmer {
+            0%   { background-position: 200% center; }
+            100% { background-position: -200% center; }
+          }
+        `}</style>
+
+        <div className="container mx-auto px-4 py-1.5 flex items-center justify-center gap-2.5 text-xs md:text-sm">
+          <Truck className="h-3.5 w-3.5 text-[#7AB8BF] shrink-0" strokeWidth={2.2} />
+          <span className="text-white/70">Envío</span>
+          <span className="font-bold text-white">GRATIS</span>
+          <span className="text-white/70">en pedidos mayores a</span>
+          <span className="inline-flex items-center gap-1 bg-[#2a7880] text-white font-bold px-2.5 py-0.5 rounded-full text-[11px] md:text-xs tracking-wide">
+            <Tag className="h-3 w-3" />
+            $1,000 MXN
+          </span>
+          <Sparkles className="h-3.5 w-3.5 text-[#7AB8BF] shrink-0" strokeWidth={2} />
+        </div>
+      </div>
+
+
       {isMenuOpen && (
         <div
           ref={menuRef}
