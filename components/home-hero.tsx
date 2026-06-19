@@ -17,7 +17,7 @@ export function HomeHero() {
       <div className="container relative z-10 mx-auto grid min-h-[78vh] items-center gap-10 px-4 pb-14 pt-24 sm:pt-28 md:min-h-[84vh] md:pb-16 md:pt-32 lg:grid-cols-[minmax(0,1fr)_minmax(480px,620px)] lg:gap-14">
         <div className="max-w-2xl">
           <div className="animate-fade-in-small inline-flex items-center rounded-full border border-[#7AB8BF]/20 bg-white/80 px-4 py-2 text-sm font-semibold text-[#2a7880] shadow-[0_12px_30px_rgba(42,120,128,0.08)] backdrop-blur">
-            Nutricion premium para cada dia
+            Nutrición premium para cada día
           </div>
 
           <h1 className="animate-fade-in mt-6 max-w-[10ch] font-display text-4xl font-bold leading-[0.94] text-[#16313b] sm:max-w-[11ch] sm:text-5xl md:text-6xl lg:text-7xl">
@@ -25,7 +25,7 @@ export function HomeHero() {
           </h1>
 
           <p className="animate-fade-in-small mt-6 max-w-xl text-lg leading-relaxed text-[#4f6367] md:text-xl">
-            Nutricion premium horneada con ingredientes frescos y naturales para un companero mas sano, motivado y
+            Nutrición premium horneada con ingredientes frescos y naturales para un compañero más sano, motivado y
             feliz.
           </p>
 
@@ -54,200 +54,154 @@ export function HomeHero() {
               }}
             />
           </div>
+
+          {/* ───────────────────────────────────────────────────────────────
+               INGREDIENTES FLOTANTES DE DESKTOP Y MOBILE (PEGADOS AL PERRO)
+               Todos están dentro del contenedor relativo del perro para que 
+               se muevan y escalen perfectamente con él.
+             ─────────────────────────────────────────────────────────────── */}
+
+          {/* 1. Spinach leaf (arriba del perro) */}
+          <div
+            className="absolute left-[25%] top-[-8%] md:top-[-10%] z-20 pointer-events-none animate-hero-float w-[35px] md:w-[50px]"
+            style={{ animationDelay: "0.2s", animationDuration: "5.4s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/spinach-leaf.png"
+              alt="Hoja de espinaca fresca"
+              width={50}
+              height={50}
+              className="rotate-[30deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* 2. Carrot slice (arriba-izquierda, entre texto y perro) */}
+          <div
+            className="absolute left-[-12%] top-[24%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/carrot-slice.png"
+              alt="Rodaja de zanahoria fresca"
+              width={75}
+              height={75}
+              className="rotate-[10deg] filter drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
+            />
+          </div>
+
+          {/* 3. Carrot slice (abajo-izquierda, entre texto y perro) */}
+          <div
+            className="absolute left-[-22%] top-[42%] z-20 pointer-events-none animate-hero-float w-[65px] md:w-[90px]"
+            style={{ animationDelay: "1.4s", animationDuration: "6.2s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/carrot-slice.png"
+              alt="Rodaja de zanahoria fresca"
+              width={90}
+              height={90}
+              className="rotate-[15deg] filter drop-shadow-[0_10px_22px_rgba(0,0,0,0.14)]"
+            />
+          </div>
+
+          {/* 4. Blueberry (abajo del cachete izquierdo) */}
+          <div
+            className="absolute left-[18%] bottom-[12%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
+            style={{ animationDelay: "2.0s", animationDuration: "5.0s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/blueberry.png"
+              alt="Arándano fresco"
+              width={32}
+              height={32}
+              className="rotate-[20deg] filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* 5. Carrot slice (abajo centro-izquierda) */}
+          <div
+            className="absolute left-[-15%] bottom-[0%] md:bottom-[-2%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            style={{ animationDelay: "0.4s", animationDuration: "5.6s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/carrot-slice.png"
+              alt="Rodaja de zanahoria fresca"
+              width={75}
+              height={75}
+              className="rotate-[12deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
+            />
+          </div>
+
+          {/* 6. Beef chunk (esquina superior derecha) */}
+          <div
+            className="absolute right-[-8%] top-[10%] z-20 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            style={{ animationDelay: "1.0s", animationDuration: "5.5s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/beef-chunk.png"
+              alt="Trozos de carne fresca"
+              width={75}
+              height={75}
+              className="rotate-[15deg] filter drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
+            />
+          </div>
+
+          {/* 7. Blueberry (esquina inferior derecha - arriba del cluster) */}
+          <div
+            className="absolute right-[-6%] bottom-[20%] z-20 pointer-events-none animate-hero-float w-[24px] md:w-[32px]"
+            style={{ animationDelay: "2.2s", animationDuration: "6.0s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/blueberry.png"
+              alt="Arándano fresco"
+              width={32}
+              height={32}
+              className="rotate-[-15deg] filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.12)]"
+            />
+          </div>
+
+          {/* 8. Cluster de ingredientes principal (abajo-derecha del perro) */}
+          <div
+            className="absolute right-[-10%] bottom-[-8%] z-30 pointer-events-none animate-hero-float w-[240px] md:w-[340px] lg:w-[380px]"
+            style={{ animationDelay: "0.6s", animationDuration: "6.0s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/group-beef-broccoli-carrot.png"
+              alt="Grupo de carne, brócoli y zanahoria"
+              width={380}
+              height={290}
+              className="w-full h-auto object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.15)]"
+            />
+          </div>
+
+          {/* 9. Rodaja de Manzana (superpuesta abajo del cluster) */}
+          <div
+            className="absolute right-[12%] bottom-[-11%] z-40 pointer-events-none animate-hero-float w-[55px] md:w-[75px]"
+            style={{ animationDelay: "1.2s", animationDuration: "5.8s" }}
+          >
+            <TransparentImage
+              src="/iconos/image/apple-slice.png"
+              alt="Rodaja de manzana fresca"
+              width={75}
+              height={75}
+              className="rotate-[-15deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.15)]"
+            />
+          </div>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════
-           INGREDIENTES FLOTANTES
-           Mobile: 4 esq + 2 centro  |  Desktop: layout completo
-      ═══════════════════════════════════════════════════════════════ */}
-
-      {/* ── SOLO MOBILE ─────────────────────────────────────────────────── */}
-
-      {/* Mobile: Brócoli – esquina superior izquierda, pegado al borde para no tapar texto */}
+      {/* 10. Hoja de espinaca en la esquina inferior izquierda de la pantalla */}
       <div
-        className="absolute left-0 top-0 z-10 pointer-events-none animate-hero-float md:hidden"
-        style={{ animationDelay: "0.8s", animationDuration: "5.8s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/broccoli-floret.png"
-          alt="Brócoli fresco"
-          width={65}
-          height={65}
-          className="rotate-[40deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)] opacity-80"
-        />
-      </div>
-
-      {/* Mobile: Zanahoria – esquina superior derecha */}
-      <div
-        className="absolute right-[4%] top-[6%] z-20 pointer-events-none animate-hero-float md:hidden"
-        style={{ animationDelay: "1.2s", animationDuration: "5.2s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/carrot-slice.png"
-          alt="Zanahoria fresca"
-          width={75}
-          height={75}
-          className="rotate-[45deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
-        />
-      </div>
-
-      {/* Mobile: Manzana – esquina inferior izquierda */}
-      <div
-        className="absolute left-[2%] bottom-[6%] z-20 pointer-events-none animate-hero-float md:hidden"
-        style={{ animationDelay: "2.2s", animationDuration: "6.8s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/apple-slice.png"
-          alt="Rodaja de manzana fresca"
-          width={85}
-          height={85}
-          className="-rotate-[20deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
-        />
-      </div>
-
-      {/* Mobile: Carne – esquina inferior derecha */}
-      <div
-        className="absolute right-[3%] bottom-[5%] z-20 pointer-events-none animate-hero-float md:hidden"
-        style={{ animationDelay: "1.8s", animationDuration: "5.5s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/beef-chunk.png"
-          alt="Carne de res fresca"
-          width={85}
-          height={85}
-          className="rotate-[20deg] filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.14)]"
-        />
-      </div>
-
-      {/* Mobile: Arándano – centro izquierda (medio) */}
-      <div
-        className="absolute left-[5%] top-[48%] z-20 pointer-events-none animate-hero-float md:hidden"
-        style={{ animationDelay: "3.2s", animationDuration: "7.2s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/blueberry.png"
-          alt="Arándano fresco"
-          width={52}
-          height={52}
-          className="rotate-[15deg] filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.12)]"
-        />
-      </div>
-
-      {/* Mobile: Espinaca – centro derecha (medio) */}
-      <div
-        className="absolute right-[4%] top-[44%] z-20 pointer-events-none animate-hero-float md:hidden"
-        style={{ animationDelay: "0.5s", animationDuration: "4.8s" }}
+        className="absolute left-[4%] bottom-[4%] z-20 pointer-events-none animate-hero-float w-[50px] md:w-[70px]"
+        style={{ animationDelay: "1.8s", animationDuration: "6.5s" }}
       >
         <TransparentImage
           src="/iconos/image/spinach-leaf.png"
           alt="Hoja de espinaca fresca"
-          width={58}
-          height={58}
-          className="rotate-[30deg] filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.08)]"
+          width={70}
+          height={70}
+          className="-rotate-[45deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
         />
       </div>
-
-      {/* ══════════════════════════════════════════════════════════════════
-          SOLO DESKTOP (lg+)  —  3 zonas como imagen de referencia:
-          A) Acento borde izq  (zanahoria grande, parcial)
-          B) Flotantes sueltos (2-3 zanahorias + arándano, zona perrito)
-          C) Cluster inf-der   (brócoli + zanahoria + espinaca + carne)
-          Columna de texto: completamente limpia
-      ═══════════════════════════════════════════════════════════════════ */}
-
-      {/* ── A) ACENTO BORDE IZQUIERDO ───────────────────────────────────── */}
-
-      {/* Zanahoria grande – parcialmente fuera de pantalla, muy abajo */}
-      <div
-        className="absolute left-[-32px] bottom-[1%] z-30 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "0s", animationDuration: "5.2s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/carrot-slice.png"
-          alt="Rodaja de zanahoria fresca"
-          width={165}
-          height={165}
-          className="rotate-[10deg] filter drop-shadow-[0_16px_32px_rgba(0,0,0,0.18)] blur-[0.5px]"
-        />
-      </div>
-
-      {/* ── B) FLOTANTES INDIVIDUALES – zona del perrito ────────────────── */}
-
-      {/* Zanahoria flotante 1 – arriba del perro (oreja) */}
-      <div
-        className="absolute left-[51%] top-[5%] z-20 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "0.6s", animationDuration: "5.4s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/carrot-slice.png"
-          alt="Rodaja de zanahoria fresca"
-          width={82}
-          height={82}
-          className="rotate-[18deg] filter drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
-        />
-      </div>
-
-      {/* Zanahoria flotante 2 – zona nariz del perro */}
-      <div
-        className="absolute left-[63%] top-[14%] z-20 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "2.0s", animationDuration: "6.2s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/carrot-slice.png"
-          alt="Rodaja de zanahoria fresca"
-          width={72}
-          height={72}
-          className="-rotate-[12deg] filter drop-shadow-[0_6px_14px_rgba(0,0,0,0.12)]"
-        />
-      </div>
-
-      {/* Arándano – pecho del perro */}
-      <div
-        className="absolute left-[55%] top-[36%] z-20 pointer-events-none animate-hero-float hidden lg:block"
-        style={{ animationDelay: "3.4s", animationDuration: "7.0s" }}
-      >
-        <TransparentImage
-          src="/iconos/image/blueberry.png"
-          alt="Arándano fresco"
-          width={60}
-          height={60}
-          className="rotate-[8deg] filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.12)]"
-        />
-      </div>
-
-      {/* ── C) CLUSTER INFERIOR DERECHO — imagen de grupo responsiva ─────── */}
-      {/*
-          Una sola imagen escala con w-[%] → se adapta a cualquier ancho.
-          mix-blend-mode: multiply elimina el fondo blanco sobre el crema del hero.
-      */}
-      <div
-        className="absolute bottom-0 right-[3%] z-20 pointer-events-none hidden lg:block animate-hero-float w-[30%] max-w-[420px] min-w-[260px]"
-        style={{ animationDelay: "0.8s", animationDuration: "6.0s" }}
-      >
-        <Image
-          src="/iconos/image/group-beef-broccoli-carrot.png"
-          alt="Grupo de ingredientes frescos: carne, brócoli y zanahoria"
-          width={420}
-          height={320}
-          className="w-full h-auto object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.14)]"
-        />
-      </div>
-
-      {/* Grupo arándanos – acento flotante izquierdo del cluster */}
-      <div
-        className="absolute bottom-[4%] right-[34%] z-20 pointer-events-none hidden lg:block animate-hero-float w-[8%] max-w-[100px] min-w-[60px]"
-        style={{ animationDelay: "2.4s", animationDuration: "7.2s" }}
-      >
-        <Image
-          src="/iconos/image/group-blueberries.png"
-          alt="Grupo de arándanos frescos"
-          width={100}
-          height={100}
-          className="w-full h-auto object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
-        />
-      </div>
-
     </section>
   )
 }
