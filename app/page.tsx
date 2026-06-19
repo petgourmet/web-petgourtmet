@@ -116,7 +116,7 @@ export default function Home() {
               <Link
                 href={category.href}
                 key={index}
-                className="group relative overflow-hidden rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.03)] transform transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] hover:scale-105 hover:z-10 h-[400px] flex flex-col cursor-pointer"
+                className="group relative overflow-hidden rounded-2xl shadow-custom-card transform transition-all duration-500 hover:-translate-y-2 hover:shadow-lg hover:scale-105 hover:z-10 h-[400px] flex flex-col cursor-pointer"
               >
                 <div className="absolute inset-0 w-full h-full">
                   <div
@@ -162,7 +162,7 @@ export default function Home() {
         <div className="container relative z-10 mx-auto px-4">
           <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
             <div className="order-2 lg:order-1">
-              <div className="relative overflow-hidden rounded-[34px] border border-white bg-white p-7 shadow-[0_8px_30px_rgba(0,0,0,0.03)] sm:p-10">
+              <div className="relative overflow-hidden rounded-[34px] border border-white bg-white p-7 shadow-custom-card sm:p-10">
                 <div className="relative z-10">
                   <span className="inline-flex rounded-full bg-[#eef7f8] px-4 py-2 text-sm font-semibold text-[#1d636b]">
                     Calidad Premium
@@ -179,7 +179,7 @@ export default function Home() {
                     {ingredientsFeatures.map((feature) => (
                       <div
                         key={feature.title}
-                        className="rounded-[22px] border border-[#e3ecee] bg-[#fbfdfd] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(0,0,0,0.04)]"
+                        className="rounded-[22px] border border-[#e3ecee] bg-[#fbfdfd] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-custom-card"
                       >
                         <div className="flex items-start gap-3">
                           <span className="mt-0.5 rounded-full bg-[#eef7f8] p-2 text-[#1d636b]">
@@ -212,7 +212,7 @@ export default function Home() {
                 <div className="absolute -left-4 top-12 h-28 w-28 rounded-full bg-[#f3d8ad]/45 blur-2xl" />
                 <div className="absolute right-4 top-0 h-40 w-40 rounded-full bg-[#7AB8BF]/16 blur-3xl" />
 
-                <div className="relative overflow-hidden rounded-[34px] border border-white bg-white p-3 shadow-[0_8px_30px_rgba(0,0,0,0.03)]">
+                <div className="relative overflow-hidden rounded-[34px] border border-white bg-white p-3 shadow-custom-card">
                   <div className="relative overflow-hidden rounded-[28px] aspect-[16/9] bg-[#11333a]">
                     <video
                       className="h-full w-full object-cover"
@@ -236,7 +236,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-[24px] border border-white bg-white px-5 py-4 shadow-[0_8px_30px_rgba(0,0,0,0.02)]">
+                <div className="mt-5 rounded-[24px] border border-white bg-white px-5 py-4 shadow-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7d8f92]">Ingredientes</p>
                   <p className="mt-2 text-base font-bold text-[#16313b]">Calidad visible desde el primer vistazo.</p>
                 </div>
@@ -248,7 +248,7 @@ export default function Home() {
 
       <section className="relative bg-white dark:bg-gray-900 py-20 md:py-24">
         <div className="container relative z-10 mx-auto px-4">
-          <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+          <div className="overflow-hidden rounded-[36px] border border-white bg-white shadow-custom-card">
             <div className="grid md:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.05fr)]">
               <div className="relative min-h-[320px] overflow-hidden md:min-h-full">
                 <Image
@@ -260,7 +260,7 @@ export default function Home() {
                   sizes="(max-width: 768px) 100vw, 40vw"
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(26,77,83,0.04),rgba(26,77,83,0.38))]" />
-                <div className="absolute bottom-6 left-6 right-6 rounded-[24px] border border-white bg-white px-5 py-4 shadow-[0_6px_20px_rgba(0,0,0,0.03)]">
+                <div className="absolute bottom-6 left-6 right-6 rounded-[24px] border border-white bg-white px-5 py-4 shadow-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7d8f92]">Comunidad Pet Gourmet</p>
                   <p className="mt-3 text-xl font-bold leading-tight text-[#16313b]">
                     Consejos, novedades y beneficios para consentirlo mejor.
@@ -292,7 +292,7 @@ export default function Home() {
               return (
                 <div
                   key={benefit.title}
-                  className="rounded-[28px] border border-white bg-white p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]"
+                  className="rounded-[28px] border border-white bg-white p-6 shadow-custom-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                 >
                   <div className="inline-flex rounded-full bg-[#eef7f8] p-3 text-[#1d636b]">
                     <Icon className="h-5 w-5" />

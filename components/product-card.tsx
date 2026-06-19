@@ -142,7 +142,7 @@ export function ProductCard({
     <div
       className={cn(
         "relative rounded-xl overflow-hidden transition-all duration-300 h-full flex flex-col bg-white dark:bg-gray-800 cursor-pointer",
-        useShadow && "shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] hover:-translate-y-1",
+        useShadow && "shadow-custom-card hover:-translate-y-1 hover:shadow-lg",
         className,
       )}
       onClick={handleNavigate}

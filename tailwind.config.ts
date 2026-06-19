@@ -107,6 +107,7 @@ const config: Config = {
         "glow-brown": "0 0 15px 0px rgba(140, 36, 43, 0.5)", // Rojo granate
         "glow-amber": "0 0 15px 0px rgba(182, 125, 27, 0.5)", // Marrón/ámbar
         "glow-peach": "0 0 15px 0px rgba(231, 174, 132, 0.5)", // Melocotón/beige
+        "custom-card": "0px 6px 12px -2px rgba(50, 50, 93, 0.25), 0px 3px 7px -3px rgba(0, 0, 0, 0.3)",
       },
     },
   },

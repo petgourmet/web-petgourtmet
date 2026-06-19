@@ -98,7 +98,7 @@ export default async function BlogPage({ params }: { params: { slug: string } })
           {/* Grid Layout Principal */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* Columna Principal - Artículo */}
-            <article className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl p-6 md:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#e6eeef] dark:border-gray-700">
+            <article className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-3xl p-6 md:p-10 shadow-custom-card border border-[#e6eeef] dark:border-gray-700">
               <header className="mb-8">
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/70 mb-4">
                   <time dateTime={blog.created_at}>
@@ -166,7 +166,7 @@ export default async function BlogPage({ params }: { params: { slug: string } })
               <div className="lg:sticky lg:top-28 space-y-8">
                 {/* Widget de Productos Recomendados */}
                 {sidebarProducts && sidebarProducts.length > 0 && (
-                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#e6eeef] dark:border-gray-700">
+                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-custom-card border border-[#e6eeef] dark:border-gray-700">
                     <h3 className="text-lg font-bold mb-6 text-[#16313b] dark:text-white font-display border-b border-gray-100 dark:border-gray-700 pb-3">
                       Productos Recomendados
                     </h3>

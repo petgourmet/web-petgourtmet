@@ -17,7 +17,7 @@ export function HomeVideoShowcase() {
           </p>
         </div>
 
-        <div className="mx-auto mt-10 max-w-6xl overflow-hidden rounded-[36px] border border-white bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.03)] sm:p-5">
+        <div className="mx-auto mt-10 max-w-6xl overflow-hidden rounded-[36px] border border-white bg-white p-4 shadow-custom-card sm:p-5">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1fr)] lg:items-center">
             <div className="order-2 px-1 pb-2 lg:order-1 lg:px-4 lg:pb-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7d8f92]">Video destacado</p>
