@@ -5,7 +5,7 @@ import { ProductCategoryLoader } from "@/components/product-category-loader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function HomeRecipesSection() {
-  const [activeTab, setActiveTab] = useState("celebrar")
+  const [activeTab, setActiveTab] = useState("all")
 
   return (
     <section id="nuestras-recetas" className="relative bg-white dark:bg-gray-900 py-20 md:py-24">
@@ -21,6 +21,12 @@ export function HomeRecipesSection() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex flex-wrap justify-center gap-3 bg-transparent w-full mb-10 h-auto">
+            <TabsTrigger
+              value="all"
+              className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
+            >
+              Todos los productos
+            </TabsTrigger>
             <TabsTrigger
               value="celebrar"
               className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
@@ -41,6 +47,9 @@ export function HomeRecipesSection() {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="all" className="mt-6">
+            <ProductCategoryLoader categorySlug="all" />
+          </TabsContent>
           <TabsContent value="celebrar" className="mt-6">
             <ProductCategoryLoader categorySlug="celebrar" />
           </TabsContent>
