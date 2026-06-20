@@ -25,7 +25,7 @@ export function HomeRecipesSection() {
               value="all"
               className="w-auto px-6 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-white rounded-full border border-[#e2e8f0] shadow-sm text-sm font-medium transition-all duration-300"
             >
-              Todos los productos
+              Todos
             </TabsTrigger>
             <TabsTrigger
               value="celebrar"
