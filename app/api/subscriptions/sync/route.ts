@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe/config'
+import { extractStripeId } from '@/lib/stripe/utils'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 
@@ -115,17 +116,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar autenticación del usuario
-    const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      )
-    }
-
     // Obtener la sesión de Stripe (usar ID sanitizado)
     const session = await stripe.checkout.sessions.retrieve(cleanSessionId, {
       expand: ['line_items', 'line_items.data.price.product', 'subscription'],
@@ -147,7 +137,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const stripeSubscriptionId = session.subscription as string
+    const stripeSubscriptionId = extractStripeId(session.subscription)
     if (!stripeSubscriptionId) {
       return NextResponse.json(
         { error: 'No se encontró suscripción en la sesión' },
@@ -155,12 +145,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar que la sesión pertenece al usuario autenticado (por metadata o email)
+    // Verificar autenticación del usuario (opcional si viene en metadatos de la sesión)
+    const supabase = await createServerClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
     const sessionMetadata = session.metadata || {}
     const sessionEmail = session.customer_email || session.customer_details?.email
     const metadataUserId = sessionMetadata.user_id
+    const customerName = sessionMetadata.customer_name || session.customer_details?.name || ''
+    const resolvedUserId = user?.id || metadataUserId
 
-    if (metadataUserId && metadataUserId !== user.id && sessionEmail !== user.email) {
+    if (!resolvedUserId) {
+      return NextResponse.json(
+        { error: 'No autenticado y no se encontró user_id en metadatos' },
+        { status: 401 }
+      )
+    }
+
+    if (user && metadataUserId && metadataUserId !== user.id && sessionEmail !== user.email) {
       return NextResponse.json(
         { error: 'Esta sesión no pertenece al usuario autenticado' },
         { status: 403 }
@@ -186,8 +188,8 @@ export async function POST(request: NextRequest) {
         const repairData: Record<string, any> = { updated_at: new Date().toISOString() }
         const sessionForRepair = session as any
 
-        if (!existingSubscription.user_id && user.id) {
-          repairData.user_id = user.id
+        if (!existingSubscription.user_id && resolvedUserId) {
+          repairData.user_id = resolvedUserId
         }
 
         // Reparar shipping_address desde Stripe si falta
@@ -218,6 +220,30 @@ export async function POST(request: NextRequest) {
               name: (session as any).customer_details.name || '',
             }
             console.log('[SYNC] Dirección obtenida de customer_details (billing)')
+          }
+          // Fallback a Stripe Customer shipping
+          if (!repairAddress && session.customer) {
+            try {
+              const repairCustomerId = extractStripeId(session.customer)
+              if (repairCustomerId) {
+                const stripeCustomer = await stripe.customers.retrieve(repairCustomerId) as any
+                if (stripeCustomer.shipping) {
+                  const sd = stripeCustomer.shipping
+                  repairAddress = {
+                    address: sd.address?.line1 || '',
+                    address2: sd.address?.line2 || '',
+                    city: sd.address?.city || '',
+                    state: sd.address?.state || '',
+                    postalCode: sd.address?.postal_code || '',
+                    country: sd.address?.country || 'MX',
+                    name: sd.name || stripeCustomer.name || '',
+                  }
+                  console.log('[SYNC] Dirección de reparación obtenida de Stripe Customer')
+                }
+              }
+            } catch (custError) {
+              console.error('⚠️ [SYNC] Error al obtener customer para reparación:', custError)
+            }
           }
           if (repairAddress) {
             repairData.shipping_address = repairAddress
@@ -284,23 +310,50 @@ export async function POST(request: NextRequest) {
             .eq('id', existingSubscription.id)
             .select()
             .single()
-          if (repairedSub?.user_id && repairedSub?.shipping_address) {
+          
+          const finalSub = repairedSub || { ...existingSubscription, ...repairData }
+          if (finalSub?.user_id && finalSub?.shipping_address) {
             await updateUserProfile(
-              repairedSub.user_id,
-              repairedSub.shipping_address,
-              repairedSub.customer_name,
-              repairedSub.customer_phone
+              finalSub.user_id,
+              finalSub.shipping_address,
+              finalSub.customer_name,
+              finalSub.customer_phone
             )
           }
 
-          
           return NextResponse.json({
-            subscription: repairedSub || { ...existingSubscription, ...repairData },
+            subscription: finalSub,
             isNew: false,
             repaired: true,
             message: 'Suscripción reparada con datos faltantes'
           })
         }
+      }
+
+      // Asegurar que el perfil de usuario esté sincronizado incluso si no requiere reparación en la base de datos
+      const addressToSync = existingSubscription.shipping_address || 
+                           (session as any).shipping_details || 
+                           session.customer_details?.address;
+
+      if (resolvedUserId && addressToSync) {
+        let parsedAddress = addressToSync;
+        if (addressToSync.line1 || addressToSync.city) {
+          parsedAddress = {
+            address: addressToSync.line1 || addressToSync.address || '',
+            address2: addressToSync.line2 || addressToSync.address2 || '',
+            city: addressToSync.city || '',
+            state: addressToSync.state || '',
+            postalCode: addressToSync.postal_code || addressToSync.postalCode || '',
+            country: addressToSync.country || 'MX',
+            name: addressToSync.name || customerName || '',
+          }
+        }
+        await updateUserProfile(
+          resolvedUserId,
+          parsedAddress,
+          existingSubscription.customer_name || customerName,
+          existingSubscription.customer_phone || session.customer_details?.phone || null
+        )
       }
 
       return NextResponse.json({
@@ -310,14 +363,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // No existe, crearla desde datos de Stripe
-    const subscriptionData = await stripe.subscriptions.retrieve(stripeSubscriptionId, {
-      expand: ['latest_invoice', 'default_payment_method']
-    }) as any
+    // No existe, crearla desde datos de Stripe (reutilizar objeto expandido si ya viene en la sesión)
+    const expandedSub = session.subscription
+    const subscriptionData = (
+      typeof expandedSub === 'object' &&
+      expandedSub !== null &&
+      'current_period_start' in expandedSub
+    )
+      ? expandedSub as Stripe.Subscription
+      : await stripe.subscriptions.retrieve(stripeSubscriptionId, {
+          expand: ['latest_invoice', 'default_payment_method']
+        })
 
     const lineItems = session.line_items?.data || []
     const metadata = session.metadata || {}
-    const customerName = metadata.customer_name || session.customer_details?.name || ''
     
     // Dirección de envío: múltiples fuentes con fallback garantizado
     let shippingAddress = metadata.shipping_address ? JSON.parse(metadata.shipping_address) : null
@@ -353,9 +412,10 @@ export async function POST(request: NextRequest) {
 
 
     // Fallback: Buscar directamente en el Stripe Customer
-    if (!shippingAddress && session.customer) {
+    const stripeCustomerId = extractStripeId(session.customer)
+    if (!shippingAddress && stripeCustomerId) {
       try {
-        const stripeCustomer = await stripe.customers.retrieve(session.customer as string) as any
+        const stripeCustomer = await stripe.customers.retrieve(stripeCustomerId) as any
         if (stripeCustomer.shipping) {
           const sd = stripeCustomer.shipping
           shippingAddress = {
@@ -376,11 +436,11 @@ export async function POST(request: NextRequest) {
 
     if (!shippingAddress) {
       // Último recurso: buscar dirección en otra suscripción del usuario o en su perfil
-      if (user.id) {
+      if (resolvedUserId) {
         const { data: otherSubs } = await supabaseAdmin
           .from('unified_subscriptions')
           .select('shipping_address')
-          .eq('user_id', user.id)
+          .eq('user_id', resolvedUserId)
           .not('shipping_address', 'is', null)
           .limit(1)
         
@@ -391,7 +451,7 @@ export async function POST(request: NextRequest) {
           const { data: profile } = await supabaseAdmin
             .from('profiles')
             .select('shipping_address')
-            .eq('id', user.id)
+            .eq('id', resolvedUserId)
             .single()
           
           if (profile?.shipping_address) {
@@ -417,8 +477,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener timestamps
-    let currentPeriodStart = subscriptionData.current_period_start || subscriptionData.billing_cycle_anchor
-    let currentPeriodEnd = subscriptionData.current_period_end
+    const subData = subscriptionData as any
+    const item = subData?.items?.data?.[0]
+    let currentPeriodStart = item?.current_period_start || subData.current_period_start || subData.billing_cycle_anchor
+    let currentPeriodEnd = item?.current_period_end || subData.current_period_end
 
     if (!currentPeriodStart || !currentPeriodEnd) {
       const now = Math.floor(Date.now() / 1000)
@@ -493,8 +555,8 @@ export async function POST(request: NextRequest) {
     const { data: newSub, error: insertError } = await supabaseAdmin
       .from('unified_subscriptions')
       .insert({
-        user_id: user.id,
-        customer_email: sessionEmail || user.email,
+        user_id: resolvedUserId,
+        customer_email: sessionEmail || (user?.email || null),
         customer_name: customerName,
         customer_phone: session.customer_details?.phone || null,
         product_id: productId ? parseInt(productId) : null,
@@ -515,11 +577,11 @@ export async function POST(request: NextRequest) {
         current_period_start: new Date(currentPeriodStart * 1000).toISOString(),
         current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
         stripe_subscription_id: stripeSubscriptionId,
-        stripe_customer_id: session.customer as string,
-        stripe_price_id: subscriptionData.items?.data?.[0]?.price?.id || null,
+        stripe_customer_id: stripeCustomerId || extractStripeId(session.customer),
+        stripe_price_id: subData.items?.data?.[0]?.price?.id || null,
         shipping_address: shippingAddress,
         customer_data: {
-          email: sessionEmail || user.email,
+          email: sessionEmail || (user?.email || null),
           firstName: customerName?.split(' ')[0] || '',
           lastName: customerName?.split(' ').slice(1).join(' ') || '',
           phone: session.customer_details?.phone || null,
@@ -555,11 +617,112 @@ export async function POST(request: NextRequest) {
           .single()
         
         if (existing) {
+          // Asegurar que el perfil de usuario se sincronice con el existente
+          if (resolvedUserId && existing.shipping_address) {
+            await updateUserProfile(
+              resolvedUserId,
+              existing.shipping_address,
+              existing.customer_name,
+              existing.customer_phone
+            )
+          }
           return NextResponse.json({
             subscription: existing,
             isNew: false,
             message: 'Suscripción ya existe (detectada por deduplicación)'
           })
+        } else {
+          // Si no existe con ese stripe_subscription_id, significa que es una NUEVA suscripción de Stripe
+          // pero el usuario tiene otra suscripción activa para el mismo producto.
+          // Para evitar la restricción del trigger de base de datos, cancelamos la/s suscripción/es activa/s anterior/es
+          if (resolvedUserId && productId) {
+            console.log('[SYNC] Cancelando suscripciones activas anteriores para el usuario y producto:', resolvedUserId, productId)
+            await supabaseAdmin
+              .from('unified_subscriptions')
+              .update({ 
+                status: 'canceled', 
+                customer_data: { email: sessionEmail || 'test@test.com' },
+                updated_at: new Date().toISOString() 
+              })
+              .eq('user_id', resolvedUserId)
+              .eq('product_id', parseInt(productId))
+              .eq('status', 'active')
+
+            // Reintentar inserción
+            console.log('[SYNC] Reintentando inserción tras cancelar suscripciones previas...')
+            const { data: retryNewSub, error: retryInsertError } = await supabaseAdmin
+              .from('unified_subscriptions')
+              .insert({
+                user_id: resolvedUserId,
+                customer_email: sessionEmail || (user?.email || null),
+                customer_name: customerName,
+                customer_phone: session.customer_details?.phone || null,
+                product_id: productId ? parseInt(productId) : null,
+                product_name: subscriptionLineItem?.description || productFromDB?.name || 'Suscripción Pet Gourmet',
+                product_image: product?.images?.[0] || productFromDB?.image || null,
+                subscription_type: subscriptionType,
+                status: 'active',
+                base_price: basePrice,
+                discounted_price: priceInMXN || basePrice,
+                discount_percentage: discountPercentage,
+                transaction_amount: totalAmount,
+                quantity: subscriptionLineItem?.quantity || 1,
+                size: productMetadata.size || null,
+                frequency,
+                frequency_type: frequencyType,
+                next_billing_date: new Date(currentPeriodEnd * 1000).toISOString(),
+                last_billing_date: new Date(currentPeriodStart * 1000).toISOString(),
+                current_period_start: new Date(currentPeriodStart * 1000).toISOString(),
+                current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
+                stripe_subscription_id: stripeSubscriptionId,
+                stripe_customer_id: session.customer as string,
+                stripe_price_id: subscriptionData.items?.data?.[0]?.price?.id || null,
+                shipping_address: shippingAddress,
+                customer_data: {
+                  email: sessionEmail || (user?.email || null),
+                  firstName: customerName?.split(' ')[0] || '',
+                  lastName: customerName?.split(' ').slice(1).join(' ') || '',
+                  phone: session.customer_details?.phone || null,
+                  address: shippingAddress
+                },
+                cart_items: [{
+                  product_id: productId ? parseInt(productId) : null,
+                  product_name: subscriptionLineItem?.description || productFromDB?.name,
+                  name: subscriptionLineItem?.description || productFromDB?.name,
+                  image: product?.images?.[0] || productFromDB?.image,
+                  price: priceInMXN,
+                  quantity: subscriptionLineItem?.quantity || 1,
+                  size: productMetadata.size || null,
+                  isSubscription: true,
+                  subscriptionType
+                }],
+                metadata,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                processed_at: new Date().toISOString()
+              })
+              .select()
+              .single()
+
+            if (!retryInsertError) {
+              console.log('[SYNC] ✅ Suscripción creada en reintento:', retryNewSub.id)
+              if (retryNewSub?.user_id && retryNewSub?.shipping_address) {
+                await updateUserProfile(
+                  retryNewSub.user_id,
+                  retryNewSub.shipping_address,
+                  retryNewSub.customer_name,
+                  retryNewSub.customer_phone
+                )
+              }
+              return NextResponse.json({
+                subscription: retryNewSub,
+                isNew: true,
+                message: 'Suscripción creada y sincronizada exitosamente (tras deduplicación)'
+              })
+            } else {
+              console.error('[SYNC] Error en reintento de inserción:', retryInsertError)
+            }
+          }
         }
       }
       console.error('[SYNC] Error insertando suscripción:', insertError)
@@ -585,7 +748,7 @@ export async function POST(request: NextRequest) {
       const { sendSubscriptionEmail } = await import('@/lib/email-service')
 
       const emailData = {
-        user_email: sessionEmail || user.email || '',
+        user_email: sessionEmail || user?.email || '',
         user_name: customerName,
         subscription_type: subscriptionType,
         amount: totalAmount,

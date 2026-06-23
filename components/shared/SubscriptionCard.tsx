@@ -4,7 +4,9 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { User, Shield, Mail, Loader2, MapPin, Truck, CheckCircle, XCircle, Clock, ChevronDown, Phone } from "lucide-react"
+import { User, Shield, Mail, Loader2, MapPin, Truck, CheckCircle, XCircle, Clock, ChevronDown, Phone, Copy, Check } from "lucide-react"
+import { parseShippingAddress, buildShippingClipboardText } from "@/utils/shipping-address"
+import { toast } from "@/components/ui/use-toast"
 
 interface SubscriptionCardProps {
   subscription: {
@@ -19,6 +21,8 @@ interface SubscriptionCardProps {
       full_name?: string
       email?: string
       phone?: string
+      shipping_address?: any
+      address?: string
     }
     mercadopago_subscription_id?: string
     status: string
@@ -84,6 +88,7 @@ export function SubscriptionCard({
   defaultExpanded = false
 }: SubscriptionCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+  const [copied, setCopied] = useState(false)
 
   // Parse customer data from multiple sources
   const customerInfo = (() => {
@@ -108,31 +113,46 @@ export function SubscriptionCard({
 
   // Parse shipping address from multiple sources
   const shippingInfo = (() => {
-    try {
-      let shippingData = subscription.shipping_address
-      if (typeof shippingData === 'string') {
-        const parsed = JSON.parse(shippingData)
-        shippingData = parsed.shipping || parsed
-      } else if (shippingData) {
-        shippingData = shippingData.shipping || shippingData
-      }
+    const fromSubscription = parseShippingAddress(subscription.shipping_address)
+    if (fromSubscription) return fromSubscription
 
-      // Fallback to customer_data.address
-      if (!shippingData && subscription.customer_data) {
+    try {
+      if (subscription.customer_data) {
         const cd = typeof subscription.customer_data === 'string'
           ? JSON.parse(subscription.customer_data)
           : subscription.customer_data
-        shippingData = cd.address || cd.shipping || null
+        const fromCustomer = parseShippingAddress(cd.address || cd.shipping)
+        if (fromCustomer) return fromCustomer
       }
 
-      if (shippingData && (shippingData.address || shippingData.street || shippingData.city)) {
-        return shippingData
+      if (subscription.user_profile) {
+        const up = subscription.user_profile as any
+        const fromProfile = parseShippingAddress(up.shipping_address || up.address)
+        if (fromProfile) return fromProfile
       }
+
       return null
     } catch {
       return null
     }
   })()
+
+  const handleCopyShipping = async () => {
+    const text = buildShippingClipboardText(subscription.shipping_address || shippingInfo, {
+      name: customerInfo.name !== 'Sin nombre' ? customerInfo.name : shippingInfo?.name,
+      email: customerInfo.email !== 'Sin email' ? customerInfo.email : undefined,
+      phone: customerInfo.phone || shippingInfo?.phone,
+    })
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      toast({ title: 'Copiado al portapapeles', description: 'Datos de envío listos para pegar' })
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo copiar al portapapeles', variant: 'destructive' })
+    }
+  }
 
   return (
     <Card className="rounded-xl border shadow-sm hover:shadow-md transition-shadow">
@@ -227,15 +247,35 @@ export function SubscriptionCard({
 
           {/* Dirección de Envío */}
           <div className="bg-amber-50/60 rounded-lg p-3 mb-3 border border-amber-100">
-            <p className="text-[10px] uppercase tracking-widest text-amber-600 font-medium mb-1.5 flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> Dirección de Envío
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <p className="text-[10px] uppercase tracking-widest text-amber-600 font-medium flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> Dirección de Envío
+              </p>
+              {shippingInfo && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[10px] px-2 gap-1 border-amber-300 text-amber-700 hover:bg-amber-100"
+                  onClick={handleCopyShipping}
+                >
+                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copied ? 'Copiado' : 'Copiar'}
+                </Button>
+              )}
+            </div>
             {shippingInfo ? (
               <div className="text-xs text-gray-700 space-y-0.5">
+                {shippingInfo.name && (
+                  <p className="font-medium">{shippingInfo.name}</p>
+                )}
                 <p className="flex gap-1.5 items-start">
                   <MapPin className="h-3 w-3 shrink-0 text-amber-400 mt-0.5" />
-                  <span className="font-medium">{shippingInfo.address || `${shippingInfo.street || ''} ${shippingInfo.number || ''}`.trim()}</span>
+                  <span className="font-medium">{shippingInfo.address}</span>
                 </p>
+                {shippingInfo.address2 && (
+                  <p className="pl-[18px] text-gray-600">{shippingInfo.address2}</p>
+                )}
                 {shippingInfo.colonia && (
                   <p className="pl-[18px] text-gray-500">Col. {shippingInfo.colonia}</p>
                 )}
@@ -244,11 +284,16 @@ export function SubscriptionCard({
                     {shippingInfo.city}{shippingInfo.state ? `, ${shippingInfo.state}` : ''}
                   </p>
                 )}
-                {(shippingInfo.postalCode || shippingInfo.zip) && (
-                  <p className="pl-[18px] text-gray-400 font-mono text-[10px]">CP: {shippingInfo.postalCode || shippingInfo.zip}</p>
+                {shippingInfo.postalCode && (
+                  <p className="pl-[18px] text-gray-400 font-mono text-[10px]">CP: {shippingInfo.postalCode}</p>
                 )}
                 {shippingInfo.country && (
                   <p className="pl-[18px] text-gray-400 text-[10px] uppercase tracking-wider">{shippingInfo.country}</p>
+                )}
+                {shippingInfo.phone && (
+                  <p className="pl-[18px] text-gray-500 flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> {shippingInfo.phone}
+                  </p>
                 )}
                 {shippingInfo.references && (
                   <p className="pl-[18px] text-gray-400 text-[10px] italic">Ref: {shippingInfo.references}</p>

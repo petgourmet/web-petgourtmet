@@ -12,6 +12,62 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+/**
+ * Actualiza el perfil del usuario con los datos de envío recolectados en Stripe
+ */
+async function updateUserProfile(
+  userId: string,
+  shippingAddress: any,
+  customerName: string | null,
+  customerPhone: string | null
+) {
+  if (!userId || !shippingAddress) return
+
+  try {
+    // Obtener perfil existente para verificar/fallbacks
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    const formattedAddressStr = [
+      shippingAddress.address,
+      shippingAddress.address2,
+      shippingAddress.city,
+      shippingAddress.state,
+      shippingAddress.postalCode ? `CP: ${shippingAddress.postalCode}` : '',
+      shippingAddress.country
+    ].filter(Boolean).join(', ')
+
+    const updateData: Record<string, any> = {
+      shipping_address: shippingAddress,
+      address: formattedAddressStr,
+      updated_at: new Date().toISOString()
+    }
+
+    if (!profile?.full_name && customerName) {
+      updateData.full_name = customerName
+    }
+    if (!profile?.phone && customerPhone) {
+      updateData.phone = customerPhone
+    }
+
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+
+    if (error) {
+      console.error('[PROFILE-UPDATE] Error al actualizar perfil:', error.message)
+    } else {
+      console.log('[PROFILE-UPDATE] ✅ Perfil de usuario actualizado con dirección de Stripe:', userId)
+    }
+  } catch (err) {
+    console.error('[PROFILE-UPDATE] Error en updateUserProfile:', err)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verificar que el usuario sea admin
@@ -74,6 +130,7 @@ export async function POST(request: NextRequest) {
           const customer = sub.customer as any
           const customerEmail = customer?.email || null
           const customerName = customer?.name || null
+          const customerPhone = customer?.phone || null
 
           const item = sub.items.data[0]
           const price = item?.price as any
@@ -92,8 +149,8 @@ export async function POST(request: NextRequest) {
           const subscriptionType = metadata.subscription_type || 'monthly'
 
           const subAny = sub as any
-          const currentPeriodStart = subAny.current_period_start as number | undefined
-          const currentPeriodEnd = subAny.current_period_end as number | undefined
+          const currentPeriodStart = (item?.current_period_start || subAny.current_period_start || subAny.billing_cycle_anchor) as number | undefined
+          const currentPeriodEnd = (item?.current_period_end || subAny.current_period_end) as number | undefined
 
           // Mapear status de Stripe al de la BD
           const statusMap: Record<string, string> = {
@@ -123,7 +180,7 @@ export async function POST(request: NextRequest) {
           let basePrice = priceInMXN
           let discountPercentage = 0
           let productFromDB: any = null
-          const dbProductId = productMetadata.product_id
+          const dbProductId = product?.metadata?.product_id || productMetadata.product_id || metadata.product_id
 
           if (dbProductId) {
             const { data: productData } = await supabaseAdmin
@@ -157,6 +214,73 @@ export async function POST(request: NextRequest) {
             }
           } catch {}
 
+          // Fallback to customer.shipping or customer.address
+          if (!shippingAddress && customer) {
+            if (customer.shipping) {
+              const sd = customer.shipping
+              shippingAddress = {
+                address: sd.address?.line1 || '',
+                address2: sd.address?.line2 || '',
+                city: sd.address?.city || '',
+                state: sd.address?.state || '',
+                postalCode: sd.address?.postal_code || '',
+                country: sd.address?.country || 'MX',
+                name: sd.name || customerName || '',
+              }
+            } else if (customer.address) {
+              const ba = customer.address
+              shippingAddress = {
+                address: ba.line1 || '',
+                address2: ba.line2 || '',
+                city: ba.city || '',
+                state: ba.state || '',
+                postalCode: ba.postal_code || '',
+                country: ba.country || 'MX',
+                name: customerName || '',
+              }
+            }
+          }
+
+          // Fallback: list checkout sessions for this subscription to retrieve address
+          if (!shippingAddress && sub.id) {
+            try {
+              const sessions = await stripe.checkout.sessions.list({
+                subscription: sub.id,
+                limit: 1
+              })
+              if (sessions.data.length > 0) {
+                const sessionAny = sessions.data[0] as any
+                if (sessionAny.shipping_details) {
+                  const sd = sessionAny.shipping_details
+                  shippingAddress = {
+                    address: sd.address?.line1 || '',
+                    address2: sd.address?.line2 || '',
+                    city: sd.address?.city || '',
+                    state: sd.address?.state || '',
+                    postalCode: sd.address?.postal_code || '',
+                    country: sd.address?.country || 'MX',
+                    name: sd.name || customerName || '',
+                  }
+                  console.log(`📦 [ADMIN-SYNC] Dirección obtenida de checkout session shipping_details para ${sub.id}`)
+                } else if (sessionAny.customer_details?.address) {
+                  const ba = sessionAny.customer_details.address
+                  shippingAddress = {
+                    address: ba.line1 || '',
+                    address2: ba.line2 || '',
+                    city: ba.city || '',
+                    state: ba.state || '',
+                    postalCode: ba.postal_code || '',
+                    country: ba.country || 'MX',
+                    name: sessionAny.customer_details.name || customerName || '',
+                  }
+                  console.log(`📦 [ADMIN-SYNC] Dirección obtenida de checkout session customer_details (billing) para ${sub.id}`)
+                }
+              }
+            } catch (sessError: any) {
+              console.error(`⚠️ [ADMIN-SYNC] Error al obtener checkout sessions para ${sub.id}:`, sessError.message)
+            }
+          }
+
           const stripeCustomerId =
             typeof sub.customer === 'string'
               ? sub.customer
@@ -168,6 +292,7 @@ export async function POST(request: NextRequest) {
               user_id: metadata.user_id || null,
               customer_email: customerEmail,
               customer_name: customerName || metadata.customer_name || null,
+              customer_phone: customerPhone,
               stripe_subscription_id: sub.id,
               stripe_customer_id: stripeCustomerId,
               stripe_price_id: price?.id || null,
@@ -196,6 +321,13 @@ export async function POST(request: NextRequest) {
                 : null,
               cancel_at_period_end: sub.cancel_at_period_end,
               shipping_address: shippingAddress,
+              customer_data: {
+                email: customerEmail,
+                firstName: customerName?.split(' ')[0] || '',
+                lastName: customerName?.split(' ').slice(1).join(' ') || '',
+                phone: customerPhone,
+                address: shippingAddress
+              },
               metadata,
               created_at: new Date(sub.created * 1000).toISOString(),
               updated_at: new Date().toISOString(),
@@ -209,7 +341,103 @@ export async function POST(request: NextRequest) {
               existingIds.add(sub.id)
               continue
             }
+
+            // Trigger de deduplicación: ya existe suscripción activa para este user+product
+            if (insertError.code === 'P0001') {
+              const uId = metadata.user_id || null
+              const pId = dbProductId ? parseInt(dbProductId) : null
+              if (uId && pId) {
+                console.log(`⚠️ [ADMIN-SYNC] Cancelando suscripciones activas anteriores para el usuario ${uId} y producto ${pId} debido a trigger`)
+                await supabaseAdmin
+                  .from('unified_subscriptions')
+                  .update({ 
+                    status: 'canceled', 
+                    customer_data: { email: customerEmail || 'test@test.com' },
+                    updated_at: new Date().toISOString() 
+                  })
+                  .eq('user_id', uId)
+                  .eq('product_id', pId)
+                  .eq('status', 'active')
+
+                // Reintentar inserción
+                console.log(`⚠️ [ADMIN-SYNC] Reintentando inserción tras cancelar...`)
+                const { error: retryError } = await supabaseAdmin
+                  .from('unified_subscriptions')
+                  .insert({
+                    user_id: uId,
+                    customer_email: customerEmail,
+                    customer_name: customerName || metadata.customer_name || null,
+                    customer_phone: customerPhone,
+                    stripe_subscription_id: sub.id,
+                    stripe_customer_id: stripeCustomerId,
+                    stripe_price_id: price?.id || null,
+                    status: dbStatus,
+                    subscription_type: subscriptionType,
+                    product_id: pId,
+                    product_name: product?.name || (item as any)?.description || productFromDB?.name || 'Suscripción Pet Gourmet',
+                    product_image: product?.images?.[0] || productFromDB?.image || null,
+                    frequency,
+                    frequency_type: frequencyType,
+                    base_price: basePrice,
+                    discounted_price: priceInMXN || basePrice,
+                    discount_percentage: discountPercentage,
+                    transaction_amount: totalAmount,
+                    next_billing_date: currentPeriodEnd
+                      ? new Date(currentPeriodEnd * 1000).toISOString()
+                      : null,
+                    last_billing_date: currentPeriodStart
+                      ? new Date(currentPeriodStart * 1000).toISOString()
+                      : null,
+                    current_period_start: currentPeriodStart
+                      ? new Date(currentPeriodStart * 1000).toISOString()
+                      : null,
+                    current_period_end: currentPeriodEnd
+                      ? new Date(currentPeriodEnd * 1000).toISOString()
+                      : null,
+                    cancel_at_period_end: sub.cancel_at_period_end,
+                    shipping_address: shippingAddress,
+                    customer_data: {
+                      email: customerEmail,
+                      firstName: customerName?.split(' ')[0] || '',
+                      lastName: customerName?.split(' ').slice(1).join(' ') || '',
+                      phone: customerPhone,
+                      address: shippingAddress
+                    },
+                    metadata,
+                    created_at: new Date(sub.created * 1000).toISOString(),
+                    updated_at: new Date().toISOString(),
+                    processed_at: new Date().toISOString(),
+                  })
+
+                if (!retryError) {
+                  console.log(`✅ [ADMIN-SYNC] Suscripción sincronizada en reintento: ${sub.id}`)
+                  if (uId && shippingAddress) {
+                    await updateUserProfile(
+                      uId,
+                      shippingAddress,
+                      customerName || metadata.customer_name || null,
+                      customerPhone
+                    )
+                  }
+                  stats.recovered++
+                  existingIds.add(sub.id)
+                  continue
+                } else {
+                  console.error(`❌ [ADMIN-SYNC] Error en reintento de inserción para ${sub.id}:`, retryError.message)
+                }
+              }
+            }
             throw insertError
+          }
+
+          // Invocar updateUserProfile para sincronizar perfil de usuario si tiene ID de usuario y dirección
+          if (metadata.user_id && shippingAddress) {
+            await updateUserProfile(
+              metadata.user_id,
+              shippingAddress,
+              customerName || metadata.customer_name || null,
+              customerPhone
+            )
           }
 
           stats.recovered++

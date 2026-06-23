@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe/config'
+import { extractStripeId } from '@/lib/stripe/utils'
 import { createClient } from '@supabase/supabase-js'
 import { createOrderFromSession } from '@/lib/stripe/create-order'
 import { createProductionSafeConsole } from '@/lib/debug'
@@ -163,19 +164,22 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // Fallback: Buscar directamente en el Stripe Customer
     if (!shippingAddress && session.customer) {
       try {
-        const stripeCustomer = await stripe.customers.retrieve(session.customer as string) as any
-        if (stripeCustomer.shipping) {
-          const sd = stripeCustomer.shipping
-          shippingAddress = {
-            address: sd.address?.line1 || '',
-            address2: sd.address?.line2 || '',
-            city: sd.address?.city || '',
-            state: sd.address?.state || '',
-            postalCode: sd.address?.postal_code || '',
-            country: sd.address?.country || 'MX',
-            name: sd.name || stripeCustomer.name || customerName || '',
+        const customerId = extractStripeId(session.customer)
+        if (customerId) {
+          const stripeCustomer = await stripe.customers.retrieve(customerId) as any
+          if (stripeCustomer.shipping) {
+            const sd = stripeCustomer.shipping
+            shippingAddress = {
+              address: sd.address?.line1 || '',
+              address2: sd.address?.line2 || '',
+              city: sd.address?.city || '',
+              state: sd.address?.state || '',
+              postalCode: sd.address?.postal_code || '',
+              country: sd.address?.country || 'MX',
+              name: sd.name || stripeCustomer.name || customerName || '',
+            }
+            console.log('📦 [WEBHOOK] Dirección obtenida de Stripe Customer:', shippingAddress)
           }
-          console.log('📦 [WEBHOOK] Dirección obtenida de Stripe Customer:', shippingAddress)
         }
       } catch (custError) {
         console.error('⚠️ [WEBHOOK] Error al obtener customer de Stripe:', custError)
@@ -229,7 +233,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       expand: ['data.price.product'],
     })
 
-    const subscriptionId = session.subscription as string
+    const subscriptionId = extractStripeId(session.subscription)
+    if (!subscriptionId) {
+      console.error('[WEBHOOK] No se encontró subscription ID en la sesión:', session.id)
+      return
+    }
     
     // Verificar si la suscripción ya existe
     const { data: existingSubscription } = await supabaseAdmin
@@ -245,7 +253,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
                           !existingSubscription.transaction_amount
       
       if (!needsRepair) {
-        console.log('⚠️ Suscripción ya existe con datos completos:', subscriptionId, '- Saltando')
+        console.log('⚠️ Suscripción ya existe con datos completos:', subscriptionId, '- Saltando. Sincronizando perfil...')
+        if (userId && shippingAddress) {
+          await updateUserProfile(userId, shippingAddress, customerName, session.customer_details?.phone || null)
+        }
         return // Ya fue procesada correctamente
       }
       
@@ -267,8 +278,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     })
 
     // Obtener timestamps de período actual (con múltiples fallbacks)
-    let currentPeriodStart = subscriptionData.current_period_start || subscriptionData.billing_cycle_anchor
-    let currentPeriodEnd = subscriptionData.current_period_end
+    const item = subscriptionData.items?.data?.[0]
+    let currentPeriodStart = item?.current_period_start || subscriptionData.current_period_start || subscriptionData.billing_cycle_anchor
+    let currentPeriodEnd = item?.current_period_end || subscriptionData.current_period_end
     
     // Si no hay current_period_end, calcularlo basado en el tipo de suscripción
     if (!currentPeriodStart || !currentPeriodEnd) {
@@ -430,7 +442,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       current_period_start: new Date(currentPeriodStart * 1000).toISOString(),
       current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
       stripe_subscription_id: subscriptionId,
-      stripe_customer_id: session.customer as string,
+      stripe_customer_id: extractStripeId(session.customer),
       stripe_price_id: subscriptionData.items.data[0].price.id,
       shipping_address: shippingAddress,
       customer_data: {
@@ -504,8 +516,42 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           .select('*')
           .eq('stripe_subscription_id', subscriptionRecord.stripe_subscription_id)
           .single()
-        subs = existing
-        error = null
+        
+        if (existing) {
+          subs = existing
+          error = null
+        } else {
+          // Nueva suscripción de Stripe pero colisiona con una activa en BD. Cancelamos la anterior.
+          if (userId && productId) {
+            console.log('⚠️ [WEBHOOK] Cancelando suscripciones activas anteriores para usuario y producto:', userId, productId)
+            await supabaseAdmin
+              .from('unified_subscriptions')
+              .update({ 
+                status: 'canceled', 
+                customer_data: { email: session.customer_email || session.customer_details?.email || 'test@test.com' },
+                updated_at: new Date().toISOString() 
+              })
+              .eq('user_id', userId)
+              .eq('product_id', parseInt(productId))
+              .eq('status', 'active')
+
+            // Reintentar
+            console.log('⚠️ [WEBHOOK] Reintentando inserción tras cancelar...')
+            const { data: retryData, error: retryError } = await supabaseAdmin
+              .from('unified_subscriptions')
+              .insert({
+                ...subscriptionRecord,
+                created_at: new Date().toISOString(),
+              })
+              .select()
+              .single()
+            subs = retryData
+            error = retryError
+          } else {
+            subs = null
+            error = insertError
+          }
+        }
       } else {
         subs = data
         error = insertError
@@ -599,13 +645,17 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     return // No es una factura de suscripción
   }
 
-  const subscriptionId = invoiceData.subscription as string
+  const subscriptionId = extractStripeId(invoiceData.subscription)
+  if (!subscriptionId) {
+    return
+  }
 
   // Obtener la suscripción de Stripe para actualizar fechas
   const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId) as any
   
-  const nextBillingDate = stripeSubscription.current_period_end 
-    ? new Date(stripeSubscription.current_period_end * 1000).toISOString()
+  const subItem = stripeSubscription.items?.data?.[0]
+  const nextBillingDate = (subItem?.current_period_end || stripeSubscription.current_period_end)
+    ? new Date((subItem?.current_period_end || stripeSubscription.current_period_end) * 1000).toISOString()
     : null
 
   // Obtener la suscripción de la BD
@@ -628,8 +678,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       last_payment_date: new Date(invoice.created * 1000).toISOString(),
       last_billing_date: new Date(invoice.created * 1000).toISOString(),
       next_billing_date: nextBillingDate,
-      current_period_start: stripeSubscription.current_period_start
-        ? new Date(stripeSubscription.current_period_start * 1000).toISOString()
+      current_period_start: (subItem?.current_period_start || stripeSubscription.current_period_start)
+        ? new Date((subItem?.current_period_start || stripeSubscription.current_period_start) * 1000).toISOString()
         : null,
       current_period_end: nextBillingDate,
       updated_at: new Date().toISOString(),
@@ -660,8 +710,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
         stripe_invoice_id: invoice.id,
         stripe_payment_intent_id: (invoiceData.payment_intent as string) || null,
         stripe_charge_id: (invoiceData.charge as string) || null,
-        period_start: stripeSubscription.current_period_start
-          ? new Date(stripeSubscription.current_period_start * 1000).toISOString()
+        period_start: (subItem?.current_period_start || stripeSubscription.current_period_start)
+          ? new Date((subItem?.current_period_start || stripeSubscription.current_period_start) * 1000).toISOString()
           : null,
         period_end: nextBillingDate,
         metadata: {
@@ -738,7 +788,10 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     return
   }
 
-  const subscriptionId = invoiceData.subscription as string
+  const subscriptionId = extractStripeId(invoiceData.subscription)
+  if (!subscriptionId) {
+    return
+  }
 
   // Obtener la suscripción de la BD
   const { data: subscription } = await supabaseAdmin
@@ -846,8 +899,9 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   console.log('🔄 Subscription updated:', subscription.id)
 
   const subscriptionData = subscription as any
-  const currentPeriodStart = new Date(subscriptionData.current_period_start * 1000).toISOString()
-  const currentPeriodEnd = new Date(subscriptionData.current_period_end * 1000).toISOString()
+  const item = subscriptionData.items?.data?.[0]
+  const currentPeriodStart = new Date((item?.current_period_start || subscriptionData.current_period_start || Math.floor(Date.now() / 1000)) * 1000).toISOString()
+  const currentPeriodEnd = new Date((item?.current_period_end || subscriptionData.current_period_end || (Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60)) * 1000).toISOString()
 
   // Obtener datos actuales de la suscripción
   const { data: existingSubscription, error: fetchError } = await supabaseAdmin

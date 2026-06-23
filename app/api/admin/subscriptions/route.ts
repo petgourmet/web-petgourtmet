@@ -231,7 +231,7 @@ export async function GET(request: NextRequest) {
     const userIds = [...new Set(uniqueSubscriptions.map(sub => sub.user_id))].filter(Boolean)
     const { data: userProfiles } = await serviceClient
       .from('profiles')
-      .select('id, full_name, email, phone')
+      .select('id, full_name, email, phone, shipping_address, address')
       .in('id', userIds)
     
     // Agregar información del perfil a cada suscripción

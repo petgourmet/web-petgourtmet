@@ -2,7 +2,9 @@
 
 import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { useClientAuth } from "@/hooks/use-client-auth"
+import { queryKeys } from "@/lib/query/keys"
 import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,6 +32,7 @@ interface ActivatedSubscription {
 
 function ExitoSuscripcionContent() {
   const { user, loading } = useClientAuth()
+  const queryClient = useQueryClient()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activatedSubscriptions, setActivatedSubscriptions] = useState<ActivatedSubscription[]>([])
@@ -73,6 +76,10 @@ function ExitoSuscripcionContent() {
         const syncData = await syncResponse.json()
         syncedSubscription = syncData.subscription
         console.log(`✅ Suscripción ${syncData.isNew ? 'creada' : 'ya existía'}:`, syncedSubscription?.id)
+        // Invalidar cache de perfil para que aparezca de inmediato al ir a /perfil
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.profile.subscriptions(user.id),
+        })
       } else {
         const errData = await syncResponse.json().catch(() => ({}))
         console.warn('⚠️ Error en sync:', errData.error || syncResponse.status)

@@ -30,8 +30,12 @@ import {
   DollarSign,
   Truck,
   RefreshCw,
-  Clock
+  Clock,
+  Copy,
+  Check,
+  MapPin
 } from "lucide-react"
+import { formatShippingAddressText, buildShippingClipboardText, parseShippingAddress } from "@/utils/shipping-address"
 
 // ── TanStack Query hooks (nuevos) ─────────────────────────────────
 import {
@@ -179,43 +183,7 @@ function getCustomerEmail(order: Order): string {
 }
 
 function formatShippingAddress(shippingAddress: any): string {
-  if (!shippingAddress) return 'No disponible'
-
-  try {
-    const shippingData = typeof shippingAddress === 'string'
-      ? JSON.parse(shippingAddress)
-      : shippingAddress
-
-    const parts = []
-
-    if (shippingData.address) {
-      parts.push(shippingData.address)
-    } else if (shippingData.shipping?.address) {
-      parts.push(shippingData.shipping.address)
-    } else if (shippingData.street) {
-      parts.push(shippingData.street)
-    }
-
-    const city = shippingData.city || shippingData.shipping?.city
-    const state = shippingData.state || shippingData.shipping?.state
-    const postalCode = shippingData.postalCode || shippingData.shipping?.postalCode
-    const country = shippingData.country || shippingData.shipping?.country
-
-    if (city) parts.push(city)
-    if (state && postalCode) {
-      parts.push(`${state} ${postalCode}`)
-    } else if (state) {
-      parts.push(state)
-    } else if (postalCode) {
-      parts.push(postalCode)
-    }
-    if (country) parts.push(country)
-
-    return parts.length > 0 ? parts.join(', ') : 'No disponible'
-  } catch (e) {
-    console.warn('Error parsing shipping address:', e)
-    return 'No disponible'
-  }
+  return formatShippingAddressText(shippingAddress)
 }
 
 function getShippingAddress(order: Order): string {
@@ -231,6 +199,7 @@ function PerfilPageContent() {
   // Estado local UI (no es data fetching — permanece igual)
   const [isEditing, setIsEditing] = useState(false)
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'subscriptions'>('profile')
+  const [copiedAddressId, setCopiedAddressId] = useState<string | number | null>(null)
   const [profileForm, setProfileForm] = useState({
     full_name: '',
     phone: '',
@@ -320,6 +289,22 @@ function PerfilPageContent() {
       toast.success('Suscripción cancelada exitosamente')
     } catch (error) {
       // toast de error lo maneja el mutation onError
+    }
+  }
+
+  const handleCopyShipping = async (
+    subscriptionId: string | number,
+    shippingAddress: any,
+    customer?: { name?: string; email?: string; phone?: string }
+  ) => {
+    const text = buildShippingClipboardText(shippingAddress, customer)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedAddressId(subscriptionId)
+      toast.success('Dirección copiada al portapapeles')
+      setTimeout(() => setCopiedAddressId(null), 2000)
+    } catch {
+      toast.error('No se pudo copiar al portapapeles')
     }
   }
 
@@ -830,17 +815,79 @@ function PerfilPageContent() {
                             <span className="font-medium text-gray-700">Email:</span>
                             <p className="text-gray-900">{subscription.customer_email}</p>
                           </div>
-                          {subscription.shipping_address && (
-                            <div className="md:col-span-2">
-                              <span className="font-medium text-gray-700 flex items-center gap-1">
-                                <Truck className="h-4 w-4" />
-                                Dirección de Envío:
-                              </span>
-                              <p className="text-gray-900">
-                                {formatShippingAddress(subscription.shipping_address)}
-                              </p>
-                            </div>
-                          )}
+                          {(() => {
+                            let rawAddress = subscription.shipping_address || subscription.customer_data?.address
+                            if (!rawAddress && profile) {
+                              rawAddress = (profile as any).shipping_address || (profile as any).address
+                            }
+                            if (!rawAddress) {
+                              return (
+                                <div className="md:col-span-2">
+                                  <span className="font-medium text-gray-700 flex items-center gap-1 mb-1">
+                                    <Truck className="h-4 w-4" />
+                                    Dirección de Envío:
+                                  </span>
+                                  <p className="text-gray-500 italic text-sm">Sin dirección registrada</p>
+                                </div>
+                              )
+                            }
+                            const parsed = parseShippingAddress(rawAddress)
+                            return (
+                              <div className="md:col-span-2">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className="font-medium text-gray-700 flex items-center gap-1">
+                                    <Truck className="h-4 w-4" />
+                                    Dirección de Envío:
+                                  </span>
+                                  {parsed && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs gap-1"
+                                      onClick={() => handleCopyShipping(
+                                        subscription.id,
+                                        rawAddress,
+                                        {
+                                          name: subscription.customer_name || (profile as any).full_name,
+                                          email: subscription.customer_email || (profile as any).email,
+                                          phone: subscription.customer_phone || (profile as any).phone,
+                                        }
+                                      )}
+                                    >
+                                      {copiedAddressId === subscription.id ? (
+                                        <><Check className="h-3 w-3" /> Copiado</>
+                                      ) : (
+                                        <><Copy className="h-3 w-3" /> Copiar</>
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
+                                {parsed ? (
+                                  <div className="text-gray-900 text-sm space-y-0.5 bg-amber-50/50 rounded-lg p-3 border border-amber-100">
+                                    {parsed.name && <p className="font-medium">{parsed.name}</p>}
+                                    {parsed.address && (
+                                      <p className="flex items-start gap-1">
+                                        <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
+                                        {parsed.address}
+                                      </p>
+                                    )}
+                                    {parsed.address2 && <p className="pl-5 text-gray-600">{parsed.address2}</p>}
+                                    {parsed.colonia && <p className="pl-5 text-gray-500">Col. {parsed.colonia}</p>}
+                                    {(parsed.city || parsed.state) && (
+                                      <p className="pl-5 text-gray-500">
+                                        {[parsed.city, parsed.state].filter(Boolean).join(', ')}
+                                      </p>
+                                    )}
+                                    {parsed.postalCode && <p className="pl-5 text-gray-400 text-xs">CP: {parsed.postalCode}</p>}
+                                    {parsed.country && <p className="pl-5 text-gray-400 text-xs uppercase">{parsed.country}</p>}
+                                  </div>
+                                ) : (
+                                  <p className="text-gray-900">{formatShippingAddress(rawAddress)}</p>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       </CardContent>
 
