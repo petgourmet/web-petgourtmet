@@ -55,6 +55,15 @@ fix_*.mjs
 sync_*.mjs
 query_*.mjs
 
+# Archivos de documentación y datos no necesarios en git
+docs/*.pdf
+public/*.xlsx
+public/*.pdf
+*.md.backup
+*.bak
+*.backup
+public/flujocal.md
+
 # Test files
 *.test.js
 *.test.ts

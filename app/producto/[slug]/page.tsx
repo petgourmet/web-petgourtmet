@@ -27,6 +27,7 @@ import type { Product } from "@/components/product-category-loader"
 import { Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import { ProductStructuredData } from "@/components/product-structured-data"
+import { RelatedProductsCarousel } from "@/components/related-products-carousel"
 import { pushProductDataLayer } from "@/utils/analytics"
 import { useGoogleAnalytics } from "@/hooks/use-google-analytics"
 import type { ProductVariant } from "@/lib/supabase/types"
@@ -540,6 +541,9 @@ export default function ProductDetailPage() {
             <div className="space-y-6">
               <div>
                 <h1 className="text-3xl font-bold text-[#7BBDC5] font-display mb-2">{product.name}</h1>
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#2a7880] bg-[#f0f9fa] border border-[#7BBDC5]/30 px-3 py-1 rounded-full mb-3">
+                  Formulado con veterinarios 🐾
+                </span>
 
                 {/* Categoría en desktop */}
                 <div className="hidden lg:flex items-center justify-between mb-4">
@@ -938,6 +942,10 @@ export default function ProductDetailPage() {
 
             </div>
           </div>
+
+          {/* ─── Carrusel de productos relacionados ─── */}
+          <RelatedProductsCarousel currentProductId={product.id} />
+
         </div>
       </div>
     </div>

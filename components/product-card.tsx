@@ -159,16 +159,18 @@ export function ProductCard({
           src={image || "/placeholder.svg"}
           alt={name}
           className={`w-full h-full object-cover object-center transition-transform duration-500 ${
-            isHovered ? "scale-110 brightness-[0.1]" : "scale-100"
+            isHovered ? "scale-110" : "scale-100"
           }`}
         />
-        {isHovered && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="bg-white text-primary hover:bg-primary hover:text-white transition-colors duration-300 font-medium py-2 px-4 rounded-full pointer-events-none">
+        <div
+          className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
+            isHovered ? "backdrop-blur-[3px] bg-white/10 opacity-100" : "opacity-0"
+          }`}
+        >
+            <span className="bg-black/50 backdrop-blur-sm text-white border border-white/20 font-medium py-2 px-5 rounded-full pointer-events-none tracking-wide text-sm">
               Ver detalles
             </span>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Contenido del producto */}

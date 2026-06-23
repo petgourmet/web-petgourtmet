@@ -1,76 +1,72 @@
 "use client"
+
+import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 
 export function FloatingCreatePlanButton() {
-  // Obtener la ruta actual
   const pathname = usePathname()
-  // Estado para controlar el montaje del componente
   const [mounted, setMounted] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
 
-  // Efecto para manejar el montaje del componente
   useEffect(() => {
     setMounted(true)
+    const onScroll = () => setScrolled(window.scrollY > 120)
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
-  // Verificar si estamos en la página de creación del plan
-  const isCreatingPlan = pathname === "/crear-plan"
+  // No renderizar en SSR ni en la propia página
+  if (!mounted || pathname === "/crear-plan") return null
 
-  // No renderizar nada hasta que el componente esté montado
-  if (!mounted) return null
-
-  // Ocultar el botón temporalmente
-  return null
-
-  // return (
-  //   <motion.div
-  //     className="fixed bottom-6 right-6 z-50"
-  //     initial={{ scale: 0, opacity: 0 }}
-  //     animate={{ scale: 1, opacity: 1 }}
-  //     transition={{ type: "spring", stiffness: 260, damping: 20 }}
-  //   >
-  //     <Link href="/crear-plan">
-  //       <motion.button
-  //         className={`flex items-center justify-center gap-2 text-white ${isCreatingPlan ? "w-12 h-12" : "px-4 py-3"} rounded-full shadow-lg transition-all`}
-  //         style={{
-  //           background: "#7BBDC5", // Color vinotinto (Accent Red)
-  //           boxShadow: "0 4px 15px rgba(123, 189, 197, 0.5)",
-  //         }}
-  //         whileHover={{
-  //           scale: 1.05,
-  //           background: "#6BADB5", // Versión más clara del vinotinto
-  //           boxShadow: "0 6px 20px rgba(123, 189, 197, 0.6)",
-  //         }}
-  //         whileTap={{ scale: 0.95 }}
-  //         animate={{
-  //           boxShadow: [
-  //             "0 4px 15px rgba(123, 189, 197, 0.3)",
-  //             "0 4px 15px rgba(123, 189, 197, 0.7)",
-  //             "0 4px 15px rgba(123, 189, 197, 0.3)",
-  //           ],
-  //         }}
-  //         transition={{
-  //           boxShadow: {
-  //             duration: 2,
-  //             repeat: Number.POSITIVE_INFINITY,
-  //             ease: "easeInOut",
-  //           },
-  //         }}
-  //       >
-  //         <svg
-  //           xmlns="http://www.w3.org/2000/svg"
-  //           className="h-6 w-6"
-  //           fill="none"
-  //           viewBox="0 0 24 24"
-  //           stroke="currentColor"
-  //         >
-  //           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  //         </svg>
-  //         {!isCreatingPlan && <span>Crea tu Plan</span>}
-  //       </motion.button>
-  //     </Link>
-  //   </motion.div>
-  // )
+  return (
+    <AnimatePresence>
+      {scrolled && (
+        <motion.div
+          className="fixed bottom-6 right-5 z-50"
+          initial={{ scale: 0, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0, opacity: 0, y: 20 }}
+          transition={{ type: "spring", stiffness: 300, damping: 22 }}
+        >
+          <Link href="/crear-plan" aria-label="Crear plan de alimentación personalizado">
+            <motion.div
+              className="flex items-center gap-2.5 px-4 py-3 rounded-full text-white font-semibold text-sm shadow-xl cursor-pointer select-none"
+              style={{ background: "#2a7880" }}
+              whileHover={{ scale: 1.06, background: "#1d636b" }}
+              whileTap={{ scale: 0.96 }}
+              animate={{
+                boxShadow: [
+                  "0 4px 18px rgba(42,120,128,0.35)",
+                  "0 4px 24px rgba(42,120,128,0.65)",
+                  "0 4px 18px rgba(42,120,128,0.35)",
+                ],
+              }}
+              transition={{
+                boxShadow: {
+                  duration: 2.2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                },
+              }}
+            >
+              {/* Paw icon SVG */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-5 h-5 flex-shrink-0"
+              >
+                <path d="M12 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM7 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm10 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM4.5 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm15 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM12 10c2.5 0 5.5 2 5.5 5.5 0 2.5-1.5 4-3 4.5-.5.2-1.5.5-2.5.5s-2-.3-2.5-.5c-1.5-.5-3-2-3-4.5C6.5 12 9.5 10 12 10z"/>
+              </svg>
+              <span>Plan de tu perro</span>
+            </motion.div>
+          </Link>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 export default FloatingCreatePlanButton

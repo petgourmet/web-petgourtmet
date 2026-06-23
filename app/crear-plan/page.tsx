@@ -1,96 +1,61 @@
-"use client"
+// ============================================================
+// PÁGINA: /crear-plan
+//
+// Calculadora de alimentación personalizada para Pet Gourmet.
+// Flujo de scroll-down progresivo en una sola pantalla.
+// ============================================================
 
-import { motion } from "framer-motion"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { Metadata } from "next"
+import { NutritionCalculator } from "@/components/nutrition-calculator"
 
-export default function CreatePlanPage() {
+export const metadata: Metadata = {
+  title: "Alimentación Perronalizada | Pet Gourmet",
+  description:
+    "Crea el plan de nutrición premium personalizado para tu perro. Descubre cuánto y qué receta necesita según su peso, etapa de vida y nivel de actividad.",
+}
 
+export default function CrearPlanPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-orange-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-            Planes Personalizados para tu Mascota
+    <main className="min-h-screen bg-white">
+
+      {/* ── Hero – mismo estilo que HomeHero ── */}
+      <section className="relative z-10 overflow-hidden bg-primary">
+        {/* Glow decorativo */}
+        <div className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/5 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/4 h-48 w-48 rounded-full bg-[#e7ae84]/10 blur-2xl" />
+
+        <div className="container relative z-10 mx-auto px-4 py-16 text-center md:py-20">
+          {/* Heading */}
+          <h1 className="mt-5 font-display text-4xl font-bold leading-[1.05] text-white md:text-5xl lg:text-6xl">
+            Alimentación{" "}
+            <span className="text-[#16313b]/70">Perronalizada</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Descubre nuestros productos y suscripciones diseñadas especialmente para tu compañero peludo
+
+          {/* Badge */}
+          <div className="mt-4 inline-flex items-center rounded-md border border-white/25 bg-white/95 px-4 py-2 text-sm font-semibold text-[#2a7880] shadow-[0_8px_24px_rgba(42,120,128,0.12)] backdrop-blur">
+            Formulado con veterinarios 🐾
+          </div>
+
+          {/* Sub */}
+          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-white/85 md:text-xl">
+            Calculamos la porción exacta para tu perro según su peso, etapa de vida y
+            nivel de actividad.
           </p>
-        </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <Card className="h-full hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle className="text-2xl text-teal-600">🛒 Compra Individual</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-6">
-                  Explora nuestra selección de productos premium para mascotas. Cada producto está cuidadosamente seleccionado para la nutrición y bienestar de tu mascota.
-                </p>
-                <Link href="/productos">
-                  <Button className="w-full bg-teal-500 hover:bg-teal-600">
-                    Ver Productos
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <Card className="h-full hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle className="text-2xl text-orange-600">📅 Suscripciones</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-6">
-                  Suscríbete a entregas regulares de los productos favoritos de tu mascota. Nunca te quedes sin su comida preferida.
-                </p>
-                <Link href="/suscripcion">
-                  <Button className="w-full bg-orange-500 hover:bg-orange-600">
-                    Ver Suscripciones
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {/* Indicador de scroll */}
+          <div className="mt-8 flex items-center justify-center gap-2 text-white/50 text-sm">
+            <svg className="h-4 w-4 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            Empieza a completar el formulario abajo
+          </div>
         </div>
+      </section>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="text-center"
-        >
-          <Card className="bg-gradient-to-r from-teal-500 to-orange-500 text-white">
-            <CardContent className="py-8">
-              <h2 className="text-2xl font-bold mb-4">¿Necesitas ayuda para elegir?</h2>
-              <p className="mb-6 text-teal-50">
-                Nuestro equipo está aquí para ayudarte a encontrar la mejor opción para tu mascota
-              </p>
-              <Link href="/contacto">
-                <Button variant="secondary" className="bg-white text-teal-600 hover:bg-gray-100">
-                  Contactar Asesor
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* ── Calculadora principal ── */}
+      <div className="w-full px-4 py-10 md:px-8 md:py-14 max-w-5xl mx-auto">
+        <NutritionCalculator />
       </div>
-    </div>
+    </main>
   )
 }

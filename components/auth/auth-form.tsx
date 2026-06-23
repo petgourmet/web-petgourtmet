@@ -17,8 +17,8 @@ import { HoneypotField } from "@/components/security/HoneypotField"
 
 type AuthMode = "login" | "register"
 
-export function AuthForm() {
-  const [mode, setMode] = useState<AuthMode>("login")
+export function AuthForm({ defaultMode = "login" }: { defaultMode?: "login" | "register" } = {}) {
+  const [mode, setMode] = useState<AuthMode>(defaultMode)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")

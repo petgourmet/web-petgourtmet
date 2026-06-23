@@ -21,7 +21,7 @@ export function CartButton() {
             onClick={() => setShowCart(true)}
           >
             <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-            {cart.length > 0 && <Badge className="absolute -top-2 -right-2 bg-secondary text-white">{cart.length}</Badge>}
+            {cart.length > 0 && <Badge className="absolute -top-2 -right-2 bg-red-500 text-white border-0 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold p-0 rounded-full">{cart.length}</Badge>}
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">

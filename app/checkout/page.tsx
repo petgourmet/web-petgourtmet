@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2, Lock, ArrowLeft, ShieldCheck, CreditCard, Smartphone } from "lucide-react"
+import { Loader2, Lock, ArrowLeft, ShieldCheck, CreditCard, Smartphone, UserX, AlertTriangle, Info, RefreshCw, X } from "lucide-react"
 import Image from "next/image"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useCart } from "@/components/cart-context"
@@ -39,25 +39,25 @@ export default function CheckoutPage() {
     setError(null)
 
     if (!acceptedTerms) {
-      setError("Debes aceptar los terminos y condiciones para continuar")
+      setError("terms")
+      return
+    }
+
+    // Pre-check: email requerido por Stripe → el usuario debe estar autenticado
+    if (!user) {
+      setError("auth")
       return
     }
 
     const hasSubscriptionItems = hasSubscriptions()
     if (hasSubscriptionItems && !user) {
-      setError("Debes iniciar sesion para crear una suscripcion")
-      toast({
-        title: "Inicio de sesion requerido",
-        description: "Por favor inicia sesion para continuar con tu suscripcion.",
-        variant: "destructive"
-      })
-      router.push(`/auth/login?redirect=/checkout`)
+      setError("auth")
       return
     }
 
     const subscriptionItems = cart.filter(item => item.isSubscription)
     if (subscriptionItems.length > 1) {
-      setError("Solo puedes suscribirte a UN producto por compra. Por favor, elimina las suscripciones adicionales del carrito.")
+      setError("multi_subscription")
       toast({
         title: "Multiples suscripciones no permitidas",
         description: "Solo puedes suscribirte a un producto a la vez.",
@@ -119,12 +119,13 @@ export default function CheckoutPage() {
 
     } catch (error) {
       console.error("Error en checkout:", error)
-      setError(error instanceof Error ? error.message : "Error al procesar el pago")
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al procesar el pago",
-        variant: "destructive"
-      })
+      const msg = error instanceof Error ? error.message : "Error al procesar el pago"
+      // Mapear errores de API a tipos conocidos
+      if (msg.toLowerCase().includes("cliente") || msg.toLowerCase().includes("sesion") || msg.toLowerCase().includes("sesión")) {
+        setError("auth")
+      } else {
+        setError(msg)
+      }
       setIsLoading(false)
     }
   }
@@ -256,8 +257,115 @@ export default function CheckoutPage() {
             )}
 
             {error && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                <p className="text-red-600 text-sm">{error}</p>
+              <div className="rounded-2xl overflow-hidden border border-[#e6eeef] shadow-[0_4px_24px_rgba(22,49,59,0.08)] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                {/* Header con logo */}
+                <div className={`px-5 py-4 flex items-center justify-between ${
+                  error === "auth" ? "bg-[#16313b]" :
+                  error === "terms" ? "bg-amber-700" :
+                  error === "multi_subscription" ? "bg-[#2a7880]" :
+                  "bg-rose-700"
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src="/pet-gourmet-logo-transparent.webp"
+                      alt="Pet Gourmet"
+                      width={28}
+                      height={28}
+                      className="rounded-full object-cover opacity-90"
+                    />
+                    <span className="text-white text-sm font-semibold tracking-wide">Pet Gourmet</span>
+                  </div>
+                  <button
+                    onClick={() => setError(null)}
+                    className="text-white/60 hover:text-white transition-colors"
+                    aria-label="Cerrar"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Cuerpo */}
+                <div className="bg-white px-5 py-5">
+                  {error === "auth" && (
+                    <div className="flex gap-4 items-start">
+                      <div className="w-10 h-10 rounded-full bg-[#f0f9fa] border border-[#7BBDC5]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <UserX className="h-5 w-5 text-[#2a7880]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#16313b] text-sm mb-1">Necesitas iniciar sesión</p>
+                        <p className="text-xs text-[#5d7276] leading-relaxed mb-4">
+                          Para completar tu compra necesitamos verificar tu identidad. Inicia sesión o crea una cuenta gratuita en segundos.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Link
+                            href="/auth/login?redirect=/checkout"
+                            className="flex-1 text-center text-sm font-semibold bg-[#16313b] text-white py-2.5 px-4 rounded-full hover:bg-[#1d4a57] transition-colors"
+                          >
+                            Iniciar sesión
+                          </Link>
+                          <Link
+                            href="/auth/login?redirect=/checkout"
+                            className="flex-1 text-center text-sm font-semibold border border-[#7BBDC5]/50 text-[#2a7880] py-2.5 px-4 rounded-full hover:bg-[#f0f9fa] transition-colors"
+                          >
+                            Crear cuenta
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {error === "terms" && (
+                    <div className="flex gap-4 items-start">
+                      <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Info className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#16313b] text-sm mb-1">Acepta los términos para continuar</p>
+                        <p className="text-xs text-[#5d7276] leading-relaxed">
+                          Activa la casilla de términos y condiciones que aparece arriba para poder procesar tu pedido.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {error === "multi_subscription" && (
+                    <div className="flex gap-4 items-start">
+                      <div className="w-10 h-10 rounded-full bg-[#f0f9fa] border border-[#7BBDC5]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <AlertTriangle className="h-5 w-5 text-[#2a7880]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#16313b] text-sm mb-1">Solo una suscripción por compra</p>
+                        <p className="text-xs text-[#5d7276] leading-relaxed mb-3">
+                          Tienes más de un producto en modo suscripción. Deja solo uno como suscripción y el resto cómpralos de forma individual.
+                        </p>
+                        <Link
+                          href="/productos"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#2a7880] hover:underline"
+                        >
+                          <ArrowLeft className="h-3 w-3" /> Ver mi carrito
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
+                  {error !== "auth" && error !== "terms" && error !== "multi_subscription" && (
+                    <div className="flex gap-4 items-start">
+                      <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <AlertTriangle className="h-5 w-5 text-rose-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#16313b] text-sm mb-1">Algo salió mal</p>
+                        <p className="text-xs text-[#5d7276] leading-relaxed mb-3">{error}</p>
+                        <button
+                          onClick={() => { setError(null); handleCheckout() }}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:underline"
+                        >
+                          <RefreshCw className="h-3 w-3" /> Intentar de nuevo
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
