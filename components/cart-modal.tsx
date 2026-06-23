@@ -202,19 +202,17 @@ export function CartModal() {
                   <Button
                     className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full"
                     onClick={() => {
-                      // Verificar si hay suscripciones y si el usuario está autenticado
-                      if (hasSubscriptions && !user) {
-                        // Cerrar el modal del carrito
-                        setShowCart(false)
-                        // Redirigir al login y después volver al checkout
-                        router.push(`/auth/login?redirect=${encodeURIComponent('/checkout')}`)
-                        return
-                      }
-
                       // Cerrar el modal del carrito
                       setShowCart(false)
-                      // Redirigir a la página de checkout
-                      router.push('/checkout')
+                      
+                      // Verificar si hay suscripciones y si el usuario está autenticado
+                      if (hasSubscriptions && !user) {
+                        // Redirigir al login y después volver al checkout
+                        router.push(`/auth/login?redirect=${encodeURIComponent('/checkout')}`)
+                      } else {
+                        // Redirigir a la página de checkout (compra única permitida para invitados)
+                        router.push('/checkout')
+                      }
                     }}
                   >
                     {hasSubscriptions && !user ? "Crear Cuenta para Suscripción" : "Proceder al Pago"}

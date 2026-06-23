@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import type React from "react"
 import { useState, useEffect } from "react"
@@ -40,12 +40,6 @@ export default function CheckoutPage() {
 
     if (!acceptedTerms) {
       setError("terms")
-      return
-    }
-
-    // Pre-check: email requerido por Stripe → el usuario debe estar autenticado
-    if (!user) {
-      setError("auth")
       return
     }
 

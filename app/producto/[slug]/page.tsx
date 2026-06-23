@@ -830,7 +830,16 @@ export default function ProductDetailPage() {
                   {/* Botón comprar — ancho completo */}
                   <Button
                     className="w-full rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white py-4 text-base font-semibold"
-                    onClick={() => { if (handleAddToCart()) { setShowCart(false); router.push('/checkout') } }}
+                    onClick={() => {
+                      if (handleAddToCart()) {
+                        setShowCart(false)
+                        if (isSubscription && !user) {
+                          router.push(`/auth/login?redirect=${encodeURIComponent('/checkout')}`)
+                        } else {
+                          router.push('/checkout')
+                        }
+                      }
+                    }}
                     disabled={isVariableProduct && !selectedVariant}
                   >
                     <ShoppingCart className="h-5 w-5 mr-2 shrink-0" />

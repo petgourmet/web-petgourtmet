@@ -33,14 +33,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!body.customer || !body.customer.email) {
+    // Detectar si hay suscripciones en el carrito
+    const hasSubscription = body.items.some(item => item.isSubscription)
+
+    if (hasSubscription && (!body.customer || !body.customer.email)) {
       return NextResponse.json(
-        { error: 'Información de cliente inválida' },
+        { error: 'Información de cliente requerida para suscripciones' },
         { status: 400 }
       )
     }
 
-    // shipping es ahora opcional — Stripe lo recolecta directamente en Hosted Checkout
+    const customer = body.customer || { email: '', firstName: '', lastName: '' }
 
     // Validar que los items tengan precio válido
     const invalidItems = body.items.filter(item => !item.price || item.price <= 0)
@@ -54,9 +57,6 @@ export async function POST(request: NextRequest) {
     // Crear URLs con el dominio correcto
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     
-    // Detectar si hay suscripciones en el carrito
-    const hasSubscription = body.items.some(item => item.isSubscription)
-    
     // Usar URL correcta según el tipo de compra (con session_id incluido)
     const successUrl = body.successUrl || (
       hasSubscription 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Crear sesión de Checkout
     const { url, sessionId } = await createCheckoutSession({
       items: body.items,
-      customer: body.customer,
+      customer,
       shipping: body.shipping,
       successUrl,
       cancelUrl,

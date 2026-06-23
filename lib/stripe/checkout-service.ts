@@ -116,27 +116,29 @@ export async function createOneTimeCheckoutSession(
   // Crear o encontrar cliente en Stripe
   let stripeCustomerId: string | undefined
 
-  try {
-    const existingCustomers = await stripe.customers.list({
-      email: customer.email,
-      limit: 1,
-    })
-
-    if (existingCustomers.data.length > 0) {
-      stripeCustomerId = existingCustomers.data[0].id
-    } else {
-      const newCustomer = await stripe.customers.create({
+  if (customer && customer.email) {
+    try {
+      const existingCustomers = await stripe.customers.list({
         email: customer.email,
-        name: customer.firstName ? `${customer.firstName} ${customer.lastName}` : undefined,
-        phone: customer.phone,
-        metadata: {
-          user_id: customer.userId || '',
-        },
+        limit: 1,
       })
-      stripeCustomerId = newCustomer.id
+
+      if (existingCustomers.data.length > 0) {
+        stripeCustomerId = existingCustomers.data[0].id
+      } else {
+        const newCustomer = await stripe.customers.create({
+          email: customer.email,
+          name: customer.firstName ? `${customer.firstName} ${customer.lastName}` : undefined,
+          phone: customer.phone,
+          metadata: {
+            user_id: customer.userId || '',
+          },
+        })
+        stripeCustomerId = newCustomer.id
+      }
+    } catch (error) {
+      console.error('Error al crear/buscar cliente:', error)
     }
-  } catch (error) {
-    console.error('Error al crear/buscar cliente:', error)
   }
 
   // Crear sesión de Checkout — shipping es recolectado directamente por Stripe
@@ -146,7 +148,7 @@ export async function createOneTimeCheckoutSession(
     // Si tenemos customer guardado en Stripe, pre-rellena sus datos (incl. Apple Pay)
     customer: stripeCustomerId,
     // Si no hay customer, pre-rellenamos el email para evitar que lo escriba
-    customer_email: stripeCustomerId ? undefined : customer.email,
+    customer_email: (stripeCustomerId || !customer || !customer.email) ? undefined : customer.email,
     success_url: successUrl || `${stripeConfig.successUrl.oneTime}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: cancelUrl || stripeConfig.cancelUrl,
     // Stripe recolecta la dirección de envío nativamente — UNA sola vez
