@@ -16,7 +16,7 @@ import { createProductionSafeConsole } from "@/lib/debug"
 const console = createProductionSafeConsole()
 
 export default function CheckoutPage() {
-  const { cart, calculateCartTotal, clearCart } = useCart()
+  const { cart, calculateCartTotal, clearCart, lastProductSlug } = useCart()
   const router = useRouter()
   const { user } = useClientAuth()
   const [isLoading, setIsLoading] = useState(false)
@@ -132,11 +132,11 @@ export default function CheckoutPage() {
 
         <div className="mb-6">
           <Link
-            href="/productos"
+            href={lastProductSlug ? `/producto/${lastProductSlug}` : "/productos"}
             className="inline-flex items-center text-gray-500 hover:text-[#2a7880] transition-colors text-sm font-medium gap-1.5"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver a productos
+            Seguir comprando
           </Link>
         </div>
 

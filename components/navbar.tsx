@@ -74,24 +74,27 @@ export function Navbar() {
       {/* Wrapper sticky — header + barra promo se mueven juntos */}
       <div className="sticky top-0 z-50">
       <header
-        className={`relative z-20 w-full transition-all duration-500 backdrop-blur-sm ${isScrolled ? "bg-primary/90 shadow-md py-2" : "bg-primary py-3"
-          }`}
+        className={`relative z-20 w-full transition-all duration-500 backdrop-blur-sm ${
+          isScrolled ? "bg-primary/90 shadow-md py-1.5 md:py-2" : "bg-primary py-2 md:py-3"
+        }`}
       >
-        <div className="container mx-auto px-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center relative group z-10">
-            <div className="absolute -inset-2 bg-gradient-radial from-white/20 to-transparent rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 cursor-pointer"></div>
-            <Image
-              src="/petgourmet-logo.png"
-              alt="Pet Gourmet Logo"
-              width={150}
-              height={40}
-              priority
-              className="h-10 md:h-12 w-[150px] md:w-[180px] object-contain"
-            />
-          </Link>
+        <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
+          <div className="flex items-center justify-between gap-2 sm:gap-3 lg:gap-4">
+            {/* Logo */}
+            <Link href="/" className="flex items-center relative group shrink-0 min-w-0">
+              <div className="absolute -inset-2 bg-gradient-radial from-white/20 to-transparent rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 cursor-pointer"></div>
+              <Image
+                src="/petgourmet-logo.png"
+                alt="Pet Gourmet Logo"
+                width={180}
+                height={48}
+                priority
+                className="relative h-8 sm:h-9 md:h-10 lg:h-11 w-auto object-contain"
+              />
+            </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1">
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-2 flex-1 justify-center min-w-0">
             <div className="relative group">
               <button className="btn-rounded flex items-center space-x-1 text-white hover:text-white/80 btn-glow">
                 <span>Productos</span>
@@ -133,11 +136,17 @@ export function Navbar() {
             <Link href="/tiendas" className="btn-rounded text-white hover:text-white/80 btn-glow">
               Tiendas
             </Link>
-          </nav>
+            <Link href="/crear-plan" className="btn-rounded text-white hover:text-white/80 btn-glow">
+              Alimentación Perronalizada
+            </Link>
+            </nav>
 
-          <div className="hidden lg:flex items-center space-x-4">
-            <ThemeToggleButton />
-            <CartButton />
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 sm:gap-2.5 lg:gap-3 shrink-0">
+              {/* Desktop actions */}
+              <div className="hidden lg:flex items-center gap-2 xl:gap-3">
+                <ThemeToggleButton />
+                <CartButton />
 
             {user ? (
               <div className="relative group">
@@ -195,26 +204,29 @@ export function Navbar() {
               </TooltipProvider>
             )}
 
-            <Button
-              asChild
-              className="bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow btn-buy-shimmer relative overflow-hidden"
-            >
-              <Link href="/productos">
-                <span className="relative z-10">Comprar Ahora</span>
-              </Link>
-            </Button>
-          </div>
+                <Button
+                  asChild
+                  className="hidden xl:flex bg-white hover:bg-white/90 text-primary rounded-full shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300 btn-glow btn-buy-shimmer relative overflow-hidden px-5 py-2 text-sm font-semibold"
+                >
+                  <Link href="/productos">
+                    <span className="relative z-10">Comprar Ahora</span>
+                  </Link>
+                </Button>
+              </div>
 
-          <div className="flex items-center space-x-3 lg:hidden">
-            <CartButton />
-            <ThemeToggleButton />
-            <button
-              className="p-2 rounded-full bg-white text-primary shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
+              {/* Mobile actions */}
+              <div className="flex items-center gap-2 lg:hidden">
+                <CartButton />
+                <ThemeToggleButton />
+                <button
+                  className="p-2 rounded-full bg-white text-primary shadow-md hover:shadow-lg hover:shadow-white/20 transition-all duration-300"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  aria-label="Toggle menu"
+                >
+                  {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -429,16 +441,15 @@ export function Navbar() {
                 <span className="font-medium">Tiendas</span>
               </Link>
 
-              {/* Crear Plan - Temporalmente oculto 
+              {/* Crear Plan */}
               <Link
                 href="/crear-plan"
                 onClick={() => setIsMenuOpen(false)}
                 className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <Heart size={20} className="mr-3 text-primary" />
-                <span className="font-medium">Crear Plan Personalizado</span>
+                <span className="font-medium">Alimentación Perronalizada</span>
               </Link>
-              */}
             </nav>
 
             {/* Quick Actions */}

@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Calculator, ShoppingBag } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 
 // ─── Contenidos ─────────────────────────────────────
 const CONTENTS = {
@@ -22,7 +21,7 @@ const CONTENTS = {
   },
   calculator: {
     badge: "Calculadora nutricional gratuita",
-    headline: ["Nutrición", "personalizada", "en segundos"],
+    headline: ["Nutrición", "perronalizada"],
     description: "Calcula la ración diaria exacta para tu perro según su peso, edad y actividad. Científicamente respaldada, 100% gratis.",
     cta: { label: "Calcular ahora", href: "/crear-plan" },
     image: "/calcualk.png",
@@ -34,27 +33,35 @@ const CONTENTS = {
 
 export function HomeHero() {
   const [active, setActive] = useState<"products" | "calculator">("products")
-  const { toast } = useToast()
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Auto-switch cada 10 segundos
+  // Auto-switch cada 15 segundos, se reinicia cuando el usuario cambia manualmente
   useEffect(() => {
-    const interval = setInterval(() => {
+    // Limpiar intervalo anterior si existe
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+    }
+    
+    // Crear nuevo intervalo
+    intervalRef.current = setInterval(() => {
       setActive((prev) => (prev === "products" ? "calculator" : "products"))
-    }, 10000)
-    return () => clearInterval(interval)
-  }, [])
+    }, 15000) // 15 segundos
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [active]) // Agregado 'active' a las dependencias para reiniciar el intervalo
+
+  // Función para cambiar manualmente y reiniciar el contador
+  const handleManualSwitch = (newActive: "products" | "calculator") => {
+    setActive(newActive)
+    // El useEffect se ejecutará de nuevo y reiniciará el intervalo
+  }
 
   const content = CONTENTS[active]
   const Icon = content.icon
-
-  const handleCalculatorClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    toast({
-      title: "Próximamente",
-      description: "La calculadora nutricional estará disponible muy pronto. ¡Mantente atento!",
-      duration: 4000,
-    })
-  }
 
   return (
     <section className="relative z-20 overflow-hidden bg-primary">
@@ -89,43 +96,23 @@ export function HomeHero() {
 
               {/* CTA */}
               <div className="mt-8">
-                {active === "calculator" ? (
-                  <Button
-                    size="lg"
-                    onClick={handleCalculatorClick}
-                    className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="/favicon.ico"
-                        alt="Pet Gourmet"
-                        width={48}
-                        height={48}
-                        className="rounded-full border-2 border-white object-cover"
-                      />
-                      {content.cta.label}
-                    </div>
-                  </Button>
-                ) : (
-                  <Button
-                    asChild
-                    size="lg"
-                    className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
-                  >
-                    <Link href={content.cta.href} className="flex items-center gap-2.5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="/favicon.ico"
-                        alt="Pet Gourmet"
-                        width={48}
-                        height={48}
-                        className="rounded-full border-2 border-white object-cover"
-                      />
-                      {content.cta.label}
-                    </Link>
-                  </Button>
-                )}
+                <Button
+                  asChild
+                  size="lg"
+                  className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
+                >
+                  <Link href={content.cta.href} className="flex items-center gap-2.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/favicon.ico"
+                      alt="Pet Gourmet"
+                      width={48}
+                      height={48}
+                      className="rounded-full border-2 border-white object-cover"
+                    />
+                    {content.cta.label}
+                  </Link>
+                </Button>
               </div>
             </motion.div>
           </AnimatePresence>
@@ -159,7 +146,7 @@ export function HomeHero() {
       <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3">
         <button
           type="button"
-          onClick={() => setActive("products")}
+          onClick={() => handleManualSwitch("products")}
           className={`rounded-full p-3 transition-all duration-300 ${
             active === "products"
               ? "bg-white text-[#2a7880] shadow-lg"
@@ -170,7 +157,7 @@ export function HomeHero() {
         </button>
         <button
           type="button"
-          onClick={() => setActive("calculator")}
+          onClick={() => handleManualSwitch("calculator")}
           className={`rounded-full p-3 transition-all duration-300 ${
             active === "calculator"
               ? "bg-white text-[#2a7880] shadow-lg"

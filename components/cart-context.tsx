@@ -18,17 +18,21 @@ export type CartItem = {
   isSubscription: boolean
   subscriptionType?: SubscriptionType
   subscriptionDiscount?: number
+  slug?: string  // Slug del producto para navegación
   // Campos de descuento por tipo de suscripción
   weekly_discount?: number
   biweekly_discount?: number
   monthly_discount?: number
   quarterly_discount?: number
   annual_discount?: number
+  variantId?: number
+  variantName?: string
+  justAdded?: boolean  // Para resaltar productos recién agregados
 }
 
 type CartContextType = {
   cart: CartItem[]
-  addToCart: (item: CartItem) => void
+  addToCart: (item: CartItem, openCart?: boolean) => void
   removeFromCart: (index: number) => void
   updateCartItemQuantity: (index: number, newQuantity: number) => void
   clearCart: () => void
@@ -37,6 +41,7 @@ type CartContextType = {
   setShowCart: (show: boolean) => void
   showCheckout: boolean
   setShowCheckout: (show: boolean) => void
+  lastProductSlug: string | null
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -45,6 +50,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
+  const [lastProductSlug, setLastProductSlug] = useState<string | null>(null)
   const { trackAddToCart, trackBeginCheckout, trackViewCart } = useGoogleAnalytics()
   const { trackAddToCart: fbTrackAddToCart, trackInitiateCheckout } = useFacebookPixel()
 
@@ -57,6 +63,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Error parsing cart from localStorage:", error)
       }
+    }
+    
+    // Cargar último slug del producto
+    const savedSlug = localStorage.getItem("lastProductSlug")
+    if (savedSlug) {
+      setLastProductSlug(savedSlug)
     }
   }, [])
 
@@ -86,9 +98,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("cart", JSON.stringify(cart))
   }, [cart])
 
-  const addToCart = (item: CartItem) => {
+  const addToCart = (item: CartItem, openCart: boolean = true) => {
     let wasUpdated = false
     let wasAdded = false
+    let targetItemKey = `${item.id}-${item.size}-${item.isSubscription}`
+    
+    // Guardar el slug del último producto agregado
+    if (item.slug) {
+      setLastProductSlug(item.slug)
+      localStorage.setItem("lastProductSlug", item.slug)
+    }
     
     setCart((prevCart) => {
       // Verificar si el producto ya está en el carrito con el mismo tamaño y tipo de compra
@@ -100,15 +119,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (existingItemIndex !== -1) {
         // Si existe, actualizar la cantidad
         const updatedCart = [...prevCart]
-        updatedCart[existingItemIndex].quantity += item.quantity
+        updatedCart[existingItemIndex] = {
+          ...updatedCart[existingItemIndex],
+          quantity: updatedCart[existingItemIndex].quantity + item.quantity,
+          justAdded: true
+        }
         wasUpdated = true
         return updatedCart
       } else {
         // Si no existe, añadir nuevo item
         wasAdded = true
-        return [...prevCart, item]
+        return [...prevCart, { ...item, justAdded: true }]
       }
     })
+    
+    // Remover el flag justAdded después de 3 segundos usando la clave del item
+    setTimeout(() => {
+      setCart((prevCart) => {
+        return prevCart.map(cartItem => {
+          const itemKey = `${cartItem.id}-${cartItem.size}-${cartItem.isSubscription}`
+          if (itemKey === targetItemKey && cartItem.justAdded) {
+            return { ...cartItem, justAdded: false }
+          }
+          return cartItem
+        })
+      })
+    }, 3000)
     
     // ✅ Toasts DESPUÉS del setState para evitar errores de React
     if (wasUpdated) {
@@ -142,8 +178,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       )
     }
     
-    // 🛒 Abrir el modal del carrito automáticamente
-    setShowCart(true)
+    // 🛒 Abrir el modal del carrito automáticamente solo si openCart es true
+    if (openCart) {
+      setShowCart(true)
+    }
   }
 
   const removeFromCart = (index: number) => {
@@ -234,6 +272,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setShowCart: handleSetShowCart,
         showCheckout,
         setShowCheckout: handleSetShowCheckout,
+        lastProductSlug,
       }}
     >
       {children}

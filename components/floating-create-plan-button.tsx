@@ -1,29 +1,40 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useToast } from "@/hooks/use-toast"
 
 export function FloatingCreatePlanButton() {
   const pathname = usePathname()
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const { toast } = useToast()
 
   useEffect(() => {
     setMounted(true)
-    const onScroll = () => setScrolled(window.scrollY > 120)
+    
+    const onScroll = () => {
+      try {
+        setScrolled(window.scrollY > 120)
+      } catch (err) {
+        console.error('Error in scroll handler:', err)
+      }
+    }
+    
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
-  const handleClick = () => {
-    toast({
-      title: "Próximamente",
-      description: "La calculadora nutricional estará disponible muy pronto. ¡Mantente atento!",
-      duration: 4000,
-    })
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      router.push("/crear-plan")
+    } catch (err) {
+      console.error('Error navigating to plan:', err)
+      // Fallback: usar window.location si router falla
+      window.location.href = "/crear-plan"
+    }
   }
 
   // No renderizar en SSR ni en la propia página
@@ -41,7 +52,7 @@ export function FloatingCreatePlanButton() {
         >
           <motion.button
             onClick={handleClick}
-            aria-label="Crear plan de alimentación personalizado (Próximamente)"
+            aria-label="Crear plan de alimentación personalizado"
             className="flex items-center gap-2.5 px-4 py-3 rounded-full text-white font-semibold text-sm shadow-xl cursor-pointer select-none"
             style={{ background: "#2a7880" }}
             whileHover={{ scale: 1.06, background: "#1d636b" }}

@@ -6,8 +6,10 @@
 //   · AnimatePresence en tarjetas y precios
 //   · Resumen de precio reactivo y animado
 //   · UX más completa e interactiva
+//   · Modal de autenticación (reutilizado del checkout)
 // ============================================================
 
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, AnimatePresence, type Variants } from "framer-motion"
@@ -26,12 +28,14 @@ interface PlanSummarySectionProps {
   canAddMore: boolean
   isCheckoutLoading: boolean
   checkoutError: string | null
+  isAuthenticated: boolean
   onDismissError: () => void
   onToggleExtra: (id: string) => void
   onRemoveRecipe: (id: string) => void
   onAddAnotherDog: () => void
   onCheckout: () => void
   onBackToRecipes: () => void
+  onAddToCart?: () => void  // Nueva función para agregar al carrito manualmente
 }
 
 // Precio real: $408 MXN / paquete (6 porciones × 80g = 480g)
@@ -76,19 +80,44 @@ export function PlanSummarySection({
   canAddMore,
   isCheckoutLoading,
   checkoutError,
+  isAuthenticated,
   onDismissError,
   onToggleExtra,
   onRemoveRecipe,
   onAddAnotherDog,
   onCheckout,
   onBackToRecipes,
+  onAddToCart,
 }: PlanSummarySectionProps) {
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showAddedFeedback, setShowAddedFeedback] = useState(false)
+  
   const name     = petName || "tu perro"
   const pricing  = calcPlanPrice(dailyGrams, servingPlan, selectedRecipes.length)
   const extrasTotal = extras
     .filter((e) => selectedExtras.includes(e.id))
     .reduce((sum, e) => sum + e.price, 0)
   const grandTotal = pricing.total + extrasTotal
+
+  // Manejar click en el botón "Pagar"
+  const handlePaymentClick = () => {
+    if (isAuthenticated) {
+      // Usuario autenticado → Proceder a checkout
+      onCheckout()
+    } else {
+      // Usuario NO autenticado → Mostrar modal de autenticación
+      setShowAuthModal(true)
+    }
+  }
+
+  // Manejar click en "Agregar al carrito"
+  const handleAddToCartClick = () => {
+    if (onAddToCart) {
+      onAddToCart()
+      setShowAddedFeedback(true)
+      setTimeout(() => setShowAddedFeedback(false), 2000)
+    }
+  }
 
   return (
     <div className="w-full">
@@ -280,11 +309,30 @@ export function PlanSummarySection({
               </AnimatePresence>
             </div>
           </div>
+
+          {/* Botón "Agregar otro perro" - al final de la columna izquierda */}
+          <motion.button
+            type="button"
+            onClick={onAddAnotherDog}
+            disabled={!canAddMore || isCheckoutLoading}
+            whileHover={canAddMore && !isCheckoutLoading ? { scale: 1.03 } : {}}
+            whileTap={canAddMore && !isCheckoutLoading ? { scale: 0.97 } : {}}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full border-2 border-[#e3ecee] text-[#5d7276] font-semibold text-sm hover:border-[#7AB8BF] hover:text-[#2a7880] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <PlusCircle size={16} />
+            {canAddMore ? "Agregar otro perro" : "Límite de 10 perros"}
+          </motion.button>
         </div>
 
         {/* ─────────── COL DERECHA: Resumen ─────────── */}
         <div className="lg:sticky lg:top-6">
-          <h4 className="text-base font-semibold text-gray-700 mb-3">Resumen</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-base font-semibold text-gray-700">Resumen</h4>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-[#2a7880] px-2.5 py-1 rounded-full uppercase tracking-wide">
+              <RefreshCw size={10} />
+              Suscripción
+            </span>
+          </div>
 
           <motion.div
             layout
@@ -363,8 +411,71 @@ export function PlanSummarySection({
             </div>
 
             <p className="text-[11px] text-gray-400 text-center leading-relaxed">
-              * Esta es una suscripción. Puedes pausar o cancelar cuando quieras.
+              * Esta es una <strong className="text-[#2a7880]">suscripción mensual</strong> (cada 28 días).<br />
+              Puedes pausar o cancelar cuando quieras desde tu perfil.
             </p>
+          </motion.div>
+
+          {/* Botones de pago y carrito - debajo del resumen */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-3 w-full mt-4"
+          >
+            {/* Botón "Pagar" grande - estilo "Ir al Pago Seguro" */}
+            <div className="relative flex flex-col items-center gap-2 flex-1">
+              <motion.button
+                type="button"
+                onClick={handlePaymentClick}
+                disabled={selectedRecipes.length === 0 || isCheckoutLoading}
+                whileHover={selectedRecipes.length > 0 && !isCheckoutLoading ? { scale: 1.02 } : {}}
+                whileTap={selectedRecipes.length > 0 && !isCheckoutLoading ? { scale: 0.98 } : {}}
+                className="w-full flex items-center justify-center gap-2 bg-[#2a7880] text-white py-3 px-8 rounded-full font-semibold text-sm hover:bg-[#1d636b] disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+              >
+                {isCheckoutLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Redirigiendo...
+                  </>
+                ) : (
+                  <>
+                    <Lock size={16} />
+                    Ir al Pago Seguro
+                  </>
+                )}
+              </motion.button>
+              <p className="text-center text-[10px] text-[#7BBDC5] flex items-center justify-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                Pago 100% seguro · Procesado por Stripe · Datos cifrados
+              </p>
+            </div>
+
+            {/* Botón circular "Añadir al carrito" */}
+            {onAddToCart && (
+              <motion.button
+                type="button"
+                onClick={handleAddToCartClick}
+                disabled={selectedRecipes.length === 0 || isCheckoutLoading}
+                whileHover={selectedRecipes.length > 0 && !isCheckoutLoading ? { scale: 1.08 } : {}}
+                whileTap={selectedRecipes.length > 0 && !isCheckoutLoading ? { scale: 0.92 } : {}}
+                className="w-12 h-12 rounded-full bg-[#2a7880] hover:bg-[#1f5a61] text-white shadow-lg hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                title="Agregar al carrito"
+              >
+                {showAddedFeedback ? (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                  >
+                    <Check size={20} className="text-white" />
+                  </motion.div>
+                ) : (
+                  <ShoppingCart size={20} strokeWidth={2} />
+                )}
+              </motion.button>
+            )}
           </motion.div>
         </div>
       </div>
@@ -443,50 +554,72 @@ export function PlanSummarySection({
         )}
       </AnimatePresence>
 
-      {/* ─── Botones de acción ─── */}
-      <motion.div
-        className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10"
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, duration: 0.4 }}
-      >
-        <motion.button
-          type="button"
-          onClick={onAddAnotherDog}
-          disabled={!canAddMore || isCheckoutLoading}
-          whileHover={canAddMore && !isCheckoutLoading ? { scale: 1.03 } : {}}
-          whileTap={canAddMore && !isCheckoutLoading ? { scale: 0.97 } : {}}
-          className="flex items-center gap-2 px-6 py-3 rounded-full border-2 border-[#e3ecee] text-[#5d7276] font-semibold text-sm hover:border-[#7AB8BF] hover:text-[#2a7880] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <PlusCircle size={16} />
-          {canAddMore ? "Agregar otro perro" : "Límite de 10 perros"}
-        </motion.button>
+      {/* ─── Panel de autenticación inline (si es necesario) ─── */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 24 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div 
+              className="rounded-2xl overflow-hidden border border-[#e6eeef] shadow-[0_4px_24px_rgba(22,49,59,0.08)] max-w-md mx-auto"
+            >
+              {/* Header con logo */}
+              <div className="px-5 py-4 flex items-center justify-between bg-[#16313b]">
+                <div className="flex items-center gap-3">
+                  <Image
+                    src="/pet-gourmet-logo-transparent.webp"
+                    alt="Pet Gourmet"
+                    width={28}
+                    height={28}
+                    className="rounded-full object-cover opacity-90"
+                  />
+                  <span className="text-white text-sm font-semibold tracking-wide">Pet Gourmet</span>
+                </div>
+                <button
+                  onClick={() => setShowAuthModal(false)}
+                  className="text-white/60 hover:text-white transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
 
-        <motion.button
-          type="button"
-          onClick={onCheckout}
-          disabled={selectedRecipes.length === 0 || isCheckoutLoading}
-          whileHover={selectedRecipes.length > 0 && !isCheckoutLoading ? { scale: 1.04 } : {}}
-          whileTap={selectedRecipes.length > 0 && !isCheckoutLoading ? { scale: 0.97 } : {}}
-          animate={selectedRecipes.length > 0 && !isCheckoutLoading
-            ? { boxShadow: ["0 4px 16px rgba(42,120,128,0.2)", "0 4px 22px rgba(42,120,128,0.45)", "0 4px 16px rgba(42,120,128,0.2)"] }
-            : {}}
-          transition={{ boxShadow: { duration: 2.2, repeat: Infinity } }}
-          className="flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#2a7880] text-white font-bold text-sm hover:bg-[#1d636b] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          {isCheckoutLoading ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Redirigiendo...
-            </>
-          ) : (
-            <>
-              <Lock size={15} />
-              Ir al pago seguro
-            </>
-          )}
-        </motion.button>
-      </motion.div>
+              {/* Cuerpo */}
+              <div className="bg-white px-5 py-5">
+                <div className="flex gap-4 items-start">
+                  <div className="w-10 h-10 rounded-full bg-[#f0f9fa] border border-[#7BBDC5]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <UserX className="h-5 w-5 text-[#2a7880]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#16313b] text-sm mb-1">Necesitas iniciar sesión</p>
+                    <p className="text-xs text-[#5d7276] leading-relaxed mb-4">
+                      Para completar tu compra necesitamos verificar tu identidad. Inicia sesión o crea una cuenta gratuita en segundos.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Link
+                        href="/auth/login?redirect=/crear-plan"
+                        className="flex-1 text-center text-sm font-semibold bg-[#16313b] text-white py-2.5 px-4 rounded-full hover:bg-[#1d4a57] transition-colors"
+                      >
+                        Iniciar sesión
+                      </Link>
+                      <Link
+                        href="/auth/register?redirect=/crear-plan"
+                        className="flex-1 text-center text-sm font-semibold border border-[#7BBDC5]/50 text-[#2a7880] py-2.5 px-4 rounded-full hover:bg-[#f0f9fa] transition-colors"
+                      >
+                        Crear cuenta
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

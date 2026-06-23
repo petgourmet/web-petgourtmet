@@ -105,9 +105,9 @@ body {
   letter-spacing: -0.025em;
 }
 
-/* Estilos de botones mejorados */
+/* Estilos de botones mejorados - Responsive */
 .btn-rounded {
-  @apply rounded-full px-6 py-2 font-medium transition-all duration-300 relative overflow-hidden;
+  @apply rounded-full px-3 lg:px-4 xl:px-5 py-1.5 lg:py-2 font-medium text-[13px] lg:text-sm transition-all duration-300 relative overflow-hidden whitespace-nowrap;
 }
 
 .btn-rounded::after {

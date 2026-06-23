@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
+import { useCart } from "@/components/cart-context"
+import { toast } from "@/components/ui/use-toast"
 
 interface RelatedProduct {
   id: string | number
@@ -24,6 +26,7 @@ export function RelatedProductsCarousel({ currentProductId }: RelatedProductsCar
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
+  const { addToCart } = useCart()
 
   useEffect(() => {
     async function load() {
@@ -80,6 +83,22 @@ export function RelatedProductsCarousel({ currentProductId }: RelatedProductsCar
     el.scrollBy({ left: dir === "right" ? step * 2 : -step * 2, behavior: "smooth" })
   }
 
+  const handleAddToCart = (e: React.MouseEvent, product: RelatedProduct) => {
+    e.preventDefault() // Evitar navegación del Link
+    e.stopPropagation()
+    
+    addToCart({
+      id: typeof product.id === 'string' ? parseInt(product.id) : product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      size: "Único",
+      quantity: 1,
+      isSubscription: false,
+      slug: product.slug,
+    })
+  }
+
   if (products.length === 0) return null
 
   return (
@@ -132,41 +151,54 @@ export function RelatedProductsCarousel({ currentProductId }: RelatedProductsCar
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {products.map((product) => (
-          <Link
+          <div
             key={product.id}
-            href={`/producto/${product.slug}`}
             data-card
-            className="flex-shrink-0 w-[180px] sm:w-[200px] group"
+            className="flex-shrink-0 w-[180px] sm:w-[200px] group relative"
           >
-            <div className="rounded-2xl overflow-hidden border border-[#7BBDC5]/15 bg-white dark:bg-gray-800 hover:border-[#7BBDC5]/40 hover:shadow-[0_4px_20px_rgba(123,189,197,0.12)] transition-all duration-300">
-              {/* Imagen */}
-              <div className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-gray-700">
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  sizes="200px"
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
+            <Link
+              href={`/producto/${product.slug}`}
+              className="block"
+            >
+              <div className="rounded-2xl overflow-hidden border border-[#7BBDC5]/15 bg-white dark:bg-gray-800 hover:border-[#7BBDC5]/40 hover:shadow-[0_4px_20px_rgba(123,189,197,0.12)] transition-all duration-300">
+                {/* Imagen */}
+                <div className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-gray-700">
+                  <Image
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    sizes="200px"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  
+                  {/* Botón + flotante */}
+                  <button
+                    onClick={(e) => handleAddToCart(e, product)}
+                    className="absolute bottom-3 right-3 w-10 h-10 rounded-full bg-[#2a7880] hover:bg-[#1f5a61] text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 z-10"
+                    aria-label={`Agregar ${product.name} al carrito`}
+                  >
+                    <Plus className="h-5 w-5" strokeWidth={2.5} />
+                  </button>
+                </div>
 
-              {/* Info */}
-              <div className="p-3 space-y-1">
-                {product.category && (
-                  <p className="text-[10px] uppercase tracking-wider text-[#7BBDC5]/70 truncate">
-                    {product.category}
+                {/* Info */}
+                <div className="p-3 space-y-1">
+                  {product.category && (
+                    <p className="text-[10px] uppercase tracking-wider text-[#7BBDC5]/70 truncate">
+                      {product.category}
+                    </p>
+                  )}
+                  <h4 className="text-[13px] font-semibold text-gray-800 dark:text-gray-100 leading-snug line-clamp-2">
+                    {product.name}
+                  </h4>
+                  <p className="text-sm font-bold text-[#7BBDC5] pt-0.5">
+                    ${product.price.toFixed(2)}{" "}
+                    <span className="text-[10px] font-normal text-gray-400">MXN</span>
                   </p>
-                )}
-                <h4 className="text-[13px] font-semibold text-gray-800 dark:text-gray-100 leading-snug line-clamp-2">
-                  {product.name}
-                </h4>
-                <p className="text-sm font-bold text-[#7BBDC5] pt-0.5">
-                  ${product.price.toFixed(2)}{" "}
-                  <span className="text-[10px] font-normal text-gray-400">MXN</span>
-                </p>
+                </div>
               </div>
-            </div>
-          </Link>
+            </Link>
+          </div>
         ))}
       </div>
 

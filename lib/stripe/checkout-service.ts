@@ -194,17 +194,14 @@ export async function createSubscriptionCheckoutSession(
     throw new Error('No se encontraron items de suscripción')
   }
 
-  const subscriptionItem = subscriptionItems[0]
-  
-  if (subscriptionItems.length > 1) {
-    console.warn('⚠️ Múltiples suscripciones detectadas. Solo se procesará la primera.')
-  }
-
+  // Tomar el tipo de suscripción del primer item (asumimos que todos son del mismo tipo)
+  const firstItem = subscriptionItems[0]
   const { interval, interval_count } = getSubscriptionInterval(
-    subscriptionItem.subscriptionType || 'monthly'
+    firstItem.subscriptionType || 'monthly'
   )
 
-  const subtotal = subscriptionItem.price * subscriptionItem.quantity
+  // Calcular subtotal de todos los items de suscripción
+  const subtotal = subscriptionItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   const shippingCost = subtotal >= 1000 ? 0 : 100
 
   // Crear o encontrar cliente en Stripe
@@ -234,26 +231,29 @@ export async function createSubscriptionCheckoutSession(
     throw new Error('No se pudo crear el cliente para la suscripción')
   }
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-    {
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
+
+  // Agregar todos los items de suscripción
+  subscriptionItems.forEach(item => {
+    lineItems.push({
       price_data: {
         currency: stripeConfig.currency,
         product_data: {
-          name: subscriptionItem.name,
-          description: `Suscripción ${subscriptionItem.subscriptionType} - ${subscriptionItem.size || 'Standard'}`,
-          images: subscriptionItem.image ? [subscriptionItem.image] : undefined,
+          name: item.name,
+          description: `Suscripción ${item.subscriptionType} - ${item.size || 'Standard'}`,
+          images: item.image ? [item.image] : undefined,
           metadata: {
-            product_id: subscriptionItem.id.toString(),
-            size: subscriptionItem.size || 'Standard',
-            subscription_type: subscriptionItem.subscriptionType || 'monthly',
+            product_id: item.id.toString(),
+            size: item.size || 'Standard',
+            subscription_type: item.subscriptionType || 'monthly',
           },
         },
-        unit_amount: Math.round(subscriptionItem.price * 100),
+        unit_amount: Math.round(item.price * 100),
         recurring: { interval, interval_count },
       },
-      quantity: subscriptionItem.quantity,
-    },
-  ]
+      quantity: item.quantity,
+    })
+  })
 
   if (shippingCost > 0) {
     lineItems.push({
@@ -289,8 +289,8 @@ export async function createSubscriptionCheckoutSession(
       user_id: customer.userId || '',
       // shipping_address solo si fue pre-proporcionado (compatibilidad hacia atrás)
       ...(shipping?.address ? { shipping_address: JSON.stringify(shipping) } : {}),
-      subscription_type: subscriptionItem.subscriptionType || 'monthly',
-      product_id: subscriptionItem.id.toString(),
+      subscription_type: firstItem.subscriptionType || 'monthly',
+      product_count: subscriptionItems.length.toString(),
     },
     // Solo tarjeta para suscripciones (OXXO y Apple Pay no aplican a recurrentes)
     payment_method_types: ['card'],
@@ -298,8 +298,9 @@ export async function createSubscriptionCheckoutSession(
     subscription_data: {
       metadata: {
         user_id: customer.userId || '',
-        product_id: subscriptionItem.id.toString(),
-        subscription_type: subscriptionItem.subscriptionType || 'monthly',
+        subscription_type: firstItem.subscriptionType || 'monthly',
+        product_count: subscriptionItems.length.toString(),
+        source: metadata.source || 'unknown',
       },
     },
   })

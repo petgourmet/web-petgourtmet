@@ -1,10 +1,12 @@
 "use client"
 import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ProductSize } from "@/lib/supabase/types"
 import { LazyImage } from "@/components/lazy-image"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { ShoppingCart } from "lucide-react"
+import { useCart } from "@/components/cart-context"
 
 export type ProductFeature = {
   name: string
@@ -89,6 +91,23 @@ export function ProductCard({
 }: ProductCardProps) {
   const router = useRouter()
   const [isHovered, setIsHovered] = useState(false)
+  const [showExpandedButton, setShowExpandedButton] = useState(false)
+  const { addToCart } = useCart()
+
+  // Efecto para expandir el botón después de 200ms de hover
+  useEffect(() => {
+    let timer: NodeJS.Timeout | undefined
+    if (isHovered) {
+      timer = setTimeout(() => {
+        setShowExpandedButton(true)
+      }, 200)
+    } else {
+      setShowExpandedButton(false)
+    }
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [isHovered])
 
   const handleNavigate = () => {
     if (slug) {
@@ -98,6 +117,30 @@ export function ProductCard({
 
     if (onShowDetail) {
       onShowDetail({ id, name, description, image, rating, reviews, price, sizes, features, category, gallery })
+    }
+  }
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    // Obtener el precio del producto
+    const displayPrice = price || (sizes && sizes.length > 0 ? sizes[0].price : 0) || variantMinPrice || 0
+    
+    addToCart({
+      id,
+      name,
+      price: displayPrice,
+      image: image || "/placeholder.svg",
+      size: sizes && sizes.length > 0 ? sizes[0].weight : "Único",
+      quantity: 1,
+      isSubscription: false,
+      slug: slug,
+    })
+    
+    // Navegar al producto después de agregar
+    if (slug) {
+      router.push(`/producto/${slug}`)
     }
   }
 
@@ -151,26 +194,39 @@ export function ProductCard({
     >
       {/* Imagen del producto */}
       <div className="relative w-full aspect-[4/3] overflow-hidden">
-        <div
-          className="absolute inset-0 transition-opacity duration-300"
-          style={{ backgroundColor: spotlightColor, opacity: isHovered ? 0.2 : 0 }}
-        ></div>
         <LazyImage
           src={image || "/placeholder.svg"}
           alt={name}
-          className={`w-full h-full object-cover object-center transition-transform duration-500 ${
-            isHovered ? "scale-110" : "scale-100"
-          }`}
+          className={cn(
+            "w-full h-full object-cover object-center transition-all duration-300",
+            isHovered && "blur-[2px]"
+          )}
         />
-        <div
-          className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
-            isHovered ? "backdrop-blur-[3px] bg-white/10 opacity-100" : "opacity-0"
-          }`}
+        
+        {/* Botón carrito flotante con expansión */}
+        <button
+          onClick={handleAddToCart}
+          className={cn(
+            "absolute bottom-3 right-3 h-12 rounded-full bg-primary text-white shadow-lg transition-all duration-500 ease-out flex items-center justify-center gap-2 z-20 overflow-hidden group",
+            "hover:scale-110 hover:-translate-y-1 hover:shadow-2xl",
+            isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2",
+            showExpandedButton ? "w-auto px-4 pr-5" : "w-12"
+          )}
+          aria-label={`Agregar ${name} al carrito`}
         >
-            <span className="bg-black/50 backdrop-blur-sm text-white border border-white/20 font-medium py-2 px-5 rounded-full pointer-events-none tracking-wide text-sm">
-              Ver detalles
-            </span>
-        </div>
+          <ShoppingCart 
+            className="h-5 w-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-125 group-hover:-translate-y-0.5" 
+            strokeWidth={2} 
+          />
+          <span 
+            className={cn(
+              "whitespace-nowrap font-semibold text-sm transition-all duration-500 ease-out group-hover:scale-105",
+              showExpandedButton ? "opacity-100 w-auto max-w-[200px]" : "opacity-0 w-0 max-w-0"
+            )}
+          >
+            Añadir al carrito
+          </span>
+        </button>
       </div>
 
       {/* Contenido del producto */}

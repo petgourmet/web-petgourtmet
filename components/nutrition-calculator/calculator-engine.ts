@@ -29,12 +29,12 @@ export type LifeStageKey = keyof typeof LIFE_STAGE_FACTORS
 
 // ------------------------------------
 // Factores de actividad
-// Fuente: Excel "Bajo sin afectación / Moderado 2.0 / Activo 2.5"
+// Fuente: Flujo del cliente MVZ (Moderado 2.0 / Activo 5.0)
 // ------------------------------------
 export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   bajo: 1.0,       // Sin afectación
   moderado: 2.0,   // ×2.0 sobre el RED base
-  alto: 2.5,       // ×2.5 sobre el RED base
+  alto: 5.0,       // ×5.0 sobre el RED base (según especificación cliente)
 }
 
 // ------------------------------------

@@ -19,6 +19,7 @@ interface RecipeRecommendationSectionProps {
   gramsPerServing: number
   recipes: Recipe[]  // ya filtradas por alérgenos
   selectedRecipes: string[]
+  recommendedRecipeId?: string | null  // ID de la receta recomendada automáticamente
   onChange: (updates: Partial<CalculatorFormData>) => void
 }
 
@@ -28,6 +29,7 @@ export function RecipeRecommendationSection({
   gramsPerServing,
   recipes,
   selectedRecipes,
+  recommendedRecipeId,
   onChange,
 }: RecipeRecommendationSectionProps) {
   const name = petName || "tu perro"
@@ -59,6 +61,7 @@ export function RecipeRecommendationSection({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {recipes.map((recipe, idx) => {
             const isSelected = selectedRecipes.includes(recipe.id)
+            const isRecommended = recipe.id === recommendedRecipeId
             return (
               <motion.button
                 key={recipe.id}
@@ -67,12 +70,21 @@ export function RecipeRecommendationSection({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.08 }}
-                className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
+                className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
                   isSelected
                     ? "border-[#2a7880] bg-[#eef7f8] shadow-md"
+                    : isRecommended
+                    ? "border-[#7AB8BF] bg-gradient-to-br from-[#eef7f8] to-white hover:border-[#2a7880] shadow-sm"
                     : "border-gray-200 bg-white hover:border-[#7AB8BF] hover:shadow-sm"
                 }`}
               >
+                {/* Badge "Recomendada" */}
+                {isRecommended && !isSelected && (
+                  <div className="absolute top-2 right-2 bg-[#2a7880] text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md z-10">
+                    ⭐ Recomendada
+                  </div>
+                )}
+
                 {/* Imagen del producto */}
                 <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-100">
                   <Image

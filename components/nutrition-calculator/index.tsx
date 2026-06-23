@@ -19,11 +19,13 @@
 //   gramos = (RED / kcal_100g) × 100
 // ============================================================
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useClientAuth } from "@/hooks/use-client-auth"
+import { useCart } from "@/components/cart-context"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, ChevronDown } from "lucide-react"
+import Image from "next/image"
 
 import type { CalculatorFormData, LifeStage, ActivityLevel, ServingPlan, AllergenId } from "./types"
 import {
@@ -105,11 +107,13 @@ const isRecipesComplete      = (f: CalculatorFormData) => f.selectedRecipes.leng
 export function NutritionCalculator() {
   const router              = useRouter()
   const { user }            = useClientAuth()
+  const { addToCart, setShowCart } = useCart()
   const [form, setForm]           = useState<CalculatorFormData>(INITIAL_FORM)
   const [savedDogs, setSavedDogs]         = useState<SavedDogPlan[]>([])
   const [expandedDogId, setExpandedDogId] = useState<string | null>(null)
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError]         = useState<string | null>(null)
+  const addedToCartRef = useRef(false) // Para evitar agregar múltiples veces
 
   const handleChange = useCallback((updates: Partial<CalculatorFormData>) => {
     setForm((prev) => ({ ...prev, ...updates }))
@@ -183,17 +187,10 @@ export function NutritionCalculator() {
   const showRecipes     = showServingPlan && isServingPlanComplete(form) && calorieResult !== null
   const showSummary     = showRecipes   && isRecipesComplete(form)
 
-  // Auto-seleccionar receta recomendada cuando se revela esa sección
+  // NO auto-seleccionar receta - esperar selección manual del usuario
   const handleServingPlanChange = useCallback((updates: Partial<CalculatorFormData>) => {
-    setForm((prev) => {
-      const next = { ...prev, ...updates }
-      // Si aún no eligió receta, pre-seleccionar la recomendada
-      if (next.selectedRecipes.length === 0 && autoRecommendedId) {
-        next.selectedRecipes = [autoRecommendedId]
-      }
-      return next
-    })
-  }, [autoRecommendedId])
+    setForm((prev) => ({ ...prev, ...updates }))
+  }, [])
 
   // ─── Guardar plan del perro actual y empezar otro ─────────
   const totalDogs   = savedDogs.length + 1          // guardados + el actual
@@ -214,6 +211,7 @@ export function NutritionCalculator() {
     }
 
     setSavedDogs((prev) => [...prev, newSaved])
+    addedToCartRef.current = false // Resetear para el próximo perro
     window.scrollTo({ top: 0, behavior: "smooth" })
     setTimeout(() => setForm(INITIAL_FORM), 400)
   }, [form, calorieResult, totalDogs])
@@ -223,15 +221,13 @@ export function NutritionCalculator() {
     setExpandedDogId((prev) => (prev === id ? null : prev))
   }, [])
 
-  // ─── Checkout directo a Stripe (sin modal de datos) ──────
+  // ─── Checkout: Verificar auth y proceder a Stripe ──────
   const handleCheckout = useCallback(async () => {
     if (!selectedRecipeObjects.length || !calorieResult) return
     setCheckoutError(null)
 
-    // Sin sesión → mostrar aviso inline (igual que checkout/page.tsx)
+    // Si no hay usuario, no hacer nada (el panel se encarga de mostrar opciones)
     if (!user) {
-      setCheckoutError("auth")
-      setIsCheckoutLoading(false)
       return
     }
 
@@ -244,31 +240,44 @@ export function NutritionCalculator() {
         image: string; size: string; isSubscription: boolean; subscriptionType: string
       }[] = []
 
+      // Construir items de perros guardados
       savedDogs.forEach((dog) => {
         dog.recipeIds.forEach((recipeId) => {
           const recipe = getRecipeById(recipeId)
           if (!recipe) return
+          
+          // Calcular precio mensual (28 días) con 50% de descuento en primer pedido
+          const monthlyKg = (dog.dailyGrams * 28) / 1000
+          const fullMonthlyPrice = monthlyKg * recipe.pricePerKg
+          const discountedPrice = fullMonthlyPrice * 0.5  // 50% descuento primer pedido
+          
           items.push({
             id:               `calc-${dog.id}-${recipeId}`,
             name:             `${recipe.name} — ${dog.petName}`,
-            price:            recipe.pricePerKg * (dog.dailyGrams / 1000) * 28,
+            price:            discountedPrice,
             quantity:         1,
             image:            recipe.image,
-            size:             `${dog.dailyGrams}g/día`,
+            size:             `${dog.dailyGrams}g/día · ${Math.round(dog.dailyGrams / 2)}g por toma`,
             isSubscription:   true,
             subscriptionType: "monthly",
           })
         })
       })
 
+      // Construir items del perro actual
       selectedRecipeObjects.forEach((recipe) => {
+        // Calcular precio mensual (28 días) con 50% de descuento en primer pedido
+        const monthlyKg = (calorieResult.dailyGrams * 28) / 1000
+        const fullMonthlyPrice = monthlyKg * recipe.pricePerKg
+        const discountedPrice = fullMonthlyPrice * 0.5  // 50% descuento primer pedido
+        
         items.push({
           id:               `calc-current-${recipe.id}`,
           name:             `${recipe.name}${form.petName ? ` — ${form.petName}` : ""}`,
-          price:            recipe.pricePerKg * (calorieResult.dailyGrams / 1000) * 28,
+          price:            discountedPrice,
           quantity:         1,
           image:            recipe.image,
-          size:             `${calorieResult.dailyGrams}g/día`,
+          size:             `${calorieResult.dailyGrams}g/día · ${Math.round(calorieResult.dailyGrams / 2)}g por toma`,
           isSubscription:   true,
           subscriptionType: "monthly",
         })
@@ -293,6 +302,10 @@ export function NutritionCalculator() {
             user_id:       user.id,
             total:         total.toString(),
             shipping_cost: shippingCost.toString(),
+            source:        "nutrition_calculator",
+            pet_name:      form.petName || "Sin nombre",
+            daily_grams:   calorieResult.dailyGrams.toString(),
+            serving_plan:  form.servingPlan || "completo",
           },
         }),
       })
@@ -306,6 +319,7 @@ export function NutritionCalculator() {
       if (!url) throw new Error("No se recibió URL de Stripe")
 
       if (sessionId) localStorage.setItem("stripe_session_id", sessionId)
+      
       window.location.href = url
 
     } catch (err) {
@@ -313,7 +327,7 @@ export function NutritionCalculator() {
       setCheckoutError(msg)
       setIsCheckoutLoading(false)
     }
-  }, [user, router, savedDogs, selectedRecipeObjects, calorieResult, form.petName])
+  }, [user, router, savedDogs, selectedRecipeObjects, calorieResult, form.petName, form.servingPlan])
 
   const handleRemoveRecipe = useCallback((id: string) => {
     handleChange({ selectedRecipes: form.selectedRecipes.filter((r) => r !== id) })
@@ -322,6 +336,74 @@ export function NutritionCalculator() {
   const handleBackToRecipes = useCallback(() => {
     handleChange({ selectedRecipes: [] })
   }, [handleChange])
+
+  // ─── Agregar al carrito manualmente (con modal abierto) ──────
+  const handleManualAddToCart = useCallback(() => {
+    if (!selectedRecipeObjects.length || !calorieResult) return
+
+    // Agregar cada receta seleccionada al carrito
+    selectedRecipeObjects.forEach((recipe) => {
+      // Calcular precio mensual (28 días) con 50% de descuento en primer pedido
+      const monthlyKg = (calorieResult.dailyGrams * 28) / 1000
+      const fullMonthlyPrice = monthlyKg * recipe.pricePerKg
+      const discountedPrice = fullMonthlyPrice * 0.5  // 50% descuento primer pedido
+      
+      addToCart({
+        id:               parseInt(recipe.id.split('-')[0]) || Math.floor(Math.random() * 10000),
+        name:             `${recipe.name}${form.petName ? ` — ${form.petName}` : ""}`,
+        price:            discountedPrice,
+        quantity:         1,
+        image:            recipe.image,
+        size:             `${calorieResult.dailyGrams}g/día · ${Math.round(calorieResult.dailyGrams / 2)}g por toma`,
+        isSubscription:   true,
+        subscriptionType: "monthly",
+        slug:             recipe.productSlug || undefined,
+      }, true) // ← true = SÍ abrir el modal del carrito
+    })
+  }, [selectedRecipeObjects, calorieResult, form.petName, addToCart])
+
+  // ─── Agregar automáticamente al carrito cuando se completa el plan ─────────
+  // DESHABILITADO: Ahora el usuario debe hacer clic en "Añadir" manualmente
+  // useEffect(() => {
+  //   // Solo agregar si:
+  //   // 1. El plan de servicio está completo
+  //   // 2. Hay recetas seleccionadas
+  //   // 3. Hay resultado de calorías
+  //   // 4. No se ha agregado antes (para este plan)
+  //   if (
+  //     isServingPlanComplete(form) &&
+  //     selectedRecipeObjects.length > 0 &&
+  //     calorieResult &&
+  //     !addedToCartRef.current
+  //   ) {
+  //     addedToCartRef.current = true // Marcar como agregado
+
+  //     // Agregar cada receta seleccionada al carrito
+  //     selectedRecipeObjects.forEach((recipe) => {
+  //       // Calcular precio mensual (28 días) con 50% de descuento en primer pedido
+  //       const monthlyKg = (calorieResult.dailyGrams * 28) / 1000
+  //       const fullMonthlyPrice = monthlyKg * recipe.pricePerKg
+  //       const discountedPrice = fullMonthlyPrice * 0.5  // 50% descuento primer pedido
+  //       
+  //       addToCart({
+  //         id:               parseInt(recipe.id.split('-')[0]) || Math.floor(Math.random() * 10000),
+  //         name:             `${recipe.name}${form.petName ? ` — ${form.petName}` : ""}`,
+  //         price:            discountedPrice,
+  //         quantity:         1,
+  //         image:            recipe.image,
+  //         size:             `${calorieResult.dailyGrams}g/día · ${Math.round(calorieResult.dailyGrams / 2)}g por toma`,
+  //         isSubscription:   true,
+  //         subscriptionType: "monthly",
+  //         slug:             recipe.productSlug || undefined,
+  //       }, false) // ← false = NO abrir el modal del carrito
+  //     })
+  //   }
+
+  //   // Resetear el flag cuando se limpia el formulario o cambia el plan
+  //   if (!isServingPlanComplete(form) || selectedRecipeObjects.length === 0) {
+  //     addedToCartRef.current = false
+  //   }
+  // }, [form, selectedRecipeObjects, calorieResult, addToCart])
 
   // ─── Progreso ─────────────────────────────────────────────
   const STEPS = [
@@ -449,8 +531,8 @@ export function NutritionCalculator() {
       </AnimatePresence>
 
       {/* ── Barra de progreso ── */}
-      <div className="mb-8 px-1">
-        <div className="flex items-center justify-between mb-2">
+      <div className="mb-16 px-1">
+        <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-[#5d7276] uppercase tracking-wider">
             {savedDogs.length > 0
               ? `Perro ${savedDogs.length + 1} de ${MAX_DOGS}`
@@ -458,7 +540,7 @@ export function NutritionCalculator() {
           </span>
           <span className="text-xs font-bold text-[#2a7880]">{progressPct}%</span>
         </div>
-        <div className="w-full h-2 bg-[#e3ecee] rounded-full overflow-hidden">
+        <div className="w-full h-3 bg-[#e3ecee] rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-[#7AB8BF] to-[#2a7880] rounded-full"
             initial={{ width: "0%" }}
@@ -551,7 +633,15 @@ export function NutritionCalculator() {
         <Divider />
         <CalcSection
           number={3}
-          title={`Receta recomendada para ${form.petName || "tu perro"}:`}
+          title={
+            form.petName ? (
+              <>
+                Receta recomendada para <span className="text-[#2a7880]">{form.petName}</span>:
+              </>
+            ) : (
+              "Receta recomendada para tu perro:"
+            )
+          }
         >
           <RecipeRecommendationSection
             petName={form.petName}
@@ -559,6 +649,7 @@ export function NutritionCalculator() {
             gramsPerServing={calorieResult?.gramsPerServing ?? 0}
             recipes={availableRecipes}
             selectedRecipes={form.selectedRecipes}
+            recommendedRecipeId={autoRecommendedId}
             onChange={handleChange}
           />
         </CalcSection>
@@ -567,7 +658,17 @@ export function NutritionCalculator() {
       {/* ── 8. Resumen del plan ── */}
       <SectionReveal visible={showSummary} className="pt-10">
         <Divider />
-        <CalcSection title={`Plan recomendado para ${form.petName || "tu perro"}`}>
+        <CalcSection
+          title={
+            form.petName ? (
+              <>
+                Plan recomendado para <span className="text-[#2a7880]">{form.petName}</span>
+              </>
+            ) : (
+              "Plan recomendado para tu perro"
+            )
+          }
+        >
           <PlanSummarySection
             petName={form.petName}
             selectedRecipes={selectedRecipeObjects}
@@ -579,6 +680,7 @@ export function NutritionCalculator() {
             canAddMore={canAddMore}
             isCheckoutLoading={isCheckoutLoading}
             checkoutError={checkoutError}
+            isAuthenticated={!!user}
             onDismissError={() => setCheckoutError(null)}
             onToggleExtra={(id) => {
               const updated = form.selectedExtras.includes(id)
@@ -590,6 +692,7 @@ export function NutritionCalculator() {
             onAddAnotherDog={handleAddAnotherDog}
             onBackToRecipes={handleBackToRecipes}
             onCheckout={handleCheckout}
+            onAddToCart={handleManualAddToCart}
           />
         </CalcSection>
       </SectionReveal>
@@ -659,7 +762,7 @@ function CalcSection({
   children,
 }: {
   number?: number
-  title: string
+  title: string | React.ReactNode
   children: React.ReactNode
 }) {
   return (

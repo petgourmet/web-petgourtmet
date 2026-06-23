@@ -10,8 +10,9 @@
 
 import type { Recipe } from "../types"
 
-// Precio real: $408 MXN / paquete de 6 porciones × 80g = 480g
+// Precio actualizado: $408 MXN / paquete de 6 porciones × 80g = 480g
 // → pricePerKg = $408 / 0.480kg ≈ $850 MXN/kg
+// Este precio está alineado con el cálculo en plan-summary-section.tsx
 const PRICE_PER_KG = 850
 
 export const RECIPES: Recipe[] = [
@@ -30,7 +31,7 @@ export const RECIPES: Recipe[] = [
       { name: "Zanahoria",icon: "/iconos/image/carrot-slice.png" },
     ],
     // Producto real: "Pastel por porción de pollo y verduras x 6 unidades"
-    image: "https://res.cloudinary.com/dn7unepxa/image/upload/v1749168609/products/hcnkcdqv67vure97tiab.webp",
+    image: "/cacu/pollo-ver.png",
     productSlug: "pastel-porcin-de-pollo-verduras-hippo",
     pricePerKg: PRICE_PER_KG,
   },
@@ -49,7 +50,7 @@ export const RECIPES: Recipe[] = [
       { name: "Espinaca", icon: "/iconos/image/spinach-leaf.png" },
     ],
     // Producto real: "Pastel por porción de carne y verduras x 6 unidades"
-    image: "https://res.cloudinary.com/dn7unepxa/image/upload/v1749162638/products/qajybx64czfggsw0hjzc.webp",
+    image: "/cacu/carne-ver.png",
     productSlug: "pastel-porcin-de-carne-y-verduras-dante",
     pricePerKg: PRICE_PER_KG,
   },
@@ -67,8 +68,8 @@ export const RECIPES: Recipe[] = [
       { name: "Zanahoria",icon: "/iconos/image/carrot-slice.png" },
       { name: "Chayote",  icon: "/iconos/image/apple-slice.png" },
     ],
-    // Usar imagen de placeholder hasta que exista el producto en Supabase
-    image: "/pastel-carne-front.webp",
+    // Imagen local actualizada
+    image: "/cacu/cerdo-ver.png",
     // Sin slug propio — redirige al catálogo de complementar
     productSlug: null,
     pricePerKg: PRICE_PER_KG,
@@ -88,7 +89,7 @@ export const RECIPES: Recipe[] = [
       { name: "Ejote",    icon: "/iconos/image/carrot-slice.png" },
     ],
     // Producto real: "Pastel porción de ternera y espinaca x 6 unidades"
-    image: "https://res.cloudinary.com/dn7unepxa/image/upload/v1749160663/products/pkxrxomv6bnssbdjavkk.webp",
+    image: "/cacu/ternera-espi.png",
     productSlug: "pastel-porcin-de-ternera-y-espinca-anabella",
     pricePerKg: PRICE_PER_KG,
   },

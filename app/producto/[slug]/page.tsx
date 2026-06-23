@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/components/cart-context"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   ShoppingCart,
   Check,
@@ -55,6 +56,7 @@ export default function ProductDetailPage() {
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
   const [isVariableProduct, setIsVariableProduct] = useState(false)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
 
   const { addToCart, setShowCart } = useCart()
   const router = useRouter()
@@ -288,6 +290,7 @@ export default function ProductDetailPage() {
       isSubscription,
       subscriptionType: isSubscription ? subscriptionType : undefined,
       subscriptionDiscount: isSubscription ? (discount * 100) : undefined,
+      slug: productSlug,  // Agregar slug para navegación
       // Agregar campos de descuento del producto
       weekly_discount: product.weekly_discount,
       biweekly_discount: product.biweekly_discount,
@@ -298,6 +301,67 @@ export default function ProductDetailPage() {
       variantId: isVariableProduct && selectedVariant ? selectedVariant.id : undefined,
       variantName: isVariableProduct && selectedVariant ? selectedVariant.name : undefined,
     })
+    return true
+  }
+
+  const handleAddOneToCart = (): boolean => {
+    if (!product || isAddingToCart) return false
+
+    // Si es producto variable y no hay variante seleccionada, no permitir agregar
+    if (isVariableProduct && !selectedVariant) {
+      alert("Por favor selecciona una variante")
+      return false
+    }
+
+    // Prevenir clics múltiples
+    setIsAddingToCart(true)
+
+    // Determinar precio, nombre e imagen según si es variante o producto simple
+    const basePrice = isVariableProduct && selectedVariant
+      ? selectedVariant.price
+      : selectedSize
+        ? selectedSize.price
+        : product.price
+
+    const productName = isVariableProduct && selectedVariant
+      ? `${product.name} - ${selectedVariant.name}`
+      : product.name
+
+    const productImage = isVariableProduct && selectedVariant && selectedVariant.image
+      ? selectedVariant.image
+      : product.image
+
+    const sizeWeight = selectedSize ? selectedSize.weight : "Único"
+
+    // Calcular precio con descuento si es suscripción
+    const discount = getSubscriptionDiscount()
+    const finalPrice = basePrice * (isSubscription ? 1 - discount : 1)
+
+    addToCart({
+      id: product.id,
+      name: productName,
+      price: finalPrice,
+      image: productImage,
+      size: sizeWeight,
+      quantity: 1, // Siempre agregar solo 1 unidad
+      isSubscription,
+      subscriptionType: isSubscription ? subscriptionType : undefined,
+      subscriptionDiscount: isSubscription ? (discount * 100) : undefined,
+      slug: productSlug,
+      weekly_discount: product.weekly_discount,
+      biweekly_discount: product.biweekly_discount,
+      monthly_discount: product.monthly_discount,
+      quarterly_discount: product.quarterly_discount,
+      annual_discount: product.annual_discount,
+      variantId: isVariableProduct && selectedVariant ? selectedVariant.id : undefined,
+      variantName: isVariableProduct && selectedVariant ? selectedVariant.name : undefined,
+    })
+
+    // Re-habilitar el botón después de 500ms
+    setTimeout(() => {
+      setIsAddingToCart(false)
+    }, 500)
+
     return true
   }
 
@@ -827,27 +891,52 @@ export default function ProductDetailPage() {
                       )}
                     </div>
                   </div>
-                  {/* Botón comprar — ancho completo */}
-                  <Button
-                    className="w-full rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white py-4 text-base font-semibold"
-                    onClick={() => {
-                      if (handleAddToCart()) {
-                        if (isSubscription) {
-                          setShowCart(true)
-                        } else {
+                  {/* Botones de acción */}
+                  <div className="flex gap-3 items-center">
+                    {/* Botón comprar */}
+                    <Button
+                      className="flex-1 rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white py-4 text-base font-semibold h-auto"
+                      onClick={() => {
+                        if (handleAddToCart()) {
+                          // Siempre ir al checkout, tanto para compra única como suscripción
                           setShowCart(false)
                           router.push('/checkout')
                         }
+                      }}
+                      disabled={isVariableProduct && !selectedVariant}
+                    >
+                      <ShoppingCart className="h-5 w-5 mr-2 shrink-0" />
+                      {isVariableProduct && !selectedVariant
+                        ? "Selecciona una variante"
+                        : isSubscription ? "Suscribirme ahora" : "Comprar"
                       }
-                    }}
-                    disabled={isVariableProduct && !selectedVariant}
-                  >
-                    <ShoppingCart className="h-5 w-5 mr-2 shrink-0" />
-                    {isVariableProduct && !selectedVariant
-                      ? "Selecciona una variante"
-                      : isSubscription ? "Suscribirme ahora" : "Comprar"
-                    }
-                  </Button>
+                    </Button>
+                    {/* Botón agregar al carrito (circular) con tooltip */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            className="rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white w-14 h-14 flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-200"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              if (handleAddOneToCart()) {
+                                setShowCart(true)
+                              }
+                            }}
+                            disabled={isVariableProduct && !selectedVariant || isAddingToCart}
+                            aria-label="Agregar al carrito"
+                          >
+                            <Plus className="h-5 w-5" strokeWidth={2.5} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p>Agregar al carrito</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
               </div>
 

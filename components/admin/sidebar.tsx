@@ -62,8 +62,8 @@ export function AdminSidebar() {
       icon: <ShoppingBag size={20} />,
     },
     {
-      title: "Suscripciones",
-      href: "/admin/subscription-orders",
+      title: "Monitor de Suscripciones",
+      href: "/admin/subscription-monitor",
       icon: <CreditCard size={20} />,
     },
   ]

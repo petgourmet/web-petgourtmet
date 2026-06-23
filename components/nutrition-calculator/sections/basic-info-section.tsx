@@ -55,7 +55,13 @@ export function BasicInfoSection({ data, onChange }: BasicInfoSectionProps) {
         {/* Género */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-[#5d7276] text-center">
-            {petName ? `${petName} es:` : "Tu perro es:"}
+            {petName ? (
+              <>
+                <span className="text-base font-bold text-[#2a7880]">{petName}</span> es:
+              </>
+            ) : (
+              "Tu perro es:"
+            )}
           </label>
           <div className="bg-white border border-[#e3ecee] rounded-[18px] px-4 py-3 shadow-sm flex items-center justify-center gap-3">
             {(["macho", "hembra"] as PetGender[]).map((g) => (
@@ -78,7 +84,13 @@ export function BasicInfoSection({ data, onChange }: BasicInfoSectionProps) {
         {/* Peso con stepper */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-[#5d7276] text-center">
-            {petName ? `Peso de ${petName} (kg):` : "Peso en kilos:"}
+            {petName ? (
+              <>
+                Peso de <span className="text-base font-bold text-[#2a7880]">{petName}</span> (kg):
+              </>
+            ) : (
+              "Peso en kilos:"
+            )}
           </label>
           <div className={`bg-white border rounded-[18px] px-3 py-2.5 shadow-sm flex items-center gap-2 transition-colors ${
             weightError
