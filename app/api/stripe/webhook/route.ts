@@ -27,6 +27,63 @@ const supabaseAdmin = createClient(
 )
 
 /**
+ * Actualiza el perfil del usuario con los datos de envío recolectados en Stripe
+ */
+async function updateUserProfile(
+  userId: string,
+  shippingAddress: any,
+  customerName: string | null,
+  customerPhone: string | null
+) {
+  if (!userId || !shippingAddress) return
+
+  try {
+    // Obtener perfil existente para verificar/fallbacks
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    const formattedAddressStr = [
+      shippingAddress.address,
+      shippingAddress.address2,
+      shippingAddress.city,
+      shippingAddress.state,
+      shippingAddress.postalCode ? `CP: ${shippingAddress.postalCode}` : '',
+      shippingAddress.country
+    ].filter(Boolean).join(', ')
+
+    const updateData: Record<string, any> = {
+      shipping_address: shippingAddress,
+      address: formattedAddressStr,
+      updated_at: new Date().toISOString()
+    }
+
+    if (!profile?.full_name && customerName) {
+      updateData.full_name = customerName
+    }
+    if (!profile?.phone && customerPhone) {
+      updateData.phone = customerPhone
+    }
+
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+
+    if (error) {
+      console.error('[PROFILE-UPDATE] Error al actualizar perfil:', error.message)
+    } else {
+      console.log('[PROFILE-UPDATE] ✅ Perfil de usuario actualizado con dirección de Stripe:', userId)
+    }
+  } catch (err) {
+    console.error('[PROFILE-UPDATE] Error en updateUserProfile:', err)
+  }
+}
+
+
+/**
  * Maneja el evento checkout.session.completed
  * Usa la utilidad compartida createOrderFromSession para idempotencia
  */
@@ -99,6 +156,29 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         }
       } catch (retrieveError) {
         console.error('⚠️ [WEBHOOK] Error al recuperar sesión para dirección:', retrieveError)
+      }
+    }
+
+
+    // Fallback: Buscar directamente en el Stripe Customer
+    if (!shippingAddress && session.customer) {
+      try {
+        const stripeCustomer = await stripe.customers.retrieve(session.customer as string) as any
+        if (stripeCustomer.shipping) {
+          const sd = stripeCustomer.shipping
+          shippingAddress = {
+            address: sd.address?.line1 || '',
+            address2: sd.address?.line2 || '',
+            city: sd.address?.city || '',
+            state: sd.address?.state || '',
+            postalCode: sd.address?.postal_code || '',
+            country: sd.address?.country || 'MX',
+            name: sd.name || stripeCustomer.name || customerName || '',
+          }
+          console.log('📦 [WEBHOOK] Dirección obtenida de Stripe Customer:', shippingAddress)
+        }
+      } catch (custError) {
+        console.error('⚠️ [WEBHOOK] Error al obtener customer de Stripe:', custError)
       }
     }
 
@@ -442,6 +522,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       discounted_price: priceInMXN,
       transaction_amount: totalAmount,
     })
+    if (userId && shippingAddress) {
+      await updateUserProfile(userId, shippingAddress, customerName, session.customer_details?.phone || null)
+    }
+
     
     // Enviar email de confirmación solo si es nueva (no al reparar)
     if (!existingSubscription) {
