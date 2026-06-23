@@ -832,10 +832,10 @@ export default function ProductDetailPage() {
                     className="w-full rounded-full bg-[#7BBDC5] hover:bg-[#7BBDC5]/90 text-white py-4 text-base font-semibold"
                     onClick={() => {
                       if (handleAddToCart()) {
-                        setShowCart(false)
-                        if (isSubscription && !user) {
-                          router.push(`/auth/login?redirect=${encodeURIComponent('/checkout')}`)
+                        if (isSubscription) {
+                          setShowCart(true)
                         } else {
+                          setShowCart(false)
                           router.push('/checkout')
                         }
                       }
