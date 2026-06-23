@@ -6,6 +6,7 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Calculator, ShoppingBag } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 // ─── Contenidos ─────────────────────────────────────
 const CONTENTS = {
@@ -33,6 +34,7 @@ const CONTENTS = {
 
 export function HomeHero() {
   const [active, setActive] = useState<"products" | "calculator">("products")
+  const { toast } = useToast()
 
   // Auto-switch cada 10 segundos
   useEffect(() => {
@@ -44,6 +46,15 @@ export function HomeHero() {
 
   const content = CONTENTS[active]
   const Icon = content.icon
+
+  const handleCalculatorClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    toast({
+      title: "Próximamente",
+      description: "La calculadora nutricional estará disponible muy pronto. ¡Mantente atento!",
+      duration: 4000,
+    })
+  }
 
   return (
     <section className="relative z-20 overflow-hidden bg-primary">
@@ -78,23 +89,43 @@ export function HomeHero() {
 
               {/* CTA */}
               <div className="mt-8">
-                <Button
-                  asChild
-                  size="lg"
-                  className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
-                >
-                  <Link href={content.cta.href} className="flex items-center gap-2.5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src="/favicon.ico"
-                      alt="Pet Gourmet"
-                      width={48}
-                      height={48}
-                      className="rounded-full border-2 border-white object-cover"
-                    />
-                    {content.cta.label}
-                  </Link>
-                </Button>
+                {active === "calculator" ? (
+                  <Button
+                    size="lg"
+                    onClick={handleCalculatorClick}
+                    className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="/favicon.ico"
+                        alt="Pet Gourmet"
+                        width={48}
+                        height={48}
+                        className="rounded-full border-2 border-white object-cover"
+                      />
+                      {content.cta.label}
+                    </div>
+                  </Button>
+                ) : (
+                  <Button
+                    asChild
+                    size="lg"
+                    className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
+                  >
+                    <Link href={content.cta.href} className="flex items-center gap-2.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="/favicon.ico"
+                        alt="Pet Gourmet"
+                        width={48}
+                        height={48}
+                        className="rounded-full border-2 border-white object-cover"
+                      />
+                      {content.cta.label}
+                    </Link>
+                  </Button>
+                )}
               </div>
             </motion.div>
           </AnimatePresence>
