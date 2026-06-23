@@ -364,19 +364,23 @@ export function PlanSummarySection({
             <div className="border-t border-gray-100 pt-4 space-y-2.5">
               <PriceLine
                 label={`Precio por ${DELIVERY_DAYS} días`}
-                value={`$${pricing.fullPrice.toFixed(2)}`}
+                value={`$${pricing.fullPrice.toFixed(2)} MXN`}
                 crossed
               />
               <PriceLine
                 label="50% de descuento (primer pedido)"
-                value={`-$${pricing.discount.toFixed(2)}`}
+                value={`-$${pricing.discount.toFixed(2)} MXN`}
                 highlight
               />
               <PriceLine
                 label="Precio por día"
-                value={`$${pricing.pricePerDay.toFixed(2)}`}
-                valueCrossed={`$${(pricing.fullPrice / DELIVERY_DAYS).toFixed(2)}`}
+                value={`$${pricing.pricePerDay.toFixed(2)} MXN`}
+                valueCrossed={`$${(pricing.fullPrice / DELIVERY_DAYS).toFixed(2)} MXN`}
               />
+              {/* Nota explicativa del cálculo */}
+              <p className="text-[10px] text-gray-400 italic pl-2">
+                ${grandTotal.toFixed(2)} ÷ {DELIVERY_DAYS} días = ${pricing.pricePerDay.toFixed(2)} MXN/día
+              </p>
               <AnimatePresence>
                 {extrasTotal > 0 && (
                   <motion.div
@@ -386,7 +390,7 @@ export function PlanSummarySection({
                   >
                     <PriceLine
                       label="Extras"
-                      value={`+$${extrasTotal.toFixed(2)}`}
+                      value={`+$${extrasTotal.toFixed(2)} MXN`}
                     />
                   </motion.div>
                 )}
@@ -405,7 +409,7 @@ export function PlanSummarySection({
                   transition={{ duration: 0.35, ease: "easeOut" }}
                   className="text-xl font-extrabold"
                 >
-                  ${grandTotal.toFixed(2)}
+                  ${grandTotal.toFixed(2)} MXN
                 </motion.span>
               </motion.div>
             </div>
