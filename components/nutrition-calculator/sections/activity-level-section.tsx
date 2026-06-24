@@ -51,15 +51,15 @@ export function ActivityLevelSection({
               label={option.label}
               description={getActivityDescription(option.id)}
               illustration={
-                // Contenedor responsive: 176px mobile · 224px desktop.
-                // sizes en Image permite que Next sirva la mejor resolución.
-                <div className="w-44 h-44 md:w-56 md:h-56 flex items-center justify-center">
+                // Contenedor responsive: 144px mobile · 176px desktop.
+                // Reducido para que las tarjetas sean más compactas.
+                <div className="w-36 h-36 md:w-44 md:h-44 flex items-center justify-center">
                   <Image
                     src={option.image}
                     alt={option.label}
-                    width={224}
-                    height={224}
-                    sizes="(min-width: 768px) 224px, 176px"
+                    width={176}
+                    height={176}
+                    sizes="(min-width: 768px) 176px, 144px"
                     className="object-contain w-full h-full"
                   />
                 </div>

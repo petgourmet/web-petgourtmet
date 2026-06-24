@@ -52,16 +52,15 @@ export function LifeStageSection({
               label={option.label}
               description={getLifeStageRange(option.id)}
               illustration={
-                // Contenedor responsive: 160px mobile · 192px desktop.
-                // Algo menor que activity-level porque tiene 4 columnas
-                // en lugar de 3.
-                <div className="w-40 h-40 md:w-48 md:h-48 flex items-center justify-center">
+                // Contenedor responsive: 128px mobile · 160px desktop.
+                // Reducido para que las tarjetas sean más compactas.
+                <div className="w-32 h-32 md:w-40 md:h-40 flex items-center justify-center">
                   <Image
                     src={option.image}
                     alt={option.label}
-                    width={192}
-                    height={192}
-                    sizes="(min-width: 768px) 192px, 160px"
+                    width={160}
+                    height={160}
+                    sizes="(min-width: 768px) 160px, 128px"
                     className="object-contain w-full h-full"
                   />
                 </div>

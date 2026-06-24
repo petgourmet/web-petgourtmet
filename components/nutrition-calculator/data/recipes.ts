@@ -10,10 +10,10 @@
 
 import type { Recipe } from "../types"
 
-// Precio actualizado: $408 MXN / paquete de 6 porciones × 80g = 480g
-// → pricePerKg = $408 / 0.480kg ≈ $850 MXN/kg
-// Este precio está alineado con el cálculo en plan-summary-section.tsx
-const PRICE_PER_KG = 850
+// Precio del configurador de planes: $80 MXN/kg (ajuste del
+// cliente). Este precio está alineado con el cálculo en
+// plan-summary-section.tsx (también $80/kg).
+const PRICE_PER_KG = 80
 
 export const RECIPES: Recipe[] = [
   {

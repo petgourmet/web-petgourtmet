@@ -41,9 +41,9 @@ export function AllergiesSection({
   }
 
   return (
-    <div className="w-full space-y-5">
+    <div className="w-full space-y-5 text-center">
       {/* Toggle tiene / no tiene */}
-      <div className="flex flex-wrap items-center gap-3 text-lg font-medium text-gray-700">
+      <div className="flex flex-wrap items-center justify-center gap-3 text-lg font-medium text-gray-700">
         <span className="capitalize">{name}</span>
 
         <button
@@ -75,7 +75,7 @@ export function AllergiesSection({
 
       {/* Chips de alérgenos */}
       {hasAllergies === true && (
-        <div ref={chipsRef} className="flex flex-wrap gap-3">
+        <div ref={chipsRef} className="flex flex-wrap justify-center gap-3">
           {ALLERGEN_OPTIONS.map((allergen) => (
             <button
               key={allergen.id}

@@ -117,6 +117,9 @@ export function NutritionCalculator() {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError]         = useState<string | null>(null)
   const [randomExtras, setRandomExtras]           = useState<ExtraProduct[]>([])
+  // Cantidades por receta (en MESES, 1 mes = 28 bolsas).
+  // Default: 1 mes por receta.
+  const [recipeQuantities, setRecipeQuantities] = useState<Record<string, number>>({})
   const addedToCartRef = useRef(false) // Para evitar agregar múltiples veces
 
   // ─── Recetas activas desde config (o fallback a hardcoded) ───
@@ -255,21 +258,48 @@ export function NutritionCalculator() {
     addedToCartRef.current = false
   }, [])
 
-  // ─── Auto-selección de receta recomendada al elegir tipo de plan ───────
+  // ─── Auto-selección de TODAS las recetas disponibles al elegir tipo de plan ───
   // Cuando el usuario elige "completo" o "medio", si todavía no ha
-  // seleccionado manualmente ninguna receta, marcamos la recomendada
-  // automáticamente. Así el usuario no tiene que hacer scroll y click
-  // adicional para continuar.
+  // seleccionado manualmente ninguna receta, marcamos TODAS las
+  // recetas disponibles (filtradas por alérgenos). Así el usuario
+  // ve el plan más completo recomendado y puede deseleccionar las
+  // que no quiera. La receta marcada como "recomendada" sigue
+  // resaltándose visualmente desde RecipeRecommendationSection.
   useEffect(() => {
     if (
       form.servingPlan &&
-      autoRecommendedId &&
-      form.selectedRecipes.length === 0 &&
-      availableRecipes.some((r) => r.id === autoRecommendedId)
+      availableRecipes.length > 0 &&
+      form.selectedRecipes.length === 0
     ) {
-      setForm((prev) => ({ ...prev, selectedRecipes: [autoRecommendedId] }))
+      setForm((prev) => ({
+        ...prev,
+        selectedRecipes: availableRecipes.map((r) => r.id),
+      }))
     }
-  }, [form.servingPlan, autoRecommendedId, form.selectedRecipes.length, availableRecipes])
+  }, [form.servingPlan, availableRecipes, form.selectedRecipes.length])
+
+  // ─── Inicializar cantidades de recetas (28 bolsas por defecto) ───
+  // Cuando cambian las recetas seleccionadas, inicializamos la
+  // cantidad a 28 bolsas (1 mes) para las nuevas y eliminamos las
+  // que ya no están seleccionadas.
+  useEffect(() => {
+    setRecipeQuantities((prev) => {
+      const updated: Record<string, number> = {}
+      for (const id of form.selectedRecipes) {
+        updated[id] = prev[id] ?? 28 // mantener cantidad existente o default 28 bolsas
+      }
+      return updated
+    })
+  }, [form.selectedRecipes])
+
+  // Handler para cambiar cantidad de una receta (en bolsas)
+  const handleRecipeQuantityChange = useCallback((recipeId: string, delta: number) => {
+    setRecipeQuantities((prev) => {
+      const current = prev[recipeId] ?? 28
+      const next = Math.max(1, current + delta) // mínimo 1 bolsa
+      return { ...prev, [recipeId]: next }
+    })
+  }, [])
 
   // ─── Auto-agregar al carrito al completar el plan ──────────
   // Cuando hay servingPlan + receta seleccionada + cálculo listo,
@@ -762,6 +792,8 @@ export function NutritionCalculator() {
             checkoutError={checkoutError}
             isAuthenticated={!!user}
             outOfStock={!NUTRITION_PLAN_IN_STOCK}
+            recipeQuantities={recipeQuantities}
+            onRecipeQuantityChange={handleRecipeQuantityChange}
             onDismissError={() => setCheckoutError(null)}
             onToggleExtra={(id) => {
               const updated = form.selectedExtras.includes(id)

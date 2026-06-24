@@ -1,12 +1,12 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
 
 export function FloatingCreatePlanButton() {
   const pathname = usePathname()
-  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -28,13 +28,10 @@ export function FloatingCreatePlanButton() {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
     e.stopPropagation()
-    try {
-      router.push("/crear-plan")
-    } catch (err) {
-      console.error('Error navigating to plan:', err)
-      // Fallback: usar window.location si router falla
-      window.location.href = "/crear-plan"
-    }
+    toast.info("Próximamente podrás perronalizar tu plan", {
+      description: "Estamos trabajando para ofrecerte la mejor experiencia. ¡Gracias por tu paciencia!",
+      duration: 4000,
+    })
   }
 
   // No renderizar en SSR ni en la propia página

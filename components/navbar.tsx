@@ -12,6 +12,7 @@ import { ThemeToggleButton } from "@/components/theme-toggle-button"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { useMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { toast } from "sonner"
 
 // Modales solo se cargan cuando el usuario los abre — fuera del bundle inicial
 const CartModal = dynamic(() => import("@/components/cart-modal").then(m => ({ default: m.CartModal })), { ssr: false })
@@ -136,9 +137,18 @@ export function Navbar() {
             <Link href="/tiendas" className="btn-rounded text-white hover:text-white/80 btn-glow">
               Tiendas
             </Link>
-            <Link href="/crear-plan" className="btn-rounded text-white hover:text-white/80 btn-glow">
+            <button
+              type="button"
+              onClick={() => {
+                toast.info("Próximamente podrás perronalizar tu plan", {
+                  description: "Estamos trabajando para ofrecerte la mejor experiencia. ¡Gracias por tu paciencia!",
+                  duration: 4000,
+                })
+              }}
+              className="btn-rounded text-white hover:text-white/80 btn-glow"
+            >
               Alimentación Perronalizada
-            </Link>
+            </button>
             </nav>
 
             {/* Action Buttons */}
@@ -442,14 +452,20 @@ export function Navbar() {
               </Link>
 
               {/* Crear Plan */}
-              <Link
-                href="/crear-plan"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false)
+                  toast.info("Próximamente podrás perronalizar tu plan", {
+                    description: "Estamos trabajando para ofrecerte la mejor experiencia. ¡Gracias por tu paciencia!",
+                    duration: 4000,
+                  })
+                }}
+                className="flex items-center py-3 px-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 w-full text-left"
               >
                 <Heart size={20} className="mr-3 text-primary" />
                 <span className="font-medium">Alimentación Perronalizada</span>
-              </Link>
+              </button>
             </nav>
 
             {/* Quick Actions */}

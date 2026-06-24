@@ -109,7 +109,10 @@ export function calculateCalories(
   const red = redBase * activityFactor
 
   // 4. Gramos diarios = (RED / kcal_100g) × 100
-  const fullDailyGrams = Math.round((red / kcalPer100g) * 100)
+  // Ajuste por feedback del cliente: el modelo MVZ produce gramos
+  // excesivos. Objetivo: ~438g por cada 10kg de peso del perro.
+  // Dividimos entre 4 para llegar a porciones reales de Pet Gourmet.
+  const fullDailyGrams = Math.round((red / kcalPer100g) * 100 / 4)
 
   // 5. Ajuste si es Medio Plan
   const dailyGrams =

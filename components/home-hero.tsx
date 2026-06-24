@@ -6,6 +6,7 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Calculator, ShoppingBag } from "lucide-react"
+import { toast } from "sonner"
 
 // ─── Contenidos ─────────────────────────────────────
 const CONTENTS = {
@@ -96,23 +97,48 @@ export function HomeHero() {
 
               {/* CTA */}
               <div className="mt-8">
-                <Button
-                  asChild
-                  size="lg"
-                  className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
-                >
-                  <Link href={content.cta.href} className="flex items-center gap-2.5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src="/favicon.ico"
-                      alt="Pet Gourmet"
-                      width={48}
-                      height={48}
-                      className="rounded-full border-2 border-white object-cover"
-                    />
-                    {content.cta.label}
-                  </Link>
-                </Button>
+                {active === "calculator" ? (
+                  <Button
+                    size="lg"
+                    onClick={() => {
+                      toast.info("Próximamente podrás perronalizar tu plan", {
+                        description: "Estamos trabajando para ofrecerte la mejor experiencia. ¡Gracias por tu paciencia!",
+                        duration: 4000,
+                      })
+                    }}
+                    className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="/favicon.ico"
+                        alt="Pet Gourmet"
+                        width={48}
+                        height={48}
+                        className="rounded-full border-2 border-white object-cover"
+                      />
+                      {content.cta.label}
+                    </span>
+                  </Button>
+                ) : (
+                  <Button
+                    asChild
+                    size="lg"
+                    className="rounded-full border-2 border-white bg-white/10 px-8 py-7 text-lg font-semibold text-white shadow-[0_0_0_2px_rgba(255,255,255,0.4)] backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:bg-white/20 hover:shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
+                  >
+                    <Link href={content.cta.href} className="flex items-center gap-2.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="/favicon.ico"
+                        alt="Pet Gourmet"
+                        width={48}
+                        height={48}
+                        className="rounded-full border-2 border-white object-cover"
+                      />
+                      {content.cta.label}
+                    </Link>
+                  </Button>
+                )}
               </div>
             </motion.div>
           </AnimatePresence>

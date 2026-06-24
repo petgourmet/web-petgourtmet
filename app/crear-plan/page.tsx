@@ -2,16 +2,17 @@
 // PÁGINA: /crear-plan
 //
 // Calculadora de alimentación personalizada para Pet Gourmet.
-// Flujo de scroll-down progresivo en una sola pantalla.
+// TEMPORALMENTE DESHABILITADA - Muestra mensaje de "Próximamente"
 // ============================================================
 
 import type { Metadata } from "next"
-import { NutritionCalculator } from "@/components/nutrition-calculator"
+import Link from "next/link"
+import { Clock, ArrowLeft, Heart } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Alimentación Perronalizada | Pet Gourmet",
+  title: "Próximamente - Alimentación Perronalizada | Pet Gourmet",
   description:
-    "Crea el plan de nutrición premium personalizado para tu perro. Descubre cuánto y qué receta necesita según su peso, etapa de vida y nivel de actividad.",
+    "Muy pronto podrás crear el plan de nutrición premium personalizado para tu perro. ¡Estamos trabajando para ofrecerte la mejor experiencia!",
 }
 
 export default function CrearPlanPage() {
@@ -41,20 +42,81 @@ export default function CrearPlanPage() {
             Calculamos la porción exacta para tu perro según su peso, etapa de vida y
             nivel de actividad.
           </p>
-
-          {/* Indicador de scroll */}
-          <div className="mt-8 flex items-center justify-center gap-2 text-white/50 text-sm">
-            <svg className="h-4 w-4 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-            Empieza a completar el formulario abajo
-          </div>
         </div>
       </section>
 
-      {/* ── Calculadora principal ── */}
-      <div className="w-full px-4 py-10 md:px-8 md:py-14 max-w-5xl mx-auto">
-        <NutritionCalculator />
+      {/* ── Mensaje de Próximamente ── */}
+      <div className="w-full px-4 py-16 md:px-8 md:py-24 max-w-3xl mx-auto">
+        <div className="text-center space-y-8">
+          {/* Icono */}
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-[#2a7880]/10 flex items-center justify-center">
+                <Clock className="w-12 h-12 text-[#2a7880]" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center">
+                <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Título */}
+          <div className="space-y-3">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+              ¡Próximamente!
+            </h2>
+            <p className="text-xl text-[#2a7880] font-semibold">
+              Podrás perronalizar tu plan
+            </p>
+          </div>
+
+          {/* Descripción */}
+          <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
+            Estamos trabajando para ofrecerte la mejor experiencia de nutrición 
+            personalizada para tu mejor amigo. ¡Gracias por tu paciencia!
+          </p>
+
+          {/* Beneficios que vendrán */}
+          <div className="bg-gray-50 rounded-2xl p-6 max-w-md mx-auto">
+            <p className="text-sm font-semibold text-gray-700 mb-4">
+              Muy pronto podrás:
+            </p>
+            <ul className="space-y-3 text-left">
+              {[
+                "Calcular la porción exacta para tu perro",
+                "Elegir entre nuestras recetas premium",
+                "Recibir un plan personalizado mensual",
+                "Disfrutar de envío gratis en tu primer pedido",
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-gray-600">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#2a7880]/10 flex items-center justify-center mt-0.5">
+                    <span className="w-2 h-2 rounded-full bg-[#2a7880]" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* CTA para volver */}
+          <div className="pt-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#2a7880] text-white font-semibold hover:bg-[#1d636b] transition-colors shadow-lg hover:shadow-xl"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver al inicio
+            </Link>
+          </div>
+
+          {/* Texto adicional */}
+          <p className="text-sm text-gray-400">
+            Mientras tanto, explora nuestros{" "}
+            <Link href="/productos" className="text-[#2a7880] hover:underline font-medium">
+              productos disponibles
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   )

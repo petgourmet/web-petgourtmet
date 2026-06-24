@@ -8,6 +8,7 @@
 //   · UX más completa e interactiva
 //   · Modal de autenticación (reutilizado del checkout)
 //   · Modal de stock-0 al click de Pagar (con newsletter inline)
+//   · Control de cantidad de bolsas por receta (+/-)
 // ============================================================
 
 import { useEffect, useState } from "react"
@@ -15,8 +16,9 @@ import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
 import { motion, AnimatePresence, type Variants } from "framer-motion"
-import { X, Check, ShoppingCart, PlusCircle, ArrowLeft, Sparkles, PawPrint,
-         Loader2, Lock, UserX, AlertTriangle, RefreshCw, Clock, Bell, CheckCircle } from "lucide-react"
+import { X, Check, ShoppingCart, PlusCircle, ArrowLeft, Heart, PawPrint,
+         Loader2, Lock, UserX, AlertTriangle, RefreshCw, Clock, Bell, CheckCircle,
+         Minus, Plus } from "lucide-react"
 import type { Recipe, ExtraProduct, ServingPlan } from "../types"
 import { RecommendedProductCard } from "@/components/recommended-product-card"
 
@@ -33,6 +35,8 @@ interface PlanSummarySectionProps {
   checkoutError: string | null
   isAuthenticated: boolean
   outOfStock?: boolean
+  recipeQuantities?: Record<string, number>  // Cantidad de meses por receta
+  onRecipeQuantityChange?: (recipeId: string, delta: number) => void
   onDismissError: () => void
   onToggleExtra: (id: string) => void
   onRemoveRecipe: (id: string) => void
@@ -42,20 +46,35 @@ interface PlanSummarySectionProps {
   onAddToCart?: () => void  // Nueva función para agregar al carrito manualmente
 }
 
-// Precio real: $408 MXN / paquete (6 porciones × 80g = 480g)
-// → $408 / 0.480kg ≈ $850 MXN/kg  (alineado con pricePerKg en data/recipes.ts)
-const PRICE_PER_KG   = 850
+// Precio real: ajustado por el cliente a $80 MXN/kg para el
+// configurador de planes (mantenimiento del plan mensual).
+const PRICE_PER_KG   = 80
 const DELIVERY_DAYS  = 28
 
 // dailyGrams ya llega ajustado por servingPlan desde calculator-engine.ts
 // (si servingPlan === "medio", el motor ya dividió entre 2 antes de llegar aquí)
-function calcPlanPrice(dailyGrams: number, _servingPlan: ServingPlan, recipeCount: number) {
-  const monthlyKg  = (dailyGrams * DELIVERY_DAYS) / 1000
-  const perRecipe  = monthlyKg * PRICE_PER_KG
-  const fullPrice  = perRecipe * Math.max(recipeCount, 1)
+// Ahora también recibe las cantidades por receta (en bolsas) para calcular el precio total
+function calcPlanPrice(
+  dailyGrams: number,
+  _servingPlan: ServingPlan,
+  recipes: Recipe[],
+  quantities: Record<string, number>
+) {
+  // Precio por bolsa: gramos diarios convertidos a kg × precio por kg
+  const pricePerBag = (dailyGrams / 1000) * PRICE_PER_KG
+  
+  // Sumar el precio de cada receta multiplicado por su cantidad de bolsas
+  let fullPrice = 0
+  let totalBags = 0
+  for (const recipe of recipes) {
+    const bags = quantities[recipe.id] ?? 28
+    fullPrice += pricePerBag * bags
+    totalBags += bags
+  }
+  
   const discount   = fullPrice * 0.5
   const total      = fullPrice - discount
-  const pricePerDay = total / DELIVERY_DAYS
+  const pricePerDay = totalBags > 0 ? total / totalBags : 0
   return { fullPrice, discount, total, pricePerDay }
 }
 
@@ -86,6 +105,8 @@ export function PlanSummarySection({
   checkoutError,
   isAuthenticated,
   outOfStock = false,
+  recipeQuantities = {},
+  onRecipeQuantityChange,
   onDismissError,
   onToggleExtra,
   onRemoveRecipe,
@@ -100,7 +121,13 @@ export function PlanSummarySection({
   const [showStockOutModal, setShowStockOutModal] = useState(false)
   
   const name     = petName || "tu perro"
-  const pricing  = calcPlanPrice(dailyGrams, servingPlan, selectedRecipes.length)
+  const pricing  = calcPlanPrice(dailyGrams, servingPlan, selectedRecipes, recipeQuantities)
+  
+  // Total de bolsas sumando todas las recetas
+  const totalBagsCount = selectedRecipes.reduce(
+    (sum, r) => sum + (recipeQuantities[r.id] ?? 28), 0
+  )
+  
   const extrasTotal = extras
     .filter((e) => selectedExtras.includes(e.id))
     .reduce((sum, e) => sum + e.price, 0)
@@ -177,61 +204,90 @@ export function PlanSummarySection({
                   </button>
                 </motion.div>
               ) : (
-                selectedRecipes.map((recipe, idx) => (
-                  <motion.div
-                    key={recipe.id}
-                    layout
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    custom={idx}
-                    className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl shadow-sm mb-3 group"
-                  >
-                    {/* Imagen */}
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
-                      <Image
-                        src={recipe.image}
-                        alt={recipe.name}
-                        fill
-                        className="object-cover"
-                        onError={(e) => {
-                          ;(e.currentTarget as HTMLImageElement).src = "/full-nutritious-dog-bowl.webp"
-                        }}
-                      />
-                    </div>
+                selectedRecipes.map((recipe, idx) => {
+                  const bags = recipeQuantities[recipe.id] ?? 28 // bolsas directamente
+                  
+                  return (
+                    <motion.div
+                      key={recipe.id}
+                      layout
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      custom={idx}
+                      className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl shadow-sm mb-3 group"
+                    >
+                      {/* Imagen */}
+                      <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
+                        <Image
+                          src={recipe.image}
+                          alt={recipe.name}
+                          fill
+                          className="object-cover"
+                          onError={(e) => {
+                            ;(e.currentTarget as HTMLImageElement).src = "/full-nutritious-dog-bowl.webp"
+                          }}
+                        />
+                      </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-gray-800 truncate">
-                          {recipe.shortName}
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-800 truncate">
+                            {recipe.shortName}
+                          </p>
+                          <span className="text-[10px] font-semibold text-[#2a7880] bg-[#2a7880]/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                            para {name}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {dailyGrams}g / día · {Math.round(dailyGrams / 2)}g por toma
                         </p>
-                        <span className="text-[10px] font-semibold text-[#2a7880] bg-[#2a7880]/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-                          para {name}
+                        <span className="inline-block mt-1.5 text-[10px] font-bold text-[#1d636b] bg-[#eef7f8] px-2 py-0.5 rounded-full uppercase tracking-wide">
+                          Primer envío gratis
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {dailyGrams}g / día · {Math.round(dailyGrams / 2)}g por toma
-                      </p>
-                      <span className="inline-block mt-1.5 text-[10px] font-bold text-[#1d636b] bg-[#eef7f8] px-2 py-0.5 rounded-full uppercase tracking-wide">
-                        Primer envío gratis
-                      </span>
-                    </div>
 
-                    {/* Botón eliminar */}
-                    <motion.button
-                      type="button"
-                      onClick={() => onRemoveRecipe(recipe.id)}
-                      whileHover={{ scale: 1.15, backgroundColor: "#fee2e2" }}
-                      whileTap={{ scale: 0.9 }}
-                      className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-                      aria-label={`Eliminar ${recipe.shortName}`}
-                    >
-                      <X size={14} strokeWidth={2.5} />
-                    </motion.button>
-                  </motion.div>
-                ))
+                      {/* Control de cantidad estilo carrito */}
+                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center gap-0.5 bg-gray-100 rounded-full px-0.5 py-0.5">
+                          <button
+                            type="button"
+                            onClick={() => onRecipeQuantityChange?.(recipe.id, -1)}
+                            disabled={bags <= 1}
+                            className="w-6 h-6 rounded-full bg-white hover:bg-[#2a7880] hover:text-white text-[#16313b] flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#16313b]"
+                            aria-label="Reducir cantidad"
+                          >
+                            <Minus className="h-2.5 w-2.5" strokeWidth={2.5} />
+                          </button>
+                          <span className="w-8 text-center font-bold text-[#16313b] text-xs">{bags}</span>
+                          <button
+                            type="button"
+                            onClick={() => onRecipeQuantityChange?.(recipe.id, 1)}
+                            className="w-6 h-6 rounded-full bg-white hover:bg-[#2a7880] hover:text-white text-[#16313b] flex items-center justify-center transition-colors shadow-sm"
+                            aria-label="Aumentar cantidad"
+                          >
+                            <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                        <span className="text-[9px] text-gray-400 whitespace-nowrap">bolsas/mes</span>
+                      </div>
+
+                      {/* Botón eliminar */}
+                      <motion.button
+                        type="button"
+                        onClick={() => onRemoveRecipe(recipe.id)}
+                        whileHover={{ scale: 1.15, backgroundColor: "#fee2e2" }}
+                        whileTap={{ scale: 0.9 }}
+                        className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                        aria-label={`Eliminar ${recipe.shortName}`}
+                      >
+                        <X size={14} strokeWidth={2.5} />
+                      </motion.button>
+                    </motion.div>
+                  )
+                })
               )}
             </AnimatePresence>
           </div>
@@ -239,9 +295,9 @@ export function PlanSummarySection({
           {/* EXTRAS */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles size={14} className="text-amber-400" />
+              <Heart size={14} className="text-rose-400 fill-rose-400" />
               <h4 className="text-base font-semibold text-gray-700">
-                Extras recomendados
+                Snacks recomendados
               </h4>
             </div>
 
@@ -317,7 +373,7 @@ export function PlanSummarySection({
             <ul className="space-y-2">
               {[
                 <>Has seleccionado <strong>{selectedRecipes.length} receta(s)</strong></>,
-                <>Recibirás una entrega cada <strong>{DELIVERY_DAYS} días</strong></>,
+                <>Recibirás <strong>{totalBagsCount} bolsas</strong> en tu primer envío</>,
                 <>Tu plan incluye{" "}
                   <strong>{servingPlan === "completo" ? "alimentación completa (100%)" : "medio plan (50%)"}</strong>
                 </>,
@@ -338,7 +394,7 @@ export function PlanSummarySection({
             {/* Desglose de precios */}
             <div className="border-t border-gray-100 pt-4 space-y-2.5">
               <PriceLine
-                label={`Precio por ${DELIVERY_DAYS} días`}
+                label={`Precio por ${totalBagsCount} bolsas`}
                 value={`$${pricing.fullPrice.toFixed(2)} MXN`}
                 crossed
               />
@@ -348,13 +404,13 @@ export function PlanSummarySection({
                 highlight
               />
               <PriceLine
-                label="Precio por día"
+                label="Precio por bolsa"
                 value={`$${pricing.pricePerDay.toFixed(2)} MXN`}
-                valueCrossed={`$${(pricing.fullPrice / DELIVERY_DAYS).toFixed(2)} MXN`}
+                valueCrossed={`$${(pricing.fullPrice / totalBagsCount).toFixed(2)} MXN`}
               />
               {/* Nota explicativa del cálculo */}
               <p className="text-[10px] text-gray-400 italic pl-2">
-                ${grandTotal.toFixed(2)} ÷ {DELIVERY_DAYS} días = ${pricing.pricePerDay.toFixed(2)} MXN/día
+                ${grandTotal.toFixed(2)} ÷ {totalBagsCount} bolsas = ${pricing.pricePerDay.toFixed(2)} MXN/bolsa
               </p>
               <AnimatePresence>
                 {extrasTotal > 0 && (
