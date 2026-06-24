@@ -234,79 +234,34 @@ export function NutritionCalculator() {
     setIsCheckoutLoading(true)
 
     try {
-      // Construir items: perros guardados + perro actual
-      const items: {
-        id: string | number; name: string; price: number; quantity: number
-        image: string; size: string; isSubscription: boolean; subscriptionType: string
-      }[] = []
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // NUEVO FLUJO: Usar endpoint de nutrition plan
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const planConfig = {
+        petName: form.petName || "Sin nombre",
+        weight: calorieResult.weight,
+        age: form.age || "adulto",
+        activityLevel: form.activityLevel || "moderado",
+        bodyCondition: form.bodyCondition || "ideal",
+        neutered: form.neutered !== undefined ? form.neutered : true,
+        servingPlan: form.servingPlan || "completo",
+        dailyCalories: calorieResult.calories,
+        dailyGrams: calorieResult.dailyGrams,
+        selectedRecipes: selectedRecipeObjects.map((r) => ({
+          id: r.id,
+          name: r.name,
+          shortName: r.shortName,
+          image: r.image,
+        })),
+      }
 
-      // Construir items de perros guardados
-      savedDogs.forEach((dog) => {
-        dog.recipeIds.forEach((recipeId) => {
-          const recipe = getRecipeById(recipeId)
-          if (!recipe) return
-          
-          // Calcular precio mensual (28 días) con 50% de descuento en primer pedido
-          const monthlyKg = (dog.dailyGrams * 28) / 1000
-          const fullMonthlyPrice = monthlyKg * recipe.pricePerKg
-          const discountedPrice = fullMonthlyPrice * 0.5  // 50% descuento primer pedido
-          
-          items.push({
-            id:               `calc-${dog.id}-${recipeId}`,
-            name:             `${recipe.name} — ${dog.petName}`,
-            price:            discountedPrice,
-            quantity:         1,
-            image:            recipe.image,
-            size:             `${dog.dailyGrams}g/día · ${Math.round(dog.dailyGrams / 2)}g por toma`,
-            isSubscription:   true,
-            subscriptionType: "monthly",
-          })
-        })
-      })
-
-      // Construir items del perro actual
-      selectedRecipeObjects.forEach((recipe) => {
-        // Calcular precio mensual (28 días) con 50% de descuento en primer pedido
-        const monthlyKg = (calorieResult.dailyGrams * 28) / 1000
-        const fullMonthlyPrice = monthlyKg * recipe.pricePerKg
-        const discountedPrice = fullMonthlyPrice * 0.5  // 50% descuento primer pedido
-        
-        items.push({
-          id:               `calc-current-${recipe.id}`,
-          name:             `${recipe.name}${form.petName ? ` — ${form.petName}` : ""}`,
-          price:            discountedPrice,
-          quantity:         1,
-          image:            recipe.image,
-          size:             `${calorieResult.dailyGrams}g/día · ${Math.round(calorieResult.dailyGrams / 2)}g por toma`,
-          isSubscription:   true,
-          subscriptionType: "monthly",
-        })
-      })
-
-      const subtotal     = items.reduce((s, i) => s + i.price * i.quantity, 0)
-      const shippingCost = subtotal >= 1000 ? 0 : 100
-      const total        = subtotal + shippingCost
-
-      const response = await fetch("/api/stripe/create-checkout", {
-        method:  "POST",
+      const response = await fetch("/api/nutrition-plan/checkout", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items,
-          customer: {
-            email:     user.email ?? "",
-            firstName: "",
-            lastName:  "",
-            userId:    user.id,
-          },
-          metadata: {
-            user_id:       user.id,
-            total:         total.toString(),
-            shipping_cost: shippingCost.toString(),
-            source:        "nutrition_calculator",
-            pet_name:      form.petName || "Sin nombre",
-            daily_grams:   calorieResult.dailyGrams.toString(),
-            serving_plan:  form.servingPlan || "completo",
-          },
+          planConfig,
+          userId: user.id,
+          userEmail: user.email ?? "",
         }),
       })
 
@@ -327,7 +282,7 @@ export function NutritionCalculator() {
       setCheckoutError(msg)
       setIsCheckoutLoading(false)
     }
-  }, [user, router, savedDogs, selectedRecipeObjects, calorieResult, form.petName, form.servingPlan])
+  }, [user, selectedRecipeObjects, calorieResult, form])
 
   const handleRemoveRecipe = useCallback((id: string) => {
     handleChange({ selectedRecipes: form.selectedRecipes.filter((r) => r !== id) })

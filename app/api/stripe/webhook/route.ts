@@ -324,6 +324,38 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // product_id desde metadata del producto Stripe O desde metadata de la sesión
     const productId = productMetadata.product_id || metadata.product_id
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // DETECTAR SI ES UN PLAN NUTRICIONAL
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const isNutritionPlan = metadata.source === 'nutrition_calculator' || productMetadata.type === 'nutrition_plan'
+    let nutritionPlanConfig = null
+
+    if (isNutritionPlan) {
+      try {
+        // Extraer configuración del plan desde metadata
+        if (metadata.plan_config) {
+          nutritionPlanConfig = typeof metadata.plan_config === 'string' 
+            ? JSON.parse(metadata.plan_config) 
+            : metadata.plan_config
+        } else if (subscriptionData.metadata?.plan_config) {
+          nutritionPlanConfig = typeof subscriptionData.metadata.plan_config === 'string'
+            ? JSON.parse(subscriptionData.metadata.plan_config)
+            : subscriptionData.metadata.plan_config
+        }
+
+        if (nutritionPlanConfig) {
+          console.log('🍖 [WEBHOOK] Plan nutricional detectado:', {
+            petName: nutritionPlanConfig.petName,
+            recipes: nutritionPlanConfig.selectedRecipes?.length || 0,
+            dailyGrams: nutritionPlanConfig.dailyGrams,
+          })
+        }
+      } catch (parseError) {
+        console.error('⚠️ [WEBHOOK] Error parseando nutrition_plan_config:', parseError)
+      }
+    }
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     console.log('📦 [WEBHOOK] Line items recibidos:', lineItems.data.length, lineItems.data.map(li => ({
       description: li.description,
       unit_amount: li.price?.unit_amount,
@@ -464,6 +496,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         subscriptionType: subscriptionType
       }],
       metadata: metadata,
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // AGREGAR CONFIGURACIÓN DEL PLAN NUTRICIONAL
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      nutrition_plan_config: nutritionPlanConfig || null,
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       updated_at: new Date().toISOString(),
       processed_at: new Date().toISOString()
     }

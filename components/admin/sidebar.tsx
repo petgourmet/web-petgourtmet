@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Package, ShoppingBag, LogOut, LayoutDashboard, Tag, FileText, CreditCard, ChevronLeft, ChevronRight, Menu } from "lucide-react"
+import { Package, ShoppingBag, LogOut, LayoutDashboard, Tag, FileText, CreditCard, ChevronLeft, ChevronRight, Menu, UtensilsCrossed } from "lucide-react"
 
 export function AdminSidebar() {
   const { signOut, user } = useAuth()
@@ -50,6 +50,11 @@ export function AdminSidebar() {
       title: "Categorías",
       href: "/admin/categories",
       icon: <Tag size={20} />,
+    },
+    {
+      title: "Recetas Nutricionales",
+      href: "/admin/nutrition-recipes",
+      icon: <UtensilsCrossed size={20} />,
     },
     {
       title: "Blogs",
