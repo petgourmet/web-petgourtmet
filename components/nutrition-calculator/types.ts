@@ -83,6 +83,8 @@ export interface ExtraProduct {
   description: string
   image:       string
   price:       number
+  category?:   string   // nombre legible de la categoría (ej. "Para Premiar")
+  slug?:       string   // slug para link al detalle del producto
 }
 
 export type SectionVisibility = "hidden" | "active" | "complete"

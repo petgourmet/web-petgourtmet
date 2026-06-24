@@ -1,19 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { RefreshCw, Search, AlertTriangle, CheckCircle, Clock, Users } from 'lucide-react'
+import { RefreshCw, Search, AlertTriangle, CheckCircle, Clock, Users, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface PendingSubscription {
   id: string
   user_id: string
   external_reference: string
+  stripe_subscription_id?: string
   mercadopago_subscription_id?: string
   status: string
   subscription_type: string
@@ -30,11 +30,16 @@ interface PendingSubscription {
 interface ActiveSubscription {
   id: string
   user_id: string
-  mercadopago_subscription_id: string
+  stripe_subscription_id?: string
+  mercadopago_subscription_id?: string
   external_reference: string
   status: string
   subscription_type: string
   next_billing_date: string
+  current_period_end?: string
+  cancel_at_period_end?: boolean
+  cancelled_at?: string
+  order_status?: string
   created_at: string
   profiles?: {
     email: string
@@ -45,11 +50,14 @@ interface ActiveSubscription {
 interface WebhookLog {
   id: string
   source: string
-  type: string
-  action: string
-  data_id: string
+  event_type?: string
+  type?: string
+  action?: string
+  data_id?: string
   processed_at: string
+  created_at: string
   success: boolean
+  status?: string
   error_message?: string
 }
 
@@ -60,72 +68,44 @@ export default function SubscriptionMonitorPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [refreshing, setRefreshing] = useState(false)
-  
-  const supabase = createClient()
+  const [apiErrors, setApiErrors] = useState<Record<string, string | null>>({})
 
   const fetchData = async () => {
     try {
       setRefreshing(true)
-      
-      // Obtener suscripciones pendientes
-      const { data: pending, error: pendingError } = await supabase
-        .from('unified_subscriptions')
-        .eq('status', 'pending')
-        .select(`
-          *,
-          profiles:user_id (
-            email,
-            full_name
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50)
-      
-      if (pendingError) {
-        console.error('Error fetching pending subscriptions:', pendingError)
-        toast.error('Error cargando suscripciones pendientes')
-      } else {
-        setPendingSubscriptions(pending || [])
+
+      // ── Endpoint específico del monitor (service_role server-side).
+      // NOTA: NO usar /api/admin/subscriptions — ese endpoint está dedicado
+      // a la página de gestión (subscription-orders) y mantiene otro contrato.
+      const res = await fetch('/api/admin/subscriptions/monitor')
+      if (!res.ok) {
+        toast.error('Error cargando datos de suscripciones')
+        return
       }
-      
-      // Obtener suscripciones activas
-      const { data: active, error: activeError } = await supabase
-        .from('unified_subscriptions')
-        .eq('status', 'active')
-        .select(`
-          *,
-          profiles:user_id (
-            email,
-            full_name
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50)
-      
-      if (activeError) {
-        console.error('Error fetching active subscriptions:', activeError)
+
+      const data = await res.json()
+
+      setPendingSubscriptions(data.pending ?? [])
+      setActiveSubscriptions(data.active ?? [])
+      setWebhookLogs(data.webhooks ?? [])
+      setApiErrors(data.errors ?? {})
+
+      // Mostrar warnings si alguna query falló (no bloquear la UI)
+      if (data.errors?.webhooks) {
+        console.warn('[Monitor] webhook_logs:', data.errors.webhooks)
+      }
+      if (data.errors?.active) {
         toast.error('Error cargando suscripciones activas')
-      } else {
-        setActiveSubscriptions(active || [])
+        console.error('[Monitor] active:', data.errors.active)
       }
-      
-      // Obtener logs de webhooks recientes
-      const { data: logs, error: logsError } = await supabase
-        .from('webhook_logs')
-        .select('*')
-        .eq('source', 'mercadopago')
-        .order('processed_at', { ascending: false })
-        .limit(20)
-      
-      if (logsError) {
-        console.error('Error fetching webhook logs:', logsError)
-      } else {
-        setWebhookLogs(logs || [])
+      if (data.errors?.pending) {
+        toast.error('Error cargando suscripciones pendientes')
+        console.error('[Monitor] pending:', data.errors.pending)
       }
-      
+
     } catch (error) {
       console.error('Error fetching data:', error)
-      toast.error('Error cargando datos')
+      toast.error('Error de red al cargar datos')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -364,7 +344,7 @@ export default function SubscriptionMonitorPage() {
             <CardHeader>
               <CardTitle>Suscripciones Activas</CardTitle>
               <CardDescription>
-                Suscripciones confirmadas y activas en el sistema
+                Suscripciones confirmadas y activas — procesadas por Stripe
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -377,6 +357,11 @@ export default function SubscriptionMonitorPage() {
                           {subscription.external_reference}
                         </span>
                         {getStatusBadge(subscription.status)}
+                        {subscription.cancel_at_period_end && (
+                          <Badge className="bg-orange-100 text-orange-800 text-xs">
+                            Cancela al vencer
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-sm text-gray-500">
                         {formatDate(subscription.created_at)}
@@ -394,13 +379,28 @@ export default function SubscriptionMonitorPage() {
                       </div>
                       <div>
                         <span className="text-gray-600">Próxima Facturación:</span>
-                        <p className="font-medium">{formatDate(subscription.next_billing_date)}</p>
+                        <p className="font-medium">
+                          {subscription.next_billing_date
+                            ? formatDate(subscription.next_billing_date)
+                            : subscription.current_period_end
+                            ? formatDate(subscription.current_period_end)
+                            : 'N/A'}
+                        </p>
                       </div>
                       <div>
-                        <span className="text-gray-600">MP ID:</span>
-                        <p className="font-mono text-xs">{subscription.mercadopago_subscription_id}</p>
+                        <span className="text-gray-600">Stripe ID:</span>
+                        <p className="font-mono text-xs truncate" title={subscription.stripe_subscription_id}>
+                          {subscription.stripe_subscription_id ?? subscription.mercadopago_subscription_id ?? 'N/A'}
+                        </p>
                       </div>
                     </div>
+
+                    {subscription.order_status && subscription.order_status !== 'pending' && (
+                      <div className="text-sm">
+                        <span className="text-gray-600">Estado de orden: </span>
+                        <span className="font-medium">{subscription.order_status}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
                 
@@ -419,38 +419,55 @@ export default function SubscriptionMonitorPage() {
             <CardHeader>
               <CardTitle>Logs de Webhooks Recientes</CardTitle>
               <CardDescription>
-                Últimos webhooks procesados de MercadoPago
+                Últimos eventos de Stripe procesados por el webhook
+                {apiErrors.webhooks && (
+                  <span className="ml-2 text-amber-600 text-xs">
+                    ⚠ {apiErrors.webhooks.includes('does not exist')
+                      ? 'Tabla webhook_logs pendiente de migración — aplica 20260625_webhook_logs_and_fixes.sql en Supabase'
+                      : apiErrors.webhooks}
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {webhookLogs.map((log) => (
-                  <div key={log.id} className="flex items-center justify-between p-3 border rounded">
-                    <div className="flex items-center gap-3">
-                      <Badge className={log.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                        {log.success ? '✅' : '❌'}
-                      </Badge>
-                      <div>
-                        <span className="font-medium">{log.type}</span>
-                        <span className="text-gray-500 ml-2">({log.action})</span>
-                        <p className="text-sm text-gray-600 font-mono">{log.data_id}</p>
+              {apiErrors.webhooks ? (
+                <div className="text-center py-8 space-y-2">
+                  <Zap className="w-8 h-8 text-amber-400 mx-auto" />
+                  <p className="text-amber-700 font-medium text-sm">Tabla webhook_logs no existe aún</p>
+                  <p className="text-gray-500 text-xs max-w-sm mx-auto">
+                    Aplica la migración <code className="bg-gray-100 px-1 rounded">20260625_webhook_logs_and_fixes.sql</code> en el SQL Editor de Supabase para habilitar esta sección.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {webhookLogs.map((log) => (
+                    <div key={log.id} className="flex items-center justify-between p-3 border rounded">
+                      <div className="flex items-center gap-3">
+                        <Badge className={log.success || log.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          {log.success || log.status === 'success' ? '✅' : '❌'}
+                        </Badge>
+                        <div>
+                          <span className="font-medium">{log.event_type ?? log.type ?? '—'}</span>
+                          {log.action && <span className="text-gray-500 ml-2">({log.action})</span>}
+                          <p className="text-xs text-gray-500">{log.source} · {log.data_id ?? '—'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right text-sm text-gray-500">
+                        {formatDate(log.created_at ?? log.processed_at)}
+                        {log.error_message && (
+                          <p className="text-red-600 text-xs mt-1">{log.error_message}</p>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right text-sm text-gray-500">
-                      {formatDate(log.processed_at)}
-                      {log.error_message && (
-                        <p className="text-red-600 text-xs mt-1">{log.error_message}</p>
-                      )}
+                  ))}
+                  
+                  {webhookLogs.length === 0 && !apiErrors.webhooks && (
+                    <div className="text-center py-8 text-gray-500">
+                      No hay eventos registrados todavía
                     </div>
-                  </div>
-                ))}
-                
-                {webhookLogs.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    No se encontraron logs de webhooks
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

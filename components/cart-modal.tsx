@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 import { useClientAuth } from "@/hooks/use-client-auth"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase/client"
-import Link from "next/link"
+import { RecommendedProductCard } from "@/components/recommended-product-card"
 
 interface RecommendedProduct {
   id: string | number
@@ -35,37 +35,105 @@ export function CartModal() {
   const amountToFreeShipping = Math.max(freeShippingThreshold - currentTotal, 0)
 
   // Cargar productos recomendados desde Supabase
+  // REGLA: la mayoría deben ser snacks (category_id = 1 → "premiar").
+  // Misma lógica que la API /api/nutrition-plan/random-extras.
   useEffect(() => {
     async function loadRecommendedProducts() {
       if (!supabase) return
 
-      const { data } = await supabase
-        .from("products")
-        .select("id, name, price, image, slug, categories(name)")
-        .gt("stock", 0)
-        .limit(6)
+      const TOTAL    = 3
+      const SNACK_ID = 1
+      const ratio    = 0.7 // 70% snacks
+      const targetSnacks    = Math.min(TOTAL, Math.max(1, Math.ceil(TOTAL * ratio)))
+      const targetNonSnacks = TOTAL - targetSnacks
 
-      if (data && data.length > 0) {
-        const shuffled = [...data].sort(() => Math.random() - 0.5).slice(0, 3)
+      // Fisher–Yates: mezcla los primeros `count` elementos.
+      const shuffleFirst = <T,>(arr: T[], count: number): T[] => {
+        const out = [...arr]
+        const n   = Math.min(count, out.length)
+        for (let i = 0; i < n; i++) {
+          const j = i + Math.floor(Math.random() * (out.length - i))
+          ;[out[i], out[j]] = [out[j], out[i]]
+        }
+        return out
+      }
+
+      // Pools en paralelo: snacks y no-snacks.
+      const [snacksRes, othersRes] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id, name, price, image, slug, category_id, categories(name)")
+          .eq("category_id", SNACK_ID)
+          .gt("stock", 0)
+          .limit(20),
+        supabase
+          .from("products")
+          .select("id, name, price, image, slug, category_id, categories(name)")
+          .neq("category_id", SNACK_ID)
+          .gt("stock", 0)
+          .limit(20),
+      ])
+
+      // Tipo flexible para las filas devueltas por Supabase. `categories`
+      // puede venir como objeto, arreglo o null dependiendo del select.
+      type ProductRow = {
+        id: number | string
+        name: string
+        price: number | null
+        image: string | null
+        slug: string
+        category_id: number | null
+        categories: { name: string | null } | { name: string | null }[] | null
+      }
+
+      const snackPool  = (snacksRes.data ?? []) as ProductRow[]
+      const othersPool = (othersRes.data ?? []) as ProductRow[]
+
+      let snackPicks  = shuffleFirst(snackPool,  Math.min(targetSnacks, snackPool.length)).slice(0, targetSnacks)
+      let othersPicks = shuffleFirst(othersPool, Math.min(targetNonSnacks, othersPool.length)).slice(0, targetNonSnacks)
+
+      // Rellenar huecos si una de las pools no alcanzó su cuota
+      if (snackPicks.length < targetSnacks) {
+        const missing = targetSnacks - snackPicks.length
+        const usedIds = new Set(othersPicks.map((p) => p.id))
+        const extra   = shuffleFirst(othersPool.filter((p) => !usedIds.has(p.id)), missing).slice(0, missing)
+        othersPicks   = [...othersPicks, ...extra]
+      }
+      if (othersPicks.length < targetNonSnacks) {
+        const missing = targetNonSnacks - othersPicks.length
+        const usedIds = new Set(snackPicks.map((p) => p.id))
+        const extra   = shuffleFirst(snackPool.filter((p) => !usedIds.has(p.id)), missing).slice(0, missing)
+        snackPicks    = [...snackPicks, ...extra]
+      }
+
+      // Mezclar el orden final para que el snack no salga siempre primero.
+      const combined = shuffleFirst([...snackPicks, ...othersPicks], TOTAL).slice(0, TOTAL)
+
+      if (combined.length > 0) {
         setRecommendedProducts(
-          shuffled.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            price: p.price ?? 0,
-            image: p.image || "/placeholder.svg",
-            slug: p.slug,
-            category: p.categories?.name,
-          }))
+          combined.map((p) => {
+            // categories puede llegar como objeto, arreglo o null.
+            const cat = Array.isArray(p.categories) ? p.categories[0] : p.categories
+            return {
+              id: p.id,
+              name: p.name,
+              price: p.price ?? 0,
+              image: p.image || "/placeholder.svg",
+              slug: p.slug,
+              category: cat?.name ?? undefined,
+            }
+          })
         )
       }
     }
     loadRecommendedProducts()
   }, [])
 
-  const handleAddRecommendedToCart = (e: React.MouseEvent, product: RecommendedProduct) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
+  // El componente RecommendedProductCard ya maneja preventDefault/
+  // stopPropagation del click del botón, así que el handler sólo
+  // recibe el producto. Aceptamos el tipo expuesto por el componente
+  // reutilizable para compatibilidad de firma.
+  const handleAddRecommendedToCart = (product: import("@/components/recommended-product-card").RecommendedProductCardData) => {
     addToCart({
       id: typeof product.id === 'string' ? parseInt(product.id) : product.id,
       name: product.name,
@@ -271,52 +339,13 @@ export function CartModal() {
                       
                       <div className="space-y-2 sm:space-y-3">
                         {recommendedProducts.map((product) => (
-                          <Link
+                          <RecommendedProductCard
                             key={product.id}
+                            product={product}
                             href={`/producto/${product.slug}`}
-                            onClick={() => setShowCart(false)}
-                            className="block group"
-                          >
-                            <div className="rounded-xl sm:rounded-2xl overflow-hidden border border-[#7BBDC5]/15 bg-white hover:border-[#7BBDC5]/40 hover:shadow-[0_4px_20px_rgba(123,189,197,0.12)] transition-all duration-300">
-                              <div className="flex gap-2 sm:gap-3 p-2 sm:p-3 relative">
-                                {/* Imagen - Tamaños optimizados */}
-                                <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-md sm:rounded-lg overflow-hidden bg-gray-50">
-                                  <Image
-                                    src={product.image}
-                                    alt={product.name}
-                                    fill
-                                    sizes="(max-width: 640px) 64px, 80px"
-                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                  />
-                                  
-                                  {/* Botón + flotante - Tamaño optimizado */}
-                                  <button
-                                    onClick={(e) => handleAddRecommendedToCart(e, product)}
-                                    className="absolute bottom-1 right-1 sm:bottom-1.5 sm:right-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a7880] hover:bg-[#1f5a61] text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 z-10"
-                                    aria-label={`Agregar ${product.name} al carrito`}
-                                  >
-                                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={2.5} />
-                                  </button>
-                                </div>
-
-                                {/* Info - Textos optimizados */}
-                                <div className="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
-                                  {product.category && (
-                                    <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7BBDC5]/70 truncate">
-                                      {product.category}
-                                    </p>
-                                  )}
-                                  <h4 className="text-xs sm:text-[13px] font-semibold text-gray-800 leading-snug line-clamp-2">
-                                    {product.name}
-                                  </h4>
-                                  <p className="text-xs sm:text-sm font-bold text-[#7BBDC5] pt-0.5">
-                                    ${product.price.toFixed(2)}{" "}
-                                    <span className="text-[9px] sm:text-[10px] font-normal text-gray-400">MXN</span>
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
+                            onCardClick={() => setShowCart(false)}
+                            onAction={handleAddRecommendedToCart}
+                          />
                         ))}
                       </div>
                     </div>

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { NutritionPlanService } from "@/lib/nutrition-plan-service"
 import type { NutritionPlanConfig } from "@/lib/nutrition-plan-service"
 import { createServerClient } from "@/lib/supabase/server"
+import { NUTRITION_PLAN_IN_STOCK } from "@/lib/nutrition-plan-stock"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -23,6 +24,18 @@ interface CheckoutRequestBody {
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Verificar stock antes de cualquier procesamiento ──
+    if (!NUTRITION_PLAN_IN_STOCK) {
+      return NextResponse.json(
+        {
+          success: false,
+          outOfStock: true,
+          error: "Sin stock disponible. La familia Gourmet está trabajando para tener la comida de tus amigos perrunos.",
+        },
+        { status: 503 }
+      )
+    }
+
     // 1. Parsear body
     const body: CheckoutRequestBody = await request.json()
     const { planConfig, userEmail } = body

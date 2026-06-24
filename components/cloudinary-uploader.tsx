@@ -1,10 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Upload, AlertCircle, Loader2, ImageIcon, X, CheckCircle } from "lucide-react"
+import { Upload, AlertCircle, Loader2, ImageIcon, X, CheckCircle, Dog } from "lucide-react"
 import Image from "next/image"
 
 interface CloudinaryUploaderProps {
@@ -35,9 +35,16 @@ export function CloudinaryUploader({
   const [success, setSuccess] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
+  const [imageError, setImageError] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const displayImage = uploadedUrl || existingImage || currentImageUrl
+  const currentSrc = preview || displayImage
+
+  // Resetea el flag de error cada vez que cambia la URL de la imagen
+  useEffect(() => {
+    setImageError(false)
+  }, [currentSrc])
 
   const getImageDimensions = () => {
     switch (aspectRatio) {
@@ -187,13 +194,22 @@ export function CloudinaryUploader({
       >
         {preview || displayImage ? (
           <>
-            <Image
-              src={preview || displayImage || ""}
-              alt="Vista previa"
-              fill
-              className="object-cover"
-              onError={() => console.error("Error al cargar imagen")}
-            />
+            {imageError ? (
+              <div className="flex flex-col items-center justify-center text-gray-300">
+                <Dog className="h-16 w-16" strokeWidth={1.5} />
+              </div>
+            ) : (
+              <Image
+                src={preview || displayImage || ""}
+                alt="Vista previa"
+                fill
+                className="object-cover"
+                onError={() => {
+                  console.warn("[CloudinaryUploader] No se pudo cargar la imagen:", preview || displayImage)
+                  setImageError(true)
+                }}
+              />
+            )}
             {(uploadedUrl || displayImage) && !isUploading && (
               <button
                 type="button"

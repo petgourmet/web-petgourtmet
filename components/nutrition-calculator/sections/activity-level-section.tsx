@@ -1,6 +1,6 @@
 "use client"
 
-import { PawPrint, Zap, Wind, Moon } from "lucide-react"
+import Image from "next/image"
 import type { CalculatorFormData, ActivityLevel } from "../types"
 import { ChoiceCard } from "../ui/choice-card"
 import { getActivityDescription } from "../calculator-engine"
@@ -14,35 +14,11 @@ interface ActivityLevelSectionProps {
 const ACTIVITY_OPTIONS: {
   id: ActivityLevel
   label: string
-  Icon: React.ElementType
-  bgFrom: string
-  bgTo: string
-  iconColor: string
+  image: string
 }[] = [
-  {
-    id: "bajo",
-    label: "Bajo",
-    Icon: Moon,
-    bgFrom: "#e8f4f5",
-    bgTo: "#d0e9ec",
-    iconColor: "#7AB8BF",
-  },
-  {
-    id: "moderado",
-    label: "Moderado",
-    Icon: Wind,
-    bgFrom: "#d5ecee",
-    bgTo: "#b8dde1",
-    iconColor: "#2a7880",
-  },
-  {
-    id: "alto",
-    label: "Alto",
-    Icon: Zap,
-    bgFrom: "#c4e3e7",
-    bgTo: "#9dcdd3",
-    iconColor: "#16313b",
-  },
+  { id: "bajo",     label: "Bajo",     image: "/cacu/activiti/0-acti.png" },
+  { id: "moderado", label: "Moderado", image: "/cacu/activiti/mas-active.png" },
+  { id: "alto",     label: "Alto",     image: "/cacu/activiti/muy-active.png" },
 ]
 
 export function ActivityLevelSection({
@@ -59,7 +35,12 @@ export function ActivityLevelSection({
         <span className="text-[#2a7880] capitalize">{name}</span>
       </h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 justify-items-center max-w-2xl mx-auto">
+      {/* grid:
+          - mobile: 1 columna, mucho espacio vertical entre cards
+          - desktop (md+): 3 columnas con gap más generoso
+          - max-w ampliado de 2xl → 4xl para que las cards más grandes
+            no queden apretujadas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-12 justify-items-center max-w-4xl mx-auto">
         {ACTIVITY_OPTIONS.map((option) => {
           const isSelected = selected === option.id
           return (
@@ -70,21 +51,16 @@ export function ActivityLevelSection({
               label={option.label}
               description={getActivityDescription(option.id)}
               illustration={
-                <div
-                  className="w-20 h-20 rounded-2xl flex items-center justify-center transition-all"
-                  style={{
-                    background: isSelected
-                      ? `linear-gradient(135deg, ${option.bgFrom}, ${option.bgTo})`
-                      : "linear-gradient(135deg, #f4fbfc, #e8f4f5)",
-                  }}
-                >
-                  <option.Icon
-                    className="transition-colors"
-                    style={{
-                      width: 36,
-                      height: 36,
-                      color: isSelected ? option.iconColor : "#b8c8cb",
-                    }}
+                // Contenedor responsive: 176px mobile · 224px desktop.
+                // sizes en Image permite que Next sirva la mejor resolución.
+                <div className="w-44 h-44 md:w-56 md:h-56 flex items-center justify-center">
+                  <Image
+                    src={option.image}
+                    alt={option.label}
+                    width={224}
+                    height={224}
+                    sizes="(min-width: 768px) 224px, 176px"
+                    className="object-contain w-full h-full"
                   />
                 </div>
               }
@@ -92,11 +68,6 @@ export function ActivityLevelSection({
           )
         })}
       </div>
-
-      <p className="text-center text-xs text-[#b8c8cb] mt-6 flex items-center justify-center gap-1.5">
-        <PawPrint className="h-3 w-3" />
-        Ilustraciones próximamente
-      </p>
     </div>
   )
 }

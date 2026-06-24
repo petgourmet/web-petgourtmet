@@ -97,7 +97,12 @@ export default function CheckoutPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Error al crear la sesion de pago")
+        // La API devuelve { error, details }. `error` es texto genérico
+        // ("Error al procesar el pago") y `details` contiene el mensaje
+        // real de Stripe / Supabase. Preferimos `details` para diagnóstico.
+        const msg = errorData.details || errorData.error || "Error al crear la sesion de pago"
+        console.error("Stripe checkout API error:", errorData)
+        throw new Error(msg)
       }
 
       const { url, sessionId } = await response.json()

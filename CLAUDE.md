@@ -103,6 +103,20 @@ scripts/                # Scripts de setup y testing de Stripe
 - Sincronización de pagos: `lib/payment-sync-service.ts`
 - `lib/subscription-manager.ts` gestiona el lifecycle de suscripciones
 
+### Gotchas conocidas
+
+- **Imágenes en `line_items` deben ser URLs absolutas.** Stripe rechaza paths relativos (`/cacu/pollo-ver.png`) y devuelve 500 desde `stripe.checkout.sessions.create`. `lib/stripe/checkout-service.ts` incluye un helper `resolveProductImage()` que prefija paths con `NEXT_PUBLIC_BASE_URL` (fallback: `NEXT_PUBLIC_SITE_URL` → `NEXT_PUBLIC_APP_URL`) y devuelve `undefined` si no se puede resolver una URL válida (Stripe omite el campo `images` en vez de fallar). Se aplica en `createOneTimeCheckoutSession` y `createSubscriptionCheckoutSession`.
+- **El endpoint `/api/stripe/create-checkout` devuelve `{ error, details }`.** `error` es texto genérico ("Error al procesar el pago"); `details` contiene el mensaje real de Stripe / Supabase. El cliente en `app/checkout/page.tsx` **debe leer `details`** (con fallback a `error`) para diagnosticar correctamente. Ejemplo de implementación correcta:
+
+  ```ts
+  if (!response.ok) {
+    const errorData = await response.json()
+    const msg = errorData.details || errorData.error || "Error al crear la sesion de pago"
+    console.error("Stripe checkout API error:", errorData)
+    throw new Error(msg)
+  }
+  ```
+
 ---
 
 ## Anti-spam / Seguridad

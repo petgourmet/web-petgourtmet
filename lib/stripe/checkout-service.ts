@@ -69,6 +69,48 @@ function getSubscriptionInterval(subscriptionType: string): {
 }
 
 /**
+ * Convierte una imagen relativa (p.ej. "/cacu/pollo-ver.png") en una URL
+ * absoluta usando el dominio público del sitio. Stripe rechaza imágenes
+ * con rutas relativas, así que esto es necesario antes de enviarlas.
+ *
+ * - Si ya es una URL absoluta (http/https) se devuelve sin cambios.
+ * - Si es relativa, se prefija con `NEXT_PUBLIC_BASE_URL`
+ *   (o `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_APP_URL` como fallback).
+ * - Si por alguna razón no podemos resolver una URL válida, devolvemos
+ *   `undefined` para que Stripe omita el campo `images` (evita el 500).
+ */
+function resolveProductImage(image: string | undefined): string | undefined {
+  if (!image) return undefined
+
+  const trimmed = image.trim()
+  if (!trimmed) return undefined
+
+  // Ya es absoluta
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+
+  const base =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    ''
+
+  if (!base) return undefined
+
+  // Normalizar concatenación (sin doble slash y sin perder slash inicial)
+  const baseClean = base.replace(/\/+$/, '')
+  const pathClean = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  const absoluteUrl = `${baseClean}${pathClean}`
+
+  // Validar como URL final
+  try {
+    new URL(absoluteUrl)
+    return absoluteUrl
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Crea una sesión de Checkout para pagos únicos
  */
 export async function createOneTimeCheckoutSession(
@@ -77,22 +119,25 @@ export async function createOneTimeCheckoutSession(
   const { items, customer, shipping, successUrl, cancelUrl, metadata = {} } = params
 
   // Convertir items del carrito a line items de Stripe
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map(item => ({
-    price_data: {
-      currency: stripeConfig.currency,
-      product_data: {
-        name: item.name,
-        description: item.size ? `Tamaño: ${item.size}` : undefined,
-        images: item.image ? [item.image] : undefined,
-        metadata: {
-          product_id: item.id.toString(),
-          size: item.size || 'Standard',
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map(item => {
+    const imageUrl = resolveProductImage(item.image)
+    return {
+      price_data: {
+        currency: stripeConfig.currency,
+        product_data: {
+          name: item.name,
+          description: item.size ? `Tamaño: ${item.size}` : undefined,
+          images: imageUrl ? [imageUrl] : undefined,
+          metadata: {
+            product_id: item.id.toString(),
+            size: item.size || 'Standard',
+          },
         },
+        unit_amount: Math.round(item.price * 100),
       },
-      unit_amount: Math.round(item.price * 100),
-    },
-    quantity: item.quantity,
-  }))
+      quantity: item.quantity,
+    }
+  })
 
   // Calcular subtotal para determinar costo de envío
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
@@ -235,13 +280,14 @@ export async function createSubscriptionCheckoutSession(
 
   // Agregar todos los items de suscripción
   subscriptionItems.forEach(item => {
+    const imageUrl = resolveProductImage(item.image)
     lineItems.push({
       price_data: {
         currency: stripeConfig.currency,
         product_data: {
           name: item.name,
           description: `Suscripción ${item.subscriptionType} - ${item.size || 'Standard'}`,
-          images: item.image ? [item.image] : undefined,
+          images: imageUrl ? [imageUrl] : undefined,
           metadata: {
             product_id: item.id.toString(),
             size: item.size || 'Standard',

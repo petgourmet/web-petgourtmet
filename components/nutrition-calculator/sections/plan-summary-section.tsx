@@ -7,15 +7,18 @@
 //   · Resumen de precio reactivo y animado
 //   · UX más completa e interactiva
 //   · Modal de autenticación (reutilizado del checkout)
+//   · Modal de stock-0 al click de Pagar (con newsletter inline)
 // ============================================================
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { toast } from "sonner"
 import { motion, AnimatePresence, type Variants } from "framer-motion"
-import { X, Plus, Check, ShoppingCart, PlusCircle, ArrowLeft, Sparkles, PawPrint,
-         Loader2, Lock, UserX, AlertTriangle, RefreshCw } from "lucide-react"
+import { X, Check, ShoppingCart, PlusCircle, ArrowLeft, Sparkles, PawPrint,
+         Loader2, Lock, UserX, AlertTriangle, RefreshCw, Clock, Bell, CheckCircle } from "lucide-react"
 import type { Recipe, ExtraProduct, ServingPlan } from "../types"
+import { RecommendedProductCard } from "@/components/recommended-product-card"
 
 interface PlanSummarySectionProps {
   petName: string
@@ -29,6 +32,7 @@ interface PlanSummarySectionProps {
   isCheckoutLoading: boolean
   checkoutError: string | null
   isAuthenticated: boolean
+  outOfStock?: boolean
   onDismissError: () => void
   onToggleExtra: (id: string) => void
   onRemoveRecipe: (id: string) => void
@@ -81,6 +85,7 @@ export function PlanSummarySection({
   isCheckoutLoading,
   checkoutError,
   isAuthenticated,
+  outOfStock = false,
   onDismissError,
   onToggleExtra,
   onRemoveRecipe,
@@ -91,6 +96,8 @@ export function PlanSummarySection({
 }: PlanSummarySectionProps) {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showAddedFeedback, setShowAddedFeedback] = useState(false)
+  // Modal de stock 0 (se abre al click en Pagar cuando outOfStock=true)
+  const [showStockOutModal, setShowStockOutModal] = useState(false)
   
   const name     = petName || "tu perro"
   const pricing  = calcPlanPrice(dailyGrams, servingPlan, selectedRecipes.length)
@@ -100,12 +107,18 @@ export function PlanSummarySection({
   const grandTotal = pricing.total + extrasTotal
 
   // Manejar click en el botón "Pagar"
+  // Prioridad de checks:
+  //   1. Si no hay stock → mostrar modal de stock-0
+  //   2. Si no está autenticado → mostrar modal de login
+  //   3. En cualquier otro caso → proceder al checkout
   const handlePaymentClick = () => {
+    if (outOfStock) {
+      setShowStockOutModal(true)
+      return
+    }
     if (isAuthenticated) {
-      // Usuario autenticado → Proceder a checkout
       onCheckout()
     } else {
-      // Usuario NO autenticado → Mostrar modal de autenticación
       setShowAuthModal(true)
     }
   }
@@ -243,66 +256,28 @@ export function PlanSummarySection({
                       initial="hidden"
                       animate="visible"
                       transition={{ delay: idx * 0.08 }}
-                      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
-                        isAdded
-                          ? "bg-[#eef7f8] border-[#2a7880]/30"
-                          : "bg-white border-gray-200"
-                      }`}
                     >
-                      <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                        <Image
-                          src={extra.image}
-                          alt={extra.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800">{extra.name}</p>
-                        <p className="text-xs text-gray-500">{extra.description}</p>
-                        <p className="text-xs font-semibold text-gray-700 mt-0.5">
-                          +${extra.price.toFixed(0)}
-                        </p>
-                      </div>
-
-                      <motion.button
-                        type="button"
-                        onClick={() => onToggleExtra(extra.id)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${
-                          isAdded
-                            ? "bg-[#2a7880] border-[#2a7880] text-white"
-                            : "bg-white border-[#e3ecee] text-[#5d7276] hover:border-[#7AB8BF] hover:text-[#2a7880]"
-                        }`}
-                      >
-                        <AnimatePresence mode="wait" initial={false}>
-                          {isAdded ? (
-                            <motion.span
-                              key="added"
-                              initial={{ opacity: 0, scale: 0.7 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.7 }}
-                              className="flex items-center gap-1"
-                            >
-                              <Check size={11} strokeWidth={3} />
-                              Agregado
-                            </motion.span>
-                          ) : (
-                            <motion.span
-                              key="add"
-                              initial={{ opacity: 0, scale: 0.7 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.7 }}
-                              className="flex items-center gap-1"
-                            >
-                              <Plus size={11} strokeWidth={3} />
-                              Añadir
-                            </motion.span>
-                          )}
-                        </AnimatePresence>
-                      </motion.button>
+                      {/* Card compartido con el carrito ("También te
+                          puede gustar"). El botón "+" sólo aparece al
+                          hacer hover sobre la card. Cuando el extra
+                          ya está añadido (isAdded), la card cambia a
+                          fondo teal suave y muestra un check siempre
+                          visible para feedback claro. */}
+                      <RecommendedProductCard
+                        product={{
+                          id: extra.id,
+                          name: extra.name,
+                          price: extra.price,
+                          image: extra.image,
+                          slug: extra.slug,
+                          category: extra.category,
+                        }}
+                        isAdded={isAdded}
+                        onAction={() => onToggleExtra(extra.id)}
+                        actionAriaLabel={
+                          isAdded ? `Quitar ${extra.name}` : `Agregar ${extra.name}`
+                        }
+                      />
                     </motion.div>
                   )
                 })}
@@ -420,9 +395,12 @@ export function PlanSummarySection({
             </p>
           </motion.div>
 
-          {/* Botones de pago y carrito - debajo del resumen */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
+          {/* Botones de pago y carrito - debajo del resumen.
+              SIEMPRE visibles. Si no hay stock, el botón "Pagar" abre
+              el modal de "stock 0" (igual que el modal de auth para
+              usuarios no autenticados). */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex items-start gap-3 w-full mt-4"
           >
@@ -624,6 +602,80 @@ export function PlanSummarySection({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ─── Modal de stock 0 (se abre al click en "Pagar") ─── */}
+      <AnimatePresence>
+        {showStockOutModal && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 24 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl overflow-hidden border border-[#e6eeef] shadow-[0_4px_24px_rgba(22,49,59,0.08)] max-w-md mx-auto">
+              {/* Header con logo y badge de stock */}
+              <div className="px-5 py-3 flex items-center gap-3 bg-gradient-to-r from-[#16313b] to-[#2a7880]">
+                <Image
+                  src="/pet-gourmet-logo-transparent.webp"
+                  alt="Pet Gourmet"
+                  width={28}
+                  height={28}
+                  className="rounded-full object-cover opacity-90 flex-shrink-0"
+                />
+                <span className="text-white text-sm font-semibold tracking-wide">Pet Gourmet</span>
+                <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-bold text-white/80 bg-white/10 px-2.5 py-1 rounded-full uppercase tracking-wide border border-white/20">
+                  <Clock size={9} />
+                  Stock: 0
+                </span>
+                <button
+                  onClick={() => setShowStockOutModal(false)}
+                  className="text-white/60 hover:text-white transition-colors ml-1"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Cuerpo */}
+              <div className="bg-white px-5 py-5">
+                <div className="flex gap-4 items-start">
+                  <motion.div
+                    animate={{ rotate: [0, -10, 10, -8, 8, 0] }}
+                    transition={{ duration: 1.2, delay: 0.4, ease: "easeInOut" }}
+                    className="w-11 h-11 rounded-full bg-[#f0f9fa] border border-[#7BBDC5]/30 flex items-center justify-center flex-shrink-0 mt-0.5 text-xl"
+                  >
+                    🐾
+                  </motion.div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[#16313b] text-base mb-1 leading-tight">
+                      ¡Ya casi llega el banquete perruno!
+                    </p>
+                    <p className="text-sm text-[#5d7276] leading-relaxed mb-3">
+                      De momento no tenemos stock disponible — <strong className="text-[#2a7880]">la familia Gourmet está trabajando</strong> para tener la comida de tus amigos perrunos lista lo antes posible. 🍖
+                    </p>
+                    <p className="text-xs text-[#7AB8BF] leading-relaxed mb-4">
+                      Guardamos tu plan personalizado para que apenas tengamos stock, puedas completar tu compra en un clic. ¡Vale la pena la espera!
+                    </p>
+
+                    {/* Newsletter signup inline */}
+                    <StockOutNewsletter />
+
+                    {/* Link secundario a productos disponibles */}
+                    <Link
+                      href="/productos"
+                      onClick={() => setShowStockOutModal(false)}
+                      className="block mt-3 text-center text-xs font-semibold text-[#2a7880] hover:underline"
+                    >
+                      Ver productos disponibles →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -664,5 +716,111 @@ function PriceLine({
         </span>
       </div>
     </div>
+  )
+}
+
+// ============================================================
+// SUB-COMPONENT: Newsletter inline para el modal de stock-0
+// Usa el mismo endpoint /api/newsletter que home-newsletter.tsx
+// pero con diseño compacto para encajar dentro del modal.
+// ============================================================
+function StockOutNewsletter() {
+  const [email, setEmail] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [formLoadTime, setFormLoadTime] = useState<number>(0)
+
+  useEffect(() => {
+    setFormLoadTime(Date.now())
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) {
+      toast.error("Ingresa tu email para continuar")
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          honeypot: "",
+          submissionTime: formLoadTime,
+        }),
+      })
+      const result = await response.json()
+      if (response.ok) {
+        setIsSuccess(true)
+        setEmail("")
+        toast.success("¡Te avisaremos cuando haya stock!", {
+          description: "📧 Revisa tu email para confirmar la suscripción",
+          duration: 5000,
+        })
+      } else {
+        toast.error("No pudimos registrarte", {
+          description: result.error || "Inténtalo de nuevo",
+          duration: 5000,
+        })
+      }
+    } catch (error) {
+      console.error("Error subscribing to newsletter:", error)
+      toast.error("Error de conexión", {
+        description: "Inténtalo de nuevo más tarde",
+        duration: 5000,
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (isSuccess) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-3 text-center"
+      >
+        <CheckCircle className="mx-auto mb-1.5 h-7 w-7 text-green-600" />
+        <p className="text-sm font-bold text-green-800">¡Listo!</p>
+        <p className="text-xs text-green-700 mt-0.5">
+          Te avisaremos en cuanto tengamos stock disponible.
+        </p>
+      </motion.div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <input
+        type="email"
+        placeholder="tu@email.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        disabled={isLoading}
+        className="w-full rounded-full border border-[#dfeaec] bg-white px-4 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-[#7BBDC5] focus:ring-2 focus:ring-[#7BBDC5]/20 disabled:opacity-50 transition-all"
+      />
+      <button
+        type="submit"
+        disabled={isLoading || !email.trim()}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#2a7880] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#1d636b] disabled:pointer-events-none disabled:opacity-50"
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Enviando...
+          </>
+        ) : (
+          <>
+            <Bell className="h-4 w-4" />
+            Avísame cuando haya stock
+          </>
+        )}
+      </button>
+    </form>
   )
 }

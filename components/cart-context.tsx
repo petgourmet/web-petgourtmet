@@ -8,6 +8,21 @@ import { useFacebookPixel } from "@/hooks/use-facebook-pixel"
 
 import type { SubscriptionType } from "./product-card"
 
+// Plan personalizado de un perro (calculadora nutricional)
+export type PetPlanMetadata = {
+  petName: string
+  dailyGrams: number
+  gramsPerServing: number
+  servingPlan: "completo" | "medio"
+  weight?: number | null
+  lifeStage?: string | null
+  activityLevel?: string | null
+  recipeId?: string | null
+  // Firma única del plan — usada para deduplicar en el carrito
+  // cuando se vuelve a agregar el mismo plan
+  signature?: string
+}
+
 export type CartItem = {
   id: number
   name: string
@@ -28,6 +43,9 @@ export type CartItem = {
   variantId?: number
   variantName?: string
   justAdded?: boolean  // Para resaltar productos recién agregados
+  // Metadata del plan personalizado del perro
+  // (solo presente cuando el item viene de la calculadora nutricional)
+  petPlan?: PetPlanMetadata
 }
 
 type CartContextType = {
@@ -101,7 +119,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addToCart = (item: CartItem, openCart: boolean = true) => {
     let wasUpdated = false
     let wasAdded = false
-    let targetItemKey = `${item.id}-${item.size}-${item.isSubscription}`
+    // La clave incluye la firma del plan personalizado cuando aplica,
+    // de manera que dos planes para perros distintos NO se fusionen.
+    const planSig = item.petPlan?.signature ?? ""
+    const targetItemKey = `${item.id}-${item.size}-${item.isSubscription}-${planSig}`
     
     // Guardar el slug del último producto agregado
     if (item.slug) {
@@ -110,11 +131,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     
     setCart((prevCart) => {
-      // Verificar si el producto ya está en el carrito con el mismo tamaño y tipo de compra
-      const existingItemIndex = prevCart.findIndex(
-        (cartItem) =>
-          cartItem.id === item.id && cartItem.size === item.size && cartItem.isSubscription === item.isSubscription,
-      )
+      // Verificar si el producto ya está en el carrito con el mismo tamaño,
+      // tipo de compra y firma de plan (para no fusionar planes de distintos perros).
+      const existingItemIndex = prevCart.findIndex((cartItem) => {
+        const sameBase =
+          cartItem.id === item.id &&
+          cartItem.size === item.size &&
+          cartItem.isSubscription === item.isSubscription
+        if (!sameBase) return false
+        const cartSig = cartItem.petPlan?.signature ?? ""
+        return cartSig === planSig
+      })
 
       if (existingItemIndex !== -1) {
         // Si existe, actualizar la cantidad
@@ -137,7 +164,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       setCart((prevCart) => {
         return prevCart.map(cartItem => {
-          const itemKey = `${cartItem.id}-${cartItem.size}-${cartItem.isSubscription}`
+          const cartPlanSig = cartItem.petPlan?.signature ?? ""
+          const itemKey = `${cartItem.id}-${cartItem.size}-${cartItem.isSubscription}-${cartPlanSig}`
           if (itemKey === targetItemKey && cartItem.justAdded) {
             return { ...cartItem, justAdded: false }
           }

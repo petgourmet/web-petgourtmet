@@ -45,9 +45,13 @@ export function ChoiceCard({
       whileTap={!disabled ? { scale: 0.97 } : undefined}
       transition={{ duration: 0.15 }}
     >
-      {/* Ilustración */}
+      {/* Ilustración.
+          NOTA: NO se fija tamaño aquí; cada sección define el tamaño
+          que necesita en su propio child (w-44/md:w-56 para actividad,
+          w-40/md:w-48 para etapa de vida, etc.). Así las imágenes
+          respiran y son responsive por sección. */}
       {illustration && (
-        <div className="h-20 w-20 flex items-center justify-center">
+        <div className="flex items-center justify-center">
           {illustration}
         </div>
       )}
@@ -71,7 +75,7 @@ export function ChoiceCard({
 
       {/* Descripción */}
       {description && (
-        <p className="text-xs text-gray-500 text-center leading-relaxed max-w-[140px]">
+        <p className="text-xs text-gray-500 text-center leading-relaxed max-w-[180px]">
           {description}
         </p>
       )}

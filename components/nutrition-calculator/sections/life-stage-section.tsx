@@ -36,7 +36,12 @@ export function LifeStageSection({
         <span className="text-[#2a7880] capitalize">{name}</span>:
       </h3>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 justify-items-center">
+      {/* grid:
+          - mobile: 2 columnas
+          - desktop (md+): 4 columnas
+          - gaps generosos para que las cards respiren con las imágenes
+            más grandes */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-10 justify-items-center">
         {LIFE_STAGE_OPTIONS.map((option) => {
           const isSelected = selected === option.id
           return (
@@ -47,13 +52,17 @@ export function LifeStageSection({
               label={option.label}
               description={getLifeStageRange(option.id)}
               illustration={
-                <div className="w-36 h-36 flex items-center justify-center">
+                // Contenedor responsive: 160px mobile · 192px desktop.
+                // Algo menor que activity-level porque tiene 4 columnas
+                // en lugar de 3.
+                <div className="w-40 h-40 md:w-48 md:h-48 flex items-center justify-center">
                   <Image
                     src={option.image}
                     alt={option.label}
-                    width={144}
-                    height={144}
-                    className="object-contain"
+                    width={192}
+                    height={192}
+                    sizes="(min-width: 768px) 192px, 160px"
+                    className="object-contain w-full h-full"
                   />
                 </div>
               }

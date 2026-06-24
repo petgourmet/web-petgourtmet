@@ -5,7 +5,12 @@
 // ============================================================
 
 import Stripe from "stripe"
-import { createServerClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
+import {
+  DEFAULT_CALCULATOR_CONFIG,
+  type CalculatorConfig,
+  type RecipeConfig,
+} from "@/lib/calculator-config-types"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-12-18.acacia",
@@ -14,7 +19,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 // ─── Tipos ─────────────────────────────────────────────────────
 
 export interface NutritionRecipe {
-  id: number
+  id: string
   name: string
   slug: string
   short_name: string
@@ -34,9 +39,11 @@ export interface NutritionPlanConfig {
   dailyGrams: number
   servingPlan: "completo" | "medio"
   selectedRecipes: Array<{
-    id: number
+    id: string
     name: string
-    slug: string
+    slug?: string
+    shortName?: string
+    image?: string
     percentage?: number
   }>
   extras: Array<{
@@ -95,44 +102,71 @@ export class NutritionPlanService {
   }
 
   /**
-   * Obtiene las recetas activas de la base de datos
+   * Obtiene la configuración completa de la calculadora desde calculator_settings
+   * (con fallback a defaults hardcoded si la tabla está vacía o falla)
+   * Fuente única de verdad para recetas y extras del plan nutricional.
    */
-  static async getActiveRecipes(): Promise<NutritionRecipe[]> {
-    const supabase = await createServerClient()
-    
-    const { data, error } = await supabase
-      .from("nutrition_recipes")
-      .select("id, name, slug, short_name, image_url, price_per_kg")
-      .eq("is_active", true)
-      .order("display_order", { ascending: true })
+  static async getCalculatorConfig(): Promise<CalculatorConfig> {
+    try {
+      const supabase = createServiceClient()
+      const { data, error } = await (supabase as any)
+        .from("calculator_settings")
+        .select("settings")
+        .eq("id", 1)
+        .single()
 
-    if (error) {
-      console.error("[NutritionPlanService] Error fetching recipes:", error)
-      throw new Error("Failed to fetch nutrition recipes")
+      if (error || !data?.settings) {
+        return DEFAULT_CALCULATOR_CONFIG
+      }
+
+      // Merge defaults + settings guardados (tolerante a campos faltantes)
+      return {
+        ...DEFAULT_CALCULATOR_CONFIG,
+        ...(data.settings as object),
+        sections: {
+          ...DEFAULT_CALCULATOR_CONFIG.sections,
+          ...((data.settings as any)?.sections ?? {}),
+        },
+      } as CalculatorConfig
+    } catch (err) {
+      console.error("[NutritionPlanService] Error loading calculator config:", err)
+      return DEFAULT_CALCULATOR_CONFIG
     }
-
-    return data || []
   }
 
   /**
-   * Obtiene una receta por slug
+   * Mapea RecipeConfig (sistema dinámico) → NutritionRecipe (formato legacy)
+   */
+  private static mapRecipeConfig(r: RecipeConfig): NutritionRecipe {
+    return {
+      id: r.id,
+      name: r.name,
+      slug: r.productSlug ?? r.id,
+      short_name: r.shortName,
+      image_url: r.image,
+      price_per_kg: r.pricePerKg,
+    }
+  }
+
+  /**
+   * Obtiene las recetas activas desde calculator_settings
+   */
+  static async getActiveRecipes(): Promise<NutritionRecipe[]> {
+    const config = await this.getCalculatorConfig()
+    return config.recipes
+      .filter((r) => r.isActive)
+      .map((r) => this.mapRecipeConfig(r))
+  }
+
+  /**
+   * Obtiene una receta por slug (productSlug) o por id
    */
   static async getRecipeBySlug(slug: string): Promise<NutritionRecipe | null> {
-    const supabase = await createServerClient()
-    
-    const { data, error } = await supabase
-      .from("nutrition_recipes")
-      .select("*")
-      .eq("slug", slug)
-      .eq("is_active", true)
-      .single()
-
-    if (error) {
-      console.error("[NutritionPlanService] Error fetching recipe:", error)
-      return null
-    }
-
-    return data
+    const config = await this.getCalculatorConfig()
+    const recipe = config.recipes.find(
+      (r) => r.isActive && (r.productSlug === slug || r.id === slug)
+    )
+    return recipe ? this.mapRecipeConfig(recipe) : null
   }
 
   /**
@@ -144,14 +178,27 @@ export class NutritionPlanService {
     pricing: PlanPricing
   ): Promise<{ productId: string; priceId: string }> {
     try {
+      // Resolver URL de imagen del producto: priorizar la imagen real
+      // (puede ser Cloudinary o pública); fallback a /cacu/{slug}.png por compatibilidad
+      const productImages = planConfig.selectedRecipes
+        .map((r) => {
+          if (r.image && /^https?:\/\//.test(r.image)) return r.image
+          if (r.image && r.image.startsWith("/")) {
+            return `${process.env.NEXT_PUBLIC_APP_URL}${r.image}`
+          }
+          if (r.slug) {
+            return `${process.env.NEXT_PUBLIC_APP_URL}/cacu/${r.slug}.png`
+          }
+          return null
+        })
+        .filter((url): url is string => Boolean(url))
+        .slice(0, 1)
+
       // Crear producto en Stripe
       const product = await stripe.products.create({
         name: `Plan Nutricional para ${planConfig.petName}`,
         description: `Plan personalizado con ${planConfig.selectedRecipes.length} receta(s) - ${planConfig.servingPlan === "completo" ? "100%" : "50%"} alimentación`,
-        images: planConfig.selectedRecipes
-          .filter(r => r.slug)
-          .map(r => `${process.env.NEXT_PUBLIC_APP_URL}/cacu/${r.slug}.png`)
-          .slice(0, 1), // Solo primera imagen
+        images: productImages,
         metadata: {
           type: "nutrition_plan",
           pet_name: planConfig.petName,
@@ -309,17 +356,15 @@ export class NutritionPlanService {
       errors.push("Debes seleccionar al menos una receta")
     }
 
-    // Validar que las recetas existan y estén activas
-    const supabase = await createServerClient()
-    const recipeIds = planConfig.selectedRecipes.map(r => r.id)
-    
-    const { data: recipes, error } = await supabase
-      .from("nutrition_recipes")
-      .select("id")
-      .in("id", recipeIds)
-      .eq("is_active", true)
+    // Validar que las recetas existan y estén activas en calculator_settings
+    const recipeIds = planConfig.selectedRecipes.map((r) => r.id)
+    const config = await this.getCalculatorConfig()
+    const activeIds = new Set(
+      config.recipes.filter((r) => r.isActive).map((r) => r.id)
+    )
 
-    if (error || !recipes || recipes.length !== recipeIds.length) {
+    const allValid = recipeIds.every((id) => activeIds.has(id))
+    if (!allValid) {
       errors.push("Una o más recetas seleccionadas no son válidas")
     }
 
