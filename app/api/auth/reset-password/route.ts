@@ -2,20 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 // import { verifyRecaptcha } from '@/lib/recaptcha'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { logSecurityEvent } from '@/lib/security-logger'
+import { logSecurityEvent } from '@/lib/security/security-logger'
+
+// Helper para obtener la IP del request (compatible con Node.js runtime)
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  const realIp = request.headers.get('x-real-ip')
+  if (forwarded) return forwarded.split(',')[0].trim()
+  if (realIp) return realIp
+  return 'unknown'
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { password, confirmPassword, honeypot } = await request.json()
+    const clientIp = getClientIp(request)
+    const userAgent = request.headers.get('user-agent') || 'unknown'
 
     // Verificar honeypot
     if (honeypot && honeypot.trim() !== '') {
       await logSecurityEvent({
-        type: 'honeypot_triggered',
-        action: 'password_reset',
-        ip: request.ip || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        details: { honeypot }
+        ip: clientIp,
+        userAgent,
+        endpoint: '/api/auth/reset-password',
+        action: 'honeypot_triggered',
+        severity: 'high',
+        details: { honeypot },
+        blocked: true,
+        rateLimitExceeded: false
       })
       
       return NextResponse.json(
@@ -25,19 +39,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar rate limiting
-    const clientIp = request.ip || 'unknown'
     const rateLimitResult = await checkRateLimit(clientIp, 'password_reset')
     
     if (!rateLimitResult.allowed) {
       await logSecurityEvent({
-        type: 'rate_limit_exceeded',
-        action: 'password_reset',
         ip: clientIp,
-        userAgent: request.headers.get('user-agent') || 'unknown',
+        userAgent,
+        endpoint: '/api/auth/reset-password',
+        action: 'rate_limit_exceeded',
+        severity: 'medium',
         details: { 
-          attempts: rateLimitResult.count,
+          remaining: rateLimitResult.remaining,
           resetTime: rateLimitResult.resetTime 
-        }
+        },
+        blocked: true,
+        rateLimitExceeded: true
       })
       
       return NextResponse.json(
@@ -96,8 +112,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Crear cliente de Supabase
-    const supabase = createClient()
+    // Crear cliente de Supabase (await requerido — createClient es async en server.ts)
+    const supabase = await createClient()
 
     // Actualizar contraseña
     const { error } = await supabase.auth.updateUser({ 
@@ -106,11 +122,14 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       await logSecurityEvent({
-        type: 'password_reset_failed',
-        action: 'password_reset',
         ip: clientIp,
-        userAgent: request.headers.get('user-agent') || 'unknown',
-        details: { error: error.message }
+        userAgent,
+        endpoint: '/api/auth/reset-password',
+        action: 'password_reset_failed',
+        severity: 'medium',
+        details: { error: error.message },
+        blocked: false,
+        rateLimitExceeded: false
       })
       
       throw error
@@ -118,11 +137,14 @@ export async function POST(request: NextRequest) {
 
     // Log de éxito
     await logSecurityEvent({
-      type: 'password_reset_success',
-      action: 'password_reset',
       ip: clientIp,
-      userAgent: request.headers.get('user-agent') || 'unknown',
-      details: { timestamp: new Date().toISOString() }
+      userAgent,
+      endpoint: '/api/auth/reset-password',
+      action: 'auth_success',
+      severity: 'low',
+      details: { timestamp: new Date().toISOString() },
+      blocked: false,
+      rateLimitExceeded: false
     })
 
     return NextResponse.json({ 
@@ -132,14 +154,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error en reset password:', error)
-    
-    await logSecurityEvent({
-      type: 'password_reset_error',
-      action: 'password_reset',
-      ip: request.ip || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown',
-      details: { error: error.message }
-    })
 
     return NextResponse.json(
       { error: 'Error interno del servidor' },

@@ -37,8 +37,14 @@ export function handleAuthError(error: any, context: 'login' | 'register' | 'adm
     }
   }
   
-  // Errores de usuario ya registrado
-  if (errorMessage.includes('already registered')) {
+  // Errores de usuario ya registrado (inglés y español)
+  if (
+    errorMessage.includes('already registered') ||
+    errorMessage.includes('ya está registrado') ||
+    errorMessage.includes('ya registrado') ||
+    errorMessage.includes('already been registered') ||
+    errorMessage.includes('duplicate key')
+  ) {
     return {
       title: 'Correo ya registrado',
       message: 'Este correo electrónico ya está registrado. Si ya tienes una cuenta, intenta iniciar sesión.'

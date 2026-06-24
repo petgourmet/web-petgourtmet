@@ -1529,3 +1529,115 @@ function getSubscriptionTemplate(type: string, data: SubscriptionEmailData) {
     `
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMAIL DE BIENVENIDA (registro de cuenta nueva)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function sendWelcomeEmail(
+  email: string,
+  maxRetries: number = 2
+): Promise<{ success: boolean; error?: string }> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('[EMAIL-SERVICE] SMTP no configurado — omitiendo email de bienvenida')
+    return { success: false, error: 'SMTP not configured' }
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://petgourmet.mx'
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Bienvenido a Pet Gourmet</title>
+      </head>
+      <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,sans-serif;">
+        <div style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.07);">
+
+          <!-- Header -->
+          <div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:32px 24px;text-align:center;">
+            <img src="${appUrl}/petgourmet-logo.png" alt="Pet Gourmet" width="180" style="height:auto;display:inline-block;" />
+          </div>
+
+          <!-- Cuerpo principal -->
+          <div style="padding:40px 32px;">
+            <h1 style="margin:0 0 8px 0;font-size:26px;color:#111827;text-align:center;">
+              ¡Bienvenido a Pet Gourmet!
+            </h1>
+            <p style="margin:0 0 24px 0;font-size:15px;color:#6b7280;text-align:center;">
+              Tu cuenta ha sido creada exitosamente.
+            </p>
+
+            <p style="font-size:15px;color:#374151;line-height:1.6;">
+              Hola, gracias por unirte a la familia Pet Gourmet. Ahora puedes disfrutar de todos nuestros productos y planes de alimentación premium para tu mascota.
+            </p>
+
+            <!-- Botón CTA -->
+            <div style="text-align:center;margin:32px 0;">
+              <a href="${appUrl}/productos"
+                 style="display:inline-block;background-color:#16a34a;color:#ffffff;font-size:16px;font-weight:bold;padding:14px 32px;border-radius:8px;text-decoration:none;">
+                Explorar productos
+              </a>
+            </div>
+
+            <!-- Beneficios -->
+            <div style="background-color:#f0fdf4;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+              <p style="margin:0 0 12px 0;font-weight:bold;color:#15803d;font-size:14px;">¿Qué puedes hacer con tu cuenta?</p>
+              <ul style="margin:0;padding-left:20px;color:#374151;font-size:14px;line-height:2;">
+                <li>Crear un plan de alimentación personalizado para tu perro</li>
+                <li>Suscribirte y recibir tu pedido de forma recurrente</li>
+                <li>Revisar el historial y estado de tus pedidos</li>
+                <li>Gestionar tu suscripción en cualquier momento</li>
+              </ul>
+            </div>
+
+            <p style="font-size:13px;color:#9ca3af;text-align:center;">
+              Si no creaste esta cuenta, ignora este correo.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
+            <div style="margin-bottom:14px;">
+              <a href="https://web.facebook.com/petgourmetmx" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle">
+                <img src="https://petgourmet.mx/iconos/facebook.png?v=2" width="34" height="34" alt="Facebook" style="display:inline-block;border:0;" />
+              </a>
+              <a href="https://www.instagram.com/petgourmet_mx/" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle">
+                <img src="https://petgourmet.mx/iconos/instagram.png?v=2" width="34" height="34" alt="Instagram" style="display:inline-block;border:0;" />
+              </a>
+              <a href="https://www.tiktok.com/@petgourmetmex" target="_blank" style="display:inline-block;margin:0 4px;text-decoration:none;vertical-align:middle">
+                <img src="https://petgourmet.mx/iconos/tiktok.png" width="34" height="34" alt="TikTok" style="display:inline-block;border:0;" />
+              </a>
+            </div>
+            <p style="margin:0;color:#6b7280;font-size:12px;">© 2025 Pet Gourmet. Todos los derechos reservados.</p>
+            <p style="margin:8px 0 0 0;color:#9ca3af;font-size:11px;">Este correo fue enviado a ${email}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const transporter = createTransporter()
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || `"Pet Gourmet" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: '¡Bienvenido a Pet Gourmet! Tu cuenta está lista',
+        html,
+      })
+      console.log(`[EMAIL-SERVICE] Email de bienvenida enviado a ${email}`)
+      return { success: true }
+    } catch (err: any) {
+      console.error(`[EMAIL-SERVICE] Error enviando bienvenida (intento ${attempt}/${maxRetries}):`, err.message)
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * attempt))
+      } else {
+        return { success: false, error: err.message }
+      }
+    }
+  }
+  return { success: false, error: 'Max retries reached' }
+}

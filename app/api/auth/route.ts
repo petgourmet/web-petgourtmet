@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { logSecurityEvent } from '@/lib/security/security-logger'
+import { sendWelcomeEmail } from '@/lib/email-service'
 
 // Helper para obtener la IP del request
 function getClientIp(request: NextRequest): string {
@@ -148,6 +149,11 @@ export async function POST(request: NextRequest) {
         if (profileError) {
           console.warn('Error creando perfil:', profileError)
         }
+
+        // Enviar email de bienvenida (fire-and-forget, no bloquear la respuesta)
+        sendWelcomeEmail(data.user.email!).catch(err =>
+          console.warn('[AUTH] No se pudo enviar email de bienvenida:', err?.message)
+        )
       }
 
       await logSecurityEvent({

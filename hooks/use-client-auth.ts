@@ -43,18 +43,17 @@ export function useClientAuth() {
           
         if (error) {
           console.log('⚠️ [getUserRole] Error:', error.message, error.code)
-          // Si el error es porque no se encontró el perfil, retornar admin por defecto para desarrollo
+          // Si el perfil no existe (PGRST116 = no rows), retornar 'user' por defecto
           if (error.code === 'PGRST116') {
-            console.log('⚠️ [getUserRole] Perfil no encontrado, retornando admin por defecto')
-            return 'admin'
+            console.log('⚠️ [getUserRole] Perfil no encontrado, retornando user por defecto')
+            return 'user'
           }
           return 'user'
         }
         
         if (!profile) {
-          console.log('⚠️ [getUserRole] Sin perfil encontrado, retornando admin por defecto')
-          // Si no hay perfil, asumir admin en desarrollo
-          return 'admin'
+          console.log('⚠️ [getUserRole] Sin perfil encontrado, retornando user por defecto')
+          return 'user'
         }
         
         const role = (profile as any).role || 'user'
@@ -62,8 +61,8 @@ export function useClientAuth() {
         return role
       } catch (error: any) {
         console.error('❌ [getUserRole] Error:', error.message)
-        // Si hay timeout o cualquier error, retornar 'admin' temporalmente
-        return 'admin'
+        // En caso de timeout o error desconocido, denegar acceso privilegiado
+        return 'user'
       }
     }
     
@@ -86,8 +85,8 @@ export function useClientAuth() {
         }).catch(err => {
           console.error('❌ [handleAuthChange] Error obteniendo rol:', err)
           if (isMounted) {
-            // En caso de error, asumir admin temporalmente
-            setUserRole('admin')
+            // En caso de error, denegar acceso privilegiado
+            setUserRole('user')
           }
         })
         
@@ -139,8 +138,8 @@ export function useClientAuth() {
         }).catch(err => {
           console.error('❌ [loadInitialSession] Error obteniendo rol:', err)
           if (isMounted) {
-            // En caso de error, asumir admin temporalmente
-            setUserRole('admin')
+            // En caso de error, denegar acceso privilegiado
+            setUserRole('user')
           }
         })
         

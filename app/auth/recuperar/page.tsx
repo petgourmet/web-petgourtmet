@@ -16,6 +16,8 @@ export default function RecuperarPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const { toast } = useToast()
+  // Hook llamado en el nivel superior del componente (correcto)
+  const handleError = useAuthErrorHandler(toast, "recovery")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,7 +36,6 @@ export default function RecuperarPage() {
         description: "Revisa tu bandeja de entrada para restablecer tu contraseña.",
       })
     } catch (error: any) {
-      const handleError = useAuthErrorHandler(toast, "recovery")
       handleError(error)
     } finally {
       setLoading(false)
